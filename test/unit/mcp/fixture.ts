@@ -292,6 +292,9 @@ export function makeDashboard(): DashboardSnapshot {
       loadAvg: [0.42, 0.31, 0.25],
       processCount: 2
     },
+    disk: null,
+    wslSettings: null,
+    memoryDetail: null,
     paths: [
       {
         id: 'home',

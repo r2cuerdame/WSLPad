@@ -72,6 +72,9 @@ function makeSnapshot(): WslPadSnapshot {
         loadAvg: null,
         processCount: null
       },
+      disk: null,
+      wslSettings: null,
+      memoryDetail: null,
       paths: [],
       configuration: [],
       tools: [],

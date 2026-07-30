@@ -5,6 +5,8 @@ import { detectHermes, detectTools } from './detectors'
 import { listDistros } from './distros'
 import { collectEnvironment } from './environment'
 import { assertValidDistroName } from './escape'
+import { createDiskCollector } from './disk'
+import { createMemoryCollector } from './memory'
 import { collectImportantPaths } from './paths'
 import { collectPorts } from './ports'
 import { collectProcesses } from './processes'
@@ -12,6 +14,7 @@ import { collectResources } from './resources'
 import { collectServices } from './services'
 import { collectSystemInfo } from './system'
 import { createWindowsPortCollector } from './windows-ports'
+import { createWslConfigCollector } from './wsl-config'
 
 /**
  * Real WslProvider wiring all hidden-runner collectors (goal.md §9). The
@@ -22,6 +25,11 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
   const envRawCache = new Map<string, Map<string, string>>()
   // Host-side table; created once so its pid → name cache survives polls.
   const windowsPorts = createWindowsPortCollector()
+  const memoryDetail = createMemoryCollector()
+  // Created once so the wsl.exe version it reads is looked up a single time.
+  const wslSettings = createWslConfigCollector()
+  // Created once so the Lxss registry read is cached across polls.
+  const diskImage = createDiskCollector()
 
   return {
     async isAvailable(): Promise<boolean> {
@@ -78,6 +86,18 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
 
     getWindowsPorts() {
       return windowsPorts.collect()
+    },
+
+    getMemoryDetail(distro) {
+      return memoryDetail.collect(runner, distro)
+    },
+
+    getDiskImage(distro) {
+      return diskImage.collect(runner, distro)
+    },
+
+    getWslSettings(distro) {
+      return wslSettings.collect(runner, distro)
     },
 
     async getEnvironment(distro) {

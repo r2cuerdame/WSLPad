@@ -19,8 +19,10 @@ const GIB = 1024 ** 3
 const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['overview', 'Overview'],
   ['resources', 'Resources'],
+  ['disk', 'Disk image'],
+  ['wslconfig', 'WSL settings'],
   ['paths', 'Important paths'],
-  ['configuration', 'Configuration'],
+  ['configuration', 'Configuration files'],
   ['tools', 'Installed tools'],
   ['hermes', 'Hermes'],
   ['environment', 'Environment'],
@@ -77,6 +79,9 @@ function makeSnapshot(): WslPadSnapshot {
         loadAvg: [0.5, 0.4, 0.3],
         processCount: 42
       },
+      disk: null,
+      wslSettings: null,
+      memoryDetail: null,
       paths: [
         {
           id: 'home',
@@ -353,7 +358,7 @@ afterEach(() => {
 })
 
 describe('DashboardTab master–detail', () => {
-  it('renders the eleven sections as listbox options, never as tabs', async () => {
+  it('renders every section as a listbox option, never as a tab', async () => {
     await renderDashboard()
 
     const nav = screen.getByTestId('dashboard-nav')

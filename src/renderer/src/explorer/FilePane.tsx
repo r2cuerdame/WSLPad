@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { WINDOWS_ROOT } from '@shared/constants'
 import type { FileEntry, FsKind, WindowsPlace } from '@shared/types'
 import { useApp } from '../store'
-import { CopyIcon, LinuxIcon, RetroCopyIcon, WindowsIcon } from '../components/Icons'
+import { DistroIcon } from '../components/DistroIcon'
+import { CopyIcon, RetroCopyIcon, WindowsIcon } from '../components/Icons'
 import type { MenuItem } from './ContextMenu'
 import { FileListView, LINUX_COLUMNS, WINDOWS_COLUMNS } from './FileList'
 import { FolderTree } from './FolderTree'
@@ -39,11 +40,11 @@ export interface FilePaneProps {
   unavailableMessage?: string | null
 }
 
-function PaneIcon({ kind }: { kind: FsKind }): React.JSX.Element {
+function PaneIcon({ kind, distro }: { kind: FsKind; distro: string | null }): React.JSX.Element {
   return kind === 'windows' ? (
     <WindowsIcon size={14} className="pane-icon" />
   ) : (
-    <LinuxIcon size={14} className="pane-icon" />
+    <DistroIcon distro={distro} size={14} className="pane-icon" />
   )
 }
 
@@ -100,7 +101,7 @@ function PlacesStrip({
 export function FilePane(props: FilePaneProps): React.JSX.Element {
   const { adapter } = props
   const { t } = useTranslation()
-  const { pushToast, prepareCommand } = useApp()
+  const { snapshot, pushToast, prepareCommand } = useApp()
   const pane = usePane(adapter, {
     resetKey: props.resetKey,
     startPath: props.startPath,
@@ -452,7 +453,9 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
       onFocusCapture={props.onActivate}
     >
       <header className="pane-header">
-        <PaneIcon kind={adapter.kind} />
+        {/* The WSL pane always shows the selected distribution, so its mark
+            comes from the snapshot rather than from the header text. */}
+        <PaneIcon kind={adapter.kind} distro={snapshot?.selectedDistro ?? null} />
         <span className="pane-title">{props.title}</span>
         {props.active && (
           <span className="pane-active-dot" title={t('explorer.pane.activeHint')} aria-hidden="true" />

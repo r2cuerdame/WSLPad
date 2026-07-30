@@ -11,6 +11,8 @@ import DashboardNav, {
 } from './DashboardNav'
 import OverviewCard from './OverviewCard'
 import ResourceCard from './ResourceCard'
+import DiskCard from './DiskCard'
+import WslSettingsCard, { settingNeedsAttention } from './WslSettingsCard'
 import PathsCard from './PathsCard'
 import ConfigCard from './ConfigCard'
 import ToolsCard from './ToolsCard'
@@ -115,8 +117,13 @@ export default function DashboardTab(): React.JSX.Element {
   const portRowCount =
     dash.ports.length + dash.windowsPorts.filter((p) => !p.fromWsl).length
 
+  // Only settings the user can act on are badged: applied and default values
+  // are the healthy majority and would drown the signal.
+  const settingIssues = (dash.wslSettings?.settings ?? []).filter(settingNeedsAttention).length
+
   const gatewayRunning = dash.hermes?.gatewayStatus === 'running'
   const badges: Partial<Record<DashboardSectionId, ReactNode>> = {
+    wslconfig: settingIssues > 0 ? count(settingIssues, 'err') : undefined,
     tools: count(installedTools),
     hermes: dot(
       gatewayRunning ? 'ok' : 'unknown',
@@ -133,6 +140,7 @@ export default function DashboardTab(): React.JSX.Element {
     t('dashboard.detail.itemCount', { count: n, defaultValue: '{{count}} items' })
 
   const subtitles: Partial<Record<DashboardSectionId, string>> = {
+    wslconfig: dash.wslSettings ? items(dash.wslSettings.settings.length) : undefined,
     paths: items(dash.paths.length),
     configuration: items(dash.configuration.length),
     tools: t('dashboard.detail.toolsInstalled', {
@@ -152,7 +160,11 @@ export default function DashboardTab(): React.JSX.Element {
       case 'overview':
         return <OverviewCard distro={dash.distro} system={dash.system} />
       case 'resources':
-        return <ResourceCard resources={dash.resources} />
+        return <ResourceCard resources={dash.resources} memoryDetail={dash.memoryDetail} />
+      case 'disk':
+        return <DiskCard disk={dash.disk} />
+      case 'wslconfig':
+        return <WslSettingsCard settings={dash.wslSettings} />
       case 'paths':
         return <PathsCard paths={dash.paths} />
       case 'configuration':

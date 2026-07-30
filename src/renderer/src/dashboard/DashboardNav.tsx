@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next'
 import {
   ActivityIcon,
   BoltIcon,
+  FileIcon,
   FolderIcon,
   GaugeIcon,
+  GearIcon,
   InfoIcon,
   ListIcon,
   PackageIcon,
@@ -18,6 +20,8 @@ import {
 export type DashboardSectionId =
   | 'overview'
   | 'resources'
+  | 'disk'
+  | 'wslconfig'
   | 'paths'
   | 'configuration'
   | 'tools'
@@ -38,6 +42,8 @@ export interface DashboardSection {
 export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   { id: 'overview', titleKey: 'dashboard.overview.title', Icon: InfoIcon },
   { id: 'resources', titleKey: 'dashboard.resources.title', Icon: GaugeIcon },
+  { id: 'disk', titleKey: 'dashboard.disk.title', Icon: FileIcon },
+  { id: 'wslconfig', titleKey: 'dashboard.wslconfig.title', Icon: GearIcon },
   { id: 'paths', titleKey: 'dashboard.paths.title', Icon: FolderIcon },
   { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },

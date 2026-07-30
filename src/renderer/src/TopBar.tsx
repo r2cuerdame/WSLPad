@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useApp } from './store'
+import { DistroIcon } from './components/DistroIcon'
 import { GearIcon, PauseIcon, PlayIcon, RefreshIcon } from './components/Icons'
 
 /** Top bar: distro selector + state, MCP badge, refresh, pause, settings (goal.md §5.1). */
@@ -25,6 +26,9 @@ export default function TopBar(): React.JSX.Element {
     // just duplicates it (user feedback), so the distro selector leads instead.
     <header className="topbar">
       <div className="topbar-distro">
+        {/* A <select> cannot carry an icon, so the mark sits beside it and the
+            accessible name stays on the control itself. */}
+        <DistroIcon distro={selected} size={16} className="topbar-distro-icon" />
         <select
           aria-label={t('topbar.distroSelector')}
           value={selected}

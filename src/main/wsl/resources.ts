@@ -60,13 +60,23 @@ export interface MeminfoResult {
   swapFreeBytes: number | null
 }
 
-/** Parse /proc/meminfo (values reported in kB). */
-export function parseMeminfo(text: string): MeminfoResult {
+/**
+ * Every /proc/meminfo field, kernel key → kB. Kept separate from parseMeminfo
+ * so the memory reconciliation collector reads the same lines through the same
+ * parser instead of growing a second one.
+ */
+export function parseMeminfoKb(text: string): Map<string, number> {
   const kb = new Map<string, number>()
   for (const line of text.split('\n')) {
     const m = /^(\w+):\s+(\d+)\s*kB\s*$/.exec(line)
     if (m) kb.set(m[1], Number.parseInt(m[2], 10))
   }
+  return kb
+}
+
+/** Parse /proc/meminfo (values reported in kB). */
+export function parseMeminfo(text: string): MeminfoResult {
+  const kb = parseMeminfoKb(text)
   const bytes = (key: string): number | null => {
     const v = kb.get(key)
     return v === undefined ? null : v * 1024

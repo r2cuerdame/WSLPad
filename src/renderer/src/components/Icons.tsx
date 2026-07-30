@@ -203,6 +203,13 @@ export function WindowsIcon({ size = 16, className }: IconProps): React.JSX.Elem
   )
 }
 
+/**
+ * Tux, drawn once here and shared with DistroIcon, which uses him as the mark
+ * for any distribution it does not recognise.
+ */
+export const TUX_PATH =
+  'M8 1.1c1.72 0 3.05 1.35 3.05 3.05v1.3c0 .62.2 1.16.62 1.63 1.2 1.36 1.93 2.9 2.16 4.6.12.86-.55 1.62-1.42 1.62h-.5c-.32.94-1.06 1.55-2.02 1.74-.6.12-1.24.18-1.89.18s-1.29-.06-1.89-.18c-.96-.19-1.7-.8-2.02-1.74h-.5c-.87 0-1.54-.76-1.42-1.62.23-1.7.96-3.24 2.16-4.6.42-.47.62-1.01.62-1.63v-1.3C4.95 2.45 6.28 1.1 8 1.1zM5.6 10.8a2.4 3.1 0 1 0 4.8 0 2.4 3.1 0 1 0-4.8 0zM6.35 4.5a.55.55 0 1 0 1.1 0 .55.55 0 1 0-1.1 0zM8.55 4.5a.55.55 0 1 0 1.1 0 .55.55 0 1 0-1.1 0z'
+
 export function LinuxIcon({ size = 16, className }: IconProps): React.JSX.Element {
   return (
     <svg
@@ -214,7 +221,7 @@ export function LinuxIcon({ size = 16, className }: IconProps): React.JSX.Elemen
       className={className}
       aria-hidden="true"
     >
-      <path d="M8 1.1c1.72 0 3.05 1.35 3.05 3.05v1.3c0 .62.2 1.16.62 1.63 1.2 1.36 1.93 2.9 2.16 4.6.12.86-.55 1.62-1.42 1.62h-.5c-.32.94-1.06 1.55-2.02 1.74-.6.12-1.24.18-1.89.18s-1.29-.06-1.89-.18c-.96-.19-1.7-.8-2.02-1.74h-.5c-.87 0-1.54-.76-1.42-1.62.23-1.7.96-3.24 2.16-4.6.42-.47.62-1.01.62-1.63v-1.3C4.95 2.45 6.28 1.1 8 1.1zM5.6 10.8a2.4 3.1 0 1 0 4.8 0 2.4 3.1 0 1 0-4.8 0zM6.35 4.5a.55.55 0 1 0 1.1 0 .55.55 0 1 0-1.1 0zM8.55 4.5a.55.55 0 1 0 1.1 0 .55.55 0 1 0-1.1 0z" />
+      <path d={TUX_PATH} />
     </svg>
   )
 }

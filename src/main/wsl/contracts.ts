@@ -1,5 +1,6 @@
 import type {
   ConfigurationFileInfo,
+  DiskImageInfo,
   DistroDetails,
   DistroSummary,
   EnvironmentVariableInfo,
@@ -7,6 +8,7 @@ import type {
   FileStat,
   HermesInfo,
   ImportantPathInfo,
+  MemoryReconciliation,
   ProcessInfo,
   PortInfo,
   ResourceInfo,
@@ -14,7 +16,8 @@ import type {
   SystemInfo,
   TextFileContent,
   ToolInfo,
-  WindowsPortInfo
+  WindowsPortInfo,
+  WslConfigInfo
 } from '@shared/types'
 
 // ---------------------------------------------------------------------------
@@ -73,6 +76,14 @@ export interface WslProvider {
    * simply omits it and every port stays windowsBound = null (unknown).
    */
   getWindowsPorts?(): Promise<WindowsPortInfo[]>
+  /**
+   * The three sections below are optional so a provider that cannot see the
+   * Windows side of a distro — or a test fake — simply leaves them out and the
+   * matching snapshot section stays null (unknown) instead of wrong.
+   */
+  getDiskImage?(distro: string): Promise<DiskImageInfo>
+  getWslSettings?(distro: string): Promise<WslConfigInfo>
+  getMemoryDetail?(distro: string): Promise<MemoryReconciliation>
   getEnvironment(distro: string): Promise<EnvironmentVariableInfo[]>
   /** Raw value for explicit GUI reveal — never crosses MCP (goal.md §6.7). */
   revealEnv(distro: string, name: string): Promise<string | null>

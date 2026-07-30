@@ -7,18 +7,21 @@
  */
 import type {
   ConfigurationFileInfo,
+  DiskImageInfo,
   DistroDetails,
   DistroSummary,
   EnvironmentVariableInfo,
   HermesInfo,
   ImportantPathInfo,
+  MemoryReconciliation,
   PortInfo,
   ProcessInfo,
   ResourceInfo,
   ServiceInfo,
   SystemInfo,
   ToolInfo,
-  WindowsPortInfo
+  WindowsPortInfo,
+  WslConfigInfo
 } from '@shared/types'
 import { isPathLikeName, isSecretName, looksWindowsOriginated, maskEnvValue } from '@shared/masking'
 import type { WslProvider } from '../contracts'
@@ -26,11 +29,13 @@ import { assertValidDistroName } from '../escape'
 import {
   assertFixtureDistro,
   fixtureConfigFiles,
+  fixtureDiskImage,
   fixtureDistroDetails,
   fixtureDistros,
   fixtureEnvRaw,
   fixtureHermes,
   fixtureImportantPaths,
+  fixtureMemoryDetail,
   fixturePorts,
   fixtureProcesses,
   fixtureResources,
@@ -38,6 +43,7 @@ import {
   fixtureSystemInfo,
   fixtureTools,
   fixtureWindowsPorts,
+  fixtureWslSettings,
   type FixtureDistroName
 } from './data'
 
@@ -66,6 +72,18 @@ export class FixtureWslProvider implements WslProvider {
 
   async getResources(distro: string): Promise<ResourceInfo> {
     return fixtureResources(this.known(distro))
+  }
+
+  async getDiskImage(distro: string): Promise<DiskImageInfo> {
+    return fixtureDiskImage(this.known(distro))
+  }
+
+  async getWslSettings(distro: string): Promise<WslConfigInfo> {
+    return fixtureWslSettings(this.known(distro))
+  }
+
+  async getMemoryDetail(distro: string): Promise<MemoryReconciliation> {
+    return fixtureMemoryDetail(this.known(distro))
   }
 
   async getProcesses(distro: string): Promise<ProcessInfo[]> {

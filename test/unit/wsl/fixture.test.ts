@@ -55,8 +55,8 @@ describe('FixtureWslProvider', () => {
     const resources = await p.getResources(U)
     expect(resources.cpuPercent).toBe(7.5)
     expect(resources.disks.map((d) => [d.mountPoint, d.usePercent])).toEqual([
-      ['/', 42],
-      ['/home', 42],
+      ['/', 9],
+      ['/home', 9],
       ['/mnt/c', 71]
     ])
     const processes = await p.getProcesses(U)

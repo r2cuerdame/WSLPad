@@ -79,26 +79,133 @@ export const CONFIG_FILE_SPECS: ReadonlyArray<{
   { id: 'environment', label: '/etc/environment', scope: 'linux', path: '/etc/environment' }
 ]
 
-/** Tools detected for the Installed Tools card (goal.md §6.5). */
-export const TOOL_SPECS: ReadonlyArray<{ id: string; displayName: string }> = [
-  { id: 'hermes', displayName: 'Hermes' },
-  { id: 'codex', displayName: 'Codex' },
-  { id: 'claude', displayName: 'Claude' },
-  { id: 'node', displayName: 'Node.js' },
-  { id: 'npm', displayName: 'npm' },
-  { id: 'pnpm', displayName: 'pnpm' },
-  { id: 'yarn', displayName: 'yarn' },
-  { id: 'python', displayName: 'Python' },
-  { id: 'pip', displayName: 'pip' },
-  { id: 'uv', displayName: 'uv' },
-  { id: 'git', displayName: 'Git' },
-  { id: 'docker', displayName: 'Docker' },
-  { id: 'docker-compose', displayName: 'Docker Compose' },
-  { id: 'bun', displayName: 'Bun' },
-  { id: 'ripgrep', displayName: 'ripgrep' },
-  { id: 'ffmpeg', displayName: 'ffmpeg' },
-  { id: 'playwright', displayName: 'Playwright' },
-  { id: 'chromium', displayName: 'Chromium' }
+/**
+ * Installed Tools catalog (goal.md §6.5). Display order in the UI is this
+ * array's order, which follows TOOL_CATEGORIES.
+ *
+ * Ids are a stable public contract: the detector config, the fixture world and
+ * MCP GetToolStatus all key off them, so an id is never renamed — only added.
+ */
+export const TOOL_CATEGORIES = [
+  'ai',
+  'runtime',
+  'package',
+  'vcs',
+  'container',
+  'cloud',
+  'build',
+  'database',
+  'editor',
+  'media',
+  'util'
+] as const
+
+export type ToolCategory = (typeof TOOL_CATEGORIES)[number]
+
+export interface ToolSpec {
+  id: string
+  displayName: string
+  category: ToolCategory
+}
+
+export const TOOL_SPECS: ReadonlyArray<ToolSpec> = [
+  // ai
+  { id: 'hermes', displayName: 'Hermes', category: 'ai' },
+  { id: 'codex', displayName: 'Codex', category: 'ai' },
+  { id: 'claude', displayName: 'Claude', category: 'ai' },
+  { id: 'gemini', displayName: 'Gemini CLI', category: 'ai' },
+  { id: 'openclaw', displayName: 'OpenClaw', category: 'ai' },
+  { id: 'ollama', displayName: 'Ollama', category: 'ai' },
+  { id: 'aider', displayName: 'Aider', category: 'ai' },
+  // runtime
+  { id: 'node', displayName: 'Node.js', category: 'runtime' },
+  { id: 'deno', displayName: 'Deno', category: 'runtime' },
+  { id: 'bun', displayName: 'Bun', category: 'runtime' },
+  { id: 'python', displayName: 'Python', category: 'runtime' },
+  { id: 'ruby', displayName: 'Ruby', category: 'runtime' },
+  { id: 'go', displayName: 'Go', category: 'runtime' },
+  { id: 'rust', displayName: 'Rust', category: 'runtime' },
+  { id: 'java', displayName: 'Java', category: 'runtime' },
+  { id: 'dotnet', displayName: '.NET', category: 'runtime' },
+  { id: 'php', displayName: 'PHP', category: 'runtime' },
+  // package
+  { id: 'npm', displayName: 'npm', category: 'package' },
+  { id: 'pnpm', displayName: 'pnpm', category: 'package' },
+  { id: 'yarn', displayName: 'yarn', category: 'package' },
+  { id: 'pip', displayName: 'pip', category: 'package' },
+  { id: 'pipx', displayName: 'pipx', category: 'package' },
+  { id: 'uv', displayName: 'uv', category: 'package' },
+  { id: 'poetry', displayName: 'Poetry', category: 'package' },
+  { id: 'conda', displayName: 'Conda', category: 'package' },
+  { id: 'cargo', displayName: 'Cargo', category: 'package' },
+  { id: 'gem', displayName: 'RubyGems', category: 'package' },
+  { id: 'composer', displayName: 'Composer', category: 'package' },
+  { id: 'maven', displayName: 'Maven', category: 'package' },
+  { id: 'gradle', displayName: 'Gradle', category: 'package' },
+  { id: 'brew', displayName: 'Homebrew', category: 'package' },
+  // vcs
+  { id: 'git', displayName: 'Git', category: 'vcs' },
+  { id: 'git-lfs', displayName: 'Git LFS', category: 'vcs' },
+  { id: 'gh', displayName: 'GitHub CLI', category: 'vcs' },
+  { id: 'svn', displayName: 'Subversion', category: 'vcs' },
+  // container
+  { id: 'docker', displayName: 'Docker', category: 'container' },
+  { id: 'docker-compose', displayName: 'Docker Compose', category: 'container' },
+  { id: 'podman', displayName: 'Podman', category: 'container' },
+  { id: 'kubectl', displayName: 'kubectl', category: 'container' },
+  { id: 'helm', displayName: 'Helm', category: 'container' },
+  { id: 'k9s', displayName: 'k9s', category: 'container' },
+  // cloud
+  { id: 'aws', displayName: 'AWS CLI', category: 'cloud' },
+  { id: 'gcloud', displayName: 'Google Cloud CLI', category: 'cloud' },
+  { id: 'az', displayName: 'Azure CLI', category: 'cloud' },
+  { id: 'terraform', displayName: 'Terraform', category: 'cloud' },
+  { id: 'ansible', displayName: 'Ansible', category: 'cloud' },
+  { id: 'ssh', displayName: 'OpenSSH', category: 'cloud' },
+  // build
+  { id: 'gcc', displayName: 'GCC', category: 'build' },
+  { id: 'make', displayName: 'Make', category: 'build' },
+  { id: 'cmake', displayName: 'CMake', category: 'build' },
+  { id: 'clang', displayName: 'Clang', category: 'build' },
+  { id: 'ninja', displayName: 'Ninja', category: 'build' },
+  { id: 'pkg-config', displayName: 'pkg-config', category: 'build' },
+  // database
+  { id: 'sqlite3', displayName: 'SQLite', category: 'database' },
+  { id: 'psql', displayName: 'PostgreSQL client', category: 'database' },
+  { id: 'mysql', displayName: 'MySQL client', category: 'database' },
+  { id: 'redis-cli', displayName: 'Redis CLI', category: 'database' },
+  { id: 'mongosh', displayName: 'MongoDB Shell', category: 'database' },
+  // editor
+  { id: 'vim', displayName: 'Vim', category: 'editor' },
+  { id: 'neovim', displayName: 'Neovim', category: 'editor' },
+  { id: 'nano', displayName: 'nano', category: 'editor' },
+  { id: 'emacs', displayName: 'Emacs', category: 'editor' },
+  { id: 'code', displayName: 'VS Code', category: 'editor' },
+  { id: 'tmux', displayName: 'tmux', category: 'editor' },
+  { id: 'zsh', displayName: 'Zsh', category: 'editor' },
+  { id: 'fish', displayName: 'fish', category: 'editor' },
+  { id: 'starship', displayName: 'Starship', category: 'editor' },
+  // media
+  { id: 'ffmpeg', displayName: 'ffmpeg', category: 'media' },
+  { id: 'imagemagick', displayName: 'ImageMagick', category: 'media' },
+  { id: 'yt-dlp', displayName: 'yt-dlp', category: 'media' },
+  { id: 'pandoc', displayName: 'Pandoc', category: 'media' },
+  { id: 'tesseract', displayName: 'Tesseract', category: 'media' },
+  // util
+  { id: 'ripgrep', displayName: 'ripgrep', category: 'util' },
+  { id: 'fd', displayName: 'fd', category: 'util' },
+  { id: 'fzf', displayName: 'fzf', category: 'util' },
+  { id: 'bat', displayName: 'bat', category: 'util' },
+  { id: 'eza', displayName: 'eza', category: 'util' },
+  { id: 'jq', displayName: 'jq', category: 'util' },
+  { id: 'yq', displayName: 'yq', category: 'util' },
+  { id: 'htop', displayName: 'htop', category: 'util' },
+  { id: 'curl', displayName: 'curl', category: 'util' },
+  { id: 'wget', displayName: 'wget', category: 'util' },
+  { id: 'rsync', displayName: 'rsync', category: 'util' },
+  { id: 'direnv', displayName: 'direnv', category: 'util' },
+  { id: 'playwright', displayName: 'Playwright', category: 'util' },
+  { id: 'chromium', displayName: 'Chromium', category: 'util' }
 ]
 
 export const CONSOLE_HEIGHT_BOUNDS = { min: 80, max: 600 } as const

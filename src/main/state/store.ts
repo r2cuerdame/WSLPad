@@ -2,6 +2,7 @@ import { MCP_DEFAULT_PORT, SNAPSHOT_SCHEMA_VERSION } from '@shared/constants'
 import type {
   ConfigurationFileInfo,
   DashboardSnapshot,
+  DiskImageInfo,
   DistroDetails,
   DistroSummary,
   EnvironmentVariableInfo,
@@ -9,6 +10,7 @@ import type {
   HermesInfo,
   ImportantPathInfo,
   McpStatus,
+  MemoryReconciliation,
   PortInfo,
   ProcessInfo,
   ResourceInfo,
@@ -18,6 +20,7 @@ import type {
   ToolInfo,
   WarningInfo,
   WindowsPortInfo,
+  WslConfigInfo,
   WslPadSnapshot
 } from '@shared/types'
 import type { WslProvider } from '../wsl/contracts'
@@ -30,6 +33,9 @@ interface DashboardSections {
   distro: DistroDetails
   system: SystemInfo
   resources: ResourceInfo
+  disk: DiskImageInfo | null
+  wslSettings: WslConfigInfo | null
+  memoryDetail: MemoryReconciliation | null
   paths: ImportantPathInfo[]
   configuration: ConfigurationFileInfo[]
   tools: ToolInfo[]
@@ -75,6 +81,9 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     distro: { ...summary, osName: null, uncPath: `\\\\wsl.localhost\\${summary.name}` },
     system: emptySystem(),
     resources: emptyResources(),
+    disk: null,
+    wslSettings: null,
+    memoryDetail: null,
     paths: [],
     configuration: [],
     tools: [],
@@ -198,6 +207,7 @@ export class SnapshotStore {
               s.ports = v
             }
           ),
+          this.collectMemoryDetail(distro, s),
           this.collectWindowsPorts()
         ])
         const correlated = correlatePorts(s.ports, this.windowsPortTable)
@@ -291,7 +301,9 @@ export class SnapshotStore {
             (v) => {
               s.configuration = v
             }
-          )
+          ),
+          this.collectDiskImage(distro, s),
+          this.collectWslSettings(distro, s)
         ])
       }
       this.recomputeWarnings()
@@ -345,6 +357,49 @@ export class SnapshotStore {
       () => read.call(this.provider),
       (v) => {
         this.windowsPortTable = v
+      }
+    )
+  }
+
+  /**
+   * Windows vs Linux memory reconciliation, polled in the fast tier next to
+   * the resources it explains. A provider without the method leaves the
+   * section null (unknown) rather than implying the two views agree.
+   */
+  private async collectMemoryDetail(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getMemoryDetail
+    if (read === undefined) return
+    await this.collect(
+      'memory detail',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.memoryDetail = v
+      }
+    )
+  }
+
+  /** Virtual disk image, slow tier: reading the .vhdx is a Windows file stat. */
+  private async collectDiskImage(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getDiskImage
+    if (read === undefined) return
+    await this.collect(
+      'disk image',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.disk = v
+      }
+    )
+  }
+
+  /** .wslconfig / wsl.conf reconciliation, slow tier: files change rarely. */
+  private async collectWslSettings(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getWslSettings
+    if (read === undefined) return
+    await this.collect(
+      'wsl settings',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.wslSettings = v
       }
     )
   }

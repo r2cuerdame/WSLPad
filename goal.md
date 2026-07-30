@@ -50,6 +50,7 @@ WSLPad는 이 정보를 GUI와 MCP를 통해 구조화해서 보여준다.
 - **MCP의 복사·등록·테스트·토큰 재생성 기능은 설정에 있다.** Dashboard에는 MCP 섹션을 두지 않고, 상단 바 상태 배지만 유지한다. (§11.5)
 - **상단 바에 제품명을 반복 표시하지 않는다.** 창 제목 표시줄이 이미 이름을 보여주므로 툴바에서는 제거한다. (§5.1)
 - **UI는 개발자용 디버그 도구처럼 보이면 안 된다.** 절제된 색·명확한 타이포 위계·일관된 여백을 갖춘 제품 수준의 화면으로 만든다.
+- **0.1.2: 안 보이던 것을 보이게 한다.** Dashboard에 Disk(§6.2.2)와 WSL 설정 선언 vs 실효(§6.2.3) 섹션을 추가하고, Resource에 메모리 화해(§6.2.1)를 넣는다. 도구 카탈로그를 범주별 60여 개로 넓히고(§6.5), 아는 서비스에 설명을 붙이며(§6.9.1), 배포판별 아이콘을 제공한다. 근거는 공개 수요 조사다 — microsoft/WSL 최다 반응 이슈 #4699(디스크 회계, reaction 1413)와 #4166(vmmem 대 게스트 메모리, reaction 447), 그리고 어떤 도구도 답하지 않는 "내 설정이 실제로 적용됐나".
 
 ---
 
@@ -430,6 +431,40 @@ IP         172.xx.xx.xx
 
 전체 리소스 수집은 UI를 멈추지 않아야 한다.
 
+### 6.2.1 메모리 화해 (0.1.2)
+
+Windows의 vmmemWSL과 배포판 안의 `free`가 서로 다른 숫자를 보여주는 것이 WSL 사용자의 대표적 혼란이다(microsoft/WSL#4166, reaction 447). 한 화면에서 하나의 이야기로 이어 붙인다.
+
+- 호스트 물리 RAM
+- VM 상한 (`.wslconfig`의 `memory=` 또는 호스트 RAM의 50% 계산값 — 어느 쪽인지 표시)
+- Windows가 현재 VM 프로세스에 잡아둔 작업 집합 (vmmemWSL / vmmem)
+- 배포판 안의 used / cache·buffers / free / swap
+- `autoMemoryReclaim` 값
+
+숫자가 갖춰졌을 때에 한해 "Windows가 보여주는 대부분은 회수 가능한 page cache"라는 사실을 문장으로 명시한다. 값을 모르면 그 문장을 쓰지 않는다. 메모리를 즉시 돌려받는 `wsl --shutdown`은 Console에 **준비만** 한다.
+
+## 6.2.2 Disk 카드 (0.1.2)
+
+배포판 안의 `df`는 가상 최대치를 보고하므로 Windows 디스크에서 실제로 몇 GB를 쓰는지 알 수 없다. 이것이 microsoft/WSL 저장소에서 가장 많은 반응을 받은 이슈다(#4699, reaction 1413, 2019년부터 열려 있음).
+
+- `ext4.vhdx` 위치 (레지스트리 `HKCU\Software\...\Lxss`의 BasePath에서 해석)
+- 이미지 논리 크기
+- 실제 디스크 점유량 (`fsutil file queryAllocRanges offset=0 length=<size>`의 범위 합)
+- sparse 여부
+- 배포판 안에서 실제 사용 중인 용량
+- 회수 가능 추정치 = 이미지 크기 − 실제 사용량
+
+압축(`wsl --shutdown` + `Optimize-VHD`)과 sparse 전환(`wsl --manage <distro> --set-sparse true`)은 Console에 **준비만** 한다. 이미지를 찾지 못하면 0이 아니라 "찾지 못함"으로 표시한다.
+
+## 6.2.3 WSL 설정: 선언 vs 실효 (0.1.2)
+
+WSL은 설정을 조용히 무시하고, 무엇이 실제로 적용됐는지 알려주는 명령이 없다. `wsl --status`는 기본 배포판과 커널 버전만 보고한다.
+
+- `%UserProfile%\.wslconfig`와 각 배포판 `/etc/wsl.conf`를 파싱해 키별로 판정한다: `applied` / `pending-restart` / `not-set` / `unknown-key`(오타) / `wrong-section`(버전 사이에 섹션이 바뀐 키) / `unsupported`(설치된 빌드가 지원 안 함)
+- 선언한 networking mode와 **실제 동작 중인 모드**를 나란히 보여준다 (`wslinfo --networking-mode`). mirrored로 적어도 조용히 nat으로 내려가는 사례가 흔하다.
+- 설정 파일이 VM 부팅 이후에 수정됐으면 "재시작 필요"를 명시한다. `wsl --shutdown`은 Console에 **준비만** 한다.
+- 확신할 수 없으면 `applied`라고 쓰지 않는다. 실효값을 못 구하면 비워 두고 이유를 적는다.
+
 ## 6.3 Important Paths 카드
 
 다음 경로를 자동 감지한다.
@@ -498,6 +533,12 @@ Dashboard에서 설정 파일을 직접 자동 수정하지 않는다.
 - ffmpeg
 - Playwright
 - Chromium
+
+0.1.2에서 카탈로그를 60여 개로 넓히고 **범주별로 묶는다**: ai(Hermes, Codex, Claude, Gemini, OpenClaw, Ollama, Aider) · runtime · package · vcs · container · cloud · build · database · editor · media · util. 목록이 길어지므로 기본은 "설치된 것만" 보기이고, 이름·경로 필터와 "N / M 설치됨" 요약을 제공한다.
+
+기존 도구 id는 절대 이름을 바꾸지 않는다 (fixture, 감지 설정, MCP `GetToolStatus`가 id를 키로 쓴다).
+
+감지는 배포판당 **하나의 배치 sh 스크립트**를 유지하되, 버전 명령은 `command -v`가 먼저 찾은 도구에만 실행한다. 없는 도구가 비용을 만들면 안 된다. 싸게 버전을 못 구하는 도구는 설치됨 + 버전 null로 보고하고 **버전을 지어내지 않는다**.
 
 각 도구에 대해 표시한다.
 
@@ -653,6 +694,17 @@ systemd 활성화 여부에 따라 적절히 동작한다.
 - 재시작 명령 준비
 
 직접 실행하지 않는다.
+
+### 6.9.1 아는 서비스 설명 (0.1.2)
+
+WSLPad가 아는 유닛이면 이름 옆에 조용한 정보 표시를 달고, 마우스를 올리거나 **키보드 포커스를 주면** 설명을 보여준다. 설명은 "이게 무엇이고, 누가 배포하며, 보통 켜져 있는 것이 정상인지"를 비전문가가 읽을 수 있는 한두 문장으로 쓴다.
+
+- 로컬 카탈로그로 제공하며 오프라인에서 동작하고 9개 언어로 번역된다.
+- `.service` 접미사 유무와 `getty@` 같은 템플릿 유닛을 모두 매칭한다.
+- **모르는 유닛에는 표시를 달지 않는다.** 추측한 설명을 쓰지 않는다.
+- 툴팁은 title 속성만으로 만들지 않는다. 포커스 가능해야 하고 Esc로 닫혀야 한다.
+
+같은 방식은 이후 잘 알려진 프로세스와 포트에도 확장할 수 있다.
 
 ## 6.10 Ports 카드
 

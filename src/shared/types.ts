@@ -55,6 +55,98 @@ export interface ResourceInfo {
   processCount: number | null
 }
 
+/**
+ * The WSL2 virtual disk that holds a distro's ext4 filesystem (goal.md §6.2).
+ * The Windows side (the .vhdx file) and the Linux side (the mounted
+ * filesystem) are read by different collectors, so every number degrades to
+ * null on its own: the image can be unreadable while df works, and vice versa.
+ */
+export interface DiskImageInfo {
+  distro: string
+  /** null when the image location cannot be resolved (WSL 1, or no registry entry) */
+  vhdxPath: string | null
+  /** Folder holding the image; null for the same reasons as vhdxPath. */
+  basePath: string | null
+  /** Logical size of ext4.vhdx; null when the file could not be stat'd. */
+  vhdxBytes: number | null
+  /** Blocks really allocated on the Windows volume — below vhdxBytes when sparse. */
+  allocatedBytes: number | null
+  /** null when sparseness could not be determined. */
+  sparse: boolean | null
+  /** ext4 size/usage seen inside the distro; null while it is not running. */
+  fsSizeBytes: number | null
+  fsUsedBytes: number | null
+  /** vhdxBytes − fsUsedBytes: space the image keeps that Linux no longer uses. */
+  reclaimableBytes: number | null
+  /** Collector failure text; the numbers stay null rather than becoming zero. */
+  error: string | null
+}
+
+/** Which file (or fallback) produced a WSL setting value. */
+export type SettingOrigin = 'wslconfig' | 'wsl-conf' | 'default' | 'computed'
+
+/** What actually became of a declared setting on the running system. */
+export type SettingVerdict =
+  | 'applied'
+  | 'pending-restart'
+  | 'not-set'
+  | 'unknown-key'
+  | 'wrong-section'
+  | 'unsupported'
+  | 'unknown'
+
+export interface WslSettingInfo {
+  key: string
+  /** ini section the key lives in: wsl2, experimental, boot, automount, … */
+  section: string
+  scope: 'windows' | 'linux'
+  /** null when no file declares the key — the value is a default. */
+  declaredValue: string | null
+  /** null when the running value cannot be observed for this key. */
+  effectiveValue: string | null
+  origin: SettingOrigin
+  verdict: SettingVerdict
+  /** Short English explanation for the non-obvious verdicts; null when none. */
+  note: string | null
+}
+
+export interface WslConfigInfo {
+  /** null when %UserProfile% could not be resolved. */
+  wslconfigPath: string | null
+  wslconfigExists: boolean
+  wslConfPath: string | null
+  wslConfExists: boolean
+  /** A declared value differs from the running VM: wsl --shutdown is needed. */
+  restartPending: boolean
+  /** ISO 8601 VM start time; null when it could not be read. */
+  vmStartedAt: string | null
+  networkingModeDeclared: string | null
+  /** Differs from the declared mode when WSL silently fell back (e.g. to nat). */
+  networkingModeEffective: string | null
+  settings: WslSettingInfo[]
+}
+
+/**
+ * Why Windows shows gigabytes for vmmem while free(1) inside the distro shows
+ * almost nothing: page cache and freed-but-unreturned guest pages. Each number
+ * comes from a different source, so each is nullable on its own.
+ */
+export interface MemoryReconciliation {
+  hostTotalBytes: number | null
+  vmLimitBytes: number | null
+  vmLimitSource: 'wslconfig' | 'computed-default' | 'unknown'
+  /** Windows working set of the vmmem / vmmemWSL process. */
+  vmmemWorkingSetBytes: number | null
+  guestTotalBytes: number | null
+  guestUsedBytes: number | null
+  guestCacheBytes: number | null
+  guestFreeBytes: number | null
+  swapTotalBytes: number | null
+  swapUsedBytes: number | null
+  /** autoMemoryReclaim value in effect; null when unset or unreadable. */
+  autoMemoryReclaim: string | null
+}
+
 export interface ImportantPathInfo {
   id: string
   /** untranslated path label such as "HOME" or "~/.hermes" */
@@ -211,6 +303,12 @@ export interface DashboardSnapshot {
   distro: DistroDetails
   system: SystemInfo
   resources: ResourceInfo
+  /** null until the disk image has been read — a stopped distro keeps it null. */
+  disk: DiskImageInfo | null
+  /** null until .wslconfig and /etc/wsl.conf have been parsed. */
+  wslSettings: WslConfigInfo | null
+  /** null until the Windows and Linux memory views have both been sampled. */
+  memoryDetail: MemoryReconciliation | null
   paths: ImportantPathInfo[]
   configuration: ConfigurationFileInfo[]
   tools: ToolInfo[]

@@ -1,7 +1,69 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ResourceInfo, WslPadSnapshot } from '@shared/types'
+import type {
+  DiskImageInfo,
+  MemoryReconciliation,
+  ResourceInfo,
+  WslConfigInfo,
+  WslPadSnapshot
+} from '@shared/types'
 import { SnapshotStore } from '../../../src/main/state/store'
 import { debian, makeProvider, mcpStatus, resources, ubuntu, type FakeProvider } from './helpers'
+
+function diskImage(vhdxBytes: number): DiskImageInfo {
+  return {
+    distro: 'Ubuntu-24.04',
+    vhdxPath: 'C:\\Users\\dev\\AppData\\Local\\wsl\\Ubuntu-24.04\\ext4.vhdx',
+    basePath: 'C:\\Users\\dev\\AppData\\Local\\wsl\\Ubuntu-24.04',
+    vhdxBytes,
+    allocatedBytes: vhdxBytes,
+    sparse: false,
+    fsSizeBytes: 200 * 1024 ** 3,
+    fsUsedBytes: 20 * 1024 ** 3,
+    reclaimableBytes: vhdxBytes - 20 * 1024 ** 3,
+    error: null
+  }
+}
+
+function wslSettings(): WslConfigInfo {
+  return {
+    wslconfigPath: 'C:\\Users\\dev\\.wslconfig',
+    wslconfigExists: true,
+    wslConfPath: '/etc/wsl.conf',
+    wslConfExists: true,
+    restartPending: false,
+    vmStartedAt: '2026-07-30T08:00:00.000Z',
+    networkingModeDeclared: 'nat',
+    networkingModeEffective: 'nat',
+    settings: [
+      {
+        key: 'memory',
+        section: 'wsl2',
+        scope: 'windows',
+        declaredValue: '16GB',
+        effectiveValue: '16GB',
+        origin: 'wslconfig',
+        verdict: 'applied',
+        note: null
+      }
+    ]
+  }
+}
+
+function memoryDetail(): MemoryReconciliation {
+  return {
+    hostTotalBytes: 32 * 1024 ** 3,
+    vmLimitBytes: 16 * 1024 ** 3,
+    vmLimitSource: 'wslconfig',
+    vmmemWorkingSetBytes: 7 * 1024 ** 3,
+    guestTotalBytes: 16 * 1024 ** 3,
+    guestUsedBytes: 1024 ** 3,
+    guestCacheBytes: 6 * 1024 ** 3,
+    guestFreeBytes: 9 * 1024 ** 3,
+    swapTotalBytes: 4 * 1024 ** 3,
+    swapUsedBytes: 0,
+    autoMemoryReclaim: 'dropcache'
+  }
+}
 
 describe('SnapshotStore', () => {
   let provider: FakeProvider
@@ -140,6 +202,71 @@ describe('SnapshotStore', () => {
     expect(dash?.environment).toHaveLength(1)
     expect(dash?.paths).toHaveLength(1)
     expect(dash?.configuration).toHaveLength(1)
+  })
+
+  it('leaves disk, wslSettings and memoryDetail null when the provider omits them', async () => {
+    await store.initialize()
+    await store.refreshFast()
+    await store.refreshSlow()
+    const dash = store.get().dashboard
+    expect(dash?.disk).toBeNull()
+    expect(dash?.wslSettings).toBeNull()
+    expect(dash?.memoryDetail).toBeNull()
+    // An absent optional collector is not a failure and must not warn.
+    expect(store.get().warnings.some((w) => w.messageKey === 'warnings.runnerFailed')).toBe(false)
+  })
+
+  it('collects memoryDetail in the fast tier and disk + wslSettings in the slow tier', async () => {
+    const extended = {
+      ...provider,
+      getDiskImage: vi.fn(async () => diskImage(80 * 1024 ** 3)),
+      getWslSettings: vi.fn(async () => wslSettings()),
+      getMemoryDetail: vi.fn(async () => memoryDetail())
+    }
+    const s = new SnapshotStore(extended)
+    await s.initialize()
+    await s.refreshFast()
+    expect(s.get().dashboard?.memoryDetail?.vmmemWorkingSetBytes).toBe(7 * 1024 ** 3)
+    expect(extended.getDiskImage).not.toHaveBeenCalled()
+    expect(extended.getWslSettings).not.toHaveBeenCalled()
+
+    await s.refreshSlow()
+    expect(s.get().dashboard?.disk?.vhdxBytes).toBe(80 * 1024 ** 3)
+    expect(s.get().dashboard?.wslSettings?.settings).toHaveLength(1)
+  })
+
+  it('keeps the last-good disk image when its collector fails, then recovers', async () => {
+    const getDiskImage = vi.fn(async () => diskImage(80 * 1024 ** 3))
+    const s = new SnapshotStore({ ...provider, getDiskImage })
+    await s.initialize()
+    await s.refreshSlow()
+
+    getDiskImage.mockRejectedValueOnce(new Error('vhdx unreadable'))
+    await s.refreshSlow()
+    expect(s.get().dashboard?.disk?.vhdxBytes).toBe(80 * 1024 ** 3)
+    expect(s.get().warnings.some((w) => w.message.includes('disk image'))).toBe(true)
+
+    getDiskImage.mockResolvedValue(diskImage(90 * 1024 ** 3))
+    await s.refreshSlow()
+    expect(s.get().dashboard?.disk?.vhdxBytes).toBe(90 * 1024 ** 3)
+    expect(s.get().warnings.some((w) => w.messageKey === 'warnings.runnerFailed')).toBe(false)
+  })
+
+  it('never wakes a stopped distro for disk, settings or memory detail', async () => {
+    const extended = {
+      ...provider,
+      getDiskImage: vi.fn(async () => diskImage(80 * 1024 ** 3)),
+      getWslSettings: vi.fn(async () => wslSettings()),
+      getMemoryDetail: vi.fn(async () => memoryDetail())
+    }
+    extended.listDistros.mockResolvedValue([ubuntu('Stopped'), debian()])
+    const s = new SnapshotStore(extended)
+    await s.initialize()
+    await s.refreshFast()
+    await s.refreshSlow()
+    expect(extended.getMemoryDetail).not.toHaveBeenCalled()
+    expect(extended.getDiskImage).not.toHaveBeenCalled()
+    expect(extended.getWslSettings).not.toHaveBeenCalled()
   })
 
   it('setDistro resets cached sections and validates the name', async () => {

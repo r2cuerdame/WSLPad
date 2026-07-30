@@ -5,17 +5,20 @@
  */
 import type {
   ConfigurationFileInfo,
+  DiskImageInfo,
   DistroDetails,
   DistroSummary,
   HermesInfo,
   ImportantPathInfo,
+  MemoryReconciliation,
   PortInfo,
   ProcessInfo,
   ResourceInfo,
   ServiceInfo,
   SystemInfo,
   ToolInfo,
-  WindowsPortInfo
+  WindowsPortInfo,
+  WslConfigInfo
 } from '@shared/types'
 import { CONFIG_FILE_SPECS, IMPORTANT_PATH_SPECS, TOOL_SPECS } from '@shared/constants'
 
@@ -108,6 +111,27 @@ export function fixtureSystemInfo(distro: FixtureDistroName): SystemInfo {
 }
 
 const GIB = 1024 ** 3
+const MIB = 1024 ** 2
+const gib = (n: number): number => Math.round(n * GIB)
+
+/**
+ * One filesystem story shared by the Resources card and the Disk card: a 250 GB
+ * ext4 holding 23 GB of files inside a .vhdx that grew to 80.5 GB and never
+ * shrank back. Both cards must quote the same numbers or neither is trusted.
+ */
+const FS_SIZE_BYTES = 268435456000
+const FS_USED_BYTES = 24696061952
+const FS_AVAILABLE_BYTES = FS_SIZE_BYTES - FS_USED_BYTES
+const FS_USE_PERCENT = 9
+const VHDX_BYTES = 86436216832
+
+/** Memory story: Linux sees 922 MB in use while Windows holds 7.2 GB for vmmem. */
+const GUEST_TOTAL_BYTES = gib(16.4)
+const GUEST_USED_BYTES = gib(0.9)
+const GUEST_CACHE_BYTES = gib(6.1)
+const GUEST_FREE_BYTES = gib(9.4)
+const SWAP_TOTAL_BYTES = 4 * GIB
+const SWAP_USED_BYTES = gib(0.25)
 
 export function fixtureResources(distro: FixtureDistroName): ResourceInfo {
   if (distro !== FIXTURE_UBUNTU) {
@@ -124,32 +148,30 @@ export function fixtureResources(distro: FixtureDistroName): ResourceInfo {
       processCount: null
     }
   }
-  const memTotal = Math.round(15.5 * GIB)
-  const memUsed = Math.round(3.2 * GIB)
   return {
     cpuPercent: 7.5,
     cpuCount: 8,
-    memTotalBytes: memTotal,
-    memUsedBytes: memUsed,
-    memAvailableBytes: memTotal - memUsed,
-    swapTotalBytes: 4 * GIB,
-    swapUsedBytes: Math.round(0.25 * GIB),
+    memTotalBytes: GUEST_TOTAL_BYTES,
+    memUsedBytes: GUEST_USED_BYTES,
+    memAvailableBytes: GUEST_CACHE_BYTES + GUEST_FREE_BYTES,
+    swapTotalBytes: SWAP_TOTAL_BYTES,
+    swapUsedBytes: SWAP_USED_BYTES,
     disks: [
       {
         mountPoint: '/',
         exists: true,
-        totalBytes: 268435456000,
-        usedBytes: 112742891520,
-        availableBytes: 155692564480,
-        usePercent: 42
+        totalBytes: FS_SIZE_BYTES,
+        usedBytes: FS_USED_BYTES,
+        availableBytes: FS_AVAILABLE_BYTES,
+        usePercent: FS_USE_PERCENT
       },
       {
         mountPoint: '/home',
         exists: true,
-        totalBytes: 268435456000,
-        usedBytes: 112742891520,
-        availableBytes: 155692564480,
-        usePercent: 42
+        totalBytes: FS_SIZE_BYTES,
+        usedBytes: FS_USED_BYTES,
+        availableBytes: FS_AVAILABLE_BYTES,
+        usePercent: FS_USE_PERCENT
       },
       {
         mountPoint: '/mnt/c',
@@ -162,6 +184,224 @@ export function fixtureResources(distro: FixtureDistroName): ResourceInfo {
     ],
     loadAvg: [0.12, 0.08, 0.05],
     processCount: 12
+  }
+}
+
+export function fixtureDiskImage(distro: FixtureDistroName): DiskImageInfo {
+  if (distro !== FIXTURE_UBUNTU) {
+    // WSL 1 stores files straight on NTFS — there is no virtual disk at all.
+    return {
+      distro,
+      vhdxPath: null,
+      basePath: null,
+      vhdxBytes: null,
+      allocatedBytes: null,
+      sparse: null,
+      fsSizeBytes: null,
+      fsUsedBytes: null,
+      reclaimableBytes: null,
+      error: 'WSL 1 distributions do not use a virtual disk image'
+    }
+  }
+  const basePath = `${FIXTURE_WINDOWS_USERPROFILE}\\AppData\\Local\\wsl\\${FIXTURE_UBUNTU}`
+  return {
+    distro,
+    vhdxPath: `${basePath}\\ext4.vhdx`,
+    basePath,
+    vhdxBytes: VHDX_BYTES,
+    // Not sparse: every byte the image ever grew to is still on the Windows volume.
+    allocatedBytes: VHDX_BYTES,
+    sparse: false,
+    fsSizeBytes: FS_SIZE_BYTES,
+    fsUsedBytes: FS_USED_BYTES,
+    reclaimableBytes: VHDX_BYTES - FS_USED_BYTES,
+    error: null
+  }
+}
+
+/** Fixed VM start stamp so restart-pending stays reproducible across runs. */
+export const FIXTURE_VM_STARTED_AT = '2024-06-15T08:30:00.000Z'
+
+export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
+  const wslconfigPath = `${FIXTURE_WINDOWS_USERPROFILE}\\.wslconfig`
+  if (distro !== FIXTURE_UBUNTU) {
+    return {
+      wslconfigPath,
+      wslconfigExists: true,
+      wslConfPath: '/etc/wsl.conf',
+      wslConfExists: false,
+      restartPending: false,
+      vmStartedAt: null,
+      // WSL 1 has no utility VM, so the [wsl2] network settings cannot apply.
+      networkingModeDeclared: null,
+      networkingModeEffective: null,
+      settings: []
+    }
+  }
+  return {
+    wslconfigPath,
+    wslconfigExists: true,
+    wslConfPath: '/etc/wsl.conf',
+    wslConfExists: true,
+    restartPending: true,
+    vmStartedAt: FIXTURE_VM_STARTED_AT,
+    networkingModeDeclared: 'mirrored',
+    networkingModeEffective: 'nat',
+    settings: [
+      {
+        key: 'memory',
+        section: 'wsl2',
+        scope: 'windows',
+        declaredValue: '17100MB',
+        effectiveValue: '17100MB',
+        origin: 'wslconfig',
+        verdict: 'applied',
+        note: null
+      },
+      {
+        key: 'processors',
+        section: 'wsl2',
+        scope: 'windows',
+        declaredValue: '12',
+        effectiveValue: '8',
+        origin: 'wslconfig',
+        verdict: 'pending-restart',
+        note: 'The running VM still uses 8 processors. Applies after wsl --shutdown.'
+      },
+      {
+        key: 'networkingMode',
+        section: 'wsl2',
+        scope: 'windows',
+        declaredValue: 'mirrored',
+        effectiveValue: 'nat',
+        origin: 'wslconfig',
+        verdict: 'unsupported',
+        note: 'Mirrored networking needs Windows 11 22H2 or newer. WSL fell back to NAT.'
+      },
+      {
+        key: 'autoMemoryReclaim',
+        section: 'experimental',
+        scope: 'windows',
+        declaredValue: 'dropcache',
+        effectiveValue: null,
+        origin: 'wslconfig',
+        verdict: 'wrong-section',
+        note: 'WSL 2.0 and newer read autoMemoryReclaim from [wsl2], not [experimental].'
+      },
+      {
+        key: 'memroy',
+        section: 'wsl2',
+        scope: 'windows',
+        declaredValue: '8GB',
+        effectiveValue: null,
+        origin: 'wslconfig',
+        verdict: 'unknown-key',
+        note: 'WSL ignores this key. Did you mean memory?'
+      },
+      {
+        key: 'kernel',
+        section: 'wsl2',
+        scope: 'windows',
+        // Verbatim file value: .wslconfig paths carry escaped backslashes.
+        declaredValue: 'C:\\\\Users\\\\dev\\\\kernels\\\\bzImage',
+        effectiveValue: null,
+        origin: 'wslconfig',
+        verdict: 'unknown',
+        note: 'The running kernel could not be matched against this file.'
+      },
+      {
+        key: 'swap',
+        section: 'wsl2',
+        scope: 'windows',
+        declaredValue: null,
+        effectiveValue: '4GB',
+        origin: 'computed',
+        verdict: 'not-set',
+        note: 'Defaults to 25% of the memory limit.'
+      },
+      {
+        key: 'localhostForwarding',
+        section: 'wsl2',
+        scope: 'windows',
+        declaredValue: null,
+        effectiveValue: 'true',
+        origin: 'default',
+        verdict: 'not-set',
+        note: null
+      },
+      {
+        key: 'nestedVirtualization',
+        section: 'wsl2',
+        scope: 'windows',
+        declaredValue: null,
+        effectiveValue: 'true',
+        origin: 'default',
+        verdict: 'not-set',
+        note: null
+      },
+      {
+        key: 'systemd',
+        section: 'boot',
+        scope: 'linux',
+        declaredValue: 'true',
+        effectiveValue: 'true',
+        origin: 'wsl-conf',
+        verdict: 'applied',
+        note: null
+      },
+      {
+        key: 'appendWindowsPath',
+        section: 'interop',
+        scope: 'linux',
+        declaredValue: 'false',
+        effectiveValue: 'false',
+        origin: 'wsl-conf',
+        verdict: 'applied',
+        note: null
+      },
+      {
+        key: 'enabled',
+        section: 'automount',
+        scope: 'linux',
+        declaredValue: null,
+        effectiveValue: 'true',
+        origin: 'default',
+        verdict: 'not-set',
+        note: null
+      }
+    ]
+  }
+}
+
+export function fixtureMemoryDetail(distro: FixtureDistroName): MemoryReconciliation {
+  if (distro !== FIXTURE_UBUNTU) {
+    return {
+      hostTotalBytes: gib(33.5),
+      vmLimitBytes: null,
+      vmLimitSource: 'unknown',
+      vmmemWorkingSetBytes: null,
+      guestTotalBytes: null,
+      guestUsedBytes: null,
+      guestCacheBytes: null,
+      guestFreeBytes: null,
+      swapTotalBytes: null,
+      swapUsedBytes: null,
+      autoMemoryReclaim: null
+    }
+  }
+  return {
+    hostTotalBytes: gib(33.5),
+    // 17100MB in .wslconfig, expressed exactly as the VM sees it.
+    vmLimitBytes: 17100 * MIB,
+    vmLimitSource: 'wslconfig',
+    vmmemWorkingSetBytes: gib(7.2),
+    guestTotalBytes: GUEST_TOTAL_BYTES,
+    guestUsedBytes: GUEST_USED_BYTES,
+    guestCacheBytes: GUEST_CACHE_BYTES,
+    guestFreeBytes: GUEST_FREE_BYTES,
+    swapTotalBytes: SWAP_TOTAL_BYTES,
+    swapUsedBytes: SWAP_USED_BYTES,
+    autoMemoryReclaim: 'dropcache'
   }
 }
 
@@ -501,6 +741,7 @@ interface ToolOverride {
   services: string[]
 }
 
+/** Installed tools in the fixture world: at least one per catalog category. */
 const UBUNTU_TOOLS: Record<string, ToolOverride> = {
   hermes: {
     executablePath: '/home/dev/.local/bin/hermes',
@@ -540,6 +781,142 @@ const UBUNTU_TOOLS: Record<string, ToolOverride> = {
     installMethod: 'apt',
     configPaths: [],
     runningProcesses: 1,
+    services: []
+  },
+  claude: {
+    executablePath: '/usr/local/bin/claude',
+    version: '1.0.44',
+    installMethod: 'npm-global',
+    configPaths: ['/home/dev/.claude.json'],
+    runningProcesses: 0,
+    services: []
+  },
+  npm: {
+    executablePath: '/home/dev/.nvm/versions/node/v20.19.0/bin/npm',
+    version: '10.8.2',
+    installMethod: 'nvm',
+    configPaths: ['/home/dev/.npmrc'],
+    runningProcesses: 0,
+    services: []
+  },
+  uv: {
+    executablePath: '/home/dev/.local/bin/uv',
+    version: '0.5.11',
+    installMethod: 'user-local',
+    configPaths: [],
+    runningProcesses: 0,
+    services: []
+  },
+  gh: {
+    executablePath: '/usr/bin/gh',
+    version: '2.45.0',
+    installMethod: 'apt',
+    configPaths: ['/home/dev/.config/gh/config.yml'],
+    runningProcesses: 0,
+    services: []
+  },
+  kubectl: {
+    executablePath: '/usr/local/bin/kubectl',
+    version: '1.30.2',
+    installMethod: 'manual',
+    configPaths: ['/home/dev/.kube/config'],
+    runningProcesses: 0,
+    services: []
+  },
+  ssh: {
+    executablePath: '/usr/bin/ssh',
+    version: '9.6p1',
+    installMethod: 'apt',
+    configPaths: ['/home/dev/.ssh/config'],
+    runningProcesses: 1,
+    services: ['ssh.service']
+  },
+  gcc: {
+    executablePath: '/usr/bin/gcc',
+    version: '13.2.0',
+    installMethod: 'apt',
+    configPaths: [],
+    runningProcesses: 0,
+    services: []
+  },
+  make: {
+    executablePath: '/usr/bin/make',
+    version: '4.3',
+    installMethod: 'apt',
+    configPaths: [],
+    runningProcesses: 0,
+    services: []
+  },
+  sqlite3: {
+    executablePath: '/usr/bin/sqlite3',
+    version: '3.45.1',
+    installMethod: 'apt',
+    configPaths: [],
+    runningProcesses: 0,
+    services: []
+  },
+  vim: {
+    executablePath: '/usr/bin/vim',
+    version: '9.1',
+    installMethod: 'apt',
+    configPaths: ['/home/dev/.vimrc'],
+    runningProcesses: 1,
+    services: []
+  },
+  tmux: {
+    executablePath: '/usr/bin/tmux',
+    version: '3.4',
+    installMethod: 'apt',
+    configPaths: ['/home/dev/.tmux.conf'],
+    runningProcesses: 1,
+    services: []
+  },
+  zsh: {
+    executablePath: '/usr/bin/zsh',
+    version: '5.9',
+    installMethod: 'apt',
+    configPaths: ['/home/dev/.zshrc'],
+    runningProcesses: 0,
+    services: []
+  },
+  ffmpeg: {
+    executablePath: '/usr/bin/ffmpeg',
+    version: '6.1.1',
+    installMethod: 'apt',
+    configPaths: [],
+    runningProcesses: 0,
+    services: []
+  },
+  ripgrep: {
+    executablePath: '/home/dev/.cargo/bin/rg',
+    version: '14.1.0',
+    installMethod: 'cargo',
+    configPaths: [],
+    runningProcesses: 0,
+    services: []
+  },
+  jq: {
+    executablePath: '/usr/bin/jq',
+    version: '1.7.1',
+    installMethod: 'apt',
+    configPaths: [],
+    runningProcesses: 0,
+    services: []
+  },
+  fzf: {
+    executablePath: '/usr/bin/fzf',
+    version: '0.44.1',
+    installMethod: 'apt',
+    configPaths: [],
+    runningProcesses: 0,
+    services: []
+  },
+  curl: {
+    executablePath: '/usr/bin/curl',
+    version: '8.5.0',
+    installMethod: 'apt',
+    configPaths: [],
+    runningProcesses: 0,
     services: []
   }
 }

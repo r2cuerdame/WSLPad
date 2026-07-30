@@ -1,5 +1,6 @@
+import { spawnSync } from 'child_process'
 import { describe, expect, it } from 'vitest'
-import { TOOL_SPECS } from '@shared/constants'
+import { TOOL_CATEGORIES, TOOL_SPECS } from '@shared/constants'
 import type { ToolInfo } from '@shared/types'
 import type { DistroRunner, RunResult } from '../../../src/main/wsl/contracts'
 import { detectHermes, detectTools, toolDetectors } from '../../../src/main/wsl/detectors/index'
@@ -8,15 +9,12 @@ import {
   USER_SERVICES_SCRIPT,
   buildToolsScript,
   inferInstallMethod,
+  parseInteropBinaries,
   parseToolsOutput,
   parseUserServiceUnits,
   parseVersionLine
 } from '../../../src/main/wsl/detectors/tools'
-import {
-  HERMES_SCRIPT,
-  countMcpServers,
-  parseSsLine
-} from '../../../src/main/wsl/detectors/hermes'
+import { HERMES_SCRIPT, countMcpServers, parseSsLine } from '../../../src/main/wsl/detectors/hermes'
 
 // ---------------------------------------------------------------------------
 // Test doubles + captured-style fixture outputs
@@ -242,20 +240,102 @@ describe('inferInstallMethod', () => {
 // Script construction
 // ---------------------------------------------------------------------------
 
+/** Per-tool work is a call to a helper defined in the script preamble. */
+function callLines(script: string): string[] {
+  const bodyStart = script.lastIndexOf('  return 0\n}\n')
+  const body = bodyStart < 0 ? '' : script.slice(bodyStart + '  return 0\n}\n'.length)
+  return body.split('\n').filter((line) => line.trim().length > 0 && line !== ':')
+}
+
+function toolCall(script: string, id: string): string {
+  const line = callLines(script).find((l) => l.startsWith(`T '${id}' `))
+  if (!line) throw new Error(`no T call for tool ${id}`)
+  return line
+}
+
+/**
+ * Parse the script with a real POSIX sh when one is reachable. A local sh is
+ * tried first (fast, no side effects); wsl.exe is the fallback so a machine
+ * with no Unix shell on PATH still gets a real verdict.
+ */
+function shSyntaxCheck(script: string): { ran: boolean; ok: boolean; message: string } {
+  const candidates: ReadonlyArray<[string, string[]]> = [
+    ['sh', ['-n', '-c', script]],
+    ['wsl.exe', ['--exec', '/bin/sh', '-n', '-c', script]]
+  ]
+  for (const [file, args] of candidates) {
+    const res = spawnSync(file, args, { timeout: 20000, windowsHide: true })
+    if (res.error) continue
+    // wsl.exe speaks UTF-16LE; dropping NULs decodes both it and sh's UTF-8.
+    const message = `${res.stdout?.toString('utf8') ?? ''}${res.stderr?.toString('utf8') ?? ''}`
+      .replace(/\0/g, '')
+      .trim()
+    if (res.status === 0) return { ran: true, ok: true, message }
+    // A non-syntax failure (no WSL distro, a shim that cannot exec) is not a
+    // verdict on the script — keep looking.
+    if (/syntax error|unexpected|parse error/i.test(message)) {
+      return { ran: true, ok: false, message }
+    }
+  }
+  return { ran: false, ok: false, message: '' }
+}
+
 describe('buildToolsScript', () => {
-  it('covers every TOOL_SPECS entry with matching display names', () => {
-    expect(TOOL_SCRIPT_SPECS.map((s) => s.id)).toEqual(TOOL_SPECS.map((s) => s.id))
-    expect(TOOL_SCRIPT_SPECS.map((s) => s.displayName)).toEqual(
-      TOOL_SPECS.map((s) => s.displayName)
-    )
+  it('probes catalog entries in catalog order with matching display names', () => {
+    const probed = TOOL_SPECS.filter((s) => TOOL_SCRIPT_SPECS.some((d) => d.id === s.id))
+    expect(TOOL_SCRIPT_SPECS.map((s) => s.id)).toEqual(probed.map((s) => s.id))
+    expect(TOOL_SCRIPT_SPECS.map((s) => s.displayName)).toEqual(probed.map((s) => s.displayName))
   })
 
-  it('emits one section per tool in a single script', () => {
+  it('emits one call per probed tool in a single script', () => {
     const script = buildToolsScript(TOOL_SCRIPT_SPECS)
-    for (const spec of TOOL_SPECS) {
-      expect(script).toContain(`'TOOL:${spec.id}'`)
+    const calls = callLines(script).filter((l) => l.startsWith('T '))
+    expect(calls.map((l) => /^T '([^']+)'/.exec(l)?.[1])).toEqual(
+      TOOL_SCRIPT_SPECS.map((s) => s.id)
+    )
+    expect(callLines(script).every((l) => /^[TQCW] /.test(l))).toBe(true)
+  })
+
+  it('walks the Windows drive mounts once instead of once per missing tool', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    // PATH loses the drive mounts before any tool is probed…
+    expect(script).toContain('case $d in /mnt/[A-Za-z] | /mnt/[A-Za-z]/*) continue ;; esac')
+    expect(script).toContain('[ -n "$np" ] && PATH=$np')
+    // …and the single sweep at the end reads each of them with one glob.
+    const sweep = callLines(script).filter((l) => l.startsWith('W '))
+    expect(sweep).toHaveLength(1)
+    expect(sweep[0]).toContain('|node|')
+    expect(sweep[0]).toContain('|chromium-browser|')
+    expect(script).toContain('for f in "$d"/*; do')
+  })
+
+  it('is one well-formed sh program', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    const verdict = shSyntaxCheck(script)
+    if (verdict.ran) {
+      // Surface the parser's complaint in the failure output, not just `false`.
+      expect(verdict.ok ? '' : verdict.message).toBe('')
+      // …and prove the checker is not passing everything it is handed.
+      expect(shSyntaxCheck('T() { if [ -n "$1" ]; then\n').ok).toBe(false)
+    } else {
+      // Structural fallback: helpers defined once, every call resolves to one.
+      for (const fn of ['V()', 'T()', 'Q()', 'C()']) {
+        expect(script.split(`${fn} `)).toHaveLength(2)
+      }
+      expect(script.endsWith('\n:\n')).toBe(true)
     }
-    expect(script.match(/TOOL:/g)).toHaveLength(TOOL_SPECS.length)
+    // Everything is spawned as one wsl.exe argument, which Windows caps at
+    // 32767 characters — the helper functions keep the whole catalog small.
+    expect(script.length).toBeLessThan(16000)
+  })
+
+  it('runs a version command only after command -v resolved the tool', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    // One version-running site in the whole script, and both callers guard it.
+    expect(script.split('| awk')).toHaveLength(2)
+    expect(script).toContain('[ -n "$p" ] && [ -n "$4" ] && v=$(V "$p" $4)')
+    expect(script).toContain('command -v "$1" >/dev/null 2>&1 || return 0')
+    expect(script).toContain('[ -n "$p" ] && [ -n "$5" ] && { n=$(pgrep -c $6 "$5"')
   })
 
   it('never matches pgrep against full command lines (self-match guard)', () => {
@@ -265,13 +345,77 @@ describe('buildToolsScript', () => {
 
   it('checks the playwright browser cache instead of running its CLI', () => {
     const script = buildToolsScript(TOOL_SCRIPT_SPECS)
-    expect(script).toContain('$HOME/.cache/ms-playwright')
+    expect(script).toContain('C "$HOME/.cache/ms-playwright"')
     expect(script).not.toContain('npx playwright')
+    expect(toolCall(script, 'playwright')).toContain("'playwright' \"\" ''")
   })
 
-  it('falls back to chromium-browser for the chromium binary', () => {
+  it('falls back to chromium-browser and to the ImageMagick v6 name', () => {
     const script = buildToolsScript(TOOL_SCRIPT_SPECS)
-    expect(script).toContain('command -v chromium 2>/dev/null || command -v chromium-browser')
+    expect(toolCall(script, 'chromium')).toBe(
+      `T 'chromium' 'chromium' "chromium-browser" '--version' 'chrom' ''`
+    )
+    expect(toolCall(script, 'imagemagick')).toContain(`'magick' "convert" '-version'`)
+  })
+
+  it('probes conda and brew in their install roots as well as on PATH', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    expect(toolCall(script, 'conda')).toContain('$HOME/miniconda3/bin/conda')
+    expect(toolCall(script, 'conda')).toContain('/opt/conda/bin/conda')
+    expect(toolCall(script, 'brew')).toContain('/home/linuxbrew/.linuxbrew/bin/brew')
+  })
+
+  it('detects the VS Code server as a directory, never by running code', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    expect(toolCall(script, 'code')).toBe(`T 'code' 'code' "" '' '' ''`)
+    expect(script).toContain('C "$HOME/.vscode-server"')
+  })
+
+  it('probes openclaw as a binary plus its data directory', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    expect(toolCall(script, 'openclaw')).toContain(`'openclaw' "" '--version'`)
+    expect(script).toContain('C "$HOME/.openclaw"')
+  })
+
+  it('uses the version subcommands that survived upstream flag removals', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    expect(toolCall(script, 'kubectl')).toContain(`'version --client'`)
+    expect(toolCall(script, 'go')).toContain(`'version'`)
+    expect(toolCall(script, 'rust')).toContain(`'rustc' "" '--version'`)
+    expect(toolCall(script, 'java')).toContain(`'-version'`)
+    expect(toolCall(script, 'dotnet')).toContain(`'--version'`)
+    expect(toolCall(script, 'psql')).toContain(`'--version'`)
+  })
+
+  it('bounds every version command with timeout when the distro has one', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    expect(script).toContain("timeout 1 true 2>/dev/null && w='timeout 5'")
+    expect(script).toContain('V() { $w "$@" 2>&1 |')
+  })
+
+  it('rejects a spec fragment that could break out of the script', () => {
+    const evil = {
+      ...TOOL_SCRIPT_SPECS[0],
+      version: { kind: 'args' as const, args: '--version; rm -rf /' }
+    }
+    expect(() => buildToolsScript([evil])).toThrow(/Unsafe detector spec/)
+  })
+})
+
+describe('tool catalog', () => {
+  it('gives every entry a known category and a unique id', () => {
+    const ids = new Set<string>()
+    for (const spec of TOOL_SPECS) {
+      expect(TOOL_CATEGORIES).toContain(spec.category)
+      expect(spec.displayName.length).toBeGreaterThan(0)
+      expect(ids.has(spec.id)).toBe(false)
+      ids.add(spec.id)
+    }
+    expect(ids.size).toBe(TOOL_SPECS.length)
+  })
+
+  it('has a detector for every catalog entry', () => {
+    expect(TOOL_SCRIPT_SPECS.map((s) => s.id)).toEqual(TOOL_SPECS.map((s) => s.id))
   })
 })
 
@@ -310,6 +454,29 @@ describe('parseToolsOutput', () => {
   })
 })
 
+describe('parseInteropBinaries', () => {
+  it('keys Windows binaries by file name and keeps the first of a pair', () => {
+    const out = [
+      'TOOL:aws',
+      'PATH:',
+      'WIN:/mnt/c/Users/dev/AppData/Local/Programs/Python/Python310/Scripts/aws',
+      'WIN:/mnt/c/Users/dev/AppData/Local/Programs/Python/Python312/Scripts/aws',
+      'WIN:/mnt/c/Program Files/nodejs/npm',
+      ''
+    ].join('\n')
+    const found = parseInteropBinaries(out)
+    expect(found.get('aws')).toBe(
+      '/mnt/c/Users/dev/AppData/Local/Programs/Python/Python310/Scripts/aws'
+    )
+    expect(found.get('npm')).toBe('/mnt/c/Program Files/nodejs/npm')
+    expect(found.size).toBe(2)
+  })
+
+  it('is empty when the distro has no Windows drive mounts on PATH', () => {
+    expect(parseInteropBinaries(TOOLS_FIXTURE).size).toBe(0)
+  })
+})
+
 describe('parseUserServiceUnits', () => {
   it('extracts unit names and drops bullets and blanks', () => {
     const withBullet = `● broken.service loaded failed failed Broken\n${SERVICES_FIXTURE}`
@@ -345,10 +512,10 @@ describe('detectTools', () => {
     expect(runner.calls.filter((c) => c.script === USER_SERVICES_SCRIPT)).toHaveLength(1)
   })
 
-  it('returns all 18 tools in TOOL_SPECS order', async () => {
+  it('returns every probed tool in catalog order', async () => {
     const runner = new FakeRunner(toolsResponder(TOOLS_FIXTURE))
     const tools = await detectTools(runner, 'Ubuntu-24.04')
-    expect(tools.map((t) => t.id)).toEqual(TOOL_SPECS.map((s) => s.id))
+    expect(tools.map((t) => t.id)).toEqual(TOOL_SCRIPT_SPECS.map((s) => s.id))
   })
 
   it('detects an apt-installed tool with version and config', async () => {
@@ -428,19 +595,124 @@ describe('detectTools', () => {
     expect(node).toMatchObject({ installed: true, version: null })
   })
 
+  it('parses a version the tool printed on stderr (java)', async () => {
+    const fixture = [
+      'TOOL:java',
+      'PATH:/usr/bin/java',
+      'VER:openjdk version "21.0.3" 2024-04-16',
+      'PROC:0',
+      ''
+    ].join('\n')
+    const runner = new FakeRunner(toolsResponder(fixture))
+    const tools = await detectTools(runner, 'Ubuntu-24.04')
+    expect(tools.find((t) => t.id === 'java')).toMatchObject({
+      installed: true,
+      version: '21.0.3',
+      installMethod: 'apt'
+    })
+  })
+
+  it('reports installed with a null version when the output has no number', async () => {
+    const fixture = ['TOOL:gradle', 'PATH:/usr/bin/gradle', 'VER:Unknown build', 'PROC:0', ''].join(
+      '\n'
+    )
+    const runner = new FakeRunner(toolsResponder(fixture))
+    const tools = await detectTools(runner, 'Ubuntu-24.04')
+    expect(tools.find((t) => t.id === 'gradle')).toMatchObject({
+      installed: true,
+      version: null
+    })
+  })
+
+  it('detects directory-only tools: the VS Code server and an OpenClaw data dir', async () => {
+    const fixture = [
+      'TOOL:code',
+      'PATH:',
+      'VER:',
+      'PROC:0',
+      'CFG:/home/dev/.vscode-server',
+      'TOOL:openclaw',
+      'PATH:',
+      'VER:',
+      'PROC:0',
+      'CFG:/home/dev/.openclaw',
+      ''
+    ].join('\n')
+    const runner = new FakeRunner(toolsResponder(fixture))
+    const byId = new Map((await detectTools(runner, 'Ubuntu-24.04')).map((t) => [t.id, t]))
+    expect(byId.get('code')).toMatchObject({
+      installed: true,
+      executablePath: null,
+      version: null,
+      configPaths: ['/home/dev/.vscode-server']
+    })
+    expect(byId.get('openclaw')?.installed).toBe(true)
+  })
+
+  it('finds conda in its install root and names the install method', async () => {
+    const fixture = [
+      'TOOL:conda',
+      'PATH:/home/dev/miniconda3/bin/conda',
+      'VER:conda 24.5.0',
+      'PROC:0',
+      'CFG:/home/dev/miniconda3',
+      ''
+    ].join('\n')
+    const runner = new FakeRunner(toolsResponder(fixture))
+    const conda = (await detectTools(runner, 'Ubuntu-24.04')).find((t) => t.id === 'conda')
+    expect(conda).toMatchObject({ installed: true, version: '24.5.0', installMethod: 'conda' })
+  })
+
+  it('reports a Windows-only tool through interop without running it', async () => {
+    const fixture = [
+      'TOOL:pnpm',
+      'PATH:',
+      'VER:',
+      'PROC:0',
+      'TOOL:node',
+      'PATH:/usr/bin/node',
+      'VER:v22.11.0',
+      'PROC:0',
+      'WIN:/mnt/c/Users/dev/AppData/Roaming/npm/pnpm',
+      'WIN:/mnt/c/Program Files/nodejs/node',
+      ''
+    ].join('\n')
+    const runner = new FakeRunner(toolsResponder(fixture))
+    const byId = new Map((await detectTools(runner, 'Ubuntu-24.04')).map((t) => [t.id, t]))
+    expect(byId.get('pnpm')).toMatchObject({
+      installed: true,
+      executablePath: '/mnt/c/Users/dev/AppData/Roaming/npm/pnpm',
+      version: null,
+      installMethod: 'windows-interop',
+      runningProcesses: 0
+    })
+    // A distro binary always wins over the Windows one.
+    expect(byId.get('node')).toMatchObject({
+      executablePath: '/usr/bin/node',
+      version: '22.11.0',
+      installMethod: 'apt'
+    })
+  })
+
+  it('never hands a unit to a tool whose id is only a substring of it', async () => {
+    const runner = new FakeRunner(
+      toolsResponder(TOOLS_FIXTURE, ok('  mongodb.service loaded active running MongoDB\n'))
+    )
+    const tools = await detectTools(runner, 'Ubuntu-24.04')
+    expect(tools.find((t) => t.id === 'go')?.services).toEqual([])
+  })
+
   it('defaults tools missing from truncated output to not installed', async () => {
     const partial = 'TOOL:git\nPATH:/usr/bin/git\nVER:git version 2.43.0\nPROC:0\n'
     const runner = new FakeRunner(toolsResponder(partial))
     const tools = await detectTools(runner, 'Ubuntu-24.04')
-    expect(tools).toHaveLength(18)
+    expect(tools).toHaveLength(TOOL_SCRIPT_SPECS.length)
     expect(tools.find((t) => t.id === 'git')?.installed).toBe(true)
     expect(tools.find((t) => t.id === 'docker')?.installed).toBe(false)
   })
 
   it('returns empty services when the services call fails', async () => {
-    const runner = new FakeRunner(
-      toolsResponder(TOOLS_FIXTURE, new Error('systemctl unavailable'))
-    )
+    const runner = new FakeRunner(toolsResponder(TOOLS_FIXTURE, new Error('systemctl unavailable')))
     const tools = await detectTools(runner, 'Ubuntu-24.04')
     expect(tools.every((t) => t.services.length === 0)).toBe(true)
   })
@@ -459,9 +731,11 @@ describe('detectTools', () => {
 })
 
 describe('toolDetectors', () => {
-  it('exposes one detector per TOOL_SPECS entry', () => {
-    expect(toolDetectors.map((d) => d.id)).toEqual(TOOL_SPECS.map((s) => s.id))
-    expect(toolDetectors.map((d) => d.displayName)).toEqual(TOOL_SPECS.map((s) => s.displayName))
+  it('exposes one detector per probed tool', () => {
+    expect(toolDetectors.map((d) => d.id)).toEqual(TOOL_SCRIPT_SPECS.map((s) => s.id))
+    expect(toolDetectors.map((d) => d.displayName)).toEqual(
+      TOOL_SCRIPT_SPECS.map((s) => s.displayName)
+    )
   })
 
   it('detects a single tool without probing the others', async () => {
@@ -478,7 +752,9 @@ describe('toolDetectors', () => {
       runningProcesses: 1
     })
     const batchCall = runner.calls.find((c) => c.script.includes('TOOL:'))
-    expect(batchCall?.script.match(/TOOL:/g)).toHaveLength(1)
+    expect(callLines(batchCall?.script ?? '').filter((l) => l.startsWith('T '))).toEqual([
+      `T 'git' 'git' "" '--version' 'git' '-x'`
+    ])
   })
 })
 

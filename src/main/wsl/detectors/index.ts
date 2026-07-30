@@ -22,7 +22,7 @@ export interface ToolDetector {
   detect(ctx: DistroContext): Promise<ToolDetectionResult>
 }
 
-/** Detect all 18 tools with one batched script plus one user-services call. */
+/** Detect the whole catalog with one batched script plus one services call. */
 export function detectTools(runner: DistroRunner, distro: string): Promise<ToolInfo[]> {
   return runToolDetection(runner, distro, TOOL_SCRIPT_SPECS)
 }
