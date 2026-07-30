@@ -217,6 +217,7 @@ export function useExplorer(): ExplorerApi {
 
   const distro = snapshot?.selectedDistro ?? null
   const home = snapshot?.dashboard?.system.home ?? '/'
+  const homeKnown = snapshot?.dashboard?.system.home != null
 
   const [path, setPath] = useState<string | null>(null)
   const [entries, setEntries] = useState<FileEntry[]>([])
@@ -535,6 +536,10 @@ export function useExplorer(): ExplorerApi {
   useEffect(() => {
     if (!distro || !settings) return
     if (initializedFor.current === distro) return
+    const hasLast = settings.explorer.startLocation === 'last' && !!settings.explorer.lastPath
+    // Starting at HOME requires the real home dir — wait for the first
+    // dashboard snapshot instead of falling back to '/' (goal.md §7.2).
+    if (!hasLast && !homeKnown) return
     initializedFor.current = distro
     const hidden = settings.explorer.showHiddenByDefault
     showHiddenRef.current = hidden
@@ -554,7 +559,7 @@ export function useExplorer(): ExplorerApi {
         void navigate(home, { replace: true })
       }
     })
-  }, [distro, settings, home, navigate])
+  }, [distro, settings, home, homeKnown, navigate])
 
   // Navigation requested from the Dashboard (goal.md §6.3).
   useEffect(() => {

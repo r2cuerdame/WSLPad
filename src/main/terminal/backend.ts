@@ -72,6 +72,9 @@ export function createRealConsoleFactory(runner: DistroRunner): ConsoleBackendFa
     const kind = await shellKind(distro)
     if (kind !== 'other') await ensureRcInstalled(runner, distro, kind)
     const args = ['-d', distro, '--cd', '~']
+    // Paths are relative to the session cwd (`--cd ~`): quotes or `$HOME`
+    // would be re-quoted by node-pty's Windows argv encoding and reach the
+    // in-distro shell as literal characters, silently skipping the rcfile.
     if (kind === 'bash') {
       args.push(
         '--',
@@ -79,8 +82,7 @@ export function createRealConsoleFactory(runner: DistroRunner): ConsoleBackendFa
         `WSLPAD_SYNC_FILE=${syncFilePath(distro)}`,
         'bash',
         '--rcfile',
-        // expanded by the in-distro shell that wsl.exe wraps the command with
-        `"${RC_DIR}/rc.bash"`,
+        '.cache/wslpad/rc.bash',
         '-i'
       )
     } else if (kind === 'zsh') {
@@ -88,7 +90,7 @@ export function createRealConsoleFactory(runner: DistroRunner): ConsoleBackendFa
         '--',
         'env',
         `WSLPAD_SYNC_FILE=${syncFilePath(distro)}`,
-        `ZDOTDIR="${RC_DIR}/zdotdir"`,
+        'ZDOTDIR=.cache/wslpad/zdotdir',
         'zsh',
         '-i'
       )

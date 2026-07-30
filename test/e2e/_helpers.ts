@@ -1,5 +1,5 @@
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtempSync } from 'fs'
+import { mkdtempSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
@@ -18,6 +18,12 @@ export async function launchWslPad(
   args: string[] = []
 ): Promise<LaunchedApp> {
   const userDataDir = mkdtempSync(join(tmpdir(), 'wslpad-e2e-'))
+  // Deterministic locale regardless of the host Windows UI language; tests
+  // that exercise language switching change it through the Settings UI.
+  writeFileSync(
+    join(userDataDir, 'settings.json'),
+    JSON.stringify({ schemaVersion: 1, language: 'en' })
+  )
   const app = await electron.launch({
     args: ['.', `--user-data-dir-override=${userDataDir}`, ...args],
     cwd: process.cwd(),

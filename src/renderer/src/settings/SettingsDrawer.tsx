@@ -233,6 +233,7 @@ export function SettingsDrawer(): React.JSX.Element | null {
             <label className="settings-row">
               <span className="settings-label">{t('settings.language.title')}</span>
               <select
+                data-testid="language-select"
                 value={settings.language}
                 onChange={(e) => changeLanguage(e.target.value as LocaleCode | 'auto')}
               >

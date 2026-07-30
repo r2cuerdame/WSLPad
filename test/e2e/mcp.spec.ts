@@ -117,10 +117,13 @@ test.describe('mcp server (goal.md §18.3: 12)', () => {
       params: {}
     })
     const tools: Array<{ name: string }> = list.json?.result?.tools ?? []
-    expect(tools.length).toBe(23)
+    expect(tools.length).toBe(24)
     for (const tool of tools) {
       expect(tool.name).toMatch(/^Get/)
-      expect(tool.name).not.toMatch(/Run|Exec|Write|Delete|Copy|Move|Install|Restart|Kill|Apply|Fix/)
+      // camel-case boundary match so GetInstalledTools ('Install…ed') stays legal
+      expect(tool.name).not.toMatch(
+        /(Run|Exec|Write|Delete|Copy|Move|Install|Restart|Kill|Apply|Fix)(?=[A-Z]|$)|Set[A-Z]/
+      )
     }
   })
 })
