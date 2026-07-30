@@ -1,11 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { closeApp, consoleText, launchWslPad, type LaunchedApp } from './_helpers'
 
-function fileGrid(page: Page) {
-  return page.getByRole('grid', { name: 'Explorer' })
-}
+const wslPane = (page: Page) => page.getByTestId('pane-linux')
+const winPane = (page: Page) => page.getByTestId('pane-windows')
 
-test.describe('explorer + console (goal.md §18.3: 5, 6, 7, 8, 9, 10)', () => {
+const row = (pane: ReturnType<typeof wslPane>, name: RegExp) =>
+  pane.getByRole('row', { name })
+
+test.describe('dual-pane explorer + console (goal.md §18.3: 5, 6, 7, 8, 9, 10)', () => {
   let launched: LaunchedApp
 
   test.beforeEach(async () => {
@@ -17,23 +19,43 @@ test.describe('explorer + console (goal.md §18.3: 5, 6, 7, 8, 9, 10)', () => {
     await closeApp(launched).catch(() => {})
   })
 
-  test('navigates folders in the file list', async () => {
+  test('shows Windows on the left and the distro on the right', async () => {
     const { page } = launched
-    const projects = fileGrid(page).getByRole('row', { name: /^projects/ })
-    await expect(projects).toBeVisible({ timeout: 15000 })
-    await projects.dblclick()
-    await expect(fileGrid(page).getByRole('row', { name: /wslpad-demo/ })).toBeVisible()
+    await expect(winPane(page)).toBeVisible({ timeout: 15000 })
+    await expect(wslPane(page)).toBeVisible()
+    await expect(row(winPane(page), /^Documents/)).toBeVisible({ timeout: 15000 })
+    await expect(row(wslPane(page), /^projects/)).toBeVisible({ timeout: 15000 })
   })
 
-  test('console follows explorer path without a visible cd', async () => {
+  test('navigates folders in the WSL pane', async () => {
     const { page } = launched
-    const projects = fileGrid(page).getByRole('row', { name: /^projects/ })
+    const projects = row(wslPane(page), /^projects/)
     await expect(projects).toBeVisible({ timeout: 15000 })
     await projects.dblclick()
-    await expect
-      .poll(async () => consoleText(page), { timeout: 15000 })
-      .toContain('projects')
+    await expect(row(wslPane(page), /wslpad-demo/)).toBeVisible()
+  })
+
+  test('navigates folders in the Windows pane', async () => {
+    const { page } = launched
+    const documents = row(winPane(page), /^Documents/)
+    await expect(documents).toBeVisible({ timeout: 15000 })
+    await documents.dblclick()
+    await expect(row(winPane(page), /^notes\.txt/)).toBeVisible()
+  })
+
+  test('console follows the WSL pane without a visible cd, and ignores the Windows pane', async () => {
+    const { page } = launched
+    const projects = row(wslPane(page), /^projects/)
+    await expect(projects).toBeVisible({ timeout: 15000 })
+    await projects.dblclick()
+    await expect.poll(async () => consoleText(page), { timeout: 15000 }).toContain('projects')
+
+    // Browsing Windows must not move the Linux shell
+    await row(winPane(page), /^Documents/).dblclick()
+    await page.waitForTimeout(1500)
     const transcript = await consoleText(page)
+    expect(transcript).toContain('projects')
+    expect(transcript).not.toContain('Documents')
     expect(transcript).not.toMatch(/(^|\s)cd\s/)
   })
 
@@ -54,9 +76,9 @@ test.describe('explorer + console (goal.md §18.3: 5, 6, 7, 8, 9, 10)', () => {
     expect(transcript).not.toContain('find /')
   })
 
-  test('edits and saves a text file in the editor overlay', async () => {
+  test('edits and saves a WSL text file in the editor overlay', async () => {
     const { page } = launched
-    const notes = fileGrid(page).getByRole('row', { name: /^notes\.md/ })
+    const notes = row(wslPane(page), /^notes\.md/)
     await expect(notes).toBeVisible({ timeout: 15000 })
     await notes.dblclick()
     const editor = page.locator('textarea.editor-textarea').first()
@@ -68,10 +90,32 @@ test.describe('explorer + console (goal.md §18.3: 5, 6, 7, 8, 9, 10)', () => {
     await expect(page.getByText('Unsaved changes')).toHaveCount(0, { timeout: 5000 })
     await page.keyboard.press('Escape')
     await expect(editor).toBeHidden({ timeout: 5000 })
-    // reopen and verify persisted content in the fixture fs
     await notes.dblclick()
-    await expect(page.locator('textarea.editor-textarea').first()).toHaveValue(/edited-by-e2e/, {
-      timeout: 10000
-    })
+    await expect(page.locator('textarea.editor-textarea').first()).toHaveValue(
+      /edited-by-e2e/,
+      { timeout: 10000 }
+    )
+  })
+
+  test('edits a Windows text file through the same editor', async () => {
+    const { page } = launched
+    await row(winPane(page), /^Documents/).dblclick()
+    const notes = row(winPane(page), /^notes\.txt/)
+    await expect(notes).toBeVisible({ timeout: 15000 })
+    await notes.dblclick()
+    const editor = page.locator('textarea.editor-textarea').first()
+    await expect(editor).toBeVisible({ timeout: 10000 })
+    await expect(editor).toHaveValue(/fixture/i)
+    await page.keyboard.press('Escape')
+  })
+
+  test('copies a file from Windows into the distro', async () => {
+    const { page } = launched
+    await row(winPane(page), /^Documents/).dblclick()
+    const notes = row(winPane(page), /^notes\.txt/)
+    await expect(notes).toBeVisible({ timeout: 15000 })
+    await notes.click()
+    await winPane(page).getByRole('button', { name: /Copy to the other pane/i }).click()
+    await expect(row(wslPane(page), /^notes\.txt/)).toBeVisible({ timeout: 15000 })
   })
 })

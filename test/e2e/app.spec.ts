@@ -14,7 +14,9 @@ test.describe('application shell (goal.md §18.3: 1, 2, 3, 13, 15, 19)', () => {
 
   test('launches, shows the main window and creates the tray', async () => {
     const { page, app } = launched
-    await expect(page.locator('.topbar-logo')).toHaveText('WSLPad')
+    // The product name lives in the OS title bar, not in the toolbar
+    await expect(page.locator('.topbar-distro select')).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('.topbar')).not.toContainText('WSLPad')
     expect(await mainState<boolean>(app, 'trayCreated')).toBe(true)
     expect(await mainState<boolean>(app, 'windowVisible')).toBe(true)
   })
@@ -29,7 +31,7 @@ test.describe('application shell (goal.md §18.3: 1, 2, 3, 13, 15, 19)', () => {
 
   test('closing the window hides to tray instead of quitting', async () => {
     const { page, app } = launched
-    await expect(page.locator('.topbar-logo')).toBeVisible()
+    await expect(page.locator('.topbar')).toBeVisible()
     await app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]?.close()
     })

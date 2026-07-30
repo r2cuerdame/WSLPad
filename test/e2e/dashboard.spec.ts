@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { closeApp, launchWslPad, type LaunchedApp } from './_helpers'
 
-test.describe('dashboard (goal.md §18.3: 4, 11)', () => {
+test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
   let launched: LaunchedApp
 
   test.beforeEach(async () => {
@@ -12,21 +12,37 @@ test.describe('dashboard (goal.md §18.3: 4, 11)', () => {
     await closeApp(launched).catch(() => {})
   })
 
-  test('shows fixture distro state on the dashboard', async () => {
+  test('lists sections on the left and shows the selected one on the right', async () => {
     const { page } = launched
-    await expect(page.locator('.topbar-distro select')).toHaveValue('Ubuntu-24.04', {
-      timeout: 15000
-    })
-    // Overview card content from the deterministic fixture provider
-    await expect(page.getByText('6.6.36-microsoft-standard-WSL2').first()).toBeVisible({
-      timeout: 15000
-    })
-    await expect(page.getByText('/home/dev').first()).toBeVisible()
+    const nav = page.getByTestId('dashboard-nav')
+    await expect(nav).toBeVisible({ timeout: 15000 })
+    // The section list must not introduce more tab roles (goal.md §5.2)
+    await expect(page.getByRole('tab')).toHaveCount(2)
+    for (const id of ['overview', 'resources', 'tools', 'processes', 'ports', 'warnings']) {
+      await expect(page.getByTestId(`dashboard-nav-${id}`)).toBeVisible()
+    }
+
+    const detail = page.getByTestId('dashboard-detail')
+    await expect(detail).toContainText('6.6.36-microsoft-standard-WSL2', { timeout: 15000 })
+
+    await page.getByTestId('dashboard-nav-processes').click()
+    await expect(detail).toContainText('4242')
+    await expect(detail).not.toContainText('6.6.36-microsoft-standard-WSL2')
+  })
+
+  test('shows ports for both WSL and Windows', async () => {
+    const { page } = launched
+    await page.getByTestId('dashboard-nav-ports').click()
+    const detail = page.getByTestId('dashboard-detail')
+    await expect(detail).toContainText('8790', { timeout: 15000 })
+    await expect(detail).toContainText('Windows')
   })
 
   test('masks secret environment values', async () => {
     const { page } = launched
-    await expect(page.getByText('FIXTURE_API_KEY').first()).toBeVisible({ timeout: 15000 })
+    await page.getByTestId('dashboard-nav-environment').click()
+    const detail = page.getByTestId('dashboard-detail')
+    await expect(detail).toContainText('FIXTURE_API_KEY', { timeout: 15000 })
     const body = await page.locator('body').innerText()
     expect(body).not.toContain('super-secret-fixture-value')
     expect(body).not.toContain('hunter2')

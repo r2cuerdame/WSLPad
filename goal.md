@@ -40,6 +40,17 @@ WSL에 Hermes, Codex, Claude, Docker, Node, Python 등의 개발 도구를 설�
 
 WSLPad는 이 정보를 GUI와 MCP를 통해 구조화해서 보여준다.
 
+## 1.3 사양 변경 이력
+
+0.1.0 출시 이후 사용자 지시로 확정된 변경이다. 아래 항목은 이 문서의 나머지 서술보다 우선한다.
+
+- **Dashboard는 master–detail이다.** 카드 그리드가 아니라 왼쪽 섹션 목록 + 오른쪽 상세 패널로 구성한다. (§6)
+- **Explorer는 좌우 2분할이다.** 왼쪽은 Windows 파일시스템, 오른쪽은 선택된 WSL 배포판이다. 두 패널 사이 복사가 주 상호작용이다. (§7.1)
+- **Ports는 Windows 쪽 바인딩도 표시한다.** WSL 리스너가 Windows에서 실제로 접근 가능한지, 그리고 Windows 자체 리스너까지 함께 보여준다. (§6.10)
+- **MCP의 복사·등록·테스트·토큰 재생성 기능은 설정에 있다.** Dashboard에는 MCP 섹션을 두지 않고, 상단 바 상태 배지만 유지한다. (§11.5)
+- **상단 바에 제품명을 반복 표시하지 않는다.** 창 제목 표시줄이 이미 이름을 보여주므로 툴바에서는 제거한다. (§5.1)
+- **UI는 개발자용 디버그 도구처럼 보이면 안 된다.** 절제된 색·명확한 타이포 위계·일관된 여백을 갖춘 제품 수준의 화면으로 만든다.
+
 ---
 
 # 2. 핵심 제품 철학
@@ -263,8 +274,7 @@ GitHub Releases 기반 자동 업데이트를 구현한다.
 
 다음 정보를 표시한다.
 
-- WSLPad 로고와 이름
-- 현재 선택된 배포판
+- 현재 선택된 배포판 (창 제목 표시줄이 제품명을 이미 보여주므로 툴바에는 이름을 반복하지 않는다)
 - 배포판 선택 Dropdown
 - 배포판 실행 상태
 - MCP 상태
@@ -346,9 +356,30 @@ UI는 한국어를 포함해 정확히 다음 9개 언어를 기본 제공한다
 
 # 6. Dashboard 상세 명세
 
-Dashboard는 Windows 제어판과 작업 관리자 일부를 합친 것처럼 보이되, 복잡한 관리자 UI가 아니라 읽기 쉬운 카드 기반 화면으로 만든다.
+Dashboard는 Windows 제어판과 작업 관리자 일부를 합친 것처럼 보이되, 복잡한 관리자 UI가 아니라 읽기 쉬운 화면으로 만든다.
 
-한 화면에서 스크롤하여 주요 상태를 파악할 수 있어야 한다.
+화면은 **master–detail** 구조다.
+
+```text
+┌──────────────────┬──────────────────────────────────────────┐
+│ Overview         │  Processes                    12개 항목  │
+│ Resources        │  ┌────────────────────────────────────┐  │
+│ 중요 경로        │  │ PID  User  CPU  Mem  Time  Command │  │
+│ 설정 파일        │  │ ...                                │  │
+│ 설치된 도구   18 │  │                                    │  │
+│ Hermes         ● │  └────────────────────────────────────┘  │
+│ 환경변수         │                                          │
+│ Processes     12 │                                          │
+│ 서비스        24 │                                          │
+│ 포트           6 │                                          │
+│ 경고           2 │                                          │
+└──────────────────┴──────────────────────────────────────────┘
+```
+
+- 왼쪽 목록은 세 번째 메인 탭이 아니다. `listbox`/`option` 역할을 사용하고 `tab` 역할은 쓰지 않는다.
+- 목록 각 항목에는 개수나 상태 점 같은 요약 배지를 표시한다.
+- 오른쪽 상세 패널은 선택된 섹션 하나만 렌더링하며, 프로세스·환경변수 같은 큰 표가 창 전체 높이를 쓸 수 있어야 한다.
+- 선택한 섹션은 앱을 다시 열어도 유지한다.
 
 ## 6.1 Overview 카드
 
@@ -625,6 +656,8 @@ systemd 활성화 여부에 따라 적절히 동작한다.
 
 ## 6.10 Ports 카드
 
+WSL 내부 리스너와 **Windows 쪽 바인딩을 함께** 보여준다. 어떤 포트가 Windows에서 실제로 접근 가능한지가 이 카드의 핵심 정보다.
+
 표시 항목:
 
 - protocol
@@ -634,6 +667,12 @@ systemd 활성화 여부에 따라 적절히 동작한다.
 - process
 - listening 상태
 - Windows에서 접근 가능한 localhost URL
+- 출처: `WSL` / `Windows` / `WSL + Windows`
+- 해당 포트를 잡고 있는 Windows 프로세스 이름 (NAT 모드에서는 보통 wslrelay/wslhost)
+
+Windows 포트 목록은 호스트의 TCP/UDP 테이블에서 직접 읽는다. 읽지 못한 경우 "접근 불가"로 단정하지 말고 알 수 없음으로 표시한다.
+
+Windows에만 존재하는 리스너도 목록에 포함하며, 사용자가 토글로 숨길 수 있다.
 
 HTTP 포트로 추정되면 클릭 가능한 URL을 제공한다.
 
@@ -675,33 +714,32 @@ Windows Explorer를 WSL 내부에 적용한 것처럼 직관적으로 만들어�
 
 ## 7.1 기본 레이아웃
 
+Explorer는 **좌우 2분할 파일 매니저**다. 왼쪽은 Windows, 오른쪽은 선택된 WSL 배포판이다.
+
 ```text
-┌─ Explorer ──────────────────────────────────────────────────┐
-│ ← → ↑  ⟳   /home/recuerdame/.hermes                  Search│
-├──────────────────┬──────────────────────────────────────────┤
-│ Folder Tree      │ Name         Size     Owner   Permission│
-│                  │                                          │
-│ /                │ config.json  2 KB     user    rw-r--r--  │
-│ ├─ home          │ logs/        —        user    rwxr-xr-x  │
-│ │  └─ user       │ sessions/    —        user    rwxr-xr-x  │
-│ ├─ etc           │                                          │
-│ ├─ usr           │                                          │
-│ └─ mnt           │                                          │
-├──────────────────┴──────────────────────────────────────────┤
-│ Selected: config.json · /home/user/.hermes/config.json      │
-└─────────────────────────────────────────────────────────────┘
+┌─ Windows ─────────────────────┬─ Ubuntu-24.04 ─────────────────┐
+│ ← → ↑ ⟳  C:\Users\recue       ║ ← → ↑ ⟳  /home/user/.hermes    │
+│ ┌───────────────────────────┐ ║ ┌────────────────────────────┐ │
+│ │ Name        Size  Modified│ ║ │ Name   Size Owner Permission│ │
+│ │ Documents     —   ...     │ ║ │ logs/    —  user  rwxr-xr-x │ │
+│ │ Downloads     —   ...     │ ║ │ config… 2KB user  rw-r--r-- │ │
+│ └───────────────────────────┘ ║ └────────────────────────────┘ │
+│ [Copy to the other pane →]    ║    [← Copy to the other pane]  │
+│ Selected: notes.txt           ║ Selected: config.json          │
+└───────────────────────────────┴────────────────────────────────┘
 ```
 
 구성:
 
-- 상단 Navigation
-- Breadcrumb
-- Path 직접 입력
-- 검색
-- 왼쪽 Folder Tree
-- 오른쪽 File List
-- 하단 선택 정보
-- Console과 경로 연동
+- 두 패널은 같은 컴포넌트를 파일시스템 어댑터로 매개변수화해 구현한다.
+- 각 패널마다: Navigation, Breadcrumb, Path 직접 입력, 검색, 접을 수 있는 Folder Tree, File List, 하단 선택 정보
+- 가운데 splitter로 너비 조절, 비율은 저장한다.
+- Windows 패널의 루트는 "내 PC"이며 드라이브 목록을 보여준다.
+- 패널 간 복사가 주 상호작용이다. 드래그앤드롭 또는 "다른 패널로 복사" 버튼으로 수행한다.
+- **패널 간 이동(move)은 제공하지 않는다.** 전송이 실패해도 원본이 사라지지 않도록 복사만 허용한다.
+- 같은 패널 안에서의 드래그는 이동이며, Ctrl을 누르면 복사다.
+- Console 경로 동기화와 마지막 경로 저장은 WSL 패널에만 적용한다.
+- Windows 패널과 WSL 패널의 복사 아이콘은 한눈에 구분되어야 한다. WSL 쪽은 의도적으로 올드한 형태의 복사 아이콘을 사용한다.
 
 ## 7.2 Navigation
 
@@ -1210,9 +1248,9 @@ ApplyFix
 - `/proc`, `/sys`, device file 제한
 - 민감한 환경변수 값 마스킹
 
-## 11.5 MCP Dashboard 카드
+## 11.5 MCP 설정 패널
 
-Dashboard에 MCP 카드 하나를 제공한다.
+MCP의 상태와 기능은 **설정 drawer**에 둔다. Dashboard에는 MCP 섹션을 만들지 않고, 상단 바의 상태 배지만 유지한다.
 
 표시:
 
@@ -1677,6 +1715,7 @@ WSLPad의 정체성은 다음과 같다.
 
 ## Dashboard
 
+- master–detail 레이아웃 (왼쪽 섹션 목록 + 오른쪽 상세)
 - 실제 WSL 배포판 조회
 - 시스템 정보 표시
 - 리소스 실시간 갱신
@@ -1684,13 +1723,14 @@ WSLPad의 정체성은 다음과 같다.
 - Hermes 감지
 - process 표시
 - service 표시
-- port 표시
+- port 표시 (WSL + Windows 양쪽)
 - environment 표시
 - secret masking
 - warnings 표시
 
 ## Explorer
 
+- 좌우 2분할 (Windows | WSL)
 - Folder Tree
 - File List
 - Lazy loading
@@ -1701,7 +1741,7 @@ WSLPad의 정체성은 다음과 같다.
 - Rename
 - Copy/Cut/Paste
 - Drag and Drop
-- Windows ↔ WSL 전송
+- 패널 간 Windows ↔ WSL 전송
 - Trash
 - Text edit
 - path copy
