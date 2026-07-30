@@ -16,7 +16,11 @@ import type {
 type ChangeListener = (s: Settings) => void
 
 /** Copy only the allowed, defined keys of a patch section onto a base section. */
-function mergeSection<T extends object>(base: T, patch: Partial<T> | undefined, keys: (keyof T)[]): T {
+function mergeSection<T extends object>(
+  base: T,
+  patch: Partial<T> | undefined,
+  keys: (keyof T)[]
+): T {
   const out = { ...base }
   if (!patch) return out
   for (const key of keys) {
@@ -74,7 +78,10 @@ export class SettingsStore {
       } catch (err) {
         parseFailure = err instanceof Error ? err.message : String(err)
       }
-      if (parseFailure === null && (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))) {
+      if (
+        parseFailure === null &&
+        (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+      ) {
         parseFailure = 'settings file is not a JSON object'
       }
       if (parseFailure !== null) {
@@ -102,7 +109,8 @@ export class SettingsStore {
       schemaVersion: cur.schemaVersion,
       language: p.language !== undefined ? p.language : cur.language,
       theme: p.theme !== undefined ? p.theme : cur.theme,
-      startWithWindows: p.startWithWindows !== undefined ? p.startWithWindows : cur.startWithWindows,
+      startWithWindows:
+        p.startWithWindows !== undefined ? p.startWithWindows : cur.startWithWindows,
       monitoring: mergeSection<MonitoringSettings>(cur.monitoring, p.monitoring, [
         'paused',
         'fastMs',

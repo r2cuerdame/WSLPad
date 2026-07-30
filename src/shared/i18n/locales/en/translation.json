@@ -315,7 +315,9 @@
       "modified": "Modified",
       "accessed": "Accessed",
       "linkTarget": "Link target"
-    }
+    },
+    "invalidName": "Invalid name",
+    "dropUseImport": "Drop from Windows is not supported here — use Import from Windows…"
   },
   "editor": {
     "title": "Editor",
@@ -351,7 +353,8 @@
       "distro-stopped": "Distribution stopped"
     },
     "reconnect": "Reconnect",
-    "commandPrepared": "Command prepared — review and press Enter to run"
+    "commandPrepared": "Command prepared — review and press Enter to run",
+    "notReady": "Console is not ready"
   },
   "settings": {
     "title": "Settings",
@@ -463,6 +466,7 @@
     "fileSaved": "Saved {{name}}",
     "trashDone": "Moved {{count}} item(s) to Trash",
     "deleteDone": "Deleted {{count}} item(s)",
-    "settingsSaved": "Settings saved"
+    "settingsSaved": "Settings saved",
+    "openedInExplorer": "Opened in Explorer"
   }
 }

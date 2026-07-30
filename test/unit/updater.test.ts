@@ -67,7 +67,12 @@ describe('AppUpdater packaged flow', () => {
   it('configures background download and install-on-quit (goal.md §4.3.5)', () => {
     const fake = new FakeAutoUpdater()
     const { onStatus } = collect()
-    const updater = new AppUpdater({ isPackaged: true, autoCheck: false, onStatus, injectAutoUpdater: fake })
+    const updater = new AppUpdater({
+      isPackaged: true,
+      autoCheck: false,
+      onStatus,
+      injectAutoUpdater: fake
+    })
     updater.start()
     expect(fake.autoDownload).toBe(true)
     expect(fake.autoInstallOnAppQuit).toBe(true)
@@ -78,7 +83,12 @@ describe('AppUpdater packaged flow', () => {
   it('emits statuses in order checking → available → downloading → downloaded', () => {
     const fake = new FakeAutoUpdater()
     const { statuses, onStatus } = collect()
-    const updater = new AppUpdater({ isPackaged: true, autoCheck: true, onStatus, injectAutoUpdater: fake })
+    const updater = new AppUpdater({
+      isPackaged: true,
+      autoCheck: true,
+      onStatus,
+      injectAutoUpdater: fake
+    })
     updater.start()
     expect(fake.checkCalls).toBe(1)
 
@@ -87,10 +97,20 @@ describe('AppUpdater packaged flow', () => {
     fake.emit('download-progress', { percent: 42.5 })
     fake.emit('update-downloaded', { version: '1.2.3' })
 
-    expect(statuses.map((s) => s.state)).toEqual(['checking', 'available', 'downloading', 'downloaded'])
+    expect(statuses.map((s) => s.state)).toEqual([
+      'checking',
+      'available',
+      'downloading',
+      'downloaded'
+    ])
     expect(statuses[1].version).toBe('1.2.3')
     expect(statuses[2].percent).toBe(42.5)
-    expect(statuses[3]).toEqual({ state: 'downloaded', version: '1.2.3', percent: 100, error: null })
+    expect(statuses[3]).toEqual({
+      state: 'downloaded',
+      version: '1.2.3',
+      percent: 100,
+      error: null
+    })
     expect(updater.getStatus().state).toBe('downloaded')
     updater.dispose()
   })
@@ -98,7 +118,12 @@ describe('AppUpdater packaged flow', () => {
   it('keeps running on error events (goal.md §4.3.6)', () => {
     const fake = new FakeAutoUpdater()
     const { statuses, onStatus } = collect()
-    const updater = new AppUpdater({ isPackaged: true, autoCheck: false, onStatus, injectAutoUpdater: fake })
+    const updater = new AppUpdater({
+      isPackaged: true,
+      autoCheck: false,
+      onStatus,
+      injectAutoUpdater: fake
+    })
     updater.start()
     fake.emit('error', new Error('network down'))
     expect(statuses.at(-1)).toMatchObject({ state: 'error', error: 'network down' })
@@ -108,7 +133,12 @@ describe('AppUpdater packaged flow', () => {
   it('does not auto-check when autoCheck is false', () => {
     const fake = new FakeAutoUpdater()
     const { onStatus } = collect()
-    const updater = new AppUpdater({ isPackaged: true, autoCheck: false, onStatus, injectAutoUpdater: fake })
+    const updater = new AppUpdater({
+      isPackaged: true,
+      autoCheck: false,
+      onStatus,
+      injectAutoUpdater: fake
+    })
     updater.start()
     expect(fake.checkCalls).toBe(0)
     updater.dispose()
@@ -147,7 +177,12 @@ describe('AppUpdater packaged flow', () => {
       throw new Error('offline')
     }
     const { statuses, onStatus } = collect()
-    const updater = new AppUpdater({ isPackaged: true, autoCheck: false, onStatus, injectAutoUpdater: fake })
+    const updater = new AppUpdater({
+      isPackaged: true,
+      autoCheck: false,
+      onStatus,
+      injectAutoUpdater: fake
+    })
     updater.start()
     const status = await updater.checkNow()
     expect(status.state).toBe('error')

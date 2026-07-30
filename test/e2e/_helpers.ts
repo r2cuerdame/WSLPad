@@ -25,7 +25,8 @@ export async function launchWslPad(
       ...process.env,
       WSLPAD_FIXTURE_MODE: '1',
       WSLPAD_USER_DATA: userDataDir,
-      NODE_ENV: 'production'
+      NODE_ENV: 'production',
+      ...extraEnv
     }
   })
   const page = await app.firstWindow()
@@ -56,5 +57,5 @@ export async function mainState<T>(
 export async function consoleText(page: Page): Promise<string> {
   const rows = page.locator('.xterm-rows')
   if ((await rows.count()) === 0) return ''
-  return (await rows.first().innerText()).replace(/ /g, ' ')
+  return (await rows.first().innerText()).replace(/\u00a0/g, ' ')
 }

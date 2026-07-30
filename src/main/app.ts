@@ -98,7 +98,8 @@ export class WslPadApp {
     ;(globalThis as Record<string, unknown>).__wslpadTest = {
       trayCreated: () => this.tray !== null,
       windowVisible: () => this.window?.isVisible() ?? false,
-      windowCount: () => BrowserWindow.getAllWindows().length
+      windowCount: () => BrowserWindow.getAllWindows().length,
+      trayMenuFirstLabel: () => this.tray?.firstMenuLabel() ?? ''
     }
 
     // First-run default: start with Windows enabled (goal.md §4.1)

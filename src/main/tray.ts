@@ -19,6 +19,7 @@ export interface TrayHost {
 /** Tray icon + context menu (goal.md §4.2). Rebuild the menu on state/locale change. */
 export class AppTray {
   private tray: Tray
+  private lastFirstLabel = ''
 
   constructor(
     private host: TrayHost,
@@ -39,6 +40,7 @@ export class AppTray {
     const t = this.i18n.t.bind(this.i18n)
     const distro = this.host.selectedDistro()
     this.tray.setToolTip(distro ? t('tray.tooltip', { distro }) : t('app.name'))
+    this.lastFirstLabel = t('tray.open')
     const menu = Menu.buildFromTemplate([
       { label: t('tray.open'), click: () => this.host.showMainWindow() },
       { label: t('tray.refresh'), click: () => this.host.refreshAll() },
@@ -59,6 +61,11 @@ export class AppTray {
       { label: t('tray.quit'), click: () => this.host.quit() }
     ])
     this.tray.setContextMenu(menu)
+  }
+
+  /** E2E hook: first context-menu label in the active locale. */
+  firstMenuLabel(): string {
+    return this.lastFirstLabel
   }
 
   dispose(): void {

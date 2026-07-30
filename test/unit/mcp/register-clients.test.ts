@@ -167,7 +167,7 @@ describe('registerClient hermes', () => {
   it('fails without a runner or selected distro', async () => {
     const noRunner = await registerClient('hermes', baseOpts({ selectedDistro: 'Ubuntu' }))
     expect(noRunner.ok).toBe(false)
-    expect(noRunner.error).toBe('no WSL distro selected')
+    expect(noRunner.error).toBe('requires WSL and a selected distro')
     const noDistro = await registerClient('hermes', baseOpts({ runner: new FakeRunner() }))
     expect(noDistro.ok).toBe(false)
     expect(noDistro.error).toBeTruthy()
@@ -175,10 +175,7 @@ describe('registerClient hermes', () => {
 
   it('rejects invalid distro names without running anything', async () => {
     const runner = new FakeRunner()
-    const res = await registerClient(
-      'hermes',
-      baseOpts({ runner, selectedDistro: 'bad;name' })
-    )
+    const res = await registerClient('hermes', baseOpts({ runner, selectedDistro: 'bad;name' }))
     expect(res.ok).toBe(false)
     expect(runner.calls).toHaveLength(0)
   })

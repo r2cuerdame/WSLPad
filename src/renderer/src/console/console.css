@@ -1,0 +1,105 @@
+.console-root {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  background: var(--bg-raised);
+  flex-shrink: 0;
+}
+
+.console-resize {
+  height: 4px;
+  margin-top: -2px;
+  cursor: ns-resize;
+  flex-shrink: 0;
+}
+
+.console-resize:hover {
+  background: var(--accent-dim);
+}
+
+.console-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  flex-shrink: 0;
+}
+
+.console-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.console-status {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.console-status.st-ok {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.console-status.st-busy {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.console-status.st-warn {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.console-status.st-err {
+  color: var(--err);
+  border-color: var(--err);
+}
+
+.console-cwd {
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.console-spacer {
+  flex: 1;
+}
+
+.console-btn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.console-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.console-term-wrap {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg);
+}
+
+.console-term-wrap.collapsed {
+  visibility: hidden;
+}
+
+.console-term {
+  position: absolute;
+  inset: 0 0 0 6px;
+}

@@ -171,15 +171,27 @@ export class SnapshotStore {
       const s = this.sections
       if (distro && s) {
         await Promise.all([
-          this.collect('resources', () => this.provider.getResources(distro), (v) => {
-            s.resources = v
-          }),
-          this.collect('processes', () => this.provider.getProcesses(distro), (v) => {
-            s.processes = v
-          }),
-          this.collect('ports', () => this.provider.getPorts(distro), (v) => {
-            s.ports = v
-          })
+          this.collect(
+            'resources',
+            () => this.provider.getResources(distro),
+            (v) => {
+              s.resources = v
+            }
+          ),
+          this.collect(
+            'processes',
+            () => this.provider.getProcesses(distro),
+            (v) => {
+              s.processes = v
+            }
+          ),
+          this.collect(
+            'ports',
+            () => this.provider.getPorts(distro),
+            (v) => {
+              s.ports = v
+            }
+          )
         ])
       }
       this.recomputeWarnings()
@@ -204,9 +216,13 @@ export class SnapshotStore {
               s.services = v
             }
           ),
-          this.collect('hermes', () => this.provider.getHermes(distro), (v) => {
-            s.hermes = v
-          })
+          this.collect(
+            'hermes',
+            () => this.provider.getHermes(distro),
+            (v) => {
+              s.hermes = v
+            }
+          )
         ])
       }
       this.recomputeWarnings()
@@ -224,24 +240,48 @@ export class SnapshotStore {
       const s = this.sections
       if (distro && s) {
         await Promise.all([
-          this.collect('distro details', () => this.provider.getDistroDetails(distro), (v) => {
-            s.distro = v
-          }),
-          this.collect('system info', () => this.provider.getSystemInfo(distro), (v) => {
-            s.system = v
-          }),
-          this.collect('tools', () => this.provider.getTools(distro), (v) => {
-            s.tools = v
-          }),
-          this.collect('environment', () => this.provider.getEnvironment(distro), (v) => {
-            s.environment = v
-          }),
-          this.collect('important paths', () => this.provider.getImportantPaths(distro), (v) => {
-            s.paths = v
-          }),
-          this.collect('config files', () => this.provider.getConfigFiles(distro), (v) => {
-            s.configuration = v
-          })
+          this.collect(
+            'distro details',
+            () => this.provider.getDistroDetails(distro),
+            (v) => {
+              s.distro = v
+            }
+          ),
+          this.collect(
+            'system info',
+            () => this.provider.getSystemInfo(distro),
+            (v) => {
+              s.system = v
+            }
+          ),
+          this.collect(
+            'tools',
+            () => this.provider.getTools(distro),
+            (v) => {
+              s.tools = v
+            }
+          ),
+          this.collect(
+            'environment',
+            () => this.provider.getEnvironment(distro),
+            (v) => {
+              s.environment = v
+            }
+          ),
+          this.collect(
+            'important paths',
+            () => this.provider.getImportantPaths(distro),
+            (v) => {
+              s.paths = v
+            }
+          ),
+          this.collect(
+            'config files',
+            () => this.provider.getConfigFiles(distro),
+            (v) => {
+              s.configuration = v
+            }
+          )
         ])
       }
       this.recomputeWarnings()

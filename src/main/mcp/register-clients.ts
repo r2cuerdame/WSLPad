@@ -70,12 +70,18 @@ function registerClaudeDesktop(opts: RegisterClientOptions): McpRegisterResult {
       config = parsed as Record<string, unknown>
     } catch (err) {
       // Never clobber a config we cannot parse — surface the reason instead.
-      return { ok: false, configPath, error: `existing config is invalid JSON: ${errorMessage(err)}` }
+      return {
+        ok: false,
+        configPath,
+        error: `existing config is invalid JSON: ${errorMessage(err)}`
+      }
     }
   }
 
   const servers =
-    typeof config.mcpServers === 'object' && config.mcpServers !== null && !Array.isArray(config.mcpServers)
+    typeof config.mcpServers === 'object' &&
+    config.mcpServers !== null &&
+    !Array.isArray(config.mcpServers)
       ? (config.mcpServers as Record<string, unknown>)
       : {}
   config.mcpServers = {
@@ -120,7 +126,11 @@ export function upsertCodexBlock(existing: string, block: string): string {
   if (endOffset === -1) {
     throw new Error(`found '${CODEX_BEGIN}' without matching '${CODEX_END}'`)
   }
-  const replaced = [...lines.slice(0, beginIdx), ...block.split('\n'), ...lines.slice(beginIdx + endOffset + 1)]
+  const replaced = [
+    ...lines.slice(0, beginIdx),
+    ...block.split('\n'),
+    ...lines.slice(beginIdx + endOffset + 1)
+  ]
   return replaced.join('\n')
 }
 
@@ -152,7 +162,7 @@ const HERMES_CLIENT_PATH = '~/.hermes/mcp_clients/wslpad.json'
 
 async function registerHermes(opts: RegisterClientOptions): Promise<McpRegisterResult> {
   if (!opts.runner || !opts.selectedDistro) {
-    return { ok: false, configPath: null, error: 'no WSL distro selected' }
+    return { ok: false, configPath: null, error: 'requires WSL and a selected distro' }
   }
   assertValidDistroName(opts.selectedDistro)
   // 127.0.0.1 reaches the Windows host from WSL2 under mirrored networking;
@@ -168,7 +178,11 @@ async function registerHermes(opts: RegisterClientOptions): Promise<McpRegisterR
     'mkdir -p "$HOME/.hermes/mcp_clients" && base64 -d > "$HOME/.hermes/mcp_clients/wslpad.json"'
   const result = await opts.runner.runInDistro(opts.selectedDistro, script, { stdin: payload })
   if (result.timedOut) {
-    return { ok: false, configPath: HERMES_CLIENT_PATH, error: 'timed out writing Hermes MCP config' }
+    return {
+      ok: false,
+      configPath: HERMES_CLIENT_PATH,
+      error: 'timed out writing Hermes MCP config'
+    }
   }
   if (result.code !== 0) {
     return {
