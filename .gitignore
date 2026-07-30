@@ -9,3 +9,4 @@ playwright-report/
 .vite/
 .DS_Store
 Thumbs.db
+release2/
