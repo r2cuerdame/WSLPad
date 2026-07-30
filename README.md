@@ -33,11 +33,17 @@ and an MCP surface — without ever changing your system behind your back.
 ### Dashboard — read-only state, section by section
 
 Pick a section on the left, read it on the right: overview, live
-CPU/memory/disk, important paths, configuration files, 18 auto-detected dev
+CPU/memory/disk, important paths, configuration files, auto-detected dev
 tools, a dedicated Hermes section, environment variables (secrets masked),
-processes, services, ports, warnings and MCP status. Tables get the full window
-instead of a cramped card, and the list carries live badges (process count,
-open ports, warning count, Hermes/MCP status dots).
+processes, services, ports and warnings. Tables get the full window instead of
+a cramped card, and the list carries live badges (process count, open ports,
+warning count, Hermes status).
+
+The **Ports** section shows both sides of every port: a WSL listener is marked
+`WSL`, or `WSL + Windows` when it is genuinely reachable from Windows (with the
+Windows process holding it — usually `wslrelay` under NAT networking).
+Windows-only listeners are listed too and can be toggled off. When the host
+port table can't be read, WSLPad says so instead of claiming "not reachable".
 
 The Dashboard never executes anything. Buttons like *kill*, *restart service*
 or *sudoedit* only **prepare** the command in the Console input — you review,
@@ -66,8 +72,10 @@ Double-click any text file on either side to open the built-in editor overlay
 
 A genuine interactive PTY session per distro (bash/zsh, colors, Ctrl+C, tab
 completion, vim/htop/ssh all work) docked at the bottom of every tab.
-When you navigate the WSL pane in Explorer the Console follows to the same
-directory — without a visible `cd`, without polluting your shell history. Only commands
+Right-click pastes — or copies the selection when there is one — the way every
+other terminal behaves. When you navigate the WSL pane in Explorer the Console
+follows to the same directory — without a visible `cd`, without polluting your
+shell history. Only commands
 **you** run appear in the transcript; WSLPad's internal queries are executed
 by a separate hidden runner.
 
@@ -87,7 +95,9 @@ Details: [docs/MCP.md](docs/MCP.md).
 The gear (top-right, always available) opens a settings drawer — never a third
 tab: language, theme (system/light/dark), start with Windows, monitoring
 pause + fast/medium/slow polling intervals, Explorer defaults, Console
-font/scrollback, MCP port/token, update checks, reset-all.
+font/scrollback, update checks, reset-all — and the full **MCP panel**: status,
+copy endpoint, copy config JSON, one-click registration for Codex / Claude
+Desktop / Hermes, connection test and token regeneration.
 
 WSLPad ships complete UI translations for **9 languages** — 한국어, English,
 日本語, 简体中文, 繁體中文, Español, Français, Deutsch, Português do Brasil —
@@ -140,6 +150,8 @@ no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 ## Current limitations (v0.1.1)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
+- The detected-tool catalog is still the original 18 entries; a much larger,
+  categorised catalog is queued for 0.1.2
 - Console cwd-sync requires bash or zsh as the default shell (other shells
   work, just without automatic path sync)
 - Copying *between* the panes never moves: cross-filesystem transfers are
@@ -150,10 +162,11 @@ no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
   Windows Recycle Bin, restorable from there)
 - MCP stdio bridge requires the tray app to be running
 
-## Roadmap ideas
+## Roadmap
 
-Trash restore UI, per-distro console profiles, service log viewer, ARM64
-build, signed installer, portable diagnostics export.
+Next up (0.1.2): a much larger categorised tool catalog, per-distro icons in
+the Explorer panes, and a Trash restore UI. Later: per-distro console profiles,
+a service log viewer, an ARM64 build, a signed installer.
 
 ## License
 

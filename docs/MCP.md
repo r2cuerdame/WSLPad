@@ -25,7 +25,8 @@ running).
 
 ## Registering clients
 
-The Dashboard MCP card offers one-click registration:
+Settings → MCP server offers one-click registration (the top bar keeps the
+at-a-glance status badge):
 
 - **Claude Desktop** — adds an `mcpServers.wslpad` entry
   (`claude_desktop_config.json`) using the stdio bridge.
@@ -61,7 +62,7 @@ The Dashboard MCP card offers one-click registration:
 | `GetEnvironment` | Env var names + masked values (secrets never raw) |
 | `GetProcesses` / `GetProcess` | Process table / one PID |
 | `GetServices` / `GetService` | systemd services / one unit |
-| `GetPorts` | Listening ports with owning process when known |
+| `GetPorts` | Listening ports, each marked with whether Windows also binds it |
 | `GetWarnings` | Current warnings (stopped distro, failed units, …) |
 | `GetDirectory` | Directory listing (`{ path, showHidden? }`) |
 | `GetDirectoryTree` | Bounded-depth subtree (`{ path, depth? ≤ 3 }`) |
