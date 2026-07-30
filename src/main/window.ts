@@ -3,6 +3,8 @@ import { join } from 'path'
 
 export interface MainWindowHost {
   isQuitting(): boolean
+  /** false when launched hidden via login autostart (goal.md §4.1). */
+  showOnReady?: boolean
 }
 
 export function createMainWindow(host: MainWindowHost): BrowserWindow {
@@ -23,7 +25,9 @@ export function createMainWindow(host: MainWindowHost): BrowserWindow {
     }
   })
 
-  win.on('ready-to-show', () => win.show())
+  win.on('ready-to-show', () => {
+    if (host.showOnReady !== false) win.show()
+  })
 
   // Close button hides to tray instead of quitting (goal.md §4.2)
   win.on('close', (e) => {

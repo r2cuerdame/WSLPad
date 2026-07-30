@@ -69,6 +69,92 @@ body {
   letter-spacing: 0.02em;
 }
 
+.topbar-distro {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topbar-distro select {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font: inherit;
+  max-width: 220px;
+}
+
+.state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  display: inline-block;
+}
+
+.state-dot.ok {
+  background: var(--ok);
+}
+
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mcp-badge {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.mcp-badge.ok {
+  color: var(--ok);
+}
+
+.mcp-badge.err {
+  color: var(--err);
+}
+
+.paused-badge {
+  font-size: 11px;
+  color: var(--warn);
+  border: 1px solid var(--warn);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+.icon-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-dim);
+  padding: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--bg-card);
+  border-color: var(--border);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tabs-inline {
+  display: flex;
+  gap: 2px;
+  margin-left: 18px;
+}
+
 .tabs {
   display: flex;
   gap: 2px;
