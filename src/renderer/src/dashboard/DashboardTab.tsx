@@ -110,6 +110,11 @@ export default function DashboardTab(): React.JSX.Element {
     </span>
   )
 
+  // Windows-only listeners are rows too, so the badge and the subtitle count
+  // what the section actually shows, not just the WSL side.
+  const portRowCount =
+    dash.ports.length + dash.windowsPorts.filter((p) => !p.fromWsl).length
+
   const gatewayRunning = dash.hermes?.gatewayStatus === 'running'
   const badges: Partial<Record<DashboardSectionId, ReactNode>> = {
     tools: count(installedTools),
@@ -120,7 +125,7 @@ export default function DashboardTab(): React.JSX.Element {
     environment: count(dash.environment.length),
     processes: count(dash.processes.length),
     services: count(dash.services.length),
-    ports: count(dash.ports.length),
+    ports: count(portRowCount),
     warnings: count(warnings.length, warnings.length > 0 ? 'err' : undefined)
   }
 
@@ -138,7 +143,7 @@ export default function DashboardTab(): React.JSX.Element {
     environment: items(dash.environment.length),
     processes: items(dash.processes.length),
     services: items(dash.services.length),
-    ports: items(dash.ports.length),
+    ports: items(portRowCount),
     warnings: warnings.length > 0 ? items(warnings.length) : t('dashboard.warnings.empty')
   }
 
@@ -163,7 +168,7 @@ export default function DashboardTab(): React.JSX.Element {
       case 'services':
         return <ServicesCard services={dash.services} systemdEnabled={dash.system.systemdEnabled} />
       case 'ports':
-        return <PortsCard ports={dash.ports} />
+        return <PortsCard ports={dash.ports} windowsPorts={dash.windowsPorts} />
       case 'warnings':
         return <WarningsCard warnings={warnings} />
     }

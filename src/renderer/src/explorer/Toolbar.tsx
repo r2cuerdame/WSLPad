@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CopyIcon, RetroCopyIcon } from '../components/Icons'
 import { Breadcrumb } from './Breadcrumb'
 import type { FsAdapter } from './fsAdapter'
 
@@ -13,8 +12,6 @@ interface ToolbarProps {
   searchQuery: string
   treeOpen: boolean
   /** 'right' on the Windows pane, 'left' on the WSL pane. */
-  transferDirection: 'left' | 'right'
-  transferDisabled: boolean
   onBack: () => void
   onForward: () => void
   onUp: () => void
@@ -24,7 +21,6 @@ interface ToolbarProps {
   onNavigate: (path: string) => void
   onToggleHidden: () => void
   onToggleTree: () => void
-  onTransfer: () => void
   onSearch: (query: string) => void
   onClearSearch: () => void
 }
@@ -171,31 +167,6 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
         <Glyph d={GLYPHS.eye} />
       </button>
 
-      {sep}
-
-      {/* Each pane gets its own copy silhouette — modern sheets going right on
-          Windows, the retro duplicate mark coming left on WSL — so the two
-          cross-pane copies are never confused at 16px. */}
-      <button
-        type="button"
-        className="exp-toolbtn transfer"
-        title={t('explorer.copyToOther')}
-        aria-label={t('explorer.copyToOther')}
-        disabled={props.transferDisabled}
-        onClick={props.onTransfer}
-      >
-        {props.transferDirection === 'right' ? (
-          <>
-            <CopyIcon size={14} />
-            <Glyph d={GLYPHS.chevronRight} size={10} />
-          </>
-        ) : (
-          <>
-            <Glyph d={GLYPHS.chevronLeft} size={10} />
-            <RetroCopyIcon size={14} />
-          </>
-        )}
-      </button>
     </div>
   )
 }

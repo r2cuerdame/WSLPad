@@ -457,6 +457,30 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
         {props.active && (
           <span className="pane-active-dot" title={t('explorer.pane.activeHint')} aria-hidden="true" />
         )}
+        {/* Copying across the panes is the primary interaction, so it sits in
+            the header rather than competing for room in the toolbar row. Each
+            side keeps its own copy silhouette (modern vs retro) plus the
+            direction chevron, so the two are never confused. */}
+        <button
+          type="button"
+          className="pane-transfer"
+          title={t('explorer.copyToOther')}
+          aria-label={t('explorer.copyToOther')}
+          disabled={pane.selection.size === 0 || transferTarget() === null}
+          onClick={() => copyToOther(selectedPaths())}
+        >
+          {adapter.kind === 'windows' ? (
+            <>
+              <CopyIcon size={14} />
+              <span aria-hidden="true">&#8250;</span>
+            </>
+          ) : (
+            <>
+              <span aria-hidden="true">&#8249;</span>
+              <RetroCopyIcon size={14} />
+            </>
+          )}
+        </button>
       </header>
 
       {unavailable !== null ? (
@@ -471,8 +495,6 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
             showHidden={pane.showHidden}
             searchQuery={pane.searchQuery}
             treeOpen={treeOpen}
-            transferDirection={adapter.kind === 'windows' ? 'right' : 'left'}
-            transferDisabled={pane.selection.size === 0 || transferTarget() === null}
             onBack={() => void pane.goBack()}
             onForward={() => void pane.goForward()}
             onUp={() => void pane.goUp()}
@@ -482,7 +504,6 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
             onNavigate={(p) => void pane.navigate(p)}
             onToggleHidden={() => void pane.toggleHidden()}
             onToggleTree={toggleTree}
-            onTransfer={() => copyToOther(selectedPaths())}
             onSearch={(q) => void pane.runSearch(q)}
             onClearSearch={pane.clearSearch}
           />

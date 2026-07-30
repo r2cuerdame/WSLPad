@@ -155,13 +155,24 @@
 
 /* ---- Toolbar ---- */
 
+/* Both panes share the window, so the toolbar must survive a 50% split: it
+   wraps the path box onto its own line rather than clipping the controls at
+   the pane edge. */
 .exp-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 3px;
+  row-gap: 4px;
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-raised);
+  overflow: hidden;
+}
+
+.exp-toolbar .exp-toolbtn.transfer {
+  flex: none;
+  margin-left: auto;
 }
 
 .exp-toolsep {
@@ -227,7 +238,7 @@
 }
 
 .exp-pathbox {
-  flex: 1 1 150px;
+  flex: 1 1 260px;
   min-width: 0;
   display: flex;
   align-items: stretch;
@@ -321,7 +332,7 @@
 
 .exp-search {
   flex: 0 1 128px;
-  min-width: 72px;
+  min-width: 96px;
   height: 26px;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -1114,4 +1125,37 @@
 
 .ctx-item:hover:not(:disabled) .ctx-icon {
   color: var(--text-dim);
+}
+
+/* Cross-pane copy lives in the pane header: the one action that spans both
+   filesystems, so it gets the header's spare width instead of the toolbar's. */
+.pane-transfer {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  flex: none;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.pane-transfer:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.pane-transfer:disabled {
+  color: var(--text-faint);
+  cursor: default;
+  opacity: 0.6;
 }
