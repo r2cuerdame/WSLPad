@@ -32,19 +32,34 @@ votre système dans votre dos.
 ### Dashboard — l'état en lecture seule, section par section
 
 Le Dashboard (tableau de bord) : choisissez une section à gauche, lisez-la à
-droite — vue d'ensemble, CPU/mémoire/disque en direct, chemins importants,
-fichiers de configuration, outils de développement détectés automatiquement,
-une section Hermes dédiée, variables d'environnement (secrets masqués),
-processus, services, ports et avertissements. Les tableaux prennent toute la
-fenêtre au lieu d'une carte à l'étroit, et la liste porte des badges en direct
-(nombre de processus, ports ouverts, nombre d'avertissements, état de Hermes).
+droite — treize en tout, de la vue d'ensemble aux avertissements. Les tableaux
+prennent toute la fenêtre au lieu d'une carte à l'étroit, et la liste porte des
+badges en direct. L'inventaire complet est
+[plus bas](#ce-que-vous-voyez-vraiment) ; trois sections méritent d'être
+signalées, parce qu'elles répondent à des questions que WSL lui-même laisse
+sans réponse :
 
-La section **Ports** montre les deux côtés de chaque port : un port en écoute
-dans WSL est marqué `WSL`, ou `WSL + Windows` lorsqu'il est réellement
-accessible depuis Windows (avec le processus Windows qui le détient — en
-général `wslrelay` en réseau NAT). Les ports propres à Windows sont listés eux
-aussi et peuvent être masqués. Quand la table des ports de l'hôte est
-illisible, WSLPad le dit au lieu d'affirmer « non accessible ».
+**Image disque** — l'`ext4.vhdx` de votre distribution grossit et ne rétrécit
+jamais, et `df` dans Linux annonce un maximum fictif. WSLPad montre où se
+trouve réellement l'image, ce qu'elle occupe sur votre disque Windows, ce que
+la distribution utilise vraiment à l'intérieur, et combien est récupérable.
+
+![Image disque](docs/screenshots/disk.png)
+
+**Paramètres WSL** — WSL accepte une configuration et en ignore silencieusement
+la moitié. Chaque clé de `.wslconfig` et de `wsl.conf` est affichée avec sa
+valeur déclarée, la valeur réellement en vigueur et un verdict : appliqué,
+redémarrage nécessaire, mauvaise section, clé inconnue, ou non pris en charge
+sur cette version. Y compris le mode réseau que vous avez demandé face à celui
+que vous avez obtenu.
+
+![Paramètres WSL](docs/screenshots/wslconfig.png)
+
+**Ports** — un port en écoute dans WSL est marqué `WSL`, ou `WSL + Windows`
+lorsqu'il est réellement accessible depuis Windows (avec le processus Windows
+qui le détient, en général `wslrelay` en réseau NAT). Les ports propres à
+Windows sont listés eux aussi. Quand la table des ports de l'hôte est illisible,
+WSLPad dit *inconnu* au lieu d'affirmer « non accessible ».
 
 Le Dashboard n'exécute jamais rien. Les boutons comme *kill*, *redémarrer un
 service* ou *sudoedit* se contentent de **préparer** la commande dans la saisie
@@ -88,7 +103,7 @@ WSLPad passent par un runner caché distinct.
 
 Tant que WSLPad reste dans la zone de notification, il sert MCP sur
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, localhost uniquement,
-authentification par jeton Bearer) avec 23 outils `Get*` —
+authentification par jeton Bearer) avec 26 outils `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPathMapping`, … Il n'y a délibérément aucun outil d'écriture, d'exécution
 ou de kill ; les secrets et les clés privées ne franchissent jamais la
@@ -96,6 +111,89 @@ frontière MCP. Enregistrement en un clic pour Claude Desktop (pont stdio),
 Codex et Hermes, plus `Copier pour un LLM` qui place dans votre presse-papiers
 un résumé Markdown masqué de l'état.
 Détails : [docs/MCP.md](docs/MCP.md).
+
+## Ce que vous voyez vraiment
+
+Chaque élément ci-dessous est lu sur votre machine et affiché tel quel. Rien ici
+ne modifie quoi que ce soit ; là où une action existe, elle est écrite dans la
+Console pour que vous la lanciez vous-même.
+
+**Vue d'ensemble** — nom de la distribution, état, version de WSL, indicateur
+« par défaut », nom lisible de l'OS, noyau, nom d'hôte, utilisateur, `$HOME`,
+shell de connexion, durée de fonctionnement, activation ou non de systemd, IP de
+la distribution, et le chemin `\\wsl.localhost\…` côté Windows.
+
+**Ressources** — CPU % en direct, mémoire utilisée/totale, swap, occupation
+disque de `/`, `/home` et `/mnt/c`, charge moyenne, nombre de processus. Plus la
+**réconciliation de la mémoire** : la mémoire Windows, la limite de mémoire WSL
+(et si vous l'avez fixée ou si WSL l'a calculée), ce que Windows retient
+actuellement pour la VM, et la répartition dans Linux entre utilisée / cache /
+libre / swap — pour que « vmmem dévore 7 Go » devienne « l'essentiel est du
+cache de pages récupérable ».
+
+**Image disque** — où vit réellement `ext4.vhdx` sur votre disque Windows, sa
+taille logique, ce qui est vraiment alloué, s'il s'agit d'un fichier creux, la
+taille et l'occupation du système de fichiers à l'intérieur de la distribution,
+et combien est récupérable.
+
+**Paramètres WSL** — chaque clé de `.wslconfig` et de `/etc/wsl.conf` avec sa
+valeur déclarée, la valeur réellement en vigueur, sa provenance, et un verdict :
+appliqué, redémarrage nécessaire, par défaut, clé inconnue (faute de frappe),
+mauvaise section, ou non pris en charge sur cette version. Inclut le mode réseau
+réellement en cours face à celui que vous avez demandé, et un bandeau quand la
+VM a démarré avant votre dernière modification.
+
+**Chemins importants** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
+`~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, le profil utilisateur Windows vu
+depuis Linux — chacun avec son existence, et ses deux écritures, Linux et
+Windows.
+
+**Fichiers de configuration** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
+`~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment` : où se
+trouve chacun et s'il existe, s'il est lisible et s'il est modifiable.
+
+**Outils installés** — 86 outils en 11 catégories (CLI d'IA, environnements
+d'exécution, gestionnaires de paquets, gestion de versions, conteneurs, cloud,
+compilation, bases de données, éditeurs et shells, médias, utilitaires), chacun
+avec son état d'installation, son chemin résolu, sa version, sa méthode
+d'installation (apt / snap / nvm / npm-global / pipx / uv / Windows interop / …),
+ses chemins de configuration et son nombre de processus en cours.
+
+**Hermes** — exécutable, dossier de données, environnement virtuel,
+configuration, état du gateway et du dashboard, nombre de serveurs MCP, ports,
+services utilisateur et chemins des journaux.
+
+**Variables d'environnement** — chaque variable avec sa longueur et ses
+indicateurs (de type PATH, venue de Windows). Les noms qui ressemblent à des
+secrets sont masqués ; les afficher demande un clic délibéré.
+
+**Processus** — PID, utilisateur, CPU %, mémoire %, durée écoulée, ligne de
+commande complète.
+
+**Services** — chaque unité systemd avec sa portée, ses états load/active/sub,
+son état d'activation et sa description — et, pour environ 71 unités bien
+connues, une explication en langage clair de ce que c'est et de si elle tourne
+normalement.
+
+**Ports** — protocole, adresse, port, PID, processus, état d'écoute, et la
+source : `WSL`, `Windows`, ou `WSL + Windows` lorsque le port est réellement
+accessible depuis Windows (avec le processus Windows qui le détient). Les ports
+propres à Windows sont inclus.
+
+**Avertissements** — distribution arrêtée, systemd désactivé, disque presque
+plein, unités en échec, conflits de ports, échecs des requêtes en arrière-plan,
+problèmes MCP.
+
+**Explorer** — par fichier : nom, taille, date de modification et, côté WSL,
+propriétaire, groupe, permissions Linux et cibles des liens symboliques. Par
+lecteur côté Windows : espace libre et espace total.
+
+**Console** — la distribution, le dossier courant, et l'état du shell (prêt, en
+cours d'exécution, en attente d'une saisie, en attente d'un mot de passe sudo,
+déconnecté).
+
+**Via MCP** — tout ce qui précède à travers 26 outils `Get*` en lecture seule.
+[docs/MCP.md](docs/MCP.md)
 
 ## Settings et langues
 
@@ -163,12 +261,15 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.1.1)
+## Limites actuelles (v0.1.2)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)
-- Le catalogue d'outils détectés en est toujours à ses 18 entrées d'origine ; un
-  catalogue bien plus vaste et classé par catégories est prévu pour la 0.1.2
+- Les chiffres de l'image disque ont besoin du registre Windows et de
+  `fsutil` ; si l'un des deux est illisible, la section le dit au lieu de
+  deviner
+- Le mode réseau effectif a besoin de `wslinfo` (WSL 2.0.4+) ; sur les versions
+  plus anciennes il reste inconnu
 - La synchronisation du dossier courant de la Console exige bash ou zsh comme
   shell par défaut (les autres shells fonctionnent, simplement sans
   synchronisation automatique du chemin)
@@ -186,11 +287,16 @@ d'autre.
 
 ## Feuille de route
 
-Prochaine étape (0.1.2) : un catalogue d'outils bien plus vaste et classé par
-catégories, des icônes par distribution dans les volets de l'Explorer, et une
-interface de restauration depuis la corbeille. Plus tard : des profils de
-console par distribution, une visionneuse de journaux de services, une version
-ARM64, un programme d'installation signé.
+Prochaine étape (0.1.3), la version diagnostic : expliquer *pourquoi* un port
+est inaccessible (mode réseau effectif, adresse d'écoute, pare-feu Hyper-V
+activé par défaut), signaler de quel côté de la frontière lente `/mnt` se trouve
+un projet, repérer les outils de développement qui se résolvent silencieusement
+vers des binaires Windows, afficher la dérive d'horloge, ajouter des sparklines
+de tendance, livrer des modèles de copie pour les rapports de bug et AGENTS.md,
+et afficher l'occupation disque par dossier dans le volet de l'Explorer. Plus
+tard : des outils MCP taillés pour les agents, une interface de restauration
+depuis la corbeille, une visionneuse de journaux de services, une version ARM64,
+un programme d'installation signé.
 
 ## Licence
 

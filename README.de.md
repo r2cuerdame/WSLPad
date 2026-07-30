@@ -31,19 +31,35 @@ Ihrem Rücken etwas an Ihrem System zu ändern.
 
 ### Dashboard — Zustand nur lesend, Bereich für Bereich
 
-Links einen Bereich wählen, rechts lesen: Übersicht, CPU/Arbeitsspeicher/
-Datenträger in Echtzeit, wichtige Pfade, Konfigurationsdateien, automatisch
-erkannte Dev-Tools, ein eigener Hermes-Bereich, Umgebungsvariablen (Secrets
-maskiert), Prozesse, Dienste, Ports und Warnungen. Tabellen bekommen das ganze
-Fenster statt einer beengten Karte, und die Liste trägt Live-Badges (Anzahl
-Prozesse, offene Ports, Anzahl Warnungen, Hermes-Status).
+Links einen Bereich wählen, rechts lesen — dreizehn davon, von der Übersicht
+bis zu den Warnungen. Tabellen bekommen das ganze Fenster statt einer beengten
+Karte, und die Liste trägt Live-Badges. Die vollständige Aufstellung steht
+[weiter unten](#was-sie-wirklich-sehen); drei Bereiche verdienen eine eigene
+Erwähnung, weil sie Fragen beantworten, die WSL selbst offenlässt:
 
-Der Bereich **Ports** zeigt beide Seiten jedes Ports: Ein WSL-Listener wird mit
-`WSL` markiert, oder mit `WSL + Windows`, wenn er von Windows aus tatsächlich
-erreichbar ist (samt dem Windows-Prozess, der ihn hält — unter NAT-Networking
-meist `wslrelay`). Ports, die es nur unter Windows gibt, werden ebenfalls
-aufgeführt und lassen sich ausblenden. Wenn die Porttabelle des Hosts nicht
-gelesen werden kann, sagt WSLPad das — statt „nicht erreichbar“ zu behaupten.
+**Datenträgerabbild** — die `ext4.vhdx` Ihrer Distribution wächst und schrumpft
+nie wieder, und `df` innerhalb von Linux meldet ein fiktives Maximum. WSLPad
+zeigt, wo das Abbild wirklich liegt, was es auf Ihrem Windows-Datenträger
+belegt, was die Distribution darin tatsächlich nutzt und wie viel davon
+rückgewinnbar ist.
+
+![Datenträgerabbild](docs/screenshots/disk.png)
+
+**WSL-Einstellungen** — WSL nimmt eine Konfiguration entgegen und ignoriert
+stillschweigend die Hälfte davon. Jeder Schlüssel aus `.wslconfig` und
+`wsl.conf` wird mit seinem deklarierten Wert, dem tatsächlich wirksamen Wert
+und einem Urteil angezeigt: übernommen, Neustart nötig, falscher Abschnitt,
+unbekannter Schlüssel oder auf diesem Build nicht unterstützt. Einschließlich
+des Netzwerkmodus, den Sie angefordert haben, gegenüber dem, den Sie bekommen
+haben.
+
+![WSL-Einstellungen](docs/screenshots/wslconfig.png)
+
+**Ports** — ein WSL-Listener wird mit `WSL` markiert, oder mit `WSL + Windows`,
+wenn er von Windows aus tatsächlich erreichbar ist (samt dem Windows-Prozess,
+der ihn hält — unter NAT meist `wslrelay`). Ports, die es nur unter Windows
+gibt, werden ebenfalls aufgeführt. Wenn die Porttabelle des Hosts nicht gelesen
+werden kann, sagt WSLPad *unbekannt*, statt „nicht erreichbar“ zu behaupten.
 
 Das Dashboard führt nie etwas aus. Schaltflächen wie *kill*, *Dienst neu
 starten* oder *sudoedit* **bereiten** den Befehl lediglich in der Eingabezeile
@@ -86,13 +102,96 @@ von WSLPad laufen über einen separaten, verborgenen Runner.
 
 Solange WSLPad im Tray sitzt, stellt es MCP unter `http://127.0.0.1:4923/mcp`
 bereit (Streamable HTTP, nur localhost, Authentifizierung per Bearer-Token) mit
-23 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
+26 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
 `GetTextFile`, `GetPathMapping`, … Tools zum Schreiben, Ausführen oder Beenden
 gibt es bewusst nicht; Secrets und private Schlüssel überschreiten die
 MCP-Grenze nie. Registrierung per Klick für Claude Desktop (stdio-Bridge),
 Codex und Hermes, dazu `Für LLM kopieren`, das eine maskierte
 Markdown-Zusammenfassung des Zustands in Ihre Zwischenablage legt.
 Details: [docs/MCP.md](docs/MCP.md).
+
+## Was Sie wirklich sehen
+
+Jeder Punkt unten wird von Ihrem Rechner gelesen und unverändert angezeigt.
+Nichts davon ändert etwas; wo es eine Aktion gibt, wird sie in die Console
+geschrieben, damit Sie sie ausführen.
+
+**Übersicht** — Name der Distribution, Status, WSL-Version, Kennzeichnung als
+Standard, Anzeigename des Betriebssystems, Kernel, Hostname, Benutzer,
+`$HOME`, Login-Shell, Laufzeit, ob systemd aktiv ist, die IP der Distribution
+und der `\\wsl.localhost\…`-Pfad für Windows.
+
+**Ressourcen** — CPU-Auslastung in Echtzeit, belegter/gesamter
+Arbeitsspeicher, Swap, Datenträgernutzung für `/`, `/home` und `/mnt/c`,
+Durchschnittslast, Anzahl der Prozesse. Dazu der **Speicherabgleich**:
+Windows-Arbeitsspeicher, das WSL-Speicherlimit (und ob Sie es gesetzt haben
+oder WSL es berechnet hat), wie viel Windows gerade für die VM hält, und die
+Aufteilung in Linux nach belegt / Cache / frei / Swap — damit sich „vmmem
+frisst 7 GB“ in „das meiste davon ist rückgewinnbarer Seitencache“ auflöst.
+
+**Datenträgerabbild** — wo die `ext4.vhdx` auf Ihrem Windows-Datenträger
+tatsächlich liegt, ihre logische Größe, wie viel davon wirklich belegt ist, ob
+sie eine Sparse-Datei ist, Größe und Belegung des Dateisystems innerhalb der
+Distribution und wie viel rückgewinnbar ist.
+
+**WSL-Einstellungen** — jeder Schlüssel aus `.wslconfig` und `/etc/wsl.conf`
+mit seinem deklarierten Wert, dem tatsächlich wirksamen Wert, seiner Herkunft
+und einem Urteil: übernommen, Neustart nötig, nicht gesetzt, unbekannter
+Schlüssel (Tippfehler), falscher Abschnitt oder auf diesem Build nicht
+unterstützt. Einschließlich des tatsächlich laufenden Netzwerkmodus gegenüber
+dem angeforderten und eines Banners, wenn die VM älter ist als Ihre letzte
+Änderung.
+
+**Wichtige Pfade** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
+`~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, das Windows-Benutzerprofil aus
+Linux-Sicht — jeweils mit der Angabe, ob es existiert, und in Linux- wie in
+Windows-Schreibweise.
+
+**Konfigurationsdateien** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
+`~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: wo
+jede Datei liegt und ob sie existiert, lesbar und beschreibbar ist.
+
+**Installierte Tools** — 86 Tools in 11 Kategorien (KI-CLIs,
+Laufzeitumgebungen, Paketmanager, Versionsverwaltung, Container, Cloud,
+Build-Tools, Datenbanken, Editoren und Shells, Medien, Dienstprogramme),
+jeweils mit Installationsstatus, aufgelöstem Pfad, Version, Installationsart
+(apt / snap / nvm / npm-global / pipx / uv / Windows-Interop / …),
+Konfigurationspfaden und Anzahl laufender Prozesse.
+
+**Hermes** — Programmdatei, Datenverzeichnis, virtuelle Umgebung,
+Konfiguration, Status von Gateway und Dashboard, Anzahl der MCP-Server, Ports,
+Benutzerdienste und Pfade der Protokolle.
+
+**Umgebungsvariablen** — jede Variable mit ihrer Länge und ihren Merkmalen
+(PATH-artig, von Windows übernommen). Namen, die nach einem Secret aussehen,
+werden maskiert; das Anzeigen ist ein bewusster Klick.
+
+**Prozesse** — PID, Benutzer, CPU %, RAM %, verstrichene Zeit, vollständige
+Befehlszeile.
+
+**Dienste** — jede systemd-Unit mit Bereich, Load-/Active-/Sub-Status,
+Aktivierungszustand und Beschreibung — und für rund 71 bekannte Units eine
+Erklärung in normaler Sprache, was sie ist und ob sie normalerweise läuft.
+
+**Ports** — Protokoll, Adresse, Port, PID, Prozess, Lauschstatus und die
+Quelle: `WSL`, `Windows` oder `WSL + Windows`, wenn der Port von Windows aus
+tatsächlich erreichbar ist (samt dem Windows-Prozess, der ihn hält). Ports,
+die es nur unter Windows gibt, sind enthalten.
+
+**Warnungen** — gestoppte Distribution, systemd aus, wenig Speicherplatz,
+fehlgeschlagene Units, Portkonflikte, fehlgeschlagene Hintergrundabfragen,
+MCP-Probleme.
+
+**Explorer** — pro Datei: Name, Größe, Änderungszeit und auf der WSL-Seite
+Besitzer, Gruppe, Linux-Berechtigungen und Linkziele. Pro Laufwerk auf der
+Windows-Seite: freier und gesamter Speicherplatz.
+
+**Console** — die Distribution, das aktuelle Verzeichnis und der Zustand der
+Shell (bereit, wird ausgeführt, wartet auf Eingabe, wartet auf ein
+sudo-Passwort, getrennt).
+
+**Über MCP** — alles davon über 26 `Get*`-Tools mit Nur-Lese-Zugriff.
+[docs/MCP.md](docs/MCP.md)
 
 ## Settings & Sprachen
 
@@ -158,12 +257,13 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.1.1)
+## Aktuelle Einschränkungen (v0.1.2)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
-- Der Katalog der erkannten Tools umfasst weiterhin die ursprünglichen 18
-  Einträge; ein deutlich größerer, kategorisierter Katalog ist für 0.1.2
-  vorgemerkt
+- Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;
+  ist eines von beidem nicht lesbar, sagt der Bereich das, statt zu raten
+- Der wirksame Netzwerkmodus braucht `wslinfo` (WSL 2.0.4+); ältere Builds
+  zeigen ihn als unbekannt
 - Die cwd-Synchronisierung der Console setzt bash oder zsh als Standard-Shell
   voraus (andere Shells funktionieren, nur eben ohne automatische
   Pfadsynchronisierung)
@@ -180,10 +280,15 @@ Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 
 ## Roadmap
 
-Als Nächstes (0.1.2): ein deutlich größerer, kategorisierter Tool-Katalog,
-eigene Symbole pro Distribution in den Explorer-Bereichen und eine Oberfläche
-zum Wiederherstellen aus dem Papierkorb. Später: Console-Profile pro
-Distribution, ein Viewer für Dienstprotokolle, ein ARM64-Build, ein signierter
+Als Nächstes (0.1.3), das Release zur Diagnose: erklären, *warum* ein Port
+nicht erreichbar ist (wirksamer Netzwerkmodus, Bind-Adresse, die standardmäßig
+aktive Hyper-V-Firewall), kennzeichnen, auf welcher Seite der langsamen
+`/mnt`-Grenze ein Projekt liegt, Dev-Tools markieren, die stillschweigend auf
+Windows-Binärdateien verweisen, die Uhrabweichung anzeigen, Trend-Sparklines
+ergänzen, Kopiervorlagen für Fehlerberichte und AGENTS.md ausliefern und die
+Datenträgernutzung pro Verzeichnis in den Explorer-Bereich bringen. Später:
+MCP-Tools für Agenten, eine Oberfläche zum Wiederherstellen aus dem
+Papierkorb, ein Viewer für Dienstprotokolle, ein ARM64-Build, ein signierter
 Installer.
 
 ## Lizenz
