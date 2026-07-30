@@ -4,10 +4,11 @@ copyright: Copyright © 2026 r2cuerdame
 directories:
   buildResources: resources
   output: release
+# out/ carries bundled main/preload/renderer; production node_modules are
+# packed automatically (main externalizes its deps: node-pty, mcp sdk, …)
 files:
   - out/**/*
   - package.json
-  - '!node_modules/**/*'
 extraResources:
   - from: resources
     to: resources
@@ -51,3 +52,6 @@ publish:
   repo: WSLPad
 # node-pty 1.1.0 ships N-API prebuilds for win32-x64 — no electron rebuild needed
 npmRebuild: false
+# Use the locally verified Electron binaries (flaky network corrupts the
+# builder's own multi-part download of the same zip)
+electronDist: node_modules/electron/dist

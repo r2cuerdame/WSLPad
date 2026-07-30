@@ -102,8 +102,9 @@ export class WslPadApp {
       trayMenuFirstLabel: () => this.tray?.firstMenuLabel() ?? ''
     }
 
-    // First-run default: start with Windows enabled (goal.md §4.1)
-    if (this.settings.get().startWithWindows !== getAutostartEnabled()) {
+    // First-run default: start with Windows enabled (goal.md §4.1).
+    // Dev builds must never register the bare electron.exe as a login item.
+    if (app.isPackaged && this.settings.get().startWithWindows !== getAutostartEnabled()) {
       setAutostartEnabled(this.settings.get().startWithWindows)
     }
 
@@ -169,7 +170,7 @@ export class WslPadApp {
       this.i18n = createI18n(this.resolveLocale(next))
       this.tray?.setI18n(this.i18n)
     }
-    if (prev.startWithWindows !== next.startWithWindows) {
+    if (prev.startWithWindows !== next.startWithWindows && app.isPackaged) {
       setAutostartEnabled(next.startWithWindows)
     }
     if (
