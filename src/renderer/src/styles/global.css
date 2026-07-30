@@ -1,0 +1,112 @@
+:root {
+  --bg: #101014;
+  --bg-raised: #17171d;
+  --bg-card: #1c1c24;
+  --border: #2a2a35;
+  --text: #e6e6ec;
+  --text-dim: #9a9aa8;
+  --accent: #7c5cff;
+  --accent-dim: #4c3daa;
+  --ok: #3ecf6f;
+  --warn: #e8b23a;
+  --err: #ef5a6a;
+  --mono: 'Cascadia Mono', Consolas, monospace;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f4f4f7;
+  --bg-raised: #ffffff;
+  --bg-card: #ffffff;
+  --border: #d8d8e0;
+  --text: #1c1c24;
+  --text-dim: #62626e;
+  --accent: #5b3df0;
+  --accent-dim: #b9aef7;
+  --ok: #1d9e4e;
+  --warn: #b0821a;
+  --err: #cc3345;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Segoe UI', 'Segoe UI Variable', system-ui, sans-serif;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: no-drag;
+}
+
+.topbar-logo {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 12px 0;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  padding: 7px 18px;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.console-panel {
+  border-top: 1px solid var(--border);
+  background: var(--bg-raised);
+}

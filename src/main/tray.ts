@@ -1,0 +1,71 @@
+import { Menu, Tray, app, nativeImage } from 'electron'
+import type { i18n as I18nInstance } from 'i18next'
+import { resourcePath } from './resources'
+
+export interface TrayHost {
+  showMainWindow(): void
+  toggleMainWindow(): void
+  refreshAll(): void
+  isMonitoringPaused(): boolean
+  setMonitoringPaused(paused: boolean): void
+  mcpStatusLabel(): string
+  isAutostartEnabled(): boolean
+  setAutostartEnabled(enabled: boolean): void
+  checkForUpdates(): void
+  quit(): void
+  selectedDistro(): string | null
+}
+
+/** Tray icon + context menu (goal.md §4.2). Rebuild the menu on state/locale change. */
+export class AppTray {
+  private tray: Tray
+
+  constructor(
+    private host: TrayHost,
+    private i18n: I18nInstance
+  ) {
+    const icon = nativeImage.createFromPath(resourcePath('tray.png'))
+    this.tray = new Tray(icon)
+    this.tray.on('click', () => this.host.toggleMainWindow())
+    this.update()
+  }
+
+  setI18n(i18n: I18nInstance): void {
+    this.i18n = i18n
+    this.update()
+  }
+
+  update(): void {
+    const t = this.i18n.t.bind(this.i18n)
+    const distro = this.host.selectedDistro()
+    this.tray.setToolTip(distro ? t('tray.tooltip', { distro }) : t('app.name'))
+    const menu = Menu.buildFromTemplate([
+      { label: t('tray.open'), click: () => this.host.showMainWindow() },
+      { label: t('tray.refresh'), click: () => this.host.refreshAll() },
+      {
+        label: this.host.isMonitoringPaused() ? t('tray.resumeMonitoring') : t('tray.pauseMonitoring'),
+        click: () => this.host.setMonitoringPaused(!this.host.isMonitoringPaused())
+      },
+      { label: this.host.mcpStatusLabel(), enabled: false },
+      { type: 'separator' },
+      {
+        label: t('tray.startWithWindows'),
+        type: 'checkbox',
+        checked: this.host.isAutostartEnabled(),
+        click: (item) => this.host.setAutostartEnabled(item.checked)
+      },
+      { label: t('tray.checkForUpdates'), click: () => this.host.checkForUpdates() },
+      { type: 'separator' },
+      { label: t('tray.quit'), click: () => this.host.quit() }
+    ])
+    this.tray.setContextMenu(menu)
+  }
+
+  dispose(): void {
+    this.tray.destroy()
+  }
+}
+
+export function quitApp(): void {
+  app.quit()
+}

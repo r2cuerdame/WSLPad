@@ -1,0 +1,196 @@
+import type {
+  ConsoleStatus,
+  DistroSummary,
+  FileEntry,
+  FileOpProgress,
+  FileStat,
+  McpClientKind,
+  McpRegisterResult,
+  McpStatus,
+  Settings,
+  SettingsPatch,
+  TerminalDataEvent,
+  TerminalStatusEvent,
+  TextFileContent,
+  UpdateStatus,
+  WslPadSnapshot
+} from './types'
+
+/**
+ * Every IPC channel WSLPad uses. The preload bridge and the main-process
+ * registrar both import this map — nothing else may register channels
+ * (explicit allowlist, goal.md §16).
+ */
+export const IpcChannels = {
+  // distro / snapshot
+  distrosList: 'wslpad:distros:list',
+  distroSelect: 'wslpad:distros:select',
+  snapshotGet: 'wslpad:snapshot:get',
+  snapshotRefresh: 'wslpad:snapshot:refresh',
+  monitoringSetPaused: 'wslpad:monitoring:set-paused',
+  envReveal: 'wslpad:env:reveal',
+  llmCopyMarkdown: 'wslpad:llm:copy-markdown',
+  llmExportJson: 'wslpad:llm:export-json',
+
+  // explorer
+  explorerList: 'wslpad:explorer:list',
+  explorerTree: 'wslpad:explorer:tree',
+  explorerStat: 'wslpad:explorer:stat',
+  explorerMkdir: 'wslpad:explorer:mkdir',
+  explorerCreateFile: 'wslpad:explorer:create-file',
+  explorerRename: 'wslpad:explorer:rename',
+  explorerCopy: 'wslpad:explorer:copy',
+  explorerTrash: 'wslpad:explorer:trash',
+  explorerDelete: 'wslpad:explorer:delete',
+  explorerReadText: 'wslpad:explorer:read-text',
+  explorerWriteText: 'wslpad:explorer:write-text',
+  explorerImport: 'wslpad:explorer:import',
+  explorerExport: 'wslpad:explorer:export',
+  explorerCancelOp: 'wslpad:explorer:cancel-op',
+  explorerSearch: 'wslpad:explorer:search',
+  explorerPickImport: 'wslpad:explorer:pick-import',
+  explorerPickExport: 'wslpad:explorer:pick-export',
+  explorerStartDrag: 'wslpad:explorer:start-drag',
+
+  // paths / shell
+  pathConvert: 'wslpad:path:convert',
+  openInWindowsExplorer: 'wslpad:shell:open-in-windows',
+  openExternal: 'wslpad:shell:open-external',
+  clipboardWrite: 'wslpad:clipboard:write',
+
+  // terminal
+  terminalEnsure: 'wslpad:terminal:ensure',
+  terminalInput: 'wslpad:terminal:input',
+  terminalResize: 'wslpad:terminal:resize',
+  terminalSetCwd: 'wslpad:terminal:set-cwd',
+  terminalGetState: 'wslpad:terminal:get-state',
+
+  // settings
+  settingsGet: 'wslpad:settings:get',
+  settingsSet: 'wslpad:settings:set',
+  settingsReset: 'wslpad:settings:reset',
+  settingsLoadError: 'wslpad:settings:load-error',
+
+  // mcp
+  mcpStatus: 'wslpad:mcp:status',
+  mcpRegenerateToken: 'wslpad:mcp:regenerate-token',
+  mcpRegisterClient: 'wslpad:mcp:register-client',
+  mcpTest: 'wslpad:mcp:test',
+  mcpConfigJson: 'wslpad:mcp:config-json',
+
+  // updates / app
+  updateCheck: 'wslpad:update:check',
+  updateInstall: 'wslpad:update:install',
+  updateStatusGet: 'wslpad:update:status',
+  appVersion: 'wslpad:app:version',
+  appQuit: 'wslpad:app:quit',
+
+  // events (main → renderer)
+  evSnapshot: 'wslpad:ev:snapshot',
+  evTerminalData: 'wslpad:ev:terminal-data',
+  evTerminalStatus: 'wslpad:ev:terminal-status',
+  evOpProgress: 'wslpad:ev:op-progress',
+  evSettings: 'wslpad:ev:settings',
+  evUpdate: 'wslpad:ev:update',
+  evMcp: 'wslpad:ev:mcp',
+  evNavigateSettings: 'wslpad:ev:navigate-settings'
+} as const
+
+export type IpcChannelKey = keyof typeof IpcChannels
+export type IpcChannelName = (typeof IpcChannels)[IpcChannelKey]
+
+export interface ExplorerListOptions {
+  showHidden?: boolean
+}
+
+export interface SettingsLoadError {
+  corrupted: boolean
+  message: string | null
+}
+
+/**
+ * The API exposed on `window.wslpad` by the preload script.
+ * All methods proxy to typed, allowlisted ipcRenderer.invoke calls.
+ */
+export interface WslPadApi {
+  listDistros(): Promise<DistroSummary[]>
+  selectDistro(name: string): Promise<void>
+  getSnapshot(): Promise<WslPadSnapshot>
+  refresh(tier: 'fast' | 'medium' | 'slow' | 'all'): Promise<void>
+  setMonitoringPaused(paused: boolean): Promise<void>
+  revealEnv(name: string): Promise<string | null>
+  copyLlmMarkdown(): Promise<string>
+  exportLlmJson(): Promise<string | null>
+
+  explorer: {
+    list(path: string, opts?: ExplorerListOptions): Promise<FileEntry[]>
+    tree(path: string): Promise<FileEntry[]>
+    stat(path: string): Promise<FileStat>
+    mkdir(path: string): Promise<void>
+    createFile(path: string): Promise<void>
+    rename(path: string, newName: string): Promise<void>
+    /** copy or move sources into destDir; returns opId */
+    copy(sources: string[], destDir: string, move: boolean): Promise<string>
+    trash(paths: string[]): Promise<void>
+    remove(paths: string[]): Promise<void>
+    readText(path: string): Promise<TextFileContent>
+    writeText(path: string, content: string): Promise<void>
+    /** returns opId */
+    importFromWindows(windowsPaths: string[], destDir: string): Promise<string>
+    /** returns opId */
+    exportToWindows(paths: string[], windowsDir: string): Promise<string>
+    cancelOp(opId: string): Promise<void>
+    search(path: string, query: string): Promise<FileEntry[]>
+    pickImportPaths(): Promise<string[]>
+    pickExportDir(): Promise<string | null>
+    startDrag(paths: string[]): Promise<void>
+  }
+
+  convertPath(input: string, to: 'windows' | 'linux'): Promise<string>
+  openInWindowsExplorer(linuxPath: string): Promise<void>
+  openExternal(url: string): Promise<void>
+  copyToClipboard(text: string): Promise<void>
+
+  terminal: {
+    ensure(distro: string): Promise<{ sessionId: string; status: ConsoleStatus; cwd: string | null }>
+    input(sessionId: string, data: string): Promise<void>
+    resize(sessionId: string, cols: number, rows: number): Promise<void>
+    setCwd(sessionId: string, path: string): Promise<void>
+    getState(sessionId: string): Promise<{ status: ConsoleStatus; cwd: string | null }>
+    onData(cb: (ev: TerminalDataEvent) => void): () => void
+    onStatus(cb: (ev: TerminalStatusEvent) => void): () => void
+  }
+
+  settings: {
+    get(): Promise<Settings>
+    set(patch: SettingsPatch): Promise<Settings>
+    reset(): Promise<Settings>
+    getLoadError(): Promise<SettingsLoadError>
+    onChange(cb: (s: Settings) => void): () => void
+  }
+
+  mcp: {
+    status(): Promise<McpStatus>
+    regenerateToken(): Promise<McpStatus>
+    registerClient(kind: McpClientKind): Promise<McpRegisterResult>
+    test(): Promise<{ ok: boolean; error: string | null }>
+    getConfigJson(): Promise<string>
+    onStatus(cb: (s: McpStatus) => void): () => void
+  }
+
+  updates: {
+    check(): Promise<UpdateStatus>
+    install(): Promise<void>
+    getStatus(): Promise<UpdateStatus>
+    onStatus(cb: (s: UpdateStatus) => void): () => void
+  }
+
+  app: {
+    version(): Promise<string>
+    quit(): Promise<void>
+  }
+
+  onSnapshot(cb: (s: WslPadSnapshot) => void): () => void
+  onOpProgress(cb: (p: FileOpProgress) => void): () => void
+  onNavigateSettings(cb: () => void): () => void
+}

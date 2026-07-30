@@ -1,0 +1,41 @@
+appId: io.purpleship.wslpad
+productName: WSLPad
+copyright: Copyright © 2026 r2cuerdame
+directories:
+  buildResources: resources
+  output: release
+files:
+  - out/**/*
+  - package.json
+  - '!node_modules/**/*'
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - '!icon-*.png'
+asarUnpack:
+  - node_modules/node-pty/**
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+  artifactName: ${productName}-Setup-${version}.${ext}
+nsis:
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  runAfterFinish: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: WSLPad
+  deleteAppDataOnUninstall: false
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+publish:
+  provider: github
+  owner: r2cuerdame
+  repo: WSLPad
+# node-pty 1.1.0 ships N-API prebuilds for win32-x64 — no electron rebuild needed
+npmRebuild: false
