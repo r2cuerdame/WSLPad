@@ -63,6 +63,8 @@ at-a-glance status badge):
 | `GetProcesses` / `GetProcess` | Process table / one PID |
 | `GetServices` / `GetService` | systemd services / one unit |
 | `GetPorts` | Listening ports, each marked with whether Windows also binds it |
+| `GetDiskImage` | ext4.vhdx location, size on the Windows disk, reclaimable space |
+| `GetWslSettings` | Declared vs effective .wslconfig and wsl.conf, with verdicts |
 | `GetWarnings` | Current warnings (stopped distro, failed units, …) |
 | `GetDirectory` | Directory listing (`{ path, showHidden? }`) |
 | `GetDirectoryTree` | Bounded-depth subtree (`{ path, depth? ≤ 3 }`) |

@@ -29,18 +29,32 @@ and an MCP surface — without ever changing your system behind your back.
 
 ### Dashboard — read-only state, section by section
 
-Pick a section on the left, read it on the right: overview, live
-CPU/memory/disk, important paths, configuration files, auto-detected dev
-tools, a dedicated Hermes section, environment variables (secrets masked),
-processes, services, ports and warnings. Tables get the full window instead of
-a cramped card, and the list carries live badges (process count, open ports,
-warning count, Hermes status).
+Pick a section on the left, read it on the right — thirteen of them, from the
+overview to warnings. Tables get the full window instead of a cramped card, and
+the list carries live badges. The full inventory is
+[below](#what-you-can-actually-see); three sections deserve calling out because
+they answer questions WSL itself leaves unanswered:
 
-The **Ports** section shows both sides of every port: a WSL listener is marked
-`WSL`, or `WSL + Windows` when it is genuinely reachable from Windows (with the
-Windows process holding it — usually `wslrelay` under NAT networking).
-Windows-only listeners are listed too and can be toggled off. When the host
-port table can't be read, WSLPad says so instead of claiming "not reachable".
+**Disk image** — your distro's `ext4.vhdx` grows and never shrinks, and `df`
+inside Linux reports a fictional maximum. WSLPad shows where the image really
+is, what it holds on your Windows disk, what the distro actually uses inside,
+and how much is reclaimable.
+
+![Disk image](docs/screenshots/disk.png)
+
+**WSL settings** — WSL accepts a config and silently ignores half of it. Every
+key from `.wslconfig` and `wsl.conf` is shown with its declared value, the
+value actually in force, and a verdict: applied, restart needed, wrong section,
+unknown key, or unsupported on this build. Including the networking mode you
+asked for versus the one you got.
+
+![WSL settings](docs/screenshots/wslconfig.png)
+
+**Ports** — a WSL listener is marked `WSL`, or `WSL + Windows` when it is
+genuinely reachable from Windows (with the Windows process holding it, usually
+`wslrelay` under NAT). Windows-only listeners are listed too. When the host
+port table can't be read, WSLPad says *unknown* instead of claiming "not
+reachable".
 
 The Dashboard never executes anything. Buttons like *kill*, *restart service*
 or *sudoedit* only **prepare** the command in the Console input — you review,
@@ -79,13 +93,84 @@ by a separate hidden runner.
 ## MCP server (read-only)
 
 While WSLPad sits in the tray it serves MCP at `http://127.0.0.1:4923/mcp`
-(Streamable HTTP, localhost-only, Bearer-token auth) with 23 `Get*` tools —
+(Streamable HTTP, localhost-only, Bearer-token auth) with 24 `Get*` tools —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPathMapping`, … There are deliberately no write/run/kill tools; secrets
 and private keys never cross the MCP boundary. One-click registration for
 Claude Desktop (stdio bridge), Codex and Hermes, plus `Copy for LLM` which
 puts a masked Markdown state summary on your clipboard.
 Details: [docs/MCP.md](docs/MCP.md).
+
+## What you can actually see
+
+Every item below is read from your machine and shown as-is. Nothing here
+changes anything; where an action exists it is written into the Console for you
+to run.
+
+**Overview** — distro name, state, WSL version, default flag, OS pretty name,
+kernel, hostname, user, `$HOME`, login shell, uptime, whether systemd is on,
+the distro IP, and the `\\wsl.localhost\…` path for Windows.
+
+**Resources** — live CPU %, memory used/total, swap, disk usage for `/`,
+`/home` and `/mnt/c`, load average, process count. Plus the **memory
+reconciliation**: host RAM, the VM ceiling (and whether you set it or WSL
+computed it), what Windows currently holds for the VM, and the in-guest
+used / cache / free / swap split — so "vmmem is eating 7 GB" resolves into
+"most of that is reclaimable page cache".
+
+**Disk image** — where `ext4.vhdx` actually lives on your Windows disk, its
+logical size, how much is really allocated, whether it is sparse, the
+filesystem size and usage inside the distro, and how much is reclaimable.
+
+**WSL settings** — every key from `.wslconfig` and `/etc/wsl.conf` with its
+declared value, the value actually in force, where it came from, and a verdict:
+applied, restart needed, not set, unknown key (typo), wrong section, or
+unsupported on this build. Includes the networking mode actually running versus
+the one you asked for, and a banner when the VM predates your last edit.
+
+**Important paths** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
+`~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, the Windows user profile as
+seen from Linux — each with existence, and both Linux and Windows spellings.
+
+**Configuration files** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
+`~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: where
+each one is and whether it exists, is readable and is writable.
+
+**Installed tools** — 86 tools in 11 categories (AI CLIs, runtimes, package
+managers, version control, containers, cloud, build, databases, editors &
+shell, media, utilities), each with installed state, resolved path, version,
+install method (apt / snap / nvm / npm-global / pipx / uv / Windows interop / …),
+config paths, and running process count.
+
+**Hermes** — executable, data dir, virtualenv, config, gateway and dashboard
+state, MCP server count, ports, user services and log paths.
+
+**Environment** — every variable with its length and flags (PATH-like, came
+from Windows). Secret-looking names are masked; reveal is a deliberate click.
+
+**Processes** — PID, user, CPU %, memory %, elapsed time, full command line.
+
+**Services** — every systemd unit with scope, load/active/sub state, enabled
+state and description — and for ~71 well-known units, a plain-language
+explanation of what it is and whether it normally runs.
+
+**Ports** — protocol, address, port, PID, process, listening state, and the
+source: `WSL`, `Windows`, or `WSL + Windows` when it is genuinely reachable
+from Windows (with the Windows process holding it). Windows-only listeners are
+included.
+
+**Warnings** — stopped distro, systemd off, low disk, failed units, port
+conflicts, background query failures, MCP problems.
+
+**Explorer** — per file: name, size, modified time and, on the WSL side, owner,
+group, Linux permissions and symlink targets. Per drive on the Windows side:
+free and total space.
+
+**Console** — the distro, the current directory, and the shell state (ready,
+running, waiting for input, waiting for a sudo password, disconnected).
+
+**Over MCP** — all of the above through 24 read-only `Get*` tools.
+[docs/MCP.md](docs/MCP.md)
 
 ## Settings & languages
 
@@ -144,11 +229,13 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.1.1)
+## Current limitations (v0.1.2)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
-- The detected-tool catalog is still the original 18 entries; a much larger,
-  categorised catalog is queued for 0.1.2
+- Disk-image numbers need the Windows registry and `fsutil`; if either is
+  unreadable the section says so rather than guessing
+- Effective networking mode needs `wslinfo` (WSL 2.0.4+); older builds show it
+  as unknown
 - Console cwd-sync requires bash or zsh as the default shell (other shells
   work, just without automatic path sync)
 - Copying *between* the panes never moves: cross-filesystem transfers are
@@ -161,9 +248,13 @@ no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 
 ## Roadmap
 
-Next up (0.1.2): a much larger categorised tool catalog, per-distro icons in
-the Explorer panes, and a Trash restore UI. Later: per-distro console profiles,
-a service log viewer, an ARM64 build, a signed installer.
+Next up (0.1.3), the diagnosis release: explain *why* a port is unreachable
+(effective networking mode, bind address, the on-by-default Hyper-V firewall),
+badge which side of the slow `/mnt` boundary a project sits on, flag dev tools
+that silently resolve to Windows binaries, show clock skew, add trend
+sparklines, ship bug-report and AGENTS.md copy presets, and put directory-level
+disk usage in the Explorer pane. Later: agent-grade MCP tools, a Trash restore
+UI, a service log viewer, an ARM64 build, a signed installer.
 
 ## License
 
