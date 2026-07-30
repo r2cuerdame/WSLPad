@@ -198,7 +198,16 @@
       "process": "Process",
       "openInBrowser": "Open in browser",
       "copyUrl": "Copy URL",
-      "showProcess": "Show process"
+      "showProcess": "Show process",
+      "source": "Source",
+      "sourceWsl": "WSL",
+      "sourceWindows": "Windows",
+      "sourceBoth": "WSL + Windows",
+      "windowsProcess": "Windows process",
+      "reachableFromWindows": "Reachable from Windows",
+      "notReachable": "Not reachable from Windows",
+      "windowsUnknown": "Windows port table unavailable",
+      "showWindowsOnly": "Include Windows-only ports"
     },
     "warnings": {
       "title": "Warnings",
@@ -428,7 +437,10 @@
       "portHint": "Bound to 127.0.0.1 only",
       "regenerateToken": "Regenerate auth token",
       "tokenRegenerated": "Token regenerated — re-register clients",
-      "restartNote": "Port changes restart the MCP server"
+      "restartNote": "Port changes restart the MCP server",
+      "endpoint": "Endpoint",
+      "clients": "Register with a client",
+      "readOnlyNote": "WSLPad only ever exposes read-only Get tools."
     },
     "updates": {
       "title": "Updates",

@@ -160,8 +160,10 @@ export interface ServiceInfo {
   description: string
 }
 
+export type PortProtocol = 'tcp' | 'udp' | 'tcp6' | 'udp6'
+
 export interface PortInfo {
-  protocol: 'tcp' | 'udp' | 'tcp6' | 'udp6'
+  protocol: PortProtocol
   localAddress: string
   port: number
   pid: number | null
@@ -169,6 +171,27 @@ export interface PortInfo {
   listening: boolean
   /** clickable when it looks like an HTTP service, e.g. http://127.0.0.1:8080 */
   localhostUrl: string | null
+  /**
+   * Whether the same port is also bound on the Windows side — i.e. actually
+   * reachable from Windows, whether through WSL2 localhost forwarding or a
+   * native listener. null when the Windows port table could not be read.
+   */
+  windowsBound: boolean | null
+  /** Windows process holding that port (often wslrelay/wslhost under NAT). */
+  windowsProcess: string | null
+}
+
+/** A listener seen in the Windows TCP/UDP table (goal.md §6.10, extended). */
+export interface WindowsPortInfo {
+  protocol: PortProtocol
+  localAddress: string
+  port: number
+  pid: number | null
+  processName: string | null
+  listening: boolean
+  localhostUrl: string | null
+  /** True when a WSL listener on the same port explains this entry. */
+  fromWsl: boolean
 }
 
 export type WarningSeverity = 'info' | 'warning' | 'error'
@@ -196,6 +219,8 @@ export interface DashboardSnapshot {
   processes: ProcessInfo[]
   services: ServiceInfo[]
   ports: PortInfo[]
+  /** Listeners on the Windows host, so both sides of a port are visible. */
+  windowsPorts: WindowsPortInfo[]
   warnings: WarningInfo[]
 }
 
