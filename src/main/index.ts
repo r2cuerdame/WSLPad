@@ -4,6 +4,11 @@ import { readFileSync } from 'fs'
 import { parseSettings } from '@shared/schemas'
 import { WslPadApp } from './app'
 
+// Isolated userData for E2E runs (set before any path use).
+if (process.env.WSLPAD_USER_DATA) {
+  app.setPath('userData', process.env.WSLPAD_USER_DATA)
+}
+
 if (process.argv.includes('--mcp-stdio')) {
   // Stdio bridge mode: spawned by MCP clients (e.g. Claude Desktop). No GUI,
   // no single-instance lock — proxies stdio to the resident app's HTTP server.

@@ -33,6 +33,18 @@ nsis:
   deleteAppDataOnUninstall: false
   installerIcon: resources/icon.ico
   uninstallerIcon: resources/icon.ico
+  # Localized installer/uninstaller strings for the 9 supported UI languages
+  multiLanguageInstaller: true
+  installerLanguages:
+    - en_US
+    - ko_KR
+    - ja_JP
+    - zh_CN
+    - zh_TW
+    - es_ES
+    - fr_FR
+    - de_DE
+    - pt_BR
 publish:
   provider: github
   owner: r2cuerdame

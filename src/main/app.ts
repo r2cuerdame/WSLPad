@@ -94,6 +94,12 @@ export class WslPadApp {
     const startHidden = shouldStartHidden(process.argv)
     this.window = createMainWindow({ isQuitting: () => this.quitting, showOnReady: !startHidden })
     this.createTray()
+    // E2E observability: Playwright's main-process evaluate reads this (no UI path).
+    ;(globalThis as Record<string, unknown>).__wslpadTest = {
+      trayCreated: () => this.tray !== null,
+      windowVisible: () => this.window?.isVisible() ?? false,
+      windowCount: () => BrowserWindow.getAllWindows().length
+    }
 
     // First-run default: start with Windows enabled (goal.md §4.1)
     if (this.settings.get().startWithWindows !== getAutostartEnabled()) {
