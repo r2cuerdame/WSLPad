@@ -83,6 +83,47 @@ export interface ExplorerListOpts {
   showHidden?: boolean
 }
 
+export type ExplorerErrorCode =
+  | 'EACCES'
+  | 'ENOENT'
+  | 'EEXIST'
+  | 'EISDIR'
+  | 'ENOTDIR'
+  | 'TIMEOUT'
+  | 'TOO_LARGE'
+  | 'BINARY'
+  | 'CANCELLED'
+  | 'UNKNOWN'
+
+/** Structured explorer failure surfaced to the renderer (goal.md §14). */
+export class ExplorerError extends Error {
+  constructor(
+    public code: ExplorerErrorCode,
+    public path: string,
+    message: string,
+    public detail: {
+      stderr?: string
+      owner?: string | null
+      permissions?: string | null
+      user?: string | null
+    } = {}
+  ) {
+    super(message)
+    this.name = 'ExplorerError'
+  }
+
+  /** Serializable shape for IPC transport. */
+  toPayload(): Record<string, unknown> {
+    return {
+      explorerError: true,
+      code: this.code,
+      path: this.path,
+      message: this.message,
+      detail: this.detail
+    }
+  }
+}
+
 export interface ExplorerBackend {
   homeDir(distro: string): Promise<string>
   list(distro: string, path: string, opts?: ExplorerListOpts): Promise<FileEntry[]>
@@ -103,6 +144,8 @@ export interface ExplorerBackend {
   cancelOp(opId: string): Promise<void>
   search(distro: string, path: string, query: string): Promise<FileEntry[]>
   convertPath(distro: string, input: string, to: 'windows' | 'linux'): Promise<string>
+  /** Subscribe to progress for copyMove/import/export ops. Returns unsubscribe. */
+  onProgress(cb: (p: import('@shared/types').FileOpProgress) => void): () => void
 }
 
 // ---------------------------------------------------------------------------
