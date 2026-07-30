@@ -20,9 +20,15 @@ export async function launchWslPad(
   const userDataDir = mkdtempSync(join(tmpdir(), 'wslpad-e2e-'))
   // Deterministic locale regardless of the host Windows UI language; tests
   // that exercise language switching change it through the Settings UI.
+  // A per-run MCP port keeps a stray WSLPad instance (or a parallel run) from
+  // taking 4923 and turning every MCP assertion into an EADDRINUSE failure.
   writeFileSync(
     join(userDataDir, 'settings.json'),
-    JSON.stringify({ schemaVersion: 1, language: 'en' })
+    JSON.stringify({
+      schemaVersion: 1,
+      language: 'en',
+      mcp: { enabled: true, port: 20000 + Math.floor(Math.random() * 20000), token: '' }
+    })
   )
   const app = await electron.launch({
     args: ['.', `--user-data-dir-override=${userDataDir}`, ...args],
