@@ -32,7 +32,7 @@ and an MCP surface — without ever changing your system behind your back.
 Pick a section on the left, read it on the right — fourteen of them, from the
 overview to warnings. Tables get the full window instead of a cramped card, and
 the list carries live badges. The full inventory is
-[below](#what-you-can-actually-see); three sections deserve calling out because
+[below](#what-you-can-actually-see); four sections deserve calling out because
 they answer questions WSL itself leaves unanswered:
 
 **Disk image** — your distro's `ext4.vhdx` grows and never shrinks, and `df`
@@ -116,7 +116,9 @@ to run.
 
 **Overview** — distro name, state, WSL version, default flag, OS pretty name,
 kernel, hostname, user, `$HOME`, login shell, uptime, whether systemd is on,
-the distro IP, and the `\\wsl.localhost\…` path for Windows.
+the distro IP, the `\\wsl.localhost\…` path for Windows, and the clock skew
+between Windows and the distro — the invisible cause of sudden apt and TLS
+failures after the host sleeps.
 
 **Resources** — live CPU %, memory used/total, swap, disk usage for `/`,
 `/home` and `/mnt/c`, load average, process count, and trend sparklines so a

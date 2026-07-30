@@ -32,10 +32,10 @@ votre système dans votre dos.
 ### Dashboard — l'état en lecture seule, section par section
 
 Le Dashboard (tableau de bord) : choisissez une section à gauche, lisez-la à
-droite — treize en tout, de la vue d'ensemble aux avertissements. Les tableaux
+droite — quatorze en tout, de la vue d'ensemble aux avertissements. Les tableaux
 prennent toute la fenêtre au lieu d'une carte à l'étroit, et la liste porte des
 badges en direct. L'inventaire complet est
-[plus bas](#ce-que-vous-voyez-vraiment) ; trois sections méritent d'être
+[plus bas](#ce-que-vous-voyez-vraiment) ; quatre sections méritent d'être
 signalées, parce qu'elles répondent à des questions que WSL lui-même laisse
 sans réponse :
 
@@ -55,11 +55,19 @@ que vous avez obtenu.
 
 ![Paramètres WSL](docs/screenshots/wslconfig.png)
 
+**Réseau** — le pare-feu Hyper-V que la fenêtre du Pare-feu Windows n'affiche
+jamais, activé par défaut et qui laisse tomber silencieusement le trafic entrant
+vers WSL, plus un bloc de résolution de noms qui met côte à côte
+`/etc/resolv.conf`, `generateResolvConf`, le tunnel DNS et les serveurs de la
+carte Windows — pour que « Temporary failure in name resolution » ait un seul
+endroit où chercher.
+
 **Ports** — un port en écoute dans WSL est marqué `WSL`, ou `WSL + Windows`
-lorsqu'il est réellement accessible depuis Windows (avec le processus Windows
-qui le détient, en général `wslrelay` en réseau NAT). Les ports propres à
-Windows sont listés eux aussi. Quand la table des ports de l'hôte est illisible,
-WSLPad dit *inconnu* au lieu d'affirmer « non accessible ».
+lorsqu'il est réellement accessible depuis Windows, et chacun porte désormais un
+verdict de **portée** : le réseau, ce PC seulement, à l'intérieur de WSL
+seulement, ou rien — avec la raison, déduite de l'adresse d'écoute, du mode
+réseau effectif et du pare-feu. Quand les faits ne sont pas lisibles, WSLPad dit
+*inconnue* au lieu de deviner.
 
 Le Dashboard n'exécute jamais rien. Les boutons comme *kill*, *redémarrer un
 service* ou *sudoedit* se contentent de **préparer** la commande dans la saisie
@@ -103,7 +111,7 @@ WSLPad passent par un runner caché distinct.
 
 Tant que WSLPad reste dans la zone de notification, il sert MCP sur
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, localhost uniquement,
-authentification par jeton Bearer) avec 26 outils `Get*` —
+authentification par jeton Bearer) avec 29 outils `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPathMapping`, … Il n'y a délibérément aucun outil d'écriture, d'exécution
 ou de kill ; les secrets et les clés privées ne franchissent jamais la
@@ -121,15 +129,18 @@ Console pour que vous la lanciez vous-même.
 **Vue d'ensemble** — nom de la distribution, état, version de WSL, indicateur
 « par défaut », nom lisible de l'OS, noyau, nom d'hôte, utilisateur, `$HOME`,
 shell de connexion, durée de fonctionnement, activation ou non de systemd, IP de
-la distribution, et le chemin `\\wsl.localhost\…` côté Windows.
+la distribution, le chemin `\\wsl.localhost\…` côté Windows, et l'écart
+d'horloge entre Windows et la distribution — la cause invisible des échecs
+soudains d'apt et de TLS après une mise en veille de l'hôte.
 
 **Ressources** — CPU % en direct, mémoire utilisée/totale, swap, occupation
-disque de `/`, `/home` et `/mnt/c`, charge moyenne, nombre de processus. Plus la
-**réconciliation de la mémoire** : la mémoire Windows, la limite de mémoire WSL
-(et si vous l'avez fixée ou si WSL l'a calculée), ce que Windows retient
-actuellement pour la VM, et la répartition dans Linux entre utilisée / cache /
-libre / swap — pour que « vmmem dévore 7 Go » devienne « l'essentiel est du
-cache de pages récupérable ».
+disque de `/`, `/home` et `/mnt/c`, charge moyenne, nombre de processus, et des
+sparklines de tendance pour qu'un chiffre réponde à « est-ce que ça monte ? ».
+Plus la **réconciliation de la mémoire** : la mémoire Windows, la limite de
+mémoire WSL (et si vous l'avez fixée ou si WSL l'a calculée), ce que Windows
+retient actuellement pour la VM, et la répartition dans Linux entre utilisée /
+cache / libre / swap — pour que « vmmem dévore 7 Go » devienne « l'essentiel est
+du cache de pages récupérable ».
 
 **Image disque** — où vit réellement `ext4.vhdx` sur votre disque Windows, sa
 taille logique, ce qui est vraiment alloué, s'il s'agit d'un fichier creux, la
@@ -137,16 +148,18 @@ taille et l'occupation du système de fichiers à l'intérieur de la distributio
 et combien est récupérable.
 
 **Paramètres WSL** — chaque clé de `.wslconfig` et de `/etc/wsl.conf` avec sa
-valeur déclarée, la valeur réellement en vigueur, sa provenance, et un verdict :
-appliqué, redémarrage nécessaire, par défaut, clé inconnue (faute de frappe),
-mauvaise section, ou non pris en charge sur cette version. Inclut le mode réseau
-réellement en cours face à celui que vous avez demandé, et un bandeau quand la
-VM a démarré avant votre dernière modification.
+valeur déclarée, la valeur réellement en vigueur, sa provenance (votre fichier,
+la valeur par défaut de WSL, ou une valeur calculée à partir de votre matériel),
+et un verdict : appliqué, redémarrage nécessaire, par défaut, clé inconnue
+(faute de frappe), mauvaise section, ou non pris en charge sur cette version.
+Inclut le mode réseau réellement en cours face à celui que vous avez demandé, et
+un bandeau quand la VM a démarré avant votre dernière modification.
 
 **Chemins importants** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
 `~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, le profil utilisateur Windows vu
-depuis Linux — chacun avec son existence, et ses deux écritures, Linux et
-Windows.
+depuis Linux — chacun avec son existence, ses deux écritures, Linux et Windows,
+et de quel côté de la frontière du système de fichiers il se trouve (ext4 natif,
+ou de l'autre côté du lent montage Windows).
 
 **Fichiers de configuration** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment` : où se
@@ -156,8 +169,10 @@ trouve chacun et s'il existe, s'il est lisible et s'il est modifiable.
 d'exécution, gestionnaires de paquets, gestion de versions, conteneurs, cloud,
 compilation, bases de données, éditeurs et shells, médias, utilitaires), chacun
 avec son état d'installation, son chemin résolu, sa version, sa méthode
-d'installation (apt / snap / nvm / npm-global / pipx / uv / Windows interop / …),
-ses chemins de configuration et son nombre de processus en cours.
+d'installation, ses chemins de configuration, son nombre de processus en cours,
+de quel côté de la frontière du système de fichiers il vit, et — c'est
+important — si la commande se résout en réalité vers un binaire **Windows** sous
+`/mnt/c` au lieu d'une version installée dans la distribution.
 
 **Hermes** — exécutable, dossier de données, environnement virtuel,
 configuration, état du gateway et du dashboard, nombre de serveurs MCP, ports,
@@ -175,10 +190,16 @@ son état d'activation et sa description — et, pour environ 71 unités bien
 connues, une explication en langage clair de ce que c'est et de si elle tourne
 normalement.
 
-**Ports** — protocole, adresse, port, PID, processus, état d'écoute, et la
-source : `WSL`, `Windows`, ou `WSL + Windows` lorsque le port est réellement
-accessible depuis Windows (avec le processus Windows qui le détient). Les ports
-propres à Windows sont inclus.
+**Ports** — protocole, adresse, port, PID, processus, état d'écoute, la source
+(`WSL`, `Windows`, `WSL + Windows`), et un verdict de portée avec sa raison : le
+réseau, ce PC seulement, à l'intérieur de WSL seulement, rien, ou inconnue.
+
+**Réseau** — l'état du pare-feu Hyper-V pour la machine virtuelle WSL (activé,
+action par défaut sur le trafic entrant et sortant, exception de loopback,
+nombre de règles) et la résolution de noms : si `/etc/resolv.conf` est le lien
+symbolique généré par WSL ou un fichier écrit à la main, la valeur effective de
+`generateResolvConf`, le tunnel DNS, les serveurs de noms utilisés, et ce que
+distribue la carte Windows.
 
 **Avertissements** — distribution arrêtée, systemd désactivé, disque presque
 plein, unités en échec, conflits de ports, échecs des requêtes en arrière-plan,
@@ -192,7 +213,7 @@ lecteur côté Windows : espace libre et espace total.
 cours d'exécution, en attente d'une saisie, en attente d'un mot de passe sudo,
 déconnecté).
 
-**Via MCP** — tout ce qui précède à travers 26 outils `Get*` en lecture seule.
+**Via MCP** — tout ce qui précède à travers 29 outils `Get*` en lecture seule.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings et langues
@@ -261,7 +282,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.1.2)
+## Limites actuelles (v0.1.3)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)
@@ -270,6 +291,12 @@ d'autre.
   deviner
 - Le mode réseau effectif a besoin de `wslinfo` (WSL 2.0.4+) ; sur les versions
   plus anciennes il reste inconnu
+- La couche de pare-feu Hyper-V n'existe que sur les versions récentes de
+  Windows ; là où elle est absente, WSLPad indique « inconnu » plutôt que
+  « désactivé »
+- Les sparklines de tendance ne vivent qu'en mémoire — l'historique repart de
+  zéro à la fermeture de l'application, et c'est voulu : un compagnon de la zone
+  de notification n'est pas un agent de supervision
 - La synchronisation du dossier courant de la Console exige bash ou zsh comme
   shell par défaut (les autres shells fonctionnent, simplement sans
   synchronisation automatique du chemin)
@@ -287,16 +314,11 @@ d'autre.
 
 ## Feuille de route
 
-Prochaine étape (0.1.3), la version diagnostic : expliquer *pourquoi* un port
-est inaccessible (mode réseau effectif, adresse d'écoute, pare-feu Hyper-V
-activé par défaut), signaler de quel côté de la frontière lente `/mnt` se trouve
-un projet, repérer les outils de développement qui se résolvent silencieusement
-vers des binaires Windows, afficher la dérive d'horloge, ajouter des sparklines
-de tendance, livrer des modèles de copie pour les rapports de bug et AGENTS.md,
-et afficher l'occupation disque par dossier dans le volet de l'Explorer. Plus
-tard : des outils MCP taillés pour les agents, une interface de restauration
-depuis la corbeille, une visionneuse de journaux de services, une version ARM64,
-un programme d'installation signé.
+Prochaine étape : des outils MCP de qualité agent, façonnés autour des questions
+qu'un agent pose réellement (correspondance des chemins, à qui appartient un
+port, quel binaire est résolu), une interface de restauration depuis la
+corbeille, une visionneuse de journaux de services en lecture seule, une version
+ARM64 et un programme d'installation signé.
 
 ## Licence
 
