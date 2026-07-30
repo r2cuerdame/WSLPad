@@ -198,7 +198,17 @@
       "process": "进程",
       "openInBrowser": "在浏览器中打开",
       "copyUrl": "复制 URL",
-      "showProcess": "查看进程"
+      "showProcess": "查看进程",
+      "source": "来源",
+      "sourceWsl": "WSL",
+      "sourceWindows": "Windows",
+      "sourceBoth": "WSL + Windows",
+      "windowsProcess": "Windows 进程",
+      "windowsProcessNotListed": "此处不显示 Windows 进程",
+      "reachableFromWindows": "可从 Windows 访问",
+      "notReachable": "无法从 Windows 访问",
+      "windowsUnknown": "无法获取 Windows 端口列表",
+      "showWindowsOnly": "包含仅 Windows 的端口"
     },
     "warnings": {
       "title": "警告",

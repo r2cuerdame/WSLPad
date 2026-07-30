@@ -109,7 +109,9 @@ export function port(portNumber = 8080, pid: number | null = 100): PortInfo {
     pid,
     processName: 'node',
     listening: true,
-    localhostUrl: `http://127.0.0.1:${portNumber}`
+    localhostUrl: `http://127.0.0.1:${portNumber}`,
+    windowsBound: null,
+    windowsProcess: null
   }
 }
 
@@ -209,6 +211,7 @@ export function makeDashboard(over: Partial<DashboardSnapshot> = {}): DashboardS
     processes: [proc()],
     services: [svc()],
     ports: [port()],
+    windowsPorts: [],
     warnings: [],
     ...over
   }

@@ -2,7 +2,7 @@
 
 .dashboard {
   height: 100%;
-  padding: 12px;
+  padding: 12px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -11,9 +11,10 @@
 
 .dashboard-toolbar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  min-height: 28px;
+  min-height: 30px;
 }
 
 /* Master list left, detail right — each scrolls on its own (goal.md §6). */
@@ -21,8 +22,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 230px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 236px minmax(0, 1fr);
+  gap: 16px;
 }
 
 /* --- master list --- */
@@ -31,9 +32,10 @@
   min-height: 0;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   background: var(--bg-card);
-  padding: 6px;
+  box-shadow: var(--shadow-1);
+  padding: 8px;
 }
 
 .dash-nav-list {
@@ -43,20 +45,24 @@
 }
 
 .dash-nav-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: 7px;
-  border: 1px solid transparent;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
   color: var(--text-dim);
   cursor: pointer;
   user-select: none;
   min-width: 0;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
 .dash-nav-item:hover {
-  background: var(--bg-raised);
+  background: var(--bg-hover);
   color: var(--text);
 }
 
@@ -66,14 +72,34 @@
 }
 
 .dash-nav-item.selected {
-  background: var(--bg-raised);
-  border-color: var(--border);
+  background: var(--accent-soft);
   color: var(--text);
   font-weight: 600;
 }
 
+/* Selection reads as a rail, not as a filled block. */
+.dash-nav-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
 .dash-nav-icon {
   flex: none;
+  color: var(--text-faint);
+  transition: color 0.12s ease;
+}
+
+.dash-nav-item:hover .dash-nav-icon {
+  color: var(--text-dim);
+}
+
+.dash-nav-item.selected .dash-nav-icon {
   color: var(--accent);
 }
 
@@ -92,30 +118,36 @@
 /* --- detail panel --- */
 
 .dashboard-detail {
+  position: relative;
+  container-type: inline-size;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   background: var(--bg-card);
+  box-shadow: var(--shadow-1);
 }
 
 .dashboard-detail-header {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 12px 16px 8px;
+  padding: 16px 20px 10px;
   min-width: 0;
 }
 
 .dashboard-detail-title {
   margin: 0;
   font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .dashboard-detail-subtitle {
-  font-size: 12px;
+  font-size: 11px;
+  color: var(--text-faint);
   overflow-wrap: anywhere;
 }
 
@@ -135,6 +167,7 @@
   border: none;
   background: none;
   border-radius: 0;
+  box-shadow: none;
 }
 
 .dashboard-detail .dash-card-header {
@@ -148,14 +181,30 @@
 }
 
 .dashboard-detail .dash-card-actions {
-  padding: 0 16px 6px;
+  padding: 0 20px 10px;
+}
+
+/* Wide enough for the section title and its filters to share one line: the
+   orphaned toolbar row underneath is what made this read like a debug panel. */
+@container (min-width: 560px) {
+  .dashboard-detail .dash-card-header {
+    position: absolute;
+    top: 12px;
+    right: 0;
+    left: auto;
+    z-index: 1;
+  }
+
+  .dashboard-detail .dash-card-actions {
+    padding: 0 20px;
+  }
 }
 
 .dashboard-detail .dash-card-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 0 16px 14px;
+  padding: 0 20px 18px;
 }
 
 /* Virtualized lists and tables must be bounded to scroll (goal.md §15); the
@@ -181,14 +230,15 @@
 .dash-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
 .dash-card-hermes {
-  border-color: var(--accent);
+  border-color: var(--accent-line);
 }
 
 .dash-card-header {
@@ -196,7 +246,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -214,7 +264,7 @@
 }
 
 .dash-card-body {
-  padding: 10px 14px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -225,7 +275,8 @@
 
 .mono {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 0.94em;
+  font-variant-ligatures: none;
 }
 
 .dim {
@@ -258,14 +309,16 @@
 
 .kv-row {
   display: flex;
-  gap: 10px;
+  gap: 16px;
   align-items: center;
+  min-height: 26px;
   min-width: 0;
 }
 
 .kv-key {
-  flex: 0 0 110px;
+  flex: 0 0 128px;
   color: var(--text-dim);
+  font-size: 12px;
 }
 
 .kv-val {
@@ -274,6 +327,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
@@ -282,12 +336,16 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding-bottom: 4px;
+  padding-bottom: 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
 }
 
 .overview-name {
-  font-size: 15px;
+  font-size: 19px;
   font-weight: 600;
+  letter-spacing: -0.015em;
+  margin-right: 2px;
 }
 
 /* --- badges + dots --- */
@@ -295,39 +353,46 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 1px 7px;
+  gap: 4px;
+  padding: 1px 8px;
   border-radius: 999px;
   font-size: 11px;
-  line-height: 1.5;
-  border: 1px solid var(--border);
+  font-weight: 500;
+  line-height: 1.55;
+  border: 1px solid transparent;
+  background: var(--bg-hover);
   color: var(--text-dim);
   white-space: nowrap;
 }
 
 .badge-ok {
   color: var(--ok);
-  border-color: var(--ok);
+  background: var(--ok-soft);
 }
 
 .badge-warn {
   color: var(--warn);
-  border-color: var(--warn);
+  background: var(--warn-soft);
 }
 
 .badge-err {
   color: var(--err);
-  border-color: var(--err);
+  background: var(--err-soft);
 }
 
 .badge-accent {
   color: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .badge-dim {
-  color: var(--text-dim);
+  color: var(--text-faint);
+  background: transparent;
+  border-color: var(--border);
 }
 
+/* Shape carries the state as well as hue: solid = ok, ring = unknown,
+   donut = error (goal.md §16 — never colour alone). */
 .dot {
   flex: 0 0 8px;
   width: 8px;
@@ -341,10 +406,12 @@
 
 .dot-err {
   background: var(--err);
+  box-shadow: inset 0 0 0 1.5px var(--bg-card);
 }
 
 .dot-unknown {
-  background: var(--text-dim);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--text-faint);
 }
 
 /* --- buttons + inputs --- */
@@ -352,20 +419,32 @@
 .btn {
   appearance: none;
   font: inherit;
+  font-size: 12px;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
   background: var(--bg-raised);
   color: var(--text);
   cursor: pointer;
   white-space: nowrap;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
 }
 
-.btn:hover {
-  border-color: var(--accent);
+.btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--bg-sunken);
 }
 
 .btn:disabled {
@@ -374,14 +453,25 @@
 }
 
 .btn-small {
-  padding: 3px 8px;
-  font-size: 12px;
+  height: 24px;
+  padding: 0 10px;
+  font-size: 11px;
 }
 
 .btn-accent {
   background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  border-color: transparent;
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.btn-accent:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: transparent;
+}
+
+.btn-accent:active:not(:disabled) {
+  background: var(--accent-press);
 }
 
 .icon-btn {
@@ -389,17 +479,26 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--text-dim);
   cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
-.icon-btn:hover {
-  background: var(--bg-raised);
+.icon-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
   color: var(--text);
+}
+
+.icon-btn:active:not(:disabled) {
+  background: var(--bg-sunken);
 }
 
 .icon-btn:disabled {
@@ -412,13 +511,15 @@
   font: inherit;
   font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   border: none;
   background: transparent;
-  color: var(--text-dim);
+  color: var(--text-faint);
   padding: 0;
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
+  transition: color 0.12s ease;
 }
 
 .th-btn:hover {
@@ -428,50 +529,66 @@
 .dash-input {
   font: inherit;
   font-size: 12px;
-  background: var(--bg);
+  background: var(--bg-sunken);
   border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 6px;
-  padding: 4px 8px;
-  width: 150px;
+  border-radius: var(--r-sm);
+  height: 28px;
+  padding: 0 10px;
+  width: 180px;
   min-width: 0;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.dash-input::placeholder {
+  color: var(--text-faint);
 }
 
 .dash-input:focus {
-  outline: 1px solid var(--accent);
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 /* --- resource bars --- */
 
+/* A meter that spans the whole panel is unreadable — the row is a fixed block. */
 .res-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
+  min-height: 30px;
   min-width: 0;
+  max-width: 620px;
 }
 
 .res-label {
-  flex: 0 0 110px;
+  flex: 0 0 128px;
   color: var(--text-dim);
+  font-size: 12px;
 }
 
 .res-value {
   white-space: nowrap;
   margin-left: auto;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .bar {
   flex: 1;
-  height: 5px;
+  height: 6px;
   min-width: 40px;
-  background: var(--border);
+  background: var(--meter-track);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--meter);
   border-radius: 3px;
 }
 
@@ -485,9 +602,15 @@
 .svc-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 0;
+  gap: 10px;
+  padding: 7px 0;
   min-width: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.path-row:last-child,
+.svc-row:last-child {
+  border-bottom: none;
 }
 
 .row-main {
@@ -498,7 +621,7 @@
 .path-line {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -509,8 +632,27 @@
 .row-actions {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   flex: none;
+}
+
+/* Row affordances stay present for the keyboard but recede until the row is
+   hovered — an always-lit icon wall is what made this read as a debug dump. */
+.row-actions .icon-btn {
+  color: var(--text-faint);
+}
+
+.path-row:hover .row-actions .icon-btn,
+.svc-row:hover .row-actions .icon-btn,
+.proc-row:hover .row-actions .icon-btn,
+.env-row:hover .row-actions .icon-btn,
+.row-actions .icon-btn:hover,
+.row-actions .icon-btn:focus-visible {
+  color: var(--text-dim);
+}
+
+.row-actions .icon-btn:hover:not(:disabled) {
+  color: var(--text);
 }
 
 /* --- tables --- */
@@ -531,22 +673,41 @@
 }
 
 .dash-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   text-align: left;
-  color: var(--text-dim);
+  color: var(--text-faint);
   font-weight: 600;
   font-size: 11px;
-  padding: 3px 8px 3px 0;
+  letter-spacing: 0.02em;
+  padding: 6px 14px 6px 0;
+  background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
+/* Table rows carry 24px affordances so a row stays one comfortable line. */
+.dash-table .icon-btn {
+  width: 24px;
+  height: 24px;
+}
+
 .dash-table td {
-  padding: 4px 8px 4px 0;
+  padding: 5px 14px 5px 0;
   border-bottom: 1px solid var(--border);
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dash-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+.dash-table tbody tr:hover {
+  background: var(--bg-hover);
 }
 
 .dash-table tr:last-child td {
@@ -556,7 +717,8 @@
 .tool-name {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  font-weight: 500;
 }
 
 .tool-check {
@@ -570,17 +732,39 @@
   overflow-y: auto;
 }
 
+.env-row,
+.proc-row {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.12s ease;
+}
+
+.env-row:hover,
+.proc-row:hover {
+  background: var(--bg-hover);
+}
+
 .env-row {
   display: grid;
-  grid-template-columns: minmax(100px, 170px) minmax(0, 1fr) 40px auto auto;
-  column-gap: 8px;
+  grid-template-columns: minmax(120px, 200px) minmax(0, 1fr) 48px auto auto;
+  column-gap: 12px;
   align-items: center;
   min-width: 0;
+}
+
+.env-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.env-value {
+  color: var(--text-dim);
 }
 
 .env-len {
   text-align: right;
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
 }
 
 .env-badges {
@@ -590,33 +774,46 @@
 
 .proc-row {
   display: grid;
-  grid-template-columns: 52px 64px 56px 56px 64px minmax(0, 1fr) 92px;
-  column-gap: 6px;
+  grid-template-columns: 56px 72px 60px 60px 68px minmax(0, 1fr) 96px;
+  column-gap: 10px;
   align-items: center;
   min-width: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .proc-head {
-  color: var(--text-dim);
+  color: var(--text-faint);
   font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 4px;
-  margin-bottom: 2px;
+  padding-bottom: 6px;
+  margin-bottom: 0;
+  background: var(--bg-card);
+}
+
+.proc-head:hover {
+  background: var(--bg-card);
 }
 
 .proc-row.focused {
-  background: var(--accent-dim);
-  border-radius: 5px;
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 /* --- services --- */
 
 .notice-warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--warn);
-  border: 1px solid var(--warn);
-  border-radius: 6px;
-  padding: 6px 10px;
+  background: var(--warn-soft);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  font-size: 12px;
 }
 
 /* --- warnings --- */
@@ -627,33 +824,45 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
 .warning-row {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.warning-row:last-child {
+  border-bottom: none;
 }
 
 .warning-text {
   min-width: 0;
   overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+.warning-text .dim {
+  font-weight: 400;
+}
+
+.sev-icon {
+  flex: none;
+  margin-top: 2px;
 }
 
 .sev-info .sev-icon {
   color: var(--ok);
-  flex: none;
 }
 
 .sev-warning .sev-icon {
   color: var(--warn);
-  flex: none;
 }
 
 .sev-error .sev-icon {
   color: var(--err);
-  flex: none;
 }
 
 /* --- MCP --- */
@@ -675,21 +884,43 @@
 /* --- skeleton + missing-WSL screens --- */
 
 .dash-skeleton {
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: linear-gradient(100deg, var(--bg-card) 40%, var(--bg-raised) 50%, var(--bg-card) 60%);
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--bg-hover);
+}
+
+.dash-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 40%,
+    rgb(255 255 255 / 0.06) 50%,
+    transparent 60%
+  );
   background-size: 200% 100%;
   animation: dash-shimmer 1.4s ease infinite;
 }
 
 .dash-skeleton-row {
-  height: 30px;
-  border-radius: 7px;
+  height: 34px;
 }
 
+/* The detail placeholder mimics the real thing: a title band and stacked rows. */
 .dash-skeleton-detail {
   flex: 1;
-  margin: 12px;
+  margin: 16px 20px;
+  background:
+    linear-gradient(var(--bg-hover) 0 0) 0 0 / 180px 15px no-repeat,
+    repeating-linear-gradient(
+        var(--bg-hover) 0 12px,
+        transparent 12px 30px
+      )
+      0 40px / 78% 210px no-repeat;
+  background-color: transparent;
+  border-radius: 0;
 }
 
 @keyframes dash-shimmer {
@@ -707,22 +938,35 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   text-align: center;
   padding: 24px;
 }
 
 .wsl-missing-icon {
   color: var(--warn);
+  margin-bottom: 4px;
 }
 
 .wsl-missing h2 {
   margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .wsl-missing p {
   margin: 0;
   max-width: 480px;
+  color: var(--text-dim);
+}
+
+.wsl-missing p.mono {
+  color: var(--text-faint);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
 }
 
 /* --- dialog --- */
@@ -740,8 +984,9 @@
 .dialog {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  min-width: 320px;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  min-width: 340px;
   max-width: 80vw;
   max-height: 80vh;
   display: flex;
@@ -754,25 +999,27 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--border);
 }
 
 .dialog-title {
   margin: 0;
   font-size: 14px;
+  font-weight: 600;
 }
 
 .dialog-body {
-  padding: 14px 16px;
+  padding: 16px 18px;
   overflow: auto;
+  color: var(--text-dim);
 }
 
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 18px;
   border-top: 1px solid var(--border);
 }
 
@@ -792,13 +1039,25 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--bg-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: var(--r-md);
+  padding: 10px 12px;
   max-width: 360px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  box-shadow: var(--shadow-2);
+  animation: toast-in 0.14s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .toast-success {
@@ -815,4 +1074,6 @@
 
 .toast-close {
   flex: none;
+  width: 22px;
+  height: 22px;
 }

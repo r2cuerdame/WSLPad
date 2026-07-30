@@ -17,10 +17,12 @@ import type {
   TerminalContext,
   ToolInfo,
   WarningInfo,
+  WindowsPortInfo,
   WslPadSnapshot
 } from '@shared/types'
 import type { WslProvider } from '../wsl/contracts'
 import { assertValidDistroName } from '../wsl/escape'
+import { correlatePorts } from '../wsl/windows-ports'
 import { computeWarnings } from './warnings'
 
 /** Dashboard data owned per selected distro; snapshot warnings are appended on build. */
@@ -36,6 +38,7 @@ interface DashboardSections {
   processes: ProcessInfo[]
   services: ServiceInfo[]
   ports: PortInfo[]
+  windowsPorts: WindowsPortInfo[]
 }
 
 function emptySystem(): SystemInfo {
@@ -79,7 +82,8 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     environment: [],
     processes: [],
     services: [],
-    ports: []
+    ports: [],
+    windowsPorts: []
   }
 }
 
@@ -116,6 +120,8 @@ export class SnapshotStore {
   private terminal: TerminalContext = { distro: null, cwd: null, status: 'disconnected' }
   private mcp: McpStatus = defaultMcpStatus()
   private warnings: WarningInfo[] = []
+  /** Last-good Windows listener table; null until one read succeeded. */
+  private windowsPortTable: WindowsPortInfo[] | null = null
   private runnerFailures: string[] = []
   private subscribers = new Set<(s: WslPadSnapshot) => void>()
   private inFlight = { fast: false, medium: false, slow: false }
@@ -191,8 +197,12 @@ export class SnapshotStore {
             (v) => {
               s.ports = v
             }
-          )
+          ),
+          this.collectWindowsPorts()
         ])
+        const correlated = correlatePorts(s.ports, this.windowsPortTable)
+        s.ports = correlated.ports
+        s.windowsPorts = correlated.windowsPorts
       }
       this.recomputeWarnings()
       this.emit()
@@ -320,6 +330,23 @@ export class SnapshotStore {
   dispose(): void {
     this.disposed = true
     this.subscribers.clear()
+  }
+
+  /**
+   * Windows-side listeners, polled in the fast tier next to the Linux ports.
+   * A provider without a Windows view leaves the table unknown (null) instead
+   * of claiming the ports are unbound.
+   */
+  private async collectWindowsPorts(): Promise<void> {
+    const read = this.provider.getWindowsPorts
+    if (read === undefined) return
+    await this.collect(
+      'netstat -ano',
+      () => read.call(this.provider),
+      (v) => {
+        this.windowsPortTable = v
+      }
+    )
   }
 
   /** Run one collector; on failure keep the last-good section and record a warning. */

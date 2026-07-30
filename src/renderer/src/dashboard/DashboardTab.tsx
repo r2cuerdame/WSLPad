@@ -20,12 +20,12 @@ import ProcessesCard from './ProcessesCard'
 import ServicesCard from './ServicesCard'
 import PortsCard from './PortsCard'
 import WarningsCard from './WarningsCard'
-import McpCard from './McpCard'
 import CopyForLlm from './CopyForLlm'
 import './dashboard.css'
 
 const STORAGE_KEY = 'wslpad.dashboard.section'
 
+/** Stale ids such as the retired 'mcp' section resolve to overview, never a blank detail. */
 function readStoredSection(): DashboardSectionId {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY)
@@ -111,7 +111,6 @@ export default function DashboardTab(): React.JSX.Element {
   )
 
   const gatewayRunning = dash.hermes?.gatewayStatus === 'running'
-  const mcp = snapshot.mcp
   const badges: Partial<Record<DashboardSectionId, ReactNode>> = {
     tools: count(installedTools),
     hermes: dot(
@@ -122,12 +121,7 @@ export default function DashboardTab(): React.JSX.Element {
     processes: count(dash.processes.length),
     services: count(dash.services.length),
     ports: count(dash.ports.length),
-    warnings: count(warnings.length, warnings.length > 0 ? 'err' : undefined),
-    mcp: mcp.error
-      ? dot('err', t('common.error'))
-      : mcp.running
-        ? dot('ok', t('common.running'))
-        : dot('unknown', t('common.off'))
+    warnings: count(warnings.length, warnings.length > 0 ? 'err' : undefined)
   }
 
   const items = (n: number): string =>
@@ -172,8 +166,6 @@ export default function DashboardTab(): React.JSX.Element {
         return <PortsCard ports={dash.ports} />
       case 'warnings':
         return <WarningsCard warnings={warnings} />
-      case 'mcp':
-        return <McpCard mcp={mcp} />
     }
   }
 

@@ -104,10 +104,29 @@ export function ConsolePanel(): React.JSX.Element {
       const sid = sessionRef.current
       if (sid) void window.wslpad.terminal.resize(sid, cols, rows)
     })
+
+    // Console convention (cmd/Windows Terminal/PuTTY): right-click copies a
+    // selection if there is one, otherwise pastes. term.paste keeps bracketed
+    // paste intact, so multi-line text still reaches the shell as one paste.
+    const onContextMenu = (event: MouseEvent): void => {
+      event.preventDefault()
+      const selection = term.getSelection()
+      if (selection) {
+        void window.wslpad.copyToClipboard(selection)
+        term.clearSelection()
+        return
+      }
+      void window.wslpad.readClipboard().then((text) => {
+        if (text) term.paste(text)
+      })
+    }
+    el.addEventListener('contextmenu', onContextMenu)
+
     termRef.current = term
     fitRef.current = fit
     safeFit()
     return () => {
+      el.removeEventListener('contextmenu', onContextMenu)
       termRef.current = null
       fitRef.current = null
       term.dispose()

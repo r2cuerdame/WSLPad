@@ -73,6 +73,7 @@ const api: WslPadApi = {
   openInWindowsExplorer: (linuxPath) => ipcRenderer.invoke(IpcChannels.openInWindowsExplorer, linuxPath),
   openExternal: (url) => ipcRenderer.invoke(IpcChannels.openExternal, url),
   copyToClipboard: (text) => ipcRenderer.invoke(IpcChannels.clipboardWrite, text),
+  readClipboard: () => ipcRenderer.invoke(IpcChannels.clipboardRead),
 
   terminal: {
     ensure: (distro) => ipcRenderer.invoke(IpcChannels.terminalEnsure, distro),

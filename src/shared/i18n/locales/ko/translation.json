@@ -198,7 +198,17 @@
       "process": "프로세스",
       "openInBrowser": "브라우저에서 열기",
       "copyUrl": "URL 복사",
-      "showProcess": "프로세스 표시"
+      "showProcess": "프로세스 표시",
+      "source": "출처",
+      "sourceWsl": "WSL",
+      "sourceWindows": "Windows",
+      "sourceBoth": "WSL + Windows",
+      "windowsProcess": "Windows 프로세스",
+      "windowsProcessNotListed": "Windows 프로세스는 여기에 표시되지 않습니다",
+      "reachableFromWindows": "Windows에서 접근 가능",
+      "notReachable": "Windows에서 접근할 수 없음",
+      "windowsUnknown": "Windows 포트 목록을 사용할 수 없음",
+      "showWindowsOnly": "Windows 전용 포트 포함"
     },
     "warnings": {
       "title": "경고",

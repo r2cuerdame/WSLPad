@@ -76,6 +76,7 @@ export const IpcChannels = {
   openInWindowsExplorer: 'wslpad:shell:open-in-windows',
   openExternal: 'wslpad:shell:open-external',
   clipboardWrite: 'wslpad:clipboard:write',
+  clipboardRead: 'wslpad:clipboard:read',
 
   // terminal
   terminalEnsure: 'wslpad:terminal:ensure',
@@ -195,6 +196,8 @@ export interface WslPadApi {
   openInWindowsExplorer(linuxPath: string): Promise<void>
   openExternal(url: string): Promise<void>
   copyToClipboard(text: string): Promise<void>
+  /** Console right-click paste reads the clipboard on explicit user action. */
+  readClipboard(): Promise<string>
 
   terminal: {
     ensure(distro: string): Promise<{ sessionId: string; status: ConsoleStatus; cwd: string | null }>

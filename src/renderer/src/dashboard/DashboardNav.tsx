@@ -1,16 +1,16 @@
 import { useCallback, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  CheckIcon,
-  CopyIcon,
-  ExternalIcon,
-  FileIcon,
+  ActivityIcon,
+  BoltIcon,
   FolderIcon,
-  GearIcon,
-  PlayIcon,
-  RefreshIcon,
-  SearchIcon,
-  TerminalIcon,
+  GaugeIcon,
+  InfoIcon,
+  ListIcon,
+  PackageIcon,
+  PlugIcon,
+  ServerIcon,
+  SlidersIcon,
   WarningIcon,
   type IconProps
 } from '../components/Icons'
@@ -27,7 +27,6 @@ export type DashboardSectionId =
   | 'services'
   | 'ports'
   | 'warnings'
-  | 'mcp'
 
 export interface DashboardSection {
   id: DashboardSectionId
@@ -35,20 +34,19 @@ export interface DashboardSection {
   Icon: (props: IconProps) => React.JSX.Element
 }
 
-/** Section order of the master list (goal.md §6.1–§6.11 plus §11.5). */
+/** Section order of the master list (goal.md §6.1–§6.11). MCP lives in Settings. */
 export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
-  { id: 'overview', titleKey: 'dashboard.overview.title', Icon: TerminalIcon },
-  { id: 'resources', titleKey: 'dashboard.resources.title', Icon: RefreshIcon },
+  { id: 'overview', titleKey: 'dashboard.overview.title', Icon: InfoIcon },
+  { id: 'resources', titleKey: 'dashboard.resources.title', Icon: GaugeIcon },
   { id: 'paths', titleKey: 'dashboard.paths.title', Icon: FolderIcon },
-  { id: 'configuration', titleKey: 'dashboard.config.title', Icon: GearIcon },
-  { id: 'tools', titleKey: 'dashboard.tools.title', Icon: CheckIcon },
-  { id: 'hermes', titleKey: 'dashboard.hermes.title', Icon: PlayIcon },
-  { id: 'environment', titleKey: 'dashboard.environment.title', Icon: FileIcon },
-  { id: 'processes', titleKey: 'dashboard.processes.title', Icon: SearchIcon },
-  { id: 'services', titleKey: 'dashboard.services.title', Icon: PlayIcon },
-  { id: 'ports', titleKey: 'dashboard.ports.title', Icon: ExternalIcon },
-  { id: 'warnings', titleKey: 'dashboard.warnings.title', Icon: WarningIcon },
-  { id: 'mcp', titleKey: 'dashboard.mcp.title', Icon: CopyIcon }
+  { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
+  { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },
+  { id: 'hermes', titleKey: 'dashboard.hermes.title', Icon: BoltIcon },
+  { id: 'environment', titleKey: 'dashboard.environment.title', Icon: ListIcon },
+  { id: 'processes', titleKey: 'dashboard.processes.title', Icon: ActivityIcon },
+  { id: 'services', titleKey: 'dashboard.services.title', Icon: ServerIcon },
+  { id: 'ports', titleKey: 'dashboard.ports.title', Icon: PlugIcon },
+  { id: 'warnings', titleKey: 'dashboard.warnings.title', Icon: WarningIcon }
 ]
 
 export function isDashboardSectionId(value: string): value is DashboardSectionId {

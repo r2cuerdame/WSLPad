@@ -263,6 +263,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     return shell.openExternal(u)
   })
   handle(IpcChannels.clipboardWrite, (text) => clipboard.writeText(z.string().max(1_000_000).parse(text)))
+  handle(IpcChannels.clipboardRead, () => clipboard.readText().slice(0, 1_000_000))
 
   // --- terminal -----------------------------------------------------------
   handle(IpcChannels.terminalEnsure, async (name) => {

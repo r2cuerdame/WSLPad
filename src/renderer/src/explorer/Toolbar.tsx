@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { CopyIcon, RetroCopyIcon } from '../components/Icons'
 import { Breadcrumb } from './Breadcrumb'
 import type { FsAdapter } from './fsAdapter'
 
@@ -28,9 +29,9 @@ interface ToolbarProps {
   onClearSearch: () => void
 }
 
-function Glyph({ d }: { d: string }): React.JSX.Element {
+function Glyph({ d, size = 14 }: { d: string; size?: number }): React.JSX.Element {
   return (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 16 16" width={size} height={size} aria-hidden="true" focusable="false">
       <path
         d={d}
         fill="none"
@@ -52,8 +53,8 @@ const GLYPHS = {
   root: 'M10 2.5 6 13.5',
   eye: 'M1.5 8S4 3.8 8 3.8 14.5 8 14.5 8 12 12.2 8 12.2 1.5 8 1.5 8zM8 6.3A1.7 1.7 0 1 0 8 9.7 1.7 1.7 0 0 0 8 6.3z',
   tree: 'M2.5 4h11M5.5 8h8M5.5 12h8M2.5 4v8',
-  toRight: 'M2 8h11m-4-4 4 4-4 4',
-  toLeft: 'M14 8H3m4-4-4 4 4 4'
+  chevronRight: 'M6 3.5 10.5 8 6 12.5',
+  chevronLeft: 'M10 3.5 5.5 8 10 12.5'
 } as const
 
 export function Toolbar(props: ToolbarProps): React.JSX.Element {
@@ -88,12 +89,14 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
   )
 
   const atRoot = props.path === null || props.adapter.isRoot(props.path)
+  const sep = <span className="exp-toolsep" aria-hidden="true" />
 
   return (
     <div className="exp-toolbar">
       {navButton(t('explorer.back'), GLYPHS.back, props.onBack, !props.canBack)}
       {navButton(t('explorer.forward'), GLYPHS.forward, props.onForward, !props.canForward)}
       {navButton(t('explorer.up'), GLYPHS.up, props.onUp, atRoot)}
+      {sep}
       {navButton(t('explorer.refresh'), GLYPHS.refresh, props.onRefresh)}
       {navButton(t('explorer.home'), GLYPHS.home, props.onHome)}
       {navButton(t('explorer.root'), GLYPHS.root, props.onRoot)}
@@ -168,6 +171,11 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
         <Glyph d={GLYPHS.eye} />
       </button>
 
+      {sep}
+
+      {/* Each pane gets its own copy silhouette — modern sheets going right on
+          Windows, the retro duplicate mark coming left on WSL — so the two
+          cross-pane copies are never confused at 16px. */}
       <button
         type="button"
         className="exp-toolbtn transfer"
@@ -176,7 +184,17 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
         disabled={props.transferDisabled}
         onClick={props.onTransfer}
       >
-        <Glyph d={props.transferDirection === 'right' ? GLYPHS.toRight : GLYPHS.toLeft} />
+        {props.transferDirection === 'right' ? (
+          <>
+            <CopyIcon size={14} />
+            <Glyph d={GLYPHS.chevronRight} size={10} />
+          </>
+        ) : (
+          <>
+            <Glyph d={GLYPHS.chevronLeft} size={10} />
+            <RetroCopyIcon size={14} />
+          </>
+        )}
       </button>
     </div>
   )

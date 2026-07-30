@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SUPPORTED_LOCALES, type LocaleCode, type SettingsPatch } from '@shared/types'
+import {
+  SUPPORTED_LOCALES,
+  type LocaleCode,
+  type McpClientKind,
+  type SettingsPatch
+} from '@shared/types'
 import type { SettingsLoadError } from '@shared/ipc'
 import {
   CONSOLE_DEFAULTS,
@@ -9,8 +14,10 @@ import {
   MCP_PORT_BOUNDS,
   POLL_BOUNDS
 } from '@shared/constants'
+import { formatDateTime, formatNumber } from '@shared/format'
 import { detectLocale } from '@shared/i18n'
 import { Dialog } from '../components/Dialog'
+import CopyButton from '../components/CopyButton'
 import { useApp } from '../store'
 import './settings.css'
 
@@ -41,7 +48,14 @@ interface NumberFieldProps {
 }
 
 /** Numeric input that clamps into [min, max] before persisting (goal.md §5.4). */
-function NumberField({ label, value, min, max, hint, onCommit }: NumberFieldProps): React.JSX.Element {
+function NumberField({
+  label,
+  value,
+  min,
+  max,
+  hint,
+  onCommit
+}: NumberFieldProps): React.JSX.Element {
   const [text, setText] = useState(String(value))
   useEffect(() => {
     setText(String(value))
@@ -92,9 +106,26 @@ function Toggle({ label, checked, hint, onChange }: ToggleProps): React.JSX.Elem
   )
 }
 
+interface StatusRowProps {
+  label: string
+  mono?: boolean
+  children: React.ReactNode
+}
+
+function StatusRow({ label, mono, children }: StatusRowProps): React.JSX.Element {
+  return (
+    <div className="settings-status-row">
+      <span className="settings-status-key">{label}</span>
+      <span className={mono ? 'settings-status-val settings-mono' : 'settings-status-val'}>
+        {children}
+      </span>
+    </div>
+  )
+}
+
 /** Right-side settings drawer — never a third main tab (goal.md §5.4). */
 export function SettingsDrawer(): React.JSX.Element | null {
-  const { settingsOpen, closeSettings, settings, pushToast } = useApp()
+  const { settingsOpen, closeSettings, settings, snapshot, pushToast } = useApp()
   const { t, i18n } = useTranslation()
   const [loadError, setLoadError] = useState<SettingsLoadError | null>(null)
   const [version, setVersion] = useState<string | null>(null)
@@ -167,6 +198,46 @@ export function SettingsDrawer(): React.JSX.Element | null {
     }
   }
 
+  const copyConfigJson = async (): Promise<void> => {
+    try {
+      const json = await window.wslpad.mcp.getConfigJson()
+      await window.wslpad.copyToClipboard(json)
+      pushToast('success', t('common.copied'))
+    } catch {
+      pushToast('error', t('common.error'))
+    }
+  }
+
+  // Client config files are only ever written on an explicit click (goal.md §11.5).
+  const registerClient = async (kind: McpClientKind, client: string): Promise<void> => {
+    try {
+      const res = await window.wslpad.mcp.registerClient(kind)
+      if (res.ok) pushToast('success', t('dashboard.mcp.registered', { client }))
+      else pushToast('error', t('dashboard.mcp.registerFailed', { client }))
+    } catch {
+      pushToast('error', t('dashboard.mcp.registerFailed', { client }))
+    }
+  }
+
+  const testConnection = async (): Promise<void> => {
+    try {
+      const res = await window.wslpad.mcp.test()
+      if (res.ok) pushToast('success', t('dashboard.mcp.testOk'))
+      else pushToast('error', t('dashboard.mcp.testFailed'))
+    } catch {
+      pushToast('error', t('dashboard.mcp.testFailed'))
+    }
+  }
+
+  const regenerateToken = async (): Promise<void> => {
+    try {
+      await window.wslpad.mcp.regenerateToken()
+      pushToast('success', t('settings.mcp.tokenRegenerated'))
+    } catch {
+      pushToast('error', t('common.error'))
+    }
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent): void => {
     if (e.key === 'Escape') {
       e.stopPropagation()
@@ -194,6 +265,8 @@ export function SettingsDrawer(): React.JSX.Element | null {
   }
 
   const portChanged = portAtOpen !== null && settings.mcp.port !== portAtOpen
+  const mcp = snapshot?.mcp ?? null
+  const locale = i18n.language as LocaleCode
   const secondsHint = (min: number, max: number): string =>
     `${t('settings.monitoring.seconds', { count: min / 1000 })} – ${t('settings.monitoring.seconds', { count: max / 1000 })}`
 
@@ -249,7 +322,11 @@ export function SettingsDrawer(): React.JSX.Element | null {
 
           <section>
             <h3>{t('settings.theme.title')}</h3>
-            <div className="settings-radios" role="radiogroup" aria-label={t('settings.theme.title')}>
+            <div
+              className="settings-radios"
+              role="radiogroup"
+              aria-label={t('settings.theme.title')}
+            >
               {(['system', 'light', 'dark'] as const).map((theme) => (
                 <label key={theme} className="settings-radio">
                   <input
@@ -394,17 +471,80 @@ export function SettingsDrawer(): React.JSX.Element | null {
               onCommit={(value) => patch({ mcp: { port: value } })}
             />
             {portChanged && <div className="settings-note">{t('settings.mcp.restartNote')}</div>}
-            <button
-              type="button"
-              className="settings-btn"
-              onClick={() => {
-                void window.wslpad.mcp
-                  .regenerateToken()
-                  .then(() => pushToast('success', t('settings.mcp.tokenRegenerated')))
-              }}
-            >
-              {t('settings.mcp.regenerateToken')}
-            </button>
+            {mcp && (
+              <div className="settings-status">
+                <StatusRow label={t('dashboard.mcp.status')}>
+                  <span className={mcp.running ? 'settings-badge ok' : 'settings-badge'}>
+                    {mcp.running ? t('common.running') : t('common.stopped')}
+                  </span>
+                  <span className="settings-badge accent">{t('dashboard.mcp.readOnlyBadge')}</span>
+                </StatusRow>
+                <StatusRow label={t('dashboard.mcp.transport')} mono>
+                  {mcp.transport.toUpperCase()}
+                </StatusRow>
+                <StatusRow label={t('dashboard.mcp.endpoint')} mono>
+                  <span className="settings-status-endpoint" title={mcp.endpoint ?? undefined}>
+                    {mcp.endpoint ?? '—'}
+                  </span>
+                </StatusRow>
+                <StatusRow label={t('dashboard.mcp.clients')}>
+                  {formatNumber(locale, mcp.connectedClients)}
+                </StatusRow>
+                <StatusRow label={t('dashboard.mcp.lastRequest')}>
+                  {formatDateTime(locale, mcp.lastRequestAt)}
+                </StatusRow>
+                <StatusRow label={t('dashboard.mcp.authToken')}>
+                  {mcp.tokenSet ? t('dashboard.mcp.tokenSet') : t('common.no')}
+                </StatusRow>
+                {mcp.error ? (
+                  <StatusRow label={t('common.error')}>
+                    <span className="settings-status-err">{mcp.error}</span>
+                  </StatusRow>
+                ) : null}
+              </div>
+            )}
+            <div className="settings-actions">
+              {mcp?.endpoint ? (
+                <CopyButton
+                  text={mcp.endpoint}
+                  toastKey="common.copied"
+                  labelKey="dashboard.mcp.copyEndpoint"
+                  className="settings-btn"
+                >
+                  {t('dashboard.mcp.copyEndpoint')}
+                </CopyButton>
+              ) : null}
+              <button type="button" className="settings-btn" onClick={() => void copyConfigJson()}>
+                {t('dashboard.mcp.copyConfig')}
+              </button>
+              <button
+                type="button"
+                className="settings-btn"
+                onClick={() => void registerClient('codex', 'Codex')}
+              >
+                {t('dashboard.mcp.registerCodex')}
+              </button>
+              <button
+                type="button"
+                className="settings-btn"
+                onClick={() => void registerClient('claude-desktop', 'Claude Desktop')}
+              >
+                {t('dashboard.mcp.registerClaude')}
+              </button>
+              <button
+                type="button"
+                className="settings-btn"
+                onClick={() => void registerClient('hermes', 'Hermes')}
+              >
+                {t('dashboard.mcp.registerHermes')}
+              </button>
+              <button type="button" className="settings-btn" onClick={() => void testConnection()}>
+                {t('dashboard.mcp.test')}
+              </button>
+              <button type="button" className="settings-btn" onClick={() => void regenerateToken()}>
+                {t('settings.mcp.regenerateToken')}
+              </button>
+            </div>
           </section>
 
           <section>

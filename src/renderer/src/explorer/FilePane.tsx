@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { WINDOWS_ROOT } from '@shared/constants'
 import type { FileEntry, FsKind, WindowsPlace } from '@shared/types'
 import { useApp } from '../store'
+import { CopyIcon, LinuxIcon, RetroCopyIcon, WindowsIcon } from '../components/Icons'
 import type { MenuItem } from './ContextMenu'
 import { FileListView, LINUX_COLUMNS, WINDOWS_COLUMNS } from './FileList'
 import { FolderTree } from './FolderTree'
@@ -39,20 +40,10 @@ export interface FilePaneProps {
 }
 
 function PaneIcon({ kind }: { kind: FsKind }): React.JSX.Element {
-  return (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" className="pane-icon">
-      {kind === 'windows' ? (
-        <path
-          d="M2 4.2l5-.7v4.1H2zm0 7.6l5 .7V8.4H2zm5.8.8l6.2.9V8.4H7.8zm0-9.2v4.2H14V2.5z"
-          fill="currentColor"
-        />
-      ) : (
-        <path
-          d="M8 1.6c1.7 0 2.6 1.3 2.6 3 0 1.2.6 1.8 1.4 2.9.9 1.2 1.6 2.3 1.6 3.4 0 1.9-1.8 3.5-5.6 3.5s-5.6-1.6-5.6-3.5c0-1.1.7-2.2 1.6-3.4.8-1.1 1.4-1.7 1.4-2.9 0-1.7.9-3 2.6-3z"
-          fill="currentColor"
-        />
-      )}
-    </svg>
+  return kind === 'windows' ? (
+    <WindowsIcon size={14} className="pane-icon" />
+  ) : (
+    <LinuxIcon size={14} className="pane-icon" />
   )
 }
 
@@ -286,6 +277,8 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
     {
       id: 'copy-to-other',
       label: t('explorer.copyToOther'),
+      // Distinct silhouettes so the two panes' copy actions never look alike.
+      icon: adapter.kind === 'linux' ? <RetroCopyIcon /> : <CopyIcon />,
       disabled: transferTarget() === null,
       onClick: () => copyToOther(paths)
     },
@@ -327,6 +320,8 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
     {
       id: 'copy-to-other',
       label: t('explorer.copyToOther'),
+      // Distinct silhouettes so the two panes' copy actions never look alike.
+      icon: adapter.kind === 'linux' ? <RetroCopyIcon /> : <CopyIcon />,
       disabled: transferTarget() === null,
       onClick: () => copyToOther(paths)
     },
@@ -442,6 +437,9 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
     if (pane.selection.size > 1) return t('explorer.selectedCount', { count: pane.selection.size })
     return pane.path === null ? '' : adapter.displayPath(pane.path)
   }
+
+  // Only a bare path stays monospaced; the selection sentences are prose.
+  const statusClass = pane.selection.size === 0 ? 'pane-status mono' : 'pane-status'
 
   const unavailable = props.unavailableMessage ?? null
 
@@ -564,7 +562,7 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
             />
           </div>
 
-          <footer className="pane-status mono">{statusText()}</footer>
+          <footer className={statusClass}>{statusText()}</footer>
         </>
       )}
     </section>

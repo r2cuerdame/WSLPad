@@ -198,7 +198,17 @@
       "process": "Prozess",
       "openInBrowser": "Im Browser öffnen",
       "copyUrl": "URL kopieren",
-      "showProcess": "Prozess anzeigen"
+      "showProcess": "Prozess anzeigen",
+      "source": "Quelle",
+      "sourceWsl": "WSL",
+      "sourceWindows": "Windows",
+      "sourceBoth": "WSL + Windows",
+      "windowsProcess": "Windows-Prozess",
+      "windowsProcessNotListed": "Windows-Prozesse werden hier nicht aufgeführt",
+      "reachableFromWindows": "Von Windows aus erreichbar",
+      "notReachable": "Von Windows aus nicht erreichbar",
+      "windowsUnknown": "Windows-Porttabelle nicht verfügbar",
+      "showWindowsOnly": "Nur auf Windows vorhandene Ports einbeziehen"
     },
     "warnings": {
       "title": "Warnungen",

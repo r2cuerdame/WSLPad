@@ -14,7 +14,8 @@ import type {
   ResourceInfo,
   ServiceInfo,
   SystemInfo,
-  ToolInfo
+  ToolInfo,
+  WindowsPortInfo
 } from '@shared/types'
 import { CONFIG_FILE_SPECS, IMPORTANT_PATH_SPECS, TOOL_SPECS } from '@shared/constants'
 
@@ -321,7 +322,9 @@ export function fixturePorts(distro: FixtureDistroName): PortInfo[] {
       pid: 310,
       processName: 'sshd',
       listening: true,
-      localhostUrl: null
+      localhostUrl: null,
+      windowsBound: false,
+      windowsProcess: null
     },
     {
       protocol: 'tcp',
@@ -330,7 +333,9 @@ export function fixturePorts(distro: FixtureDistroName): PortInfo[] {
       pid: 4242,
       processName: 'hermes',
       listening: true,
-      localhostUrl: 'http://127.0.0.1:8790'
+      localhostUrl: 'http://127.0.0.1:8790',
+      windowsBound: true,
+      windowsProcess: 'wslrelay.exe'
     },
     {
       protocol: 'tcp',
@@ -339,7 +344,9 @@ export function fixturePorts(distro: FixtureDistroName): PortInfo[] {
       pid: 5100,
       processName: 'node',
       listening: true,
-      localhostUrl: 'http://127.0.0.1:8080'
+      localhostUrl: 'http://127.0.0.1:8080',
+      windowsBound: true,
+      windowsProcess: 'wslrelay.exe'
     },
     {
       protocol: 'udp',
@@ -348,7 +355,68 @@ export function fixturePorts(distro: FixtureDistroName): PortInfo[] {
       pid: 610,
       processName: 'avahi-daemon',
       listening: true,
-      localhostUrl: null
+      localhostUrl: null,
+      windowsBound: false,
+      windowsProcess: null
+    }
+  ]
+}
+
+/**
+ * Windows host listeners. Port 8080/8790 mirror the WSL side through the WSL2
+ * relay; the rest are native Windows services with no WSL counterpart.
+ */
+export function fixtureWindowsPorts(): WindowsPortInfo[] {
+  return [
+    {
+      protocol: 'tcp',
+      localAddress: '0.0.0.0',
+      port: 8080,
+      pid: 7100,
+      processName: 'wslrelay.exe',
+      listening: true,
+      localhostUrl: 'http://localhost:8080',
+      fromWsl: true
+    },
+    {
+      protocol: 'tcp',
+      localAddress: '127.0.0.1',
+      port: 8790,
+      pid: 7100,
+      processName: 'wslrelay.exe',
+      listening: true,
+      localhostUrl: 'http://localhost:8790',
+      fromWsl: true
+    },
+    {
+      protocol: 'tcp',
+      localAddress: '0.0.0.0',
+      port: 3000,
+      pid: 9312,
+      processName: 'node.exe',
+      listening: true,
+      localhostUrl: 'http://localhost:3000',
+      fromWsl: false
+    },
+    {
+      protocol: 'tcp6',
+      localAddress: '[::]',
+      port: 5432,
+      pid: 4180,
+      processName: 'postgres.exe',
+      listening: true,
+      localhostUrl: 'http://localhost:5432',
+      fromWsl: false
+    },
+    {
+      protocol: 'udp',
+      localAddress: '0.0.0.0',
+      port: 1900,
+      pid: 2244,
+      processName: 'svchost.exe',
+      listening: true,
+      localhostUrl: null,
+      fromWsl: false
     }
   ]
 }

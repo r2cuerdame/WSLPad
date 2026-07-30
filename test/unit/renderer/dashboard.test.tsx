@@ -27,8 +27,7 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['processes', 'Processes'],
   ['services', 'Services'],
   ['ports', 'Ports'],
-  ['warnings', 'Warnings'],
-  ['mcp', 'MCP server']
+  ['warnings', 'Warnings']
 ]
 
 function makeSnapshot(): WslPadSnapshot {
@@ -205,9 +204,12 @@ function makeSnapshot(): WslPadSnapshot {
           pid: 4242,
           processName: 'node',
           listening: true,
-          localhostUrl: 'http://127.0.0.1:8080'
+          localhostUrl: 'http://127.0.0.1:8080',
+          windowsBound: null,
+          windowsProcess: null
         }
       ],
+      windowsPorts: [],
       warnings: []
     },
     explorer: { distro: 'Ubuntu-24.04', currentPath: '/home/dev', showHidden: false },
@@ -351,7 +353,7 @@ afterEach(() => {
 })
 
 describe('DashboardTab master–detail', () => {
-  it('renders the twelve sections as listbox options, never as tabs', async () => {
+  it('renders the eleven sections as listbox options, never as tabs', async () => {
     await renderDashboard()
 
     const nav = screen.getByTestId('dashboard-nav')
@@ -400,7 +402,22 @@ describe('DashboardTab master–detail', () => {
     expect(navItem('paths').querySelector('.dash-nav-badge')).toBeNull()
     expect(navItem('configuration').querySelector('.dash-nav-badge')).toBeNull()
     expect(navItem('hermes').querySelector('.dot-ok')).toBeTruthy()
-    expect(navItem('mcp').querySelector('.dot-ok')).toBeTruthy()
+  })
+
+  it('has no MCP section — every MCP action lives in Settings', async () => {
+    await renderDashboard()
+
+    expect(screen.queryByTestId('dashboard-nav-mcp')).toBeNull()
+    expect(screen.queryByText('MCP server')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Copy config JSON' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Register in Codex' })).toBeNull()
+    expect(api.mcp.getConfigJson).not.toHaveBeenCalled()
+  })
+
+  it('falls back to overview when the stored section is the retired mcp id', async () => {
+    window.localStorage.setItem('wslpad.dashboard.section', 'mcp')
+    await renderDashboard()
+    expect(navItem('overview').getAttribute('aria-selected')).toBe('true')
   })
 
   it('badges the deduped warning count in the error colour', async () => {
@@ -471,7 +488,7 @@ describe('DashboardTab master–detail', () => {
     expect(navItem('resources').getAttribute('aria-selected')).toBe('true')
 
     fireEvent.keyDown(nav, { key: 'End' })
-    expect(navItem('mcp').getAttribute('aria-selected')).toBe('true')
+    expect(navItem('warnings').getAttribute('aria-selected')).toBe('true')
 
     fireEvent.keyDown(nav, { key: 'Home' })
     expect(navItem('overview').getAttribute('aria-selected')).toBe('true')

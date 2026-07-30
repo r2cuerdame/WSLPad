@@ -13,7 +13,8 @@ import type {
   ServiceInfo,
   SystemInfo,
   TextFileContent,
-  ToolInfo
+  ToolInfo,
+  WindowsPortInfo
 } from '@shared/types'
 
 // ---------------------------------------------------------------------------
@@ -66,6 +67,12 @@ export interface WslProvider {
   getProcesses(distro: string): Promise<ProcessInfo[]>
   getServices(distro: string, systemdEnabled: boolean | null): Promise<ServiceInfo[]>
   getPorts(distro: string): Promise<PortInfo[]>
+  /**
+   * Listeners on the Windows host — a host query, not a distro one, so it takes
+   * no distro name. Optional: a provider with no view of the Windows side
+   * simply omits it and every port stays windowsBound = null (unknown).
+   */
+  getWindowsPorts?(): Promise<WindowsPortInfo[]>
   getEnvironment(distro: string): Promise<EnvironmentVariableInfo[]>
   /** Raw value for explicit GUI reveal — never crosses MCP (goal.md §6.7). */
   revealEnv(distro: string, name: string): Promise<string | null>

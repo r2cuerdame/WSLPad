@@ -198,7 +198,17 @@
       "process": "處理程序",
       "openInBrowser": "在瀏覽器中開啟",
       "copyUrl": "複製 URL",
-      "showProcess": "檢視處理程序"
+      "showProcess": "檢視處理程序",
+      "source": "來源",
+      "sourceWsl": "WSL",
+      "sourceWindows": "Windows",
+      "sourceBoth": "WSL + Windows",
+      "windowsProcess": "Windows 處理程序",
+      "windowsProcessNotListed": "此處不會顯示 Windows 處理程序",
+      "reachableFromWindows": "可從 Windows 存取",
+      "notReachable": "無法從 Windows 存取",
+      "windowsUnknown": "無法取得 Windows 連接埠清單",
+      "showWindowsOnly": "包含僅 Windows 的連接埠"
     },
     "warnings": {
       "title": "警告",

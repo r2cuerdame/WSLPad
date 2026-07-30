@@ -198,7 +198,17 @@
       "process": "プロセス",
       "openInBrowser": "ブラウザーで開く",
       "copyUrl": "URL をコピー",
-      "showProcess": "プロセスを表示"
+      "showProcess": "プロセスを表示",
+      "source": "ソース",
+      "sourceWsl": "WSL",
+      "sourceWindows": "Windows",
+      "sourceBoth": "WSL + Windows",
+      "windowsProcess": "Windows プロセス",
+      "windowsProcessNotListed": "Windows のプロセスはここには表示されません",
+      "reachableFromWindows": "Windows から接続できます",
+      "notReachable": "Windows からは接続できません",
+      "windowsUnknown": "Windows のポート一覧を取得できません",
+      "showWindowsOnly": "Windows のみのポートを含める"
     },
     "warnings": {
       "title": "警告",

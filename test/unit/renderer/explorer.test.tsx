@@ -80,6 +80,7 @@ function makeSnapshot(): WslPadSnapshot {
       processes: [],
       services: [],
       ports: [],
+      windowsPorts: [],
       warnings: []
     },
     explorer: { distro: 'Ubuntu-24.04', currentPath: LINUX_HOME, showHidden: false },

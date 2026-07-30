@@ -204,6 +204,7 @@
       "sourceWindows": "Windows",
       "sourceBoth": "WSL + Windows",
       "windowsProcess": "Windows process",
+      "windowsProcessNotListed": "Windows processes are not listed here",
       "reachableFromWindows": "Reachable from Windows",
       "notReachable": "Not reachable from Windows",
       "windowsUnknown": "Windows port table unavailable",
@@ -437,10 +438,7 @@
       "portHint": "Bound to 127.0.0.1 only",
       "regenerateToken": "Regenerate auth token",
       "tokenRegenerated": "Token regenerated — re-register clients",
-      "restartNote": "Port changes restart the MCP server",
-      "endpoint": "Endpoint",
-      "clients": "Register with a client",
-      "readOnlyNote": "WSLPad only ever exposes read-only Get tools."
+      "restartNote": "Port changes restart the MCP server"
     },
     "updates": {
       "title": "Updates",

@@ -109,6 +109,12 @@ function pushServices(lines: string[], dash: DashboardSnapshot): void {
   lines.push('')
 }
 
+function windowsSide(bound: boolean | null, process: string | null): string {
+  if (bound === null) return ' — Windows: unknown'
+  if (!bound) return ' — Windows: not bound'
+  return process === null ? ' — Windows: bound' : ` — Windows: bound by ${process}`
+}
+
 function pushPorts(lines: string[], dash: DashboardSnapshot): void {
   lines.push('## Listening ports')
   const listening = dash.ports.filter((p) => p.listening)
@@ -116,6 +122,23 @@ function pushPorts(lines: string[], dash: DashboardSnapshot): void {
     lines.push('- None')
   } else {
     for (const port of listening.slice(0, 30)) {
+      const proc = port.processName ?? 'unknown'
+      const pid = port.pid === null ? '' : ` (pid ${port.pid})`
+      const win = windowsSide(port.windowsBound ?? null, port.windowsProcess ?? null)
+      lines.push(`- ${port.protocol} ${port.localAddress}:${port.port} — ${proc}${pid}${win}`)
+    }
+  }
+  lines.push('')
+}
+
+function pushWindowsPorts(lines: string[], dash: DashboardSnapshot): void {
+  lines.push('## Windows-only listening ports')
+  // Older snapshots (and MCP payloads predating the field) carry no table.
+  const own = (dash.windowsPorts ?? []).filter((p) => !p.fromWsl)
+  if (own.length === 0) {
+    lines.push('- None')
+  } else {
+    for (const port of own.slice(0, 30)) {
       const proc = port.processName ?? 'unknown'
       const pid = port.pid === null ? '' : ` (pid ${port.pid})`
       lines.push(`- ${port.protocol} ${port.localAddress}:${port.port} — ${proc}${pid}`)
@@ -188,6 +211,7 @@ export function snapshotToMarkdown(s: WslPadSnapshot): string {
     pushHermes(lines, dash)
     pushServices(lines, dash)
     pushPorts(lines, dash)
+    pushWindowsPorts(lines, dash)
     pushEnvironment(lines, dash)
     pushPaths(lines, dash)
   }

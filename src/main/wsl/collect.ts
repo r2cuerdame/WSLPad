@@ -11,6 +11,7 @@ import { collectProcesses } from './processes'
 import { collectResources } from './resources'
 import { collectServices } from './services'
 import { collectSystemInfo } from './system'
+import { createWindowsPortCollector } from './windows-ports'
 
 /**
  * Real WslProvider wiring all hidden-runner collectors (goal.md §9). The
@@ -19,6 +20,8 @@ import { collectSystemInfo } from './system'
 export function createRealProvider(runner: DistroRunner): WslProvider {
   // Raw env values stay in the main process; only revealEnv reads them back.
   const envRawCache = new Map<string, Map<string, string>>()
+  // Host-side table; created once so its pid → name cache survives polls.
+  const windowsPorts = createWindowsPortCollector()
 
   return {
     async isAvailable(): Promise<boolean> {
@@ -71,6 +74,10 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
 
     getPorts(distro) {
       return collectPorts(runner, distro)
+    },
+
+    getWindowsPorts() {
+      return windowsPorts.collect()
     },
 
     async getEnvironment(distro) {

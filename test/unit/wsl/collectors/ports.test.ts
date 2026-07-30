@@ -25,7 +25,9 @@ describe('parseSs', () => {
       pid: 412,
       processName: 'systemd-resolve',
       listening: true,
-      localhostUrl: null
+      localhostUrl: null,
+      windowsBound: null,
+      windowsProcess: null
     })
 
     // no users field → null pid/process
@@ -38,7 +40,9 @@ describe('parseSs', () => {
       pid: 1234,
       processName: 'node',
       listening: true,
-      localhostUrl: 'http://localhost:8080'
+      localhostUrl: 'http://localhost:8080',
+      windowsBound: null,
+      windowsProcess: null
     })
 
     // bracketed local address → v6; first users entry wins
@@ -47,7 +51,9 @@ describe('parseSs', () => {
       localAddress: '[::]',
       port: 80,
       pid: 99,
-      localhostUrl: 'http://localhost:80'
+      localhostUrl: 'http://localhost:80',
+      windowsBound: null,
+      windowsProcess: null
     })
 
     expect(ports[4]).toMatchObject({ protocol: 'udp6', port: 546 })

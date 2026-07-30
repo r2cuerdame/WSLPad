@@ -1,30 +1,175 @@
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { PortInfo } from '@shared/types'
+import type { PortInfo, PortProtocol, WindowsPortInfo } from '@shared/types'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import { ExternalIcon, SearchIcon } from '../components/Icons'
 
-export interface PortsCardProps {
-  ports: PortInfo[]
+const STORAGE_KEY = 'wslpad.dashboard.ports.windowsOnly'
+
+type SortKey = 'source' | 'protocol' | 'port'
+type Source = 'wsl' | 'both' | 'windows'
+
+const SOURCE_ORDER: Record<Source, number> = { both: 0, wsl: 1, windows: 2 }
+
+interface PortRow {
+  id: string
+  source: Source
+  protocol: PortProtocol
+  localAddress: string
+  port: number
+  pid: number | null
+  processName: string | null
+  url: string | null
+  /** WSL row whose Windows counterpart could not be read at all. */
+  unknownWindows: boolean
+  windowsProcess: string | null
 }
 
-export default function PortsCard({ ports }: PortsCardProps): React.JSX.Element {
+function readStoredWindowsOnly(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+export interface PortsCardProps {
+  ports: PortInfo[]
+  /** Windows host listeners; absent when the snapshot has no Windows view. */
+  windowsPorts?: WindowsPortInfo[]
+}
+
+export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { setFocusPid } = useApp()
+  const [showWindowsOnly, setShowWindowsOnly] = useState(readStoredWindowsOnly)
+  const [sortKey, setSortKey] = useState<SortKey>('port')
+  const [desc, setDesc] = useState(false)
+
+  const windowsOnly = useMemo(() => windowsPorts.filter((w) => !w.fromWsl), [windowsPorts])
+
+  const rows = useMemo<PortRow[]>(() => {
+    const wslRows: PortRow[] = ports.map((p) => ({
+      id: `wsl:${p.protocol}:${p.localAddress}:${p.port}`,
+      source: p.windowsBound === true ? 'both' : 'wsl',
+      protocol: p.protocol,
+      localAddress: p.localAddress,
+      port: p.port,
+      pid: p.pid,
+      processName: p.processName,
+      url: p.localhostUrl,
+      unknownWindows: (p.windowsBound ?? null) === null,
+      windowsProcess: p.windowsProcess ?? null
+    }))
+    const winRows: PortRow[] = showWindowsOnly
+      ? windowsOnly.map((w) => ({
+          id: `win:${w.protocol}:${w.localAddress}:${w.port}`,
+          source: 'windows',
+          protocol: w.protocol,
+          localAddress: w.localAddress,
+          port: w.port,
+          pid: w.pid,
+          processName: w.processName,
+          url: w.localhostUrl,
+          unknownWindows: false,
+          windowsProcess: w.processName
+        }))
+      : []
+    const dir = desc ? -1 : 1
+    const bySource = (a: PortRow, b: PortRow): number =>
+      SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source]
+    return [...wslRows, ...winRows].sort((a, b) => {
+      if (sortKey === 'protocol') {
+        return a.protocol.localeCompare(b.protocol) * dir || a.port - b.port
+      }
+      if (sortKey === 'source') return bySource(a, b) * dir || a.port - b.port
+      return (a.port - b.port) * dir || bySource(a, b)
+    })
+  }, [ports, windowsOnly, showWindowsOnly, sortKey, desc])
+
+  const toggleWindowsOnly = (next: boolean): void => {
+    setShowWindowsOnly(next)
+    try {
+      localStorage.setItem(STORAGE_KEY, next ? '1' : '0')
+    } catch {
+      /* storage unavailable — the choice simply does not persist */
+    }
+  }
+
+  const clickSort = (clicked: SortKey): void => {
+    if (clicked === sortKey) {
+      setDesc(!desc)
+    } else {
+      setSortKey(clicked)
+      setDesc(false)
+    }
+  }
+
+  const arrow = (clicked: SortKey): string => (clicked === sortKey ? (desc ? ' ▼' : ' ▲') : '')
+
+  const sourceLabel = (row: PortRow): string =>
+    row.source === 'both'
+      ? t('dashboard.ports.sourceBoth')
+      : row.source === 'windows'
+        ? t('dashboard.ports.sourceWindows')
+        : t('dashboard.ports.sourceWsl')
+
+  const sourceTitle = (row: PortRow): string => {
+    if (row.source === 'windows') return t('dashboard.ports.sourceWindows')
+    if (row.source === 'both') {
+      return row.windowsProcess === null
+        ? t('dashboard.ports.reachableFromWindows')
+        : `${t('dashboard.ports.windowsProcess')}: ${row.windowsProcess}`
+    }
+    return row.unknownWindows
+      ? t('dashboard.ports.windowsUnknown')
+      : t('dashboard.ports.notReachable')
+  }
 
   return (
-    <Card titleKey="dashboard.ports.title">
-      {ports.length === 0 ? (
+    <Card
+      titleKey="dashboard.ports.title"
+      actions={
+        windowsOnly.length > 0 ? (
+          <label className="dim">
+            <input
+              type="checkbox"
+              checked={showWindowsOnly}
+              onChange={(e) => toggleWindowsOnly(e.target.checked)}
+            />{' '}
+            {t('dashboard.ports.showWindowsOnly')}
+          </label>
+        ) : undefined
+      }
+    >
+      {rows.length === 0 ? (
         <div className="dim">{t('common.none')}</div>
       ) : (
         <div className="dash-table-wrap dash-scroll">
           <table className="dash-table">
             <thead>
               <tr>
-                <th scope="col">{t('dashboard.ports.protocol')}</th>
+                <th scope="col">
+                  <button type="button" className="th-btn" onClick={() => clickSort('source')}>
+                    {t('dashboard.ports.source')}
+                    {arrow('source')}
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" className="th-btn" onClick={() => clickSort('protocol')}>
+                    {t('dashboard.ports.protocol')}
+                    {arrow('protocol')}
+                  </button>
+                </th>
                 <th scope="col">{t('dashboard.ports.address')}</th>
-                <th scope="col">{t('dashboard.ports.port')}</th>
+                <th scope="col">
+                  <button type="button" className="th-btn" onClick={() => clickSort('port')}>
+                    {t('dashboard.ports.port')}
+                    {arrow('port')}
+                  </button>
+                </th>
                 <th scope="col">{t('dashboard.processes.pid')}</th>
                 <th scope="col">{t('dashboard.ports.process')}</th>
                 <th scope="col">
@@ -33,17 +178,21 @@ export default function PortsCard({ ports }: PortsCardProps): React.JSX.Element 
               </tr>
             </thead>
             <tbody>
-              {ports.map((p) => {
-                const url = p.localhostUrl
-                const pid = p.pid
+              {rows.map((row) => {
+                const url = row.url
+                const pid = row.pid
+                const isWindows = row.source === 'windows'
                 return (
-                  <tr key={`${p.protocol}:${p.localAddress}:${p.port}`}>
-                    <td className="mono">{p.protocol}</td>
-                    <td className="mono">{p.localAddress}</td>
-                    <td className="mono">{p.port}</td>
+                  <tr key={row.id}>
+                    <td className={row.unknownWindows ? 'dim' : undefined} title={sourceTitle(row)}>
+                      {sourceLabel(row)}
+                    </td>
+                    <td className="mono">{row.protocol}</td>
+                    <td className="mono">{row.localAddress}</td>
+                    <td className="mono">{row.port}</td>
                     <td className="mono">{pid ?? '—'}</td>
-                    <td className="truncate" title={p.processName ?? undefined}>
-                      {p.processName ?? '—'}
+                    <td className="truncate" title={row.processName ?? undefined}>
+                      {row.processName ?? '—'}
                     </td>
                     <td>
                       <span className="row-actions">
@@ -71,7 +220,15 @@ export default function PortsCard({ ports }: PortsCardProps): React.JSX.Element 
                             type="button"
                             className="icon-btn"
                             aria-label={t('dashboard.ports.showProcess')}
-                            title={t('dashboard.ports.showProcess')}
+                            // Windows pids are not in the WSL process table.
+                            title={
+                              isWindows
+                                ? t('dashboard.ports.windowsProcessNotListed', {
+                                    defaultValue: 'Windows processes are not listed here'
+                                  })
+                                : t('dashboard.ports.showProcess')
+                            }
+                            disabled={isWindows}
                             onClick={() => setFocusPid(pid)}
                           >
                             <SearchIcon size={14} />

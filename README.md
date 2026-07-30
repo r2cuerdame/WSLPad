@@ -1,5 +1,15 @@
 # WSLPad
 
+**English** · 한국어 · 日本語 · 简体中文 · 繁體中文 · Español · Français · Deutsch · Português (Brasil)
+
+[![Release](https://img.shields.io/github/v/release/r2cuerdame/WSLPad?color=7c5cff&label=release)](https://github.com/r2cuerdame/WSLPad/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/r2cuerdame/WSLPad/total?color=7c5cff)](https://github.com/r2cuerdame/WSLPad/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
+
+> The app itself ships in all nine languages above and follows your Windows
+> language automatically. This README is English-only for now.
+
 > A small Windows companion for WSL.
 
 WSLPad is a resident Windows tray app that makes the invisible parts of your

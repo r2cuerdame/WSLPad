@@ -6,6 +6,8 @@ export interface MenuItem {
   separator?: boolean
   disabled?: boolean
   danger?: boolean
+  /** Decorative glyph; the label still carries the accessible name. */
+  icon?: React.ReactNode
   onClick?: () => void
 }
 
@@ -71,6 +73,11 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps): React.J
                 onClose()
               }}
             >
+              {item.icon && (
+                <span className="ctx-icon" aria-hidden="true">
+                  {item.icon}
+                </span>
+              )}
               {item.label}
             </button>
           )

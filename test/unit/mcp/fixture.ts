@@ -411,9 +411,12 @@ export function makeDashboard(): DashboardSnapshot {
         pid: 4321,
         processName: 'hermes',
         listening: true,
-        localhostUrl: 'http://127.0.0.1:8600'
+        localhostUrl: 'http://127.0.0.1:8600',
+        windowsBound: null,
+        windowsProcess: null
       }
     ],
+    windowsPorts: [],
     warnings: [
       {
         id: 'fixture-warning',

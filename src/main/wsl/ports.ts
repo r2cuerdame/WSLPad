@@ -38,7 +38,10 @@ export function parseSs(text: string): PortInfo[] {
       pid: users === null ? null : Number.parseInt(users[2], 10),
       processName: users === null || users[1] === '' ? null : users[1],
       listening,
-      localhostUrl: listening && isTcp && port >= 80 ? `http://localhost:${port}` : null
+      localhostUrl: listening && isTcp && port >= 80 ? `http://localhost:${port}` : null,
+      // Correlated against the Windows port table later; unknown until then.
+      windowsBound: null,
+      windowsProcess: null
     })
   }
   return out

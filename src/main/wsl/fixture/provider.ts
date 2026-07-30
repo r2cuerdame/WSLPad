@@ -17,7 +17,8 @@ import type {
   ResourceInfo,
   ServiceInfo,
   SystemInfo,
-  ToolInfo
+  ToolInfo,
+  WindowsPortInfo
 } from '@shared/types'
 import { isPathLikeName, isSecretName, looksWindowsOriginated, maskEnvValue } from '@shared/masking'
 import type { WslProvider } from '../contracts'
@@ -36,6 +37,7 @@ import {
   fixtureServices,
   fixtureSystemInfo,
   fixtureTools,
+  fixtureWindowsPorts,
   type FixtureDistroName
 } from './data'
 
@@ -78,6 +80,11 @@ export class FixtureWslProvider implements WslProvider {
 
   async getPorts(distro: string): Promise<PortInfo[]> {
     return fixturePorts(this.known(distro))
+  }
+
+  /** Host-wide table, so it takes no distro — the fixture Windows side. */
+  async getWindowsPorts(): Promise<WindowsPortInfo[]> {
+    return fixtureWindowsPorts()
   }
 
   async getEnvironment(distro: string): Promise<EnvironmentVariableInfo[]> {
