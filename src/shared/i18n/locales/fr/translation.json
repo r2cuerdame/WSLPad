@@ -229,7 +229,15 @@
     "copyForLlm": "Copier pour un LLM",
     "copiedForLlm": "Résumé de l'environnement copié",
     "exportJson": "Exporter en JSON",
-    "exportedJson": "Instantané exporté vers {{path}}"
+    "exportedJson": "Instantané exporté vers {{path}}",
+    "nav": {
+      "label": "Sections du tableau de bord",
+      "hint": "Sélectionnez une section pour afficher les détails"
+    },
+    "detail": {
+      "itemCount": "{{count}} éléments",
+      "toolsInstalled": "{{installed}} sur {{total}} installés"
+    }
   },
   "explorer": {
     "back": "Précédent",
@@ -282,7 +290,9 @@
       "importFromWindows": "Importer depuis Windows…",
       "prepareChmod": "Préparer la commande chmod",
       "prepareChown": "Préparer la commande chown",
-      "prepareSymlink": "Préparer la commande de lien symbolique"
+      "prepareSymlink": "Préparer la commande de lien symbolique",
+      "openWithWindows": "Ouvrir avec Windows",
+      "revealInWindows": "Afficher dans l’Explorateur Windows"
     },
     "newFileName": "new-file.txt",
     "newFolderName": "new-folder",
@@ -317,7 +327,23 @@
       "linkTarget": "Cible du lien"
     },
     "invalidName": "Nom non valide",
-    "dropUseImport": "Le dépôt depuis Windows n’est pas pris en charge ici — utilisez « Importer depuis Windows… »"
+    "dropUseImport": "Le dépôt depuis Windows n’est pas pris en charge ici — utilisez « Importer depuis Windows… »",
+    "pane": {
+      "windows": "Windows",
+      "windowsAria": "Fichiers Windows",
+      "wslAria": "Fichiers {{distro}}",
+      "splitter": "Redimensionner les volets",
+      "activeHint": "Volet actif"
+    },
+    "thisPc": "Ce PC",
+    "places": "Emplacements",
+    "driveFree": "{{free}} libres sur {{total}}",
+    "copyToOther": "Copier vers l’autre volet",
+    "moveToOther": "Déplacer vers l’autre volet",
+    "toggleTree": "Afficher l’arborescence des dossiers",
+    "copyPath": "Copier le chemin",
+    "noDistro": "Aucune distribution sélectionnée",
+    "transferStarted": "Transfert démarré"
   },
   "editor": {
     "title": "Éditeur",

@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { TextFileContent } from '@shared/types'
+import type { FsKind, TextFileContent } from '@shared/types'
 import { Dialog } from '../components/Dialog'
 import { useApp } from '../store'
-import {
-  baseName,
-  formatBytes,
-  parseExplorerError,
-  shQuote,
-  type ExplorerErrorInfo
-} from './useExplorer'
+import { createLinuxAdapter, createWindowsAdapter, shQuote } from './fsAdapter'
+import { formatBytes, parseExplorerError, type ExplorerErrorInfo } from './usePane'
 
 interface EditorOverlayProps {
   path: string
+  /** Which pane opened the file — reads and writes route to that filesystem. */
+  fs: FsKind
   onClose: () => void
 }
 
@@ -20,9 +17,13 @@ interface EditorOverlayProps {
 const LINE_HEIGHT = 20
 
 /** Simple text editor over the Explorer area — not a separate tab (goal.md §7.6). */
-export function EditorOverlay({ path, onClose }: EditorOverlayProps): React.JSX.Element {
+export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const { pushToast, prepareCommand } = useApp()
+  const adapter = useMemo(
+    () => (fs === 'windows' ? createWindowsAdapter() : createLinuxAdapter()),
+    [fs]
+  )
   const [meta, setMeta] = useState<TextFileContent | null>(null)
   const [loadError, setLoadError] = useState<ExplorerErrorInfo | null>(null)
   const [saveError, setSaveError] = useState<ExplorerErrorInfo | null>(null)
@@ -39,7 +40,7 @@ export function EditorOverlay({ path, onClose }: EditorOverlayProps): React.JSX.
   const contentRef = useRef('')
   contentRef.current = content
 
-  const name = baseName(path)
+  const name = adapter.base(path)
   const dirty = meta !== null && content !== original
   // Truncated reads must never be written back over the full file.
   const writable = meta !== null && meta.writable && !meta.truncated
@@ -49,7 +50,7 @@ export function EditorOverlay({ path, onClose }: EditorOverlayProps): React.JSX.
     setMeta(null)
     setLoadError(null)
     setSaveError(null)
-    void window.wslpad.explorer
+    void adapter
       .readText(path)
       .then((res) => {
         if (disposed) return
@@ -63,7 +64,7 @@ export function EditorOverlay({ path, onClose }: EditorOverlayProps): React.JSX.
     return () => {
       disposed = true
     }
-  }, [path])
+  }, [adapter, path])
 
   const matches = useMemo(() => {
     if (!findQuery) return []
@@ -98,7 +99,7 @@ export function EditorOverlay({ path, onClose }: EditorOverlayProps): React.JSX.
     if (meta === null || saving || !writable) return
     setSaving(true)
     try {
-      await window.wslpad.explorer.writeText(path, contentRef.current)
+      await adapter.writeText(path, contentRef.current)
       setOriginal(contentRef.current)
       setSaveError(null)
       pushToast('success', t('toast.fileSaved', { name }))
@@ -107,7 +108,7 @@ export function EditorOverlay({ path, onClose }: EditorOverlayProps): React.JSX.
     } finally {
       setSaving(false)
     }
-  }, [meta, name, path, pushToast, saving, t, writable])
+  }, [adapter, meta, name, path, pushToast, saving, t, writable])
 
   const requestClose = useCallback((): void => {
     if (dirty) setConfirmClose(true)
@@ -170,7 +171,7 @@ export function EditorOverlay({ path, onClose }: EditorOverlayProps): React.JSX.
             <pre className="mono">{info.detail.stderr}</pre>
           </details>
         )}
-        {info.code === 'EACCES' && (
+        {info.code === 'EACCES' && fs === 'linux' && (
           <button type="button" className="editor-btn" onClick={prepareSudoedit}>
             {t('editor.prepareSudoedit')}
           </button>
@@ -182,7 +183,7 @@ export function EditorOverlay({ path, onClose }: EditorOverlayProps): React.JSX.
   const renderSaveError = (info: ExplorerErrorInfo): React.JSX.Element => (
     <div className="editor-save-error" role="alert">
       <div className="editor-message-title">{t('editor.saveFailedTitle')}</div>
-      {info.code === 'EACCES' ? (
+      {info.code === 'EACCES' && fs === 'linux' ? (
         <>
           <div>{t('errors.permissionDenied', { path })}</div>
           <div className="editor-error-detail">

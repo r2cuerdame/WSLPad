@@ -11,13 +11,129 @@
   font-family: var(--mono);
 }
 
+/* ---- Dual pane shell ---- */
+
+.pane-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.pane-slot {
+  display: flex;
+  flex-grow: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.file-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.file-pane.is-active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent-dim);
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.pane-icon {
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.file-pane.is-active .pane-icon {
+  color: var(--accent);
+}
+
+.pane-title {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pane-active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.pane-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.pane-status {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 22px;
+}
+
+.pane-unavailable {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.pane-splitter {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: var(--bg-raised);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  touch-action: none;
+}
+
+.pane-splitter:hover,
+.pane-splitter.dragging,
+.pane-splitter:focus-visible {
+  background: var(--accent-dim);
+  outline: none;
+}
+
 /* ---- Toolbar ---- */
 
 .exp-toolbar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
+  gap: 3px;
+  padding: 5px 6px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-raised);
 }
@@ -26,8 +142,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
@@ -51,12 +168,17 @@
   border-color: var(--accent-dim);
 }
 
+.exp-toolbtn.transfer:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
 .exp-pathbox {
-  flex: 1;
+  flex: 1 1 80px;
   min-width: 0;
   display: flex;
   align-items: stretch;
-  height: 26px;
+  height: 24px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
@@ -101,7 +223,7 @@
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 180px;
+  max-width: 150px;
 }
 
 .breadcrumb-seg:hover {
@@ -116,15 +238,16 @@
 
 .breadcrumb-edit {
   flex: 1;
-  min-width: 24px;
+  min-width: 16px;
   border: none;
   background: transparent;
   cursor: text;
 }
 
 .exp-search {
-  width: 180px;
-  height: 26px;
+  flex: 0 1 120px;
+  min-width: 60px;
+  height: 24px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
@@ -139,18 +262,10 @@
   outline: 1px solid var(--accent);
 }
 
-/* ---- Body ---- */
+/* ---- Sidebar: places + folder tree ---- */
 
-.explorer-body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
-/* ---- Folder tree ---- */
-
-.folder-tree {
-  width: 220px;
+.pane-sidebar {
+  width: 180px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -159,19 +274,68 @@
   background: var(--bg-raised);
 }
 
-.tree-header {
-  padding: 6px 10px;
-  font-size: 11px;
+.pane-places {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 45%;
+  overflow: auto;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.places-header {
+  padding: 6px 10px 3px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-dim);
 }
 
+.places-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  text-align: left;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.places-item:hover {
+  background: var(--bg-card);
+  color: var(--text);
+}
+
+.places-label {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.places-free {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.folder-tree {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .tree-scroll {
   flex: 1;
   overflow: auto;
-  padding-bottom: 8px;
+  padding: 4px 0 8px;
 }
 
 .tree-node {
@@ -233,9 +397,9 @@
   background: var(--bg);
 }
 
+/* grid-template-columns is set inline: the column set differs per filesystem */
 .fl-header {
   display: grid;
-  grid-template-columns: 26px minmax(140px, 1fr) 80px 150px 80px 80px 110px;
   align-items: center;
   border-bottom: 1px solid var(--border);
   background: var(--bg-raised);
@@ -269,7 +433,6 @@
 
 .fl-row {
   display: grid;
-  grid-template-columns: 26px minmax(140px, 1fr) 80px 150px 80px 80px 110px;
   align-items: center;
   height: 28px;
   font-size: 12px;
@@ -387,21 +550,6 @@
   border: 1px solid var(--border);
   color: var(--text-dim);
   font-size: 11px;
-}
-
-/* ---- Status bar ---- */
-
-.explorer-status {
-  flex-shrink: 0;
-  padding: 4px 10px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-raised);
-  color: var(--text-dim);
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-height: 22px;
 }
 
 /* ---- Context menu ---- */

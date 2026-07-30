@@ -49,6 +49,26 @@ const api: WslPadApi = {
     startDrag: (paths) => ipcRenderer.invoke(IpcChannels.explorerStartDrag, paths)
   },
 
+  windows: {
+    places: () => ipcRenderer.invoke(IpcChannels.windowsPlaces),
+    home: () => ipcRenderer.invoke(IpcChannels.windowsHome),
+    list: (path, opts) => ipcRenderer.invoke(IpcChannels.windowsList, path, opts),
+    tree: (path) => ipcRenderer.invoke(IpcChannels.windowsTree, path),
+    stat: (path) => ipcRenderer.invoke(IpcChannels.windowsStat, path),
+    mkdir: (path) => ipcRenderer.invoke(IpcChannels.windowsMkdir, path),
+    createFile: (path) => ipcRenderer.invoke(IpcChannels.windowsCreateFile, path),
+    rename: (path, newName) => ipcRenderer.invoke(IpcChannels.windowsRename, path, newName),
+    copy: (sources, destDir, move) =>
+      ipcRenderer.invoke(IpcChannels.windowsCopy, sources, destDir, move),
+    trash: (paths) => ipcRenderer.invoke(IpcChannels.windowsTrash, paths),
+    remove: (paths) => ipcRenderer.invoke(IpcChannels.windowsDelete, paths),
+    readText: (path) => ipcRenderer.invoke(IpcChannels.windowsReadText, path),
+    writeText: (path, content) => ipcRenderer.invoke(IpcChannels.windowsWriteText, path, content),
+    search: (path, query) => ipcRenderer.invoke(IpcChannels.windowsSearch, path, query),
+    openPath: (path) => ipcRenderer.invoke(IpcChannels.windowsOpenPath, path),
+    startDrag: (paths) => ipcRenderer.invoke(IpcChannels.windowsStartDrag, paths)
+  },
+
   convertPath: (input, to) => ipcRenderer.invoke(IpcChannels.pathConvert, input, to),
   openInWindowsExplorer: (linuxPath) => ipcRenderer.invoke(IpcChannels.openInWindowsExplorer, linuxPath),
   openExternal: (url) => ipcRenderer.invoke(IpcChannels.openExternal, url),

@@ -20,12 +20,14 @@ and an MCP surface — without ever changing your system behind your back.
 
 ## The three surfaces
 
-### Dashboard — read-only state
+### Dashboard — read-only state, section by section
 
-Card-based overview of the selected distro: system info, live CPU/memory/disk,
-important paths, configuration files, 18 auto-detected dev tools (with a
-dedicated Hermes card), environment variables (secrets masked), processes,
-services, ports and warnings.
+Pick a section on the left, read it on the right: overview, live
+CPU/memory/disk, important paths, configuration files, 18 auto-detected dev
+tools, a dedicated Hermes section, environment variables (secrets masked),
+processes, services, ports, warnings and MCP status. Tables get the full window
+instead of a cramped card, and the list carries live badges (process count,
+open ports, warning count, Hermes/MCP status dots).
 
 The Dashboard never executes anything. Buttons like *kill*, *restart service*
 or *sudoedit* only **prepare** the command in the Console input — you review,
@@ -33,23 +35,29 @@ edit and press Enter.
 
 ![Explorer](docs/screenshots/explorer.png)
 
-### Explorer — real file work
+### Explorer — Windows on the left, WSL on the right
 
-Windows-Explorer-style UX inside WSL: lazy folder tree, sortable file list
-with owner/permissions/symlinks, breadcrumb + path bar + search, new
-file/folder, inline rename (F2), copy/cut/paste, drag & drop,
-Windows ↔ WSL import/export with progress, freedesktop-compliant Trash
-(Shift+Delete = permanent, with confirmation), a built-in text editor overlay
-(line numbers, find, Ctrl+S, JSON formatting) and Linux/Windows path copying
-everywhere. Privileged operations aren't faked with sudo — the right command
-is prepared in the Console instead.
+A real dual-pane file manager: your **Windows** drives on the left, the
+selected **WSL distro** on the right, with a draggable splitter between them.
+Copying between the two is the point — drag across, or hit *Copy to the other
+pane* — and every transfer reports progress and can be cancelled. A transfer
+never deletes its source.
+
+Each pane has its own history, breadcrumb, path bar, search, optional lazy
+folder tree, sortable list, new file/folder, inline rename (F2),
+copy/cut/paste, and Delete → Trash with Shift+Delete for permanent removal.
+The WSL pane additionally shows owner/group/Linux permissions and symlink
+targets, and offers the four path-copy variants; privileged operations aren't
+faked with sudo — the right command is prepared in the Console instead.
+Double-click any text file on either side to open the built-in editor overlay
+(line numbers, find, Ctrl+S, JSON formatting).
 
 ### Console — a real shell, always at hand
 
 A genuine interactive PTY session per distro (bash/zsh, colors, Ctrl+C, tab
 completion, vim/htop/ssh all work) docked at the bottom of every tab.
-When you navigate in Explorer the Console follows to the same directory —
-without a visible `cd`, without polluting your shell history. Only commands
+When you navigate the WSL pane in Explorer the Console follows to the same
+directory — without a visible `cd`, without polluting your shell history. Only commands
 **you** run appear in the transcript; WSLPad's internal queries are executed
 by a separate hidden runner.
 
@@ -119,15 +127,17 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.1.0)
+## Current limitations (v0.1.1)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Console cwd-sync requires bash or zsh as the default shell (other shells
   work, just without automatic path sync)
-- Dropping files *from* Windows Explorer directly onto the file list depends
-  on Electron file-path availability; the Import menu is the reliable path
-- Trash restore UI not yet included (files land in the standard Linux Trash,
-  restorable from within WSL)
+- Copying *between* the panes never moves: cross-filesystem transfers are
+  copy-only by design, so nothing is deleted if a transfer fails
+- Dragging in from an external Windows Explorer window depends on Electron
+  exposing file paths; use the left pane (or the Import menu) instead
+- Trash restore UI not yet included (files land in the standard Linux Trash /
+  Windows Recycle Bin, restorable from there)
 - MCP stdio bridge requires the tray app to be running
 
 ## Roadmap ideas

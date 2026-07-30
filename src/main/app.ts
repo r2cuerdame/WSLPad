@@ -54,7 +54,9 @@ export class WslPadApp {
       }
     })
 
+    // Both panes report on one channel so the transfer UI needs no pane logic.
     this.backends.explorer.onProgress((p) => this.send(IpcChannels.evOpProgress, p))
+    this.backends.windowsFs.onProgress((p) => this.send(IpcChannels.evOpProgress, p))
 
     this.mcp = new McpServerHost({
       getSnapshot: () => this.store.get(),
@@ -80,6 +82,7 @@ export class WslPadApp {
       store: this.store,
       provider: this.backends.provider,
       explorer: this.backends.explorer,
+      windowsFs: this.backends.windowsFs,
       terminals: this.terminals,
       settings: this.settings,
       mcp: this.mcp,
@@ -238,6 +241,7 @@ export class WslPadApp {
     this.polling?.stop()
     this.terminals?.disposeAll()
     void this.mcp?.stop()
+    this.backends?.windowsFs?.dispose()
     void this.backends?.runner?.disposeAll()
     this.updater?.dispose()
     this.tray?.dispose()

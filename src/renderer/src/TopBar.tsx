@@ -17,9 +17,9 @@ export default function TopBar(): React.JSX.Element {
   const mcpClass = mcp?.running ? 'ok' : mcp?.error ? 'err' : 'dim'
 
   return (
+    // The window title bar already carries the product name — repeating it here
+    // just duplicates it (user feedback), so the distro selector leads instead.
     <header className="topbar">
-      <span className="topbar-logo">{t('app.name')}</span>
-
       <div className="topbar-distro">
         <select
           aria-label={t('topbar.distroSelector')}

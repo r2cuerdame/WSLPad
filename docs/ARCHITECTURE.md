@@ -12,7 +12,8 @@ talks through a typed, allowlisted IPC bridge.
 │  createBackends()  ──  WSLPAD_FIXTURE_MODE=1 → deterministic fixtures     │
 │        │                otherwise → real backends:                        │
 │        ├─ WslProvider     (collectors over the Hidden Runner)             │
-│        ├─ ExplorerBackend (file ops over the Hidden Runner)               │
+│        ├─ ExplorerBackend (Linux file ops over the Hidden Runner)         │
+│        ├─ WindowsFs       (Windows file ops over node fs — left pane)     │
 │        └─ ConsoleFactory  (node-pty → wsl.exe interactive shells)         │
 │        │                                                                  │
 │  SnapshotStore ── single JSON-serializable WslPadSnapshot                 │
@@ -28,11 +29,30 @@ talks through a typed, allowlisted IPC bridge.
          │ contextIsolation preload (window.wslpad, explicit channel list)
 ┌────────────────────────────── renderer (React) ───────────────────────────┐
 │  TopBar (distro switch · MCP badge · refresh · pause · settings gear)     │
-│  Tabs: Dashboard (12 read-only cards) · Explorer (tree/list/editor)       │
+│  Tab 1 Dashboard — master/detail: 12-section list | selected section      │
+│  Tab 2 Explorer  — dual pane:  Windows files | WSL files (+ splitter)     │
 │  ConsolePanel (xterm.js, always visible, resizable/collapsible)           │
 │  SettingsDrawer (modal drawer — never a third tab)                        │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Dashboard: master–detail
+The 12 read-only sections (overview, resources, paths, configuration, tools,
+Hermes, environment, processes, services, ports, warnings, MCP) are listed on
+the left; the right side renders only the selected one, so wide tables
+(processes, environment) get the whole window instead of a card cell. The list
+is a `listbox`, never a `tablist` — the app has exactly two `tab` roles.
+
+### Explorer: dual pane
+Both panes are the same component (`FilePane`) driven by an `FsAdapter`:
+`createWindowsAdapter()` talks to the `window.wslpad.windows.*` IPC surface
+(node `fs` in the main process, `ThisPC` sentinel root listing drives), and
+`createLinuxAdapter()` talks to the existing hidden-runner explorer backend.
+Copying between panes is the primary interaction: Windows→WSL uses
+`importFromWindows`, WSL→Windows uses `exportToWindows`, both reporting through
+the same `FileOpProgress` stream. Cross-filesystem *move* is deliberately not
+offered — a transfer never deletes its source. Console cwd sync and the
+remembered last path come from the WSL pane only.
 
 ## Key design decisions
 
@@ -86,7 +106,8 @@ place (`src/main/wsl/factory.ts`); fixture data cannot leak into real mode.
 | Shared contracts (types, IPC, schemas, i18n, masking) | `src/shared/` |
 | Hidden runner + parsers + detectors | `src/main/wsl/` |
 | Snapshot store, polling, warnings, LLM export | `src/main/state/` |
-| Explorer backend (listing/ops/trash/transfer/editor) | `src/main/explorer/` |
+| Linux explorer backend (listing/ops/trash/transfer/editor) | `src/main/explorer/` |
+| Windows filesystem backend (drives, node fs, recycle bin) | `src/main/explorer/windows.ts` |
 | Console PTY sessions + cwd sync | `src/main/terminal/` |
 | MCP server + tools + stdio bridge | `src/main/mcp/` |
 | Settings, autostart, updater | `src/main/settings/`, `src/main/{autostart,updater}.ts` |

@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WslPadApi } from '@shared/ipc'
 import type { WslPadSnapshot } from '@shared/types'
@@ -15,6 +15,21 @@ import Toasts from '@renderer/components/Toasts'
 import VirtualList from '@renderer/components/VirtualList'
 
 const GIB = 1024 ** 3
+
+const SECTION_LABELS: ReadonlyArray<[string, string]> = [
+  ['overview', 'Overview'],
+  ['resources', 'Resources'],
+  ['paths', 'Important paths'],
+  ['configuration', 'Configuration'],
+  ['tools', 'Installed tools'],
+  ['hermes', 'Hermes'],
+  ['environment', 'Environment'],
+  ['processes', 'Processes'],
+  ['services', 'Services'],
+  ['ports', 'Ports'],
+  ['warnings', 'Warnings'],
+  ['mcp', 'MCP server']
+]
 
 function makeSnapshot(): WslPadSnapshot {
   return {
@@ -75,6 +90,16 @@ function makeSnapshot(): WslPadSnapshot {
       ],
       configuration: [
         {
+          id: 'wslconfig',
+          label: '.wslconfig',
+          scope: 'windows',
+          linuxPath: null,
+          windowsPath: 'C:\\Users\\dev\\.wslconfig',
+          exists: true,
+          readable: true,
+          writable: true
+        },
+        {
           id: 'bashrc',
           label: '~/.bashrc',
           scope: 'linux',
@@ -95,6 +120,17 @@ function makeSnapshot(): WslPadSnapshot {
           installMethod: 'apt',
           configPaths: [],
           runningProcesses: 1,
+          services: []
+        },
+        {
+          id: 'bun',
+          displayName: 'Bun',
+          installed: false,
+          executablePath: null,
+          version: null,
+          installMethod: null,
+          configPaths: [],
+          runningProcesses: 0,
           services: []
         }
       ],
@@ -255,6 +291,12 @@ function PreparedProbe(): React.JSX.Element {
   return <div data-testid="prepared">{preparedCommand?.text ?? ''}</div>
 }
 
+function ExplorerProbe(): React.JSX.Element {
+  const { explorerNavigateRequest } = useApp()
+  const req = explorerNavigateRequest
+  return <div data-testid="explorer-request">{req ? `${req.fs}:${req.path}` : ''}</div>
+}
+
 function ToastProbe(): React.JSX.Element {
   const { pushToast } = useApp()
   return (
@@ -270,6 +312,22 @@ async function flush(): Promise<void> {
   })
 }
 
+async function renderDashboard(extra?: React.ReactNode): Promise<ReturnType<typeof render>> {
+  const view = render(
+    <AppStoreProvider>
+      <DashboardTab />
+      {extra}
+    </AppStoreProvider>
+  )
+  await flush()
+  return view
+}
+
+const navItem = (id: string): HTMLElement => screen.getByTestId(`dashboard-nav-${id}`)
+
+const badgeText = (id: string): string | undefined =>
+  navItem(id).querySelector('.dash-nav-badge')?.textContent ?? undefined
+
 beforeAll(async () => {
   initRendererI18n('en')
   if (!i18n.isInitialized) {
@@ -280,6 +338,7 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
+  window.localStorage.clear()
   snapshot = makeSnapshot()
   api = makeApi(snapshot)
   ;(window as unknown as { wslpad: WslPadApi }).wslpad = api as unknown as WslPadApi
@@ -291,42 +350,206 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe('DashboardTab', () => {
-  it('renders all twelve card titles', async () => {
+describe('DashboardTab master–detail', () => {
+  it('renders the twelve sections as listbox options, never as tabs', async () => {
+    await renderDashboard()
+
+    const nav = screen.getByTestId('dashboard-nav')
+    expect(nav.getAttribute('role')).toBe('listbox')
+    expect(nav.getAttribute('aria-label')).toBe('Dashboard sections')
+
+    const options = within(nav).getAllByRole('option')
+    expect(options).toHaveLength(SECTION_LABELS.length)
+    SECTION_LABELS.forEach(([id, label], index) => {
+      const item = navItem(id)
+      expect(item).toBe(options[index])
+      expect(item.textContent).toContain(label)
+    })
+
+    // The two main tabs live in TopBar; the Dashboard must not add more.
+    expect(screen.queryAllByRole('tab')).toHaveLength(0)
+    expect(screen.queryAllByRole('tablist')).toHaveLength(0)
+  })
+
+  it('selects overview by default and swaps the detail body when a section is picked', async () => {
+    await renderDashboard()
+
+    expect(navItem('overview').getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByText('6.6.36-microsoft-standard-WSL2')).toBeTruthy()
+
+    fireEvent.click(navItem('processes'))
+
+    expect(navItem('processes').getAttribute('aria-selected')).toBe('true')
+    expect(navItem('overview').getAttribute('aria-selected')).toBe('false')
+    const detail = screen.getByTestId('dashboard-detail')
+    expect(within(detail).getByText('node server.js')).toBeTruthy()
+    expect(within(detail).getByText('/sbin/init')).toBeTruthy()
+    expect(screen.queryByText('6.6.36-microsoft-standard-WSL2')).toBeNull()
+  })
+
+  it('shows counts and status dots that match the snapshot', async () => {
+    await renderDashboard()
+
+    expect(badgeText('tools')).toBe('1')
+    expect(badgeText('environment')).toBe('2')
+    expect(badgeText('processes')).toBe('2')
+    expect(badgeText('services')).toBe('1')
+    expect(badgeText('ports')).toBe('1')
+    expect(navItem('overview').querySelector('.dash-nav-badge')).toBeNull()
+    expect(navItem('resources').querySelector('.dash-nav-badge')).toBeNull()
+    expect(navItem('paths').querySelector('.dash-nav-badge')).toBeNull()
+    expect(navItem('configuration').querySelector('.dash-nav-badge')).toBeNull()
+    expect(navItem('hermes').querySelector('.dot-ok')).toBeTruthy()
+    expect(navItem('mcp').querySelector('.dot-ok')).toBeTruthy()
+  })
+
+  it('badges the deduped warning count in the error colour', async () => {
+    snapshot.warnings = [
+      {
+        id: 'w1',
+        severity: 'warning',
+        messageKey: 'warnings.systemdDisabled',
+        message: 'systemd is not enabled'
+      }
+    ]
+    snapshot.dashboard!.warnings = [
+      {
+        id: 'w1',
+        severity: 'warning',
+        messageKey: 'warnings.systemdDisabled',
+        message: 'systemd is not enabled'
+      },
+      {
+        id: 'w2',
+        severity: 'error',
+        messageKey: 'warnings.distroStopped',
+        params: { distro: 'Debian' },
+        message: 'Distribution Debian is stopped'
+      }
+    ]
+    await renderDashboard()
+
+    const badge = navItem('warnings').querySelector('.dash-nav-badge')
+    expect(badge?.textContent).toBe('2')
+    expect(badge?.className).toContain('badge-err')
+
+    fireEvent.click(navItem('warnings'))
+    const detail = screen.getByTestId('dashboard-detail')
+    expect(within(detail).getByText('systemd is not enabled')).toBeTruthy()
+    expect(within(detail).getByText('Distribution Debian is stopped')).toBeTruthy()
+  })
+
+  it('restores the selected section from localStorage after a remount', async () => {
+    const view = await renderDashboard()
+    fireEvent.click(navItem('services'))
+    expect(window.localStorage.getItem('wslpad.dashboard.section')).toBe('services')
+    view.unmount()
+
+    await renderDashboard()
+    expect(navItem('services').getAttribute('aria-selected')).toBe('true')
+    expect(within(screen.getByTestId('dashboard-detail')).getByText('Hermes Gateway')).toBeTruthy()
+  })
+
+  it('falls back to overview when the stored section is unknown', async () => {
+    window.localStorage.setItem('wslpad.dashboard.section', 'not-a-section')
+    await renderDashboard()
+    expect(navItem('overview').getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('moves the selection with the keyboard', async () => {
+    await renderDashboard()
+    const nav = screen.getByTestId('dashboard-nav')
+
+    fireEvent.keyDown(nav, { key: 'ArrowDown' })
+    expect(navItem('resources').getAttribute('aria-selected')).toBe('true')
+    expect(navItem('overview').getAttribute('aria-selected')).toBe('false')
+    expect(navItem('resources').tabIndex).toBe(0)
+    expect(navItem('overview').tabIndex).toBe(-1)
+
+    fireEvent.keyDown(nav, { key: 'ArrowDown' })
+    fireEvent.keyDown(nav, { key: 'ArrowUp' })
+    expect(navItem('resources').getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.keyDown(nav, { key: 'End' })
+    expect(navItem('mcp').getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.keyDown(nav, { key: 'Home' })
+    expect(navItem('overview').getAttribute('aria-selected')).toBe('true')
+
+    fireEvent.keyDown(nav, { key: 'Enter' })
+    expect(navItem('overview').getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('keeps secret values masked until the user reveals them', async () => {
+    await renderDashboard()
+    fireEvent.click(navItem('environment'))
+
+    expect(screen.getByText('••••••••')).toBeTruthy()
+    expect(screen.queryByText('raw-secret-value')).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Reveal' }))
+      await Promise.resolve()
+    })
+
+    expect(api.revealEnv).toHaveBeenCalledWith('MY_API_KEY')
+    expect(screen.getByText('raw-secret-value')).toBeTruthy()
+  })
+
+  it('only prepares a kill command from the processes section', async () => {
+    await renderDashboard(<PreparedProbe />)
+    fireEvent.click(navItem('processes'))
+
+    // Sorted by CPU desc: pid 4242 (3.5%) is the first row.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Prepare kill command' })[0])
+
+    expect(screen.getByTestId('prepared').textContent).toBe('kill 4242')
+    expect(api.terminal.input).not.toHaveBeenCalled()
+    expect(api.terminal.ensure).not.toHaveBeenCalled()
+  })
+
+  it('keeps the Copy for LLM actions in the toolbar', async () => {
+    await renderDashboard()
+    expect(screen.getByRole('button', { name: 'Copy for LLM' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Export JSON' })).toBeTruthy()
+  })
+
+  it('shows a split skeleton while the snapshot is still loading', async () => {
+    api.getSnapshot.mockImplementation(() => new Promise<WslPadSnapshot>(() => undefined))
     render(
       <AppStoreProvider>
         <DashboardTab />
       </AppStoreProvider>
     )
     await flush()
-    const titles = [
-      'Overview',
-      'Resources',
-      'Important paths',
-      'Configuration',
-      'Installed tools',
-      'Hermes',
-      'Environment',
-      'Processes',
-      'Services',
-      'Ports',
-      'Warnings',
-      'MCP server'
-    ]
-    for (const title of titles) {
-      expect(screen.getAllByRole('heading', { name: title }).length).toBeGreaterThan(0)
-    }
+    expect(screen.getByLabelText('Loading…')).toBeTruthy()
+    expect(screen.queryByTestId('dashboard-nav')).toBeNull()
   })
 
   it('shows the not-installed screen when no distros exist', async () => {
     snapshot.distros = []
-    render(
-      <AppStoreProvider>
-        <DashboardTab />
-      </AppStoreProvider>
-    )
-    await flush()
+    await renderDashboard()
     expect(screen.getByText('WSL is not available on this PC')).toBeTruthy()
+  })
+})
+
+describe('ConfigCard', () => {
+  it('opens the Windows pane for .wslconfig and the WSL pane for Linux files', async () => {
+    await renderDashboard(<ExplorerProbe />)
+    fireEvent.click(navItem('configuration'))
+
+    const buttons = screen.getAllByRole('button', { name: 'Show in Explorer' })
+    expect(buttons).toHaveLength(2)
+
+    // Windows-scoped row: the file itself, on the Windows filesystem.
+    fireEvent.click(buttons[0])
+    expect(screen.getByTestId('explorer-request').textContent).toBe(
+      'windows:C:\\Users\\dev\\.wslconfig'
+    )
+
+    // Linux-scoped row: the parent directory, on the WSL filesystem.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Show in Explorer' })[1])
+    expect(screen.getByTestId('explorer-request').textContent).toBe('linux:/home/dev')
   })
 })
 

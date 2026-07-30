@@ -229,7 +229,15 @@
     "copyForLlm": "複製給 LLM",
     "copiedForLlm": "已複製環境摘要",
     "exportJson": "匯出 JSON",
-    "exportedJson": "快照已匯出至 {{path}}"
+    "exportedJson": "快照已匯出至 {{path}}",
+    "nav": {
+      "label": "儀表板區塊",
+      "hint": "選取區塊以查看詳細資料"
+    },
+    "detail": {
+      "itemCount": "{{count}} 個項目",
+      "toolsInstalled": "已安裝 {{installed}} 個，共 {{total}} 個"
+    }
   },
   "explorer": {
     "back": "上一頁",
@@ -282,7 +290,9 @@
       "importFromWindows": "從 Windows 匯入…",
       "prepareChmod": "準備 chmod 命令",
       "prepareChown": "準備 chown 命令",
-      "prepareSymlink": "準備符號連結命令"
+      "prepareSymlink": "準備符號連結命令",
+      "openWithWindows": "以 Windows 開啟",
+      "revealInWindows": "在 Windows 檔案總管中顯示"
     },
     "newFileName": "new-file.txt",
     "newFolderName": "new-folder",
@@ -317,7 +327,23 @@
       "linkTarget": "連結目標"
     },
     "invalidName": "名稱無效",
-    "dropUseImport": "不支援從 Windows 直接拖放 — 請使用「從 Windows 匯入…」"
+    "dropUseImport": "不支援從 Windows 直接拖放 — 請使用「從 Windows 匯入…」",
+    "pane": {
+      "windows": "Windows",
+      "windowsAria": "Windows 檔案",
+      "wslAria": "{{distro}} 檔案",
+      "splitter": "調整窗格大小",
+      "activeHint": "目前窗格"
+    },
+    "thisPc": "本機",
+    "places": "位置",
+    "driveFree": "可用 {{free}}，共 {{total}}",
+    "copyToOther": "複製到另一個窗格",
+    "moveToOther": "移動到另一個窗格",
+    "toggleTree": "顯示資料夾樹狀結構",
+    "copyPath": "複製路徑",
+    "noDistro": "未選取發行版",
+    "transferStarted": "已開始傳輸"
   },
   "editor": {
     "title": "編輯器",

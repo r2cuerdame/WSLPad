@@ -229,7 +229,15 @@
     "copyForLlm": "LLM 用にコピー",
     "copiedForLlm": "環境の概要をコピーしました",
     "exportJson": "JSON をエクスポート",
-    "exportedJson": "スナップショットを {{path}} にエクスポートしました"
+    "exportedJson": "スナップショットを {{path}} にエクスポートしました",
+    "nav": {
+      "label": "ダッシュボードのセクション",
+      "hint": "セクションを選択すると詳細が表示されます"
+    },
+    "detail": {
+      "itemCount": "{{count}} 個の項目",
+      "toolsInstalled": "{{total}} 個中 {{installed}} 個インストール済み"
+    }
   },
   "explorer": {
     "back": "戻る",
@@ -282,7 +290,9 @@
       "importFromWindows": "Windows からインポート…",
       "prepareChmod": "chmod コマンドを準備",
       "prepareChown": "chown コマンドを準備",
-      "prepareSymlink": "シンボリックリンクのコマンドを準備"
+      "prepareSymlink": "シンボリックリンクのコマンドを準備",
+      "openWithWindows": "Windows で開く",
+      "revealInWindows": "Windows エクスプローラーで表示"
     },
     "newFileName": "new-file.txt",
     "newFolderName": "new-folder",
@@ -317,7 +327,23 @@
       "linkTarget": "リンク先"
     },
     "invalidName": "無効な名前です",
-    "dropUseImport": "Windows からのドロップはサポートされていません。「Windows からインポート…」を使用してください"
+    "dropUseImport": "Windows からのドロップはサポートされていません。「Windows からインポート…」を使用してください",
+    "pane": {
+      "windows": "Windows",
+      "windowsAria": "Windows のファイル",
+      "wslAria": "{{distro}} のファイル",
+      "splitter": "ペインのサイズを変更",
+      "activeHint": "アクティブなペイン"
+    },
+    "thisPc": "PC",
+    "places": "場所",
+    "driveFree": "{{total}} 中 {{free}} 空き",
+    "copyToOther": "反対側のペインへコピー",
+    "moveToOther": "反対側のペインへ移動",
+    "toggleTree": "フォルダーツリーを表示",
+    "copyPath": "パスをコピー",
+    "noDistro": "ディストリビューションが選択されていません",
+    "transferStarted": "転送を開始しました"
   },
   "editor": {
     "title": "エディター",

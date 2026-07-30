@@ -229,7 +229,15 @@
     "copyForLlm": "复制给 LLM",
     "copiedForLlm": "已复制环境摘要",
     "exportJson": "导出 JSON",
-    "exportedJson": "快照已导出到 {{path}}"
+    "exportedJson": "快照已导出到 {{path}}",
+    "nav": {
+      "label": "仪表盘板块",
+      "hint": "选择板块以查看详细信息"
+    },
+    "detail": {
+      "itemCount": "{{count}} 个项目",
+      "toolsInstalled": "已安装 {{installed}} 个，共 {{total}} 个"
+    }
   },
   "explorer": {
     "back": "后退",
@@ -282,7 +290,9 @@
       "importFromWindows": "从 Windows 导入…",
       "prepareChmod": "准备 chmod 命令",
       "prepareChown": "准备 chown 命令",
-      "prepareSymlink": "准备符号链接命令"
+      "prepareSymlink": "准备符号链接命令",
+      "openWithWindows": "用 Windows 打开",
+      "revealInWindows": "在 Windows 资源管理器中显示"
     },
     "newFileName": "new-file.txt",
     "newFolderName": "new-folder",
@@ -317,7 +327,23 @@
       "linkTarget": "链接目标"
     },
     "invalidName": "名称无效",
-    "dropUseImport": "不支持从 Windows 直接拖放 — 请使用“从 Windows 导入…”"
+    "dropUseImport": "不支持从 Windows 直接拖放 — 请使用“从 Windows 导入…”",
+    "pane": {
+      "windows": "Windows",
+      "windowsAria": "Windows 文件",
+      "wslAria": "{{distro}} 文件",
+      "splitter": "调整窗格大小",
+      "activeHint": "当前窗格"
+    },
+    "thisPc": "此电脑",
+    "places": "位置",
+    "driveFree": "可用 {{free}}，共 {{total}}",
+    "copyToOther": "复制到另一窗格",
+    "moveToOther": "移动到另一窗格",
+    "toggleTree": "显示文件夹树",
+    "copyPath": "复制路径",
+    "noDistro": "未选择发行版",
+    "transferStarted": "已开始传输"
   },
   "editor": {
     "title": "编辑器",

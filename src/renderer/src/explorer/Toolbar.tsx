@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Breadcrumb } from './Breadcrumb'
+import type { FsAdapter } from './fsAdapter'
 
 interface ToolbarProps {
+  adapter: FsAdapter
   path: string | null
   canBack: boolean
   canForward: boolean
   showHidden: boolean
   searchQuery: string
+  treeOpen: boolean
+  /** 'right' on the Windows pane, 'left' on the WSL pane. */
+  transferDirection: 'left' | 'right'
+  transferDisabled: boolean
   onBack: () => void
   onForward: () => void
   onUp: () => void
@@ -16,6 +22,8 @@ interface ToolbarProps {
   onRoot: () => void
   onNavigate: (path: string) => void
   onToggleHidden: () => void
+  onToggleTree: () => void
+  onTransfer: () => void
   onSearch: (query: string) => void
   onClearSearch: () => void
 }
@@ -42,7 +50,10 @@ const GLYPHS = {
   refresh: 'M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5V6H10',
   home: 'M2.5 8 8 2.5 13.5 8M4.5 7v6.5h7V7',
   root: 'M10 2.5 6 13.5',
-  eye: 'M1.5 8S4 3.8 8 3.8 14.5 8 14.5 8 12 12.2 8 12.2 1.5 8 1.5 8zM8 6.3A1.7 1.7 0 1 0 8 9.7 1.7 1.7 0 0 0 8 6.3z'
+  eye: 'M1.5 8S4 3.8 8 3.8 14.5 8 14.5 8 12 12.2 8 12.2 1.5 8 1.5 8zM8 6.3A1.7 1.7 0 1 0 8 9.7 1.7 1.7 0 0 0 8 6.3z',
+  tree: 'M2.5 4h11M5.5 8h8M5.5 12h8M2.5 4v8',
+  toRight: 'M2 8h11m-4-4 4 4-4 4',
+  toLeft: 'M14 8H3m4-4-4 4 4 4'
 } as const
 
 export function Toolbar(props: ToolbarProps): React.JSX.Element {
@@ -76,14 +87,27 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
     </button>
   )
 
+  const atRoot = props.path === null || props.adapter.isRoot(props.path)
+
   return (
     <div className="exp-toolbar">
       {navButton(t('explorer.back'), GLYPHS.back, props.onBack, !props.canBack)}
       {navButton(t('explorer.forward'), GLYPHS.forward, props.onForward, !props.canForward)}
-      {navButton(t('explorer.up'), GLYPHS.up, props.onUp, props.path === '/' || props.path === null)}
+      {navButton(t('explorer.up'), GLYPHS.up, props.onUp, atRoot)}
       {navButton(t('explorer.refresh'), GLYPHS.refresh, props.onRefresh)}
       {navButton(t('explorer.home'), GLYPHS.home, props.onHome)}
       {navButton(t('explorer.root'), GLYPHS.root, props.onRoot)}
+
+      <button
+        type="button"
+        className={props.treeOpen ? 'exp-toolbtn active' : 'exp-toolbtn'}
+        title={t('explorer.toggleTree')}
+        aria-label={t('explorer.toggleTree')}
+        aria-pressed={props.treeOpen}
+        onClick={props.onToggleTree}
+      >
+        <Glyph d={GLYPHS.tree} />
+      </button>
 
       <div className="exp-pathbox">
         {editing || props.path === null ? (
@@ -107,7 +131,12 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
             onBlur={() => setEditing(false)}
           />
         ) : (
-          <Breadcrumb path={props.path} onNavigate={props.onNavigate} onEdit={() => setEditing(true)} />
+          <Breadcrumb
+            adapter={props.adapter}
+            path={props.path}
+            onNavigate={props.onNavigate}
+            onEdit={() => setEditing(true)}
+          />
         )}
       </div>
 
@@ -137,6 +166,17 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
         onClick={props.onToggleHidden}
       >
         <Glyph d={GLYPHS.eye} />
+      </button>
+
+      <button
+        type="button"
+        className="exp-toolbtn transfer"
+        title={t('explorer.copyToOther')}
+        aria-label={t('explorer.copyToOther')}
+        disabled={props.transferDisabled}
+        onClick={props.onTransfer}
+      >
+        <Glyph d={props.transferDirection === 'right' ? GLYPHS.toRight : GLYPHS.toLeft} />
       </button>
     </div>
   )

@@ -1,323 +1,219 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { FileEntry } from '@shared/types'
+import { WINDOWS_ROOT } from '@shared/constants'
+import type { FsKind } from '@shared/types'
 import { Dialog } from '../components/Dialog'
 import { useApp } from '../store'
-import { Toolbar } from './Toolbar'
-import { FolderTree } from './FolderTree'
-import { FileListView } from './FileList'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { EditorOverlay } from './EditorOverlay'
+import { FilePane } from './FilePane'
 import { PropertiesDialog } from './PropertiesDialog'
+import { Splitter, loadSplit } from './Splitter'
 import { TransferProgress } from './TransferProgress'
-import {
-  baseName,
-  extractWindowsPaths,
-  parentPath,
-  shQuote,
-  useExplorer
-} from './useExplorer'
+import { createLinuxAdapter, createWindowsAdapter } from './fsAdapter'
+import { parseExplorerError } from './usePane'
 import './explorer.css'
 
 interface MenuState {
   x: number
   y: number
-  entry: FileEntry | null
+  items: MenuItem[]
 }
 
-/** Explorer main tab (goal.md §7): tree + list + editor overlay + transfers. */
+interface TargetPath {
+  path: string
+  fs: FsKind
+}
+
+/** Debounce for persisting the last visited WSL path (goal.md §5.4). */
+const LAST_PATH_DEBOUNCE_MS = 800
+
+/**
+ * Dual-pane Explorer (goal.md §7): Windows on the left, the selected WSL
+ * distro on the right, with cross-filesystem copy between them.
+ */
 export function ExplorerTab(): React.JSX.Element {
   const { t } = useTranslation()
-  const { pushToast, prepareCommand } = useApp()
-  const ex = useExplorer()
+  const {
+    snapshot,
+    settings,
+    pushToast,
+    setConsolePath,
+    explorerNavigateRequest,
+    consumeExplorerNavigate
+  } = useApp()
 
+  const distro = snapshot?.selectedDistro ?? null
+  const home = snapshot?.dashboard?.system.home ?? null
+
+  const windowsAdapter = useMemo(() => createWindowsAdapter(), [])
+  const linuxAdapter = useMemo(() => createLinuxAdapter(home), [home])
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [split, setSplit] = useState(loadSplit)
+  const [activePane, setActivePane] = useState<FsKind>('linux')
+  const [windowsPath, setWindowsPath] = useState<string | null>(null)
+  const [linuxPath, setLinuxPath] = useState<string | null>(null)
+  const [windowsStart, setWindowsStart] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
-  const [editorPath, setEditorPath] = useState<string | null>(null)
-  const [propertiesPath, setPropertiesPath] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<string[] | null>(null)
-  const [creating, setCreating] = useState<'file' | 'folder' | null>(null)
-  const [renamingPath, setRenamingPath] = useState<string | null>(null)
+  const [editor, setEditor] = useState<TargetPath | null>(null)
+  const [properties, setProperties] = useState<TargetPath | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<{ count: number; run: () => void } | null>(null)
+  const [navRequest, setNavRequest] = useState<{ id: number; path: string; fs: FsKind } | null>(null)
 
-  const selectedPaths = (): string[] => [...ex.selection]
-
-  const copyLinuxPath = (p: string): void => {
-    void window.wslpad.copyToClipboard(p).then(() => pushToast('success', t('toast.copiedPath')))
-  }
-
-  const copyWindowsPath = (p: string): void => {
-    void window.wslpad
-      .convertPath(p, 'windows')
-      .then(async (win) => {
-        await window.wslpad.copyToClipboard(win)
-        pushToast('success', t('toast.copiedPath'))
+  // The Windows pane ignores the Explorer start-location setting: it always
+  // opens at the Windows user profile.
+  useEffect(() => {
+    let disposed = false
+    void window.wslpad.windows
+      .home()
+      .then((h) => {
+        if (!disposed) setWindowsStart(h)
       })
-      .catch(() => pushToast('error', t('errors.pathConversionFailed')))
-  }
-
-  const copyText = (text: string): void => {
-    void window.wslpad.copyToClipboard(text).then(() => pushToast('success', t('toast.copiedPath')))
-  }
-
-  const openInWindows = (p: string): void => {
-    void window.wslpad.openInWindowsExplorer(p).catch(() => pushToast('error', t('errors.pathConversionFailed')))
-  }
-
-  const prepare = (command: string): void => {
-    prepareCommand(command)
-    pushToast('info', t('toast.commandPrepared'))
-  }
-
-  const openEntry = (entry: FileEntry): void => {
-    if (entry.type === 'directory') void ex.navigate(entry.path)
-    else setEditorPath(entry.path)
-  }
-
-  const onDropWindowsFiles = (files: FileList, destDir: string): void => {
-    const winPaths = extractWindowsPaths(files)
-    if (winPaths.length > 0) {
-      void ex.importWindows(winPaths, destDir)
-    } else {
-      // Electron no longer exposes File.path in the renderer for every drop
-      pushToast(
-        'info',
-        t('explorer.dropUseImport', {
-          defaultValue: 'Use "Import from Windows…" in the context menu to copy these files'
-        })
-      )
+      .catch(() => {
+        if (!disposed) setWindowsStart(WINDOWS_ROOT)
+      })
+    return () => {
+      disposed = true
     }
-  }
+  }, [])
 
-  const buildEntryMenu = (entry: FileEntry): MenuItem[] => {
-    const paths = selectedPaths()
-    const single = paths.length === 1
-    return [
-      { id: 'open', label: t('explorer.menu.open'), onClick: () => openEntry(entry) },
-      {
-        id: 'open-windows',
-        label: t('explorer.menu.openInWindows'),
-        onClick: () => openInWindows(entry.path)
-      },
-      { id: 's1', separator: true },
-      { id: 'new-file', label: t('explorer.menu.newFile'), onClick: () => setCreating('file') },
-      { id: 'new-folder', label: t('explorer.menu.newFolder'), onClick: () => setCreating('folder') },
-      {
-        id: 'rename',
-        label: t('explorer.menu.rename'),
-        disabled: !single,
-        onClick: () => setRenamingPath(entry.path)
-      },
-      { id: 's2', separator: true },
-      { id: 'cut', label: t('explorer.menu.cut'), onClick: () => ex.copySelection(true) },
-      { id: 'copy', label: t('explorer.menu.copy'), onClick: () => ex.copySelection(false) },
-      {
-        id: 'paste',
-        label: t('explorer.menu.paste'),
-        disabled: ex.clipboard === null,
-        onClick: () => void ex.paste()
-      },
-      { id: 's3', separator: true },
-      {
-        id: 'trash',
-        label: t('explorer.menu.delete'),
-        onClick: () => void ex.trashPaths(paths)
-      },
-      {
-        id: 'delete',
-        label: t('explorer.menu.deletePermanent'),
-        danger: true,
-        onClick: () => setConfirmDelete(paths)
-      },
-      { id: 's4', separator: true },
-      {
-        id: 'copy-linux',
-        label: t('explorer.menu.copyLinuxPath'),
-        onClick: () => copyLinuxPath(entry.path)
-      },
-      {
-        id: 'copy-windows',
-        label: t('explorer.menu.copyWindowsPath'),
-        onClick: () => copyWindowsPath(entry.path)
-      },
-      {
-        id: 'copy-name',
-        label: t('explorer.menu.copyFileName'),
-        onClick: () => copyText(entry.name)
-      },
-      {
-        id: 'copy-parent',
-        label: t('explorer.menu.copyParentPath'),
-        onClick: () => copyText(parentPath(entry.path))
-      },
-      { id: 's5', separator: true },
-      {
-        id: 'export',
-        label: t('explorer.menu.exportToWindows'),
-        onClick: () => void ex.exportSelected(paths)
-      },
-      {
-        id: 'import',
-        label: t('explorer.menu.importFromWindows'),
-        onClick: () => void ex.importPicked()
-      },
-      { id: 's6', separator: true },
-      {
-        id: 'chmod',
-        label: t('explorer.menu.prepareChmod'),
-        onClick: () => prepare(`chmod ${entry.permissionsOctal ?? '755'} ${shQuote(entry.path)}`)
-      },
-      {
-        id: 'chown',
-        label: t('explorer.menu.prepareChown'),
-        onClick: () =>
-          prepare(`chown ${entry.owner ?? 'user'}:${entry.group ?? 'group'} ${shQuote(entry.path)}`)
-      },
-      {
-        id: 'symlink',
-        label: t('explorer.menu.prepareSymlink'),
-        onClick: () => prepare(`ln -s ${shQuote(entry.path)} ${shQuote(`${entry.path}-link`)}`)
-      },
-      { id: 's7', separator: true },
-      {
-        id: 'properties',
-        label: t('explorer.properties.title'),
-        onClick: () => setPropertiesPath(entry.path)
-      }
-    ]
-  }
-
-  const buildBackgroundMenu = (): MenuItem[] => {
-    const dir = ex.path
-    return [
-      { id: 'new-file', label: t('explorer.menu.newFile'), onClick: () => setCreating('file') },
-      { id: 'new-folder', label: t('explorer.menu.newFolder'), onClick: () => setCreating('folder') },
-      { id: 's1', separator: true },
-      {
-        id: 'paste',
-        label: t('explorer.menu.paste'),
-        disabled: ex.clipboard === null,
-        onClick: () => void ex.paste()
-      },
-      {
-        id: 'import',
-        label: t('explorer.menu.importFromWindows'),
-        onClick: () => void ex.importPicked()
-      },
-      { id: 's2', separator: true },
-      {
-        id: 'copy-linux',
-        label: t('explorer.menu.copyLinuxPath'),
-        disabled: dir === null,
-        onClick: () => dir && copyLinuxPath(dir)
-      },
-      {
-        id: 'copy-windows',
-        label: t('explorer.menu.copyWindowsPath'),
-        disabled: dir === null,
-        onClick: () => dir && copyWindowsPath(dir)
-      },
-      { id: 's3', separator: true },
-      {
-        id: 'properties',
-        label: t('explorer.properties.title'),
-        disabled: dir === null,
-        onClick: () => dir && setPropertiesPath(dir)
-      }
-    ]
-  }
-
-  const selectionSummary = (): string | null => {
-    if (ex.selection.size === 1) {
-      const p = [...ex.selection][0]
-      return t('explorer.selected', { name: baseName(p), path: p })
+  // WSL pane start location (goal.md §7.2): last path, or the distro HOME once
+  // the first snapshot knows it — never a guessed '/'.
+  const linuxStart = useMemo(() => {
+    if (!settings || distro === null) return null
+    if (settings.explorer.startLocation === 'last' && settings.explorer.lastPath) {
+      return settings.explorer.lastPath
     }
-    if (ex.selection.size > 1) return t('explorer.selectedCount', { count: ex.selection.size })
-    return ex.path
-  }
+    return home
+  }, [settings, distro, home])
+
+  const showHiddenDefault = settings?.explorer.showHiddenByDefault ?? false
+  const settingsLoaded = settings !== null
+
+  const onLinuxPathChange = useCallback(
+    (p: string) => {
+      setLinuxPath(p)
+      setConsolePath(p)
+    },
+    [setConsolePath]
+  )
+
+  // Persist the last visited WSL path, debounced. The Windows pane never
+  // writes it — only the WSL side is restored on restart.
+  useEffect(() => {
+    if (!linuxPath || !settingsLoaded) return
+    const timer = setTimeout(() => {
+      void window.wslpad.settings.set({ explorer: { lastPath: linuxPath } })
+    }, LAST_PATH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [linuxPath, settingsLoaded])
+
+  // Navigation requested from the Dashboard, routed to the matching pane.
+  useEffect(() => {
+    if (!explorerNavigateRequest) return
+    setNavRequest(explorerNavigateRequest)
+    setActivePane(explorerNavigateRequest.fs)
+    consumeExplorerNavigate()
+  }, [explorerNavigateRequest, consumeExplorerNavigate])
+
+  const runTransfer = useCallback(
+    (from: FsKind, paths: string[], destDir: string): void => {
+      if (paths.length === 0 || destDir === WINDOWS_ROOT) return
+      const started =
+        from === 'windows'
+          ? window.wslpad.explorer.importFromWindows(paths, destDir)
+          : window.wslpad.explorer.exportToWindows(paths, destDir)
+      void started
+        .then(() => pushToast('info', t('explorer.transferStarted')))
+        .catch((err) => pushToast('error', parseExplorerError(err).message))
+    },
+    [pushToast, t]
+  )
+
+  const requestPermanentDelete = useCallback((count: number, run: () => void): void => {
+    setConfirmDelete({ count, run })
+  }, [])
+
+  const openEditor = useCallback((path: string, fs: FsKind) => setEditor({ path, fs }), [])
+  const openProperties = useCallback((path: string, fs: FsKind) => setProperties({ path, fs }), [])
+  const openMenu = useCallback(
+    (x: number, y: number, items: MenuItem[]) => setMenu({ x, y, items }),
+    []
+  )
+  const activateWindows = useCallback(() => setActivePane('windows'), [])
+  const activateLinux = useCallback(() => setActivePane('linux'), [])
+
+  const paneNav = (fs: FsKind): { id: number; path: string } | null =>
+    navRequest && navRequest.fs === fs ? { id: navRequest.id, path: navRequest.path } : null
 
   return (
     <div className="explorer-tab">
-      <Toolbar
-        path={ex.path}
-        canBack={ex.canBack}
-        canForward={ex.canForward}
-        showHidden={ex.showHidden}
-        searchQuery={ex.searchQuery}
-        onBack={() => void ex.goBack()}
-        onForward={() => void ex.goForward()}
-        onUp={() => void ex.goUp()}
-        onRefresh={() => void ex.refreshDir()}
-        onHome={() => void ex.goHome()}
-        onRoot={() => void ex.goRoot()}
-        onNavigate={(p) => void ex.navigate(p)}
-        onToggleHidden={() => void ex.toggleHidden()}
-        onSearch={(q) => void ex.runSearch(q)}
-        onClearSearch={ex.clearSearch}
-      />
+      <div className="pane-split" ref={containerRef}>
+        <div className="pane-slot" style={{ flexBasis: `${split}%` }}>
+          <FilePane
+            adapter={windowsAdapter}
+            title={t('explorer.pane.windows')}
+            ariaLabel={t('explorer.pane.windowsAria')}
+            testId="pane-windows"
+            active={activePane === 'windows'}
+            onActivate={activateWindows}
+            otherKind="linux"
+            otherPath={linuxPath}
+            onTransfer={runTransfer}
+            onOpenEditor={openEditor}
+            onOpenProperties={openProperties}
+            onRequestPermanentDelete={requestPermanentDelete}
+            onContextMenu={openMenu}
+            onPathChange={setWindowsPath}
+            startPath={windowsStart}
+            resetKey="windows"
+            showHiddenDefault={showHiddenDefault}
+            navRequest={paneNav('windows')}
+          />
+        </div>
 
-      <div className="explorer-body">
-        <FolderTree
-          currentPath={ex.path}
-          refreshToken={ex.refreshToken}
-          onNavigate={(p) => void ex.navigate(p)}
-          onDropPaths={(paths, dest, move) => void ex.dropPaths(paths, dest, move)}
-        />
-        <FileListView
-          entries={ex.visibleEntries}
-          currentPath={ex.path}
-          loading={ex.loading}
-          error={ex.error}
-          searchActive={ex.searchResults !== null}
-          sortKey={ex.sortKey}
-          sortDir={ex.sortDir}
-          selection={ex.selection}
-          clipboardCutPaths={ex.clipboard?.cut ? ex.clipboard.paths : null}
-          creating={creating}
-          renamingPath={renamingPath}
-          onSort={ex.setSort}
-          onSelectionChange={ex.setSelection}
-          onNavigate={(p) => void ex.navigate(p)}
-          onOpenFile={(entry) => setEditorPath(entry.path)}
-          onContextMenu={(x, y, entry) =>
-            setMenu({ x, y, entry })
-          }
-          onRenameStart={setRenamingPath}
-          onRenameCommit={(p, newName) => {
-            setRenamingPath(null)
-            void ex.rename(p, newName)
-          }}
-          onRenameCancel={() => setRenamingPath(null)}
-          onCreateCommit={(kind, name) => {
-            setCreating(null)
-            void ex.createEntry(kind, name)
-          }}
-          onCreateCancel={() => setCreating(null)}
-          onCopy={ex.copySelection}
-          onPaste={() => void ex.paste()}
-          onTrash={() => void ex.trashPaths(selectedPaths())}
-          onDeletePermanent={() => setConfirmDelete(selectedPaths())}
-          onDropPaths={(paths, dest, move) => void ex.dropPaths(paths, dest, move)}
-          onDropWindowsFiles={onDropWindowsFiles}
-          onDragOutStart={(paths) => {
-            void window.wslpad.explorer.startDrag(paths).catch(() => undefined)
-          }}
-        />
+        <Splitter percent={split} onChange={setSplit} containerRef={containerRef} />
+
+        <div className="pane-slot" style={{ flexBasis: `${100 - split}%` }}>
+          <FilePane
+            adapter={linuxAdapter}
+            title={distro ?? t('explorer.noDistro')}
+            ariaLabel={t('explorer.pane.wslAria', { distro: distro ?? '' })}
+            testId="pane-linux"
+            active={activePane === 'linux'}
+            onActivate={activateLinux}
+            otherKind="windows"
+            otherPath={windowsPath}
+            onTransfer={runTransfer}
+            onOpenEditor={openEditor}
+            onOpenProperties={openProperties}
+            onRequestPermanentDelete={requestPermanentDelete}
+            onContextMenu={openMenu}
+            onPathChange={onLinuxPathChange}
+            startPath={linuxStart}
+            resetKey={distro ?? 'no-distro'}
+            showHiddenDefault={showHiddenDefault}
+            navRequest={paneNav('linux')}
+            unavailableMessage={distro === null ? t('explorer.noDistro') : null}
+          />
+        </div>
       </div>
 
-      <footer className="explorer-status mono">{selectionSummary()}</footer>
-
       {menu && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          items={menu.entry ? buildEntryMenu(menu.entry) : buildBackgroundMenu()}
-          onClose={() => setMenu(null)}
-        />
+        <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />
       )}
 
-      {editorPath && <EditorOverlay path={editorPath} onClose={() => setEditorPath(null)} />}
+      {editor && (
+        <EditorOverlay path={editor.path} fs={editor.fs} onClose={() => setEditor(null)} />
+      )}
 
-      {propertiesPath && (
-        <PropertiesDialog path={propertiesPath} onClose={() => setPropertiesPath(null)} />
+      {properties && (
+        <PropertiesDialog
+          path={properties.path}
+          fs={properties.fs}
+          onClose={() => setProperties(null)}
+        />
       )}
 
       <Dialog
@@ -333,9 +229,9 @@ export function ExplorerTab(): React.JSX.Element {
               type="button"
               className="danger"
               onClick={() => {
-                const paths = confirmDelete ?? []
+                const pending = confirmDelete
                 setConfirmDelete(null)
-                void ex.deletePaths(paths)
+                pending?.run()
               }}
             >
               {t('explorer.menu.deletePermanent')}
@@ -343,7 +239,7 @@ export function ExplorerTab(): React.JSX.Element {
           </>
         }
       >
-        {t('explorer.confirmDeleteBody', { count: confirmDelete?.length ?? 0 })}
+        {t('explorer.confirmDeleteBody', { count: confirmDelete?.count ?? 0 })}
       </Dialog>
 
       <TransferProgress />

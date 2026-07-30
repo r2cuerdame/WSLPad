@@ -229,7 +229,15 @@
     "copyForLlm": "Für LLM kopieren",
     "copiedForLlm": "Umgebungszusammenfassung kopiert",
     "exportJson": "JSON exportieren",
-    "exportedJson": "Snapshot nach {{path}} exportiert"
+    "exportedJson": "Snapshot nach {{path}} exportiert",
+    "nav": {
+      "label": "Dashboard-Bereiche",
+      "hint": "Wählen Sie einen Bereich aus, um Details zu sehen"
+    },
+    "detail": {
+      "itemCount": "{{count}} Elemente",
+      "toolsInstalled": "{{installed}} von {{total}} installiert"
+    }
   },
   "explorer": {
     "back": "Zurück",
@@ -282,7 +290,9 @@
       "importFromWindows": "Aus Windows importieren…",
       "prepareChmod": "chmod-Befehl vorbereiten",
       "prepareChown": "chown-Befehl vorbereiten",
-      "prepareSymlink": "Symlink-Befehl vorbereiten"
+      "prepareSymlink": "Symlink-Befehl vorbereiten",
+      "openWithWindows": "Mit Windows öffnen",
+      "revealInWindows": "Im Windows-Explorer anzeigen"
     },
     "newFileName": "new-file.txt",
     "newFolderName": "new-folder",
@@ -317,7 +327,23 @@
       "linkTarget": "Linkziel"
     },
     "invalidName": "Ungültiger Name",
-    "dropUseImport": "Ablegen aus Windows wird hier nicht unterstützt – nutzen Sie „Aus Windows importieren…“"
+    "dropUseImport": "Ablegen aus Windows wird hier nicht unterstützt – nutzen Sie „Aus Windows importieren…“",
+    "pane": {
+      "windows": "Windows",
+      "windowsAria": "Windows-Dateien",
+      "wslAria": "{{distro}}-Dateien",
+      "splitter": "Bereichsgröße ändern",
+      "activeHint": "Aktiver Bereich"
+    },
+    "thisPc": "Dieser PC",
+    "places": "Orte",
+    "driveFree": "{{free}} von {{total}} frei",
+    "copyToOther": "In den anderen Bereich kopieren",
+    "moveToOther": "In den anderen Bereich verschieben",
+    "toggleTree": "Ordnerbaum anzeigen",
+    "copyPath": "Pfad kopieren",
+    "noDistro": "Keine Distribution ausgewählt",
+    "transferStarted": "Übertragung gestartet"
   },
   "editor": {
     "title": "Editor",

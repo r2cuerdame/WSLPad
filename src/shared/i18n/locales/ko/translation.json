@@ -229,7 +229,15 @@
     "copyForLlm": "LLM용 복사",
     "copiedForLlm": "환경 요약이 복사되었습니다",
     "exportJson": "JSON 내보내기",
-    "exportedJson": "스냅샷을 {{path}}에 내보냈습니다"
+    "exportedJson": "스냅샷을 {{path}}에 내보냈습니다",
+    "nav": {
+      "label": "대시보드 섹션",
+      "hint": "섹션을 선택하면 자세한 내용이 표시됩니다"
+    },
+    "detail": {
+      "itemCount": "{{count}}개 항목",
+      "toolsInstalled": "{{total}}개 중 {{installed}}개 설치됨"
+    }
   },
   "explorer": {
     "back": "뒤로",
@@ -282,7 +290,9 @@
       "importFromWindows": "Windows에서 가져오기…",
       "prepareChmod": "chmod 명령 준비",
       "prepareChown": "chown 명령 준비",
-      "prepareSymlink": "심볼릭 링크 명령 준비"
+      "prepareSymlink": "심볼릭 링크 명령 준비",
+      "openWithWindows": "Windows에서 열기",
+      "revealInWindows": "Windows 탐색기에 표시"
     },
     "newFileName": "new-file.txt",
     "newFolderName": "new-folder",
@@ -317,7 +327,23 @@
       "linkTarget": "링크 대상"
     },
     "invalidName": "잘못된 이름입니다",
-    "dropUseImport": "Windows에서 직접 끌어오기는 지원되지 않습니다 — 'Windows에서 가져오기…'를 사용하세요"
+    "dropUseImport": "Windows에서 직접 끌어오기는 지원되지 않습니다 — 'Windows에서 가져오기…'를 사용하세요",
+    "pane": {
+      "windows": "Windows",
+      "windowsAria": "Windows 파일",
+      "wslAria": "{{distro}} 파일",
+      "splitter": "패널 크기 조절",
+      "activeHint": "활성 패널"
+    },
+    "thisPc": "내 PC",
+    "places": "위치",
+    "driveFree": "{{total}} 중 {{free}} 사용 가능",
+    "copyToOther": "반대쪽 패널로 복사",
+    "moveToOther": "반대쪽 패널로 이동",
+    "toggleTree": "폴더 트리 표시",
+    "copyPath": "경로 복사",
+    "noDistro": "선택된 배포판이 없습니다",
+    "transferStarted": "전송을 시작했습니다"
   },
   "editor": {
     "title": "편집기",

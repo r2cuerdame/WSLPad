@@ -229,7 +229,15 @@
     "copyForLlm": "Copiar para LLM",
     "copiedForLlm": "Resumo do ambiente copiado",
     "exportJson": "Exportar JSON",
-    "exportedJson": "Snapshot exportado para {{path}}"
+    "exportedJson": "Snapshot exportado para {{path}}",
+    "nav": {
+      "label": "Seções do painel",
+      "hint": "Selecione uma seção para ver os detalhes"
+    },
+    "detail": {
+      "itemCount": "{{count}} itens",
+      "toolsInstalled": "{{installed}} de {{total}} instalados"
+    }
   },
   "explorer": {
     "back": "Voltar",
@@ -282,7 +290,9 @@
       "importFromWindows": "Importar do Windows…",
       "prepareChmod": "Preparar comando chmod",
       "prepareChown": "Preparar comando chown",
-      "prepareSymlink": "Preparar comando de link simbólico"
+      "prepareSymlink": "Preparar comando de link simbólico",
+      "openWithWindows": "Abrir com o Windows",
+      "revealInWindows": "Mostrar no Explorador de Arquivos do Windows"
     },
     "newFileName": "new-file.txt",
     "newFolderName": "new-folder",
@@ -317,7 +327,23 @@
       "linkTarget": "Destino do link"
     },
     "invalidName": "Nome inválido",
-    "dropUseImport": "Arrastar do Windows não é suportado aqui — use “Importar do Windows…”"
+    "dropUseImport": "Arrastar do Windows não é suportado aqui — use “Importar do Windows…”",
+    "pane": {
+      "windows": "Windows",
+      "windowsAria": "Arquivos do Windows",
+      "wslAria": "Arquivos de {{distro}}",
+      "splitter": "Redimensionar os painéis",
+      "activeHint": "Painel ativo"
+    },
+    "thisPc": "Este computador",
+    "places": "Locais",
+    "driveFree": "{{free}} livres de {{total}}",
+    "copyToOther": "Copiar para o outro painel",
+    "moveToOther": "Mover para o outro painel",
+    "toggleTree": "Mostrar a árvore de pastas",
+    "copyPath": "Copiar caminho",
+    "noDistro": "Nenhuma distribuição selecionada",
+    "transferStarted": "Transferência iniciada"
   },
   "editor": {
     "title": "Editor",

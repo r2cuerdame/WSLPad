@@ -1,41 +1,51 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { FileEntry } from '@shared/types'
-import { INTERNAL_DND_TYPE } from './FileList'
+import type { FileEntry, FsKind } from '@shared/types'
+import { decodeDragPayload, INTERNAL_DND_TYPE } from './FileList'
+import type { FsAdapter } from './fsAdapter'
+
+const MAX_DEPTH = 64
 
 interface FolderTreeProps {
+  adapter: FsAdapter
   currentPath: string | null
   refreshToken: number
   onNavigate: (path: string) => void
   onDropPaths: (paths: string[], destDir: string, move: boolean) => void
+  onCrossDrop: (from: FsKind, paths: string[], destDir: string) => void
 }
 
-function ancestorsOf(path: string): string[] {
-  const out = ['/']
-  const segments = path.split('/').filter(Boolean)
-  segments.pop()
-  let acc = ''
-  for (const seg of segments) {
-    acc += `/${seg}`
-    out.push(acc)
+function ancestorsOf(adapter: FsAdapter, path: string): string[] {
+  const out: string[] = []
+  let current = adapter.parent(path)
+  for (let i = 0; i < MAX_DEPTH; i++) {
+    out.unshift(current)
+    if (adapter.isRoot(current)) break
+    const parent = adapter.parent(current)
+    if (parent === current) break
+    current = parent
   }
   return out
 }
 
 /** Lazy folder tree (goal.md §7.1): children loaded per node on first expand. */
 export function FolderTree({
+  adapter,
   currentPath,
   refreshToken,
   onNavigate,
-  onDropPaths
+  onDropPaths,
+  onCrossDrop
 }: FolderTreeProps): React.JSX.Element {
   const { t } = useTranslation()
   const [childrenMap, setChildrenMap] = useState<Map<string, FileEntry[]>>(new Map())
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(['/']))
+  const [expanded, setExpanded] = useState<Set<string>>(new Set([adapter.rootPath]))
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const inflight = useRef(new Set<string>())
+  const adapterRef = useRef(adapter)
   const expandedRef = useRef(expanded)
   const mapRef = useRef(childrenMap)
+  adapterRef.current = adapter
   expandedRef.current = expanded
   mapRef.current = childrenMap
 
@@ -43,7 +53,7 @@ export function FolderTree({
     if (inflight.current.has(path)) return
     inflight.current.add(path)
     try {
-      const kids = await window.wslpad.explorer.tree(path)
+      const kids = await adapterRef.current.tree(path)
       setChildrenMap((m) => new Map(m).set(path, kids))
     } catch {
       setChildrenMap((m) => new Map(m).set(path, []))
@@ -53,8 +63,8 @@ export function FolderTree({
   }, [])
 
   useEffect(() => {
-    void load('/')
-  }, [load])
+    void load(adapter.rootPath)
+  }, [adapter.rootPath, load])
 
   // Explorer refresh invalidates the cache and reloads whatever is expanded.
   const firstRefresh = useRef(true)
@@ -70,7 +80,7 @@ export function FolderTree({
   // Keep ancestors of the current path expanded and loaded.
   useEffect(() => {
     if (!currentPath) return
-    const ancestors = ancestorsOf(currentPath)
+    const ancestors = ancestorsOf(adapterRef.current, currentPath)
     setExpanded((e) => {
       const next = new Set(e)
       for (const a of ancestors) next.add(a)
@@ -99,17 +109,15 @@ export function FolderTree({
     if (!raw) return
     e.preventDefault()
     e.stopPropagation()
-    try {
-      const paths = JSON.parse(raw) as string[]
-      if (Array.isArray(paths) && paths.length > 0) {
-        onDropPaths(paths, destDir, !e.ctrlKey)
-      }
-    } catch {
-      /* not an internal drag payload */
-    }
+    const payload = decodeDragPayload(raw)
+    if (!payload) return
+    if (payload.fs !== adapter.kind) onCrossDrop(payload.fs, payload.paths, destDir)
+    else onDropPaths(payload.paths, destDir, !e.ctrlKey)
   }
 
-  const renderNode = (path: string, name: string, depth: number): React.JSX.Element => {
+  // depth is bounded so a symlink loop in a listing cannot recurse forever
+  const renderNode = (path: string, name: string, depth: number): React.JSX.Element | null => {
+    if (depth > MAX_DEPTH) return null
     const kids = childrenMap.get(path)
     const isExpanded = expanded.has(path)
     return (
@@ -158,16 +166,16 @@ export function FolderTree({
           </button>
           <span className="tree-name">{name}</span>
         </div>
-        {isExpanded &&
-          kids?.map((k) => renderNode(k.path, k.name, depth + 1))}
+        {isExpanded && kids?.map((k) => renderNode(k.path, k.name, depth + 1))}
       </div>
     )
   }
 
   return (
     <div className="folder-tree" role="tree" aria-label={t('explorer.tree')}>
-      <div className="tree-header">{t('explorer.tree')}</div>
-      <div className="tree-scroll">{renderNode('/', '/', 0)}</div>
+      <div className="tree-scroll">
+        {renderNode(adapter.rootPath, adapter.displayPath(adapter.rootPath), 0)}
+      </div>
     </div>
   )
 }

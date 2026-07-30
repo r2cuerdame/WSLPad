@@ -233,6 +233,10 @@
     "nav": {
       "label": "Dashboard sections",
       "hint": "Select a section to see details"
+    },
+    "detail": {
+      "itemCount": "{{count}} items",
+      "toolsInstalled": "{{installed}} of {{total}} installed"
     }
   },
   "explorer": {

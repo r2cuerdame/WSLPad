@@ -1,22 +1,66 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { FileEntry } from '@shared/types'
+import type { FileEntry, FsKind } from '@shared/types'
 import { fileNameSchema } from '@shared/schemas'
 import { VirtualList } from '../components/VirtualList'
-import {
-  formatBytes,
-  formatDateTime,
-  parentPath,
-  resolveLinuxPath,
-  type SortDir,
-  type SortKey
-} from './useExplorer'
+import { resolveLinuxPath, type FsAdapter } from './fsAdapter'
+import { formatBytes, formatDateTime, type SortDir, type SortKey } from './usePane'
 
 export const INTERNAL_DND_TYPE = 'application/x-wslpad-paths'
 
 export const FILE_ROW_HEIGHT = 28
 
+/** Payload carried by an internal drag so the drop side knows the source fs. */
+export interface DragPayload {
+  fs: FsKind
+  paths: string[]
+}
+
+export function encodeDragPayload(fs: FsKind, paths: string[]): string {
+  return JSON.stringify({ fs, paths } satisfies DragPayload)
+}
+
+export function decodeDragPayload(raw: string): DragPayload | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<DragPayload>
+    if (parsed?.fs !== 'windows' && parsed?.fs !== 'linux') return null
+    if (!Array.isArray(parsed.paths) || parsed.paths.length === 0) return null
+    return { fs: parsed.fs, paths: parsed.paths.filter((p) => typeof p === 'string') }
+  } catch {
+    return null
+  }
+}
+
+export interface ColumnSpec {
+  key: SortKey
+  labelKey: string
+  className: string
+  width: string
+}
+
+/** Windows has no POSIX ownership columns (goal.md §7.3 applies to the WSL side). */
+export const WINDOWS_COLUMNS: readonly ColumnSpec[] = [
+  { key: 'name', labelKey: 'explorer.columns.name', className: 'fl-name', width: 'minmax(120px, 1fr)' },
+  { key: 'size', labelKey: 'explorer.columns.size', className: 'fl-size', width: '80px' },
+  { key: 'mtime', labelKey: 'explorer.columns.modified', className: 'fl-mtime', width: '140px' }
+]
+
+export const LINUX_COLUMNS: readonly ColumnSpec[] = [
+  ...WINDOWS_COLUMNS,
+  { key: 'owner', labelKey: 'explorer.columns.owner', className: 'fl-owner', width: '80px' },
+  { key: 'group', labelKey: 'explorer.columns.group', className: 'fl-group', width: '80px' },
+  {
+    key: 'permissions',
+    labelKey: 'explorer.columns.permissions',
+    className: 'fl-perm',
+    width: '100px'
+  }
+]
+
 interface FileListProps {
+  adapter: FsAdapter
+  columns: readonly ColumnSpec[]
+  ariaLabel: string
   entries: FileEntry[]
   currentPath: string | null
   loading: boolean
@@ -43,7 +87,10 @@ interface FileListProps {
   onTrash: () => void
   onDeletePermanent: () => void
   onDropPaths: (paths: string[], destDir: string, move: boolean) => void
-  onDropWindowsFiles: (files: FileList, destDir: string) => void
+  /** Drop coming from the other pane: always a cross-filesystem copy. */
+  onCrossDrop: (from: FsKind, paths: string[], destDir: string) => void
+  /** Windows Explorer drop (WSL pane only). */
+  onDropExternalFiles?: (files: FileList, destDir: string) => void
   onDragOutStart: (paths: string[]) => void
 }
 
@@ -53,9 +100,7 @@ function TypeIcon({ entry }: { entry: FileEntry }): React.JSX.Element {
     entry.type === 'directory' || (entry.type === 'symlink' && entry.targetType === 'directory')
   return (
     <span
-      className={
-        'fl-typeicon' + (dirLike ? ' is-dir' : '') + (broken ? ' is-broken' : '')
-      }
+      className={'fl-typeicon' + (dirLike ? ' is-dir' : '') + (broken ? ' is-broken' : '')}
       title={entry.symlinkTarget ?? undefined}
     >
       <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
@@ -136,24 +181,15 @@ function NameEditor({
   )
 }
 
-const COLUMNS: ReadonlyArray<{ key: SortKey; labelKey: string; className: string }> = [
-  { key: 'name', labelKey: 'explorer.columns.name', className: 'fl-name' },
-  { key: 'size', labelKey: 'explorer.columns.size', className: 'fl-size' },
-  { key: 'mtime', labelKey: 'explorer.columns.modified', className: 'fl-mtime' },
-  { key: 'owner', labelKey: 'explorer.columns.owner', className: 'fl-owner' },
-  { key: 'group', labelKey: 'explorer.columns.group', className: 'fl-group' },
-  { key: 'permissions', labelKey: 'explorer.columns.permissions', className: 'fl-perm' }
-]
-
 /** Virtualized file listing with selection, inline rename and DnD (goal.md §7.3–7.5). */
 export function FileListView(props: FileListProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const [anchorIndex, setAnchorIndex] = useState(0)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
   const lang = i18n.language
 
-  const { entries, selection } = props
+  const { adapter, columns, entries, selection } = props
+  const gridTemplate = `26px ${columns.map((c) => c.width).join(' ')}`
 
   const selectSingle = (entry: FileEntry, index: number): void => {
     setAnchorIndex(index)
@@ -180,7 +216,10 @@ export function FileListView(props: FileListProps): React.JSX.Element {
     if (entry.type === 'directory') {
       props.onNavigate(entry.path)
     } else if (entry.type === 'symlink' && entry.targetType === 'directory') {
-      props.onNavigate(resolveLinuxPath(parentPath(entry.path), entry.symlinkTarget ?? ''))
+      const target = entry.symlinkTarget ?? ''
+      props.onNavigate(
+        adapter.kind === 'linux' ? resolveLinuxPath(adapter.parent(entry.path), target) : target
+      )
     } else if (entry.type === 'file' || entry.type === 'symlink') {
       props.onOpenFile(entry)
     }
@@ -223,7 +262,7 @@ export function FileListView(props: FileListProps): React.JSX.Element {
       paths = [entry.path]
       props.onSelectionChange(new Set(paths))
     }
-    e.dataTransfer.setData(INTERNAL_DND_TYPE, JSON.stringify(paths))
+    e.dataTransfer.setData(INTERNAL_DND_TYPE, encodeDragPayload(adapter.kind, paths))
     e.dataTransfer.effectAllowed = 'copyMove'
     props.onDragOutStart(paths)
   }
@@ -234,36 +273,51 @@ export function FileListView(props: FileListProps): React.JSX.Element {
     if (raw) {
       e.preventDefault()
       e.stopPropagation()
-      try {
-        const paths = JSON.parse(raw) as string[]
-        if (Array.isArray(paths) && paths.length > 0) {
-          // Windows convention: default move, Ctrl forces copy (goal.md §7.5)
-          props.onDropPaths(
-            paths.filter((p) => p !== destDir),
-            destDir,
-            !e.ctrlKey
-          )
-        }
-      } catch {
-        /* not an internal payload */
+      const payload = decodeDragPayload(raw)
+      if (!payload) return
+      if (payload.fs !== adapter.kind) {
+        // Cross-filesystem drops always copy — a transfer never deletes the source.
+        props.onCrossDrop(payload.fs, payload.paths, destDir)
+        return
       }
+      // Windows convention inside one filesystem: move by default, Ctrl copies.
+      props.onDropPaths(
+        payload.paths.filter((p) => p !== destDir),
+        destDir,
+        !e.ctrlKey
+      )
       return
     }
-    if (e.dataTransfer.files.length > 0) {
+    if (props.onDropExternalFiles && e.dataTransfer.files.length > 0) {
       e.preventDefault()
       e.stopPropagation()
-      props.onDropWindowsFiles(e.dataTransfer.files, destDir)
+      props.onDropExternalFiles(e.dataTransfer.files, destDir)
     }
   }
 
   const allowDrop = (e: React.DragEvent, target: string | null): void => {
-    if (
-      e.dataTransfer.types.includes(INTERNAL_DND_TYPE) ||
-      e.dataTransfer.types.includes('Files')
-    ) {
+    const types = e.dataTransfer.types
+    if (types.includes(INTERNAL_DND_TYPE) || (props.onDropExternalFiles && types.includes('Files'))) {
       e.preventDefault()
       e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'
       setDropTarget(target)
+    }
+  }
+
+  const cellValue = (entry: FileEntry, col: ColumnSpec): React.ReactNode => {
+    switch (col.key) {
+      case 'size':
+        return entry.type === 'directory' ? '—' : formatBytes(entry.sizeBytes, lang)
+      case 'mtime':
+        return formatDateTime(entry.mtime, lang)
+      case 'owner':
+        return entry.owner ?? ''
+      case 'group':
+        return entry.group ?? ''
+      case 'permissions':
+        return entry.permissions ?? ''
+      default:
+        return ''
     }
   }
 
@@ -283,6 +337,7 @@ export function FileListView(props: FileListProps): React.JSX.Element {
           (broken ? ' broken-link' : '') +
           (dropTarget === entry.path ? ' drop-target' : '')
         }
+        style={{ gridTemplateColumns: gridTemplate }}
         role="row"
         aria-selected={selected}
         draggable={props.renamingPath !== entry.path}
@@ -316,22 +371,21 @@ export function FileListView(props: FileListProps): React.JSX.Element {
             </>
           )}
         </span>
-        <span className="fl-size">{isDir ? '—' : formatBytes(entry.sizeBytes, lang)}</span>
-        <span className="fl-mtime">{formatDateTime(entry.mtime, lang)}</span>
-        <span className="fl-owner">{entry.owner ?? ''}</span>
-        <span className="fl-group">{entry.group ?? ''}</span>
-        <span className="fl-perm mono">{entry.permissions ?? ''}</span>
+        {columns.slice(1).map((col) => (
+          <span key={col.key} className={col.className + (col.key === 'permissions' ? ' mono' : '')}>
+            {cellValue(entry, col)}
+          </span>
+        ))}
       </div>
     )
   }
 
   return (
     <div
-      ref={rootRef}
       className="file-list"
       tabIndex={0}
       role="grid"
-      aria-label={t('tabs.explorer')}
+      aria-label={props.ariaLabel}
       onKeyDown={handleKeyDown}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -342,11 +396,11 @@ export function FileListView(props: FileListProps): React.JSX.Element {
         if (props.currentPath) handleDrop(e, props.currentPath)
       }}
     >
-      <div className="fl-header" role="row">
+      <div className="fl-header" role="row" style={{ gridTemplateColumns: gridTemplate }}>
         <span className="fl-typeicon" />
-        {COLUMNS.map((col) => (
+        {columns.map((col) => (
           <button
-            key={col.className}
+            key={col.key}
             type="button"
             className={'fl-col ' + col.className + (props.sortKey === col.key ? ' sorted' : '')}
             aria-sort={
@@ -367,7 +421,7 @@ export function FileListView(props: FileListProps): React.JSX.Element {
       </div>
 
       {props.creating && (
-        <div className="fl-row fl-create-row" role="row">
+        <div className="fl-row fl-create-row" role="row" style={{ gridTemplateColumns: gridTemplate }}>
           <TypeIcon
             entry={{
               name: '',

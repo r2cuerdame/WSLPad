@@ -1,23 +1,179 @@
-/* Dashboard layout + shared component styles (cards, dialogs, toasts, lists). */
+/* Dashboard master–detail layout + shared component styles (cards, dialogs, toasts, lists). */
 
 .dashboard {
+  height: 100%;
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  min-height: 0;
 }
 
 .dashboard-toolbar {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  min-height: 28px;
 }
 
-.dashboard-grid {
+/* Master list left, detail right — each scrolls on its own (goal.md §6). */
+.dashboard-split {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: 230px minmax(0, 1fr);
   gap: 12px;
-  align-items: start;
+}
+
+/* --- master list --- */
+
+.dash-nav {
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  padding: 6px;
+}
+
+.dash-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+
+.dash-nav-item:hover {
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+.dash-nav-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dash-nav-item.selected {
+  background: var(--bg-raised);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.dash-nav-icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.dash-nav-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-nav-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 400;
+}
+
+/* --- detail panel --- */
+
+.dashboard-detail {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+.dashboard-detail-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 16px 8px;
+  min-width: 0;
+}
+
+.dashboard-detail-title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.dashboard-detail-subtitle {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-detail-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* The detail owns the title, so the card shell inside it is flattened and
+   stretched — its body becomes the single scroll container. */
+.dashboard-detail-body > .dash-card {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border: none;
+  background: none;
+  border-radius: 0;
+}
+
+.dashboard-detail .dash-card-header {
+  padding: 0;
+  border-bottom: none;
+  justify-content: flex-end;
+}
+
+.dashboard-detail .dash-card-title {
+  display: none;
+}
+
+.dashboard-detail .dash-card-actions {
+  padding: 0 16px 6px;
+}
+
+.dashboard-detail .dash-card-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 16px 14px;
+}
+
+/* Virtualized lists and tables must be bounded to scroll (goal.md §15); the
+   unclassed wrapper is the Processes header + list column. */
+.dashboard-detail .dash-card-body > div:not([class]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.dashboard-detail .vlist,
+.dashboard-detail .dash-scroll {
+  flex: 1;
+  height: auto;
+  min-height: 180px;
+  max-height: none;
+  overflow: auto;
 }
 
 /* --- card shell --- */
@@ -519,12 +675,21 @@
 /* --- skeleton + missing-WSL screens --- */
 
 .dash-skeleton {
-  height: 200px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: linear-gradient(100deg, var(--bg-card) 40%, var(--bg-raised) 50%, var(--bg-card) 60%);
   background-size: 200% 100%;
   animation: dash-shimmer 1.4s ease infinite;
+}
+
+.dash-skeleton-row {
+  height: 30px;
+  border-radius: 7px;
+}
+
+.dash-skeleton-detail {
+  flex: 1;
+  margin: 12px;
 }
 
 @keyframes dash-shimmer {

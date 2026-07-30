@@ -19,8 +19,16 @@ export default function ConfigCard({ files }: ConfigCardProps): React.JSX.Elemen
   const { t } = useTranslation()
   const { navigateExplorer, prepareCommand, pushToast } = useApp()
 
-  const showInExplorer = (linuxPath: string): void => {
-    navigateExplorer(dirname(linuxPath))
+  // Windows-scoped files (.wslconfig) open the Windows pane at the file itself;
+  // Linux-scoped files open the WSL pane at the parent directory (goal.md §7.1).
+  const showInExplorer = (file: ConfigurationFileInfo): void => {
+    if (file.scope === 'windows' && file.windowsPath !== null) {
+      navigateExplorer(file.windowsPath, 'windows')
+    } else if (file.linuxPath !== null) {
+      navigateExplorer(dirname(file.linuxPath))
+    } else {
+      return
+    }
     pushToast('info', t('toast.openedInExplorer', { defaultValue: 'Opened in Explorer' }))
   }
 
@@ -36,6 +44,7 @@ export default function ConfigCard({ files }: ConfigCardProps): React.JSX.Elemen
       {files.map((f) => {
         const path = f.linuxPath ?? f.windowsPath
         const lp = f.linuxPath
+        const explorerTarget = f.scope === 'windows' ? f.windowsPath : f.linuxPath
         return (
           <div key={f.id} className="path-row">
             <span className={dotClass(f.exists)} />
@@ -58,14 +67,14 @@ export default function ConfigCard({ files }: ConfigCardProps): React.JSX.Elemen
             </div>
             <span className="row-actions">
               {path ? <CopyButton text={path} labelKey="dashboard.config.copyPath" /> : null}
-              {lp ? (
+              {explorerTarget ? (
                 <button
                   type="button"
                   className="icon-btn"
                   aria-label={t('dashboard.config.showInExplorer')}
                   title={t('dashboard.config.showInExplorer')}
                   disabled={f.exists === false}
-                  onClick={() => showInExplorer(lp)}
+                  onClick={() => showInExplorer(f)}
                 >
                   <FolderIcon size={14} />
                 </button>
@@ -77,7 +86,7 @@ export default function ConfigCard({ files }: ConfigCardProps): React.JSX.Elemen
                   aria-label={t('dashboard.config.openInEditor')}
                   title={t('dashboard.config.openInEditor')}
                   disabled={f.exists === false || f.readable === false}
-                  onClick={() => showInExplorer(lp)}
+                  onClick={() => showInExplorer(f)}
                 >
                   <FileIcon size={14} />
                 </button>
