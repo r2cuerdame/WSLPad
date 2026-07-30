@@ -229,7 +229,11 @@
     "copyForLlm": "Copy for LLM",
     "copiedForLlm": "Environment summary copied",
     "exportJson": "Export JSON",
-    "exportedJson": "Snapshot exported to {{path}}"
+    "exportedJson": "Snapshot exported to {{path}}",
+    "nav": {
+      "label": "Dashboard sections",
+      "hint": "Select a section to see details"
+    }
   },
   "explorer": {
     "back": "Back",
@@ -282,7 +286,9 @@
       "importFromWindows": "Import from Windows…",
       "prepareChmod": "Prepare chmod command",
       "prepareChown": "Prepare chown command",
-      "prepareSymlink": "Prepare symlink command"
+      "prepareSymlink": "Prepare symlink command",
+      "openWithWindows": "Open with Windows",
+      "revealInWindows": "Show in Windows Explorer"
     },
     "newFileName": "new-file.txt",
     "newFolderName": "new-folder",
@@ -317,7 +323,23 @@
       "linkTarget": "Link target"
     },
     "invalidName": "Invalid name",
-    "dropUseImport": "Drop from Windows is not supported here — use Import from Windows…"
+    "dropUseImport": "Drop from Windows is not supported here — use Import from Windows…",
+    "pane": {
+      "windows": "Windows",
+      "windowsAria": "Windows files",
+      "wslAria": "{{distro}} files",
+      "splitter": "Resize panes",
+      "activeHint": "Active pane"
+    },
+    "thisPc": "This PC",
+    "places": "Places",
+    "driveFree": "{{free}} free of {{total}}",
+    "copyToOther": "Copy to the other pane",
+    "moveToOther": "Move to the other pane",
+    "toggleTree": "Show folder tree",
+    "copyPath": "Copy path",
+    "noDistro": "No distribution selected",
+    "transferStarted": "Transfer started"
   },
   "editor": {
     "title": "Editor",

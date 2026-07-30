@@ -103,3 +103,14 @@ export const TOOL_SPECS: ReadonlyArray<{ id: string; displayName: string }> = [
 
 export const CONSOLE_HEIGHT_BOUNDS = { min: 80, max: 600 } as const
 export const CONSOLE_DEFAULT_HEIGHT = 220
+
+/**
+ * Sentinel path for the Windows pane root ("This PC"): listing it returns the
+ * drives instead of a directory. It is deliberately not a valid Windows path
+ * so it can never collide with a real location.
+ */
+export const WINDOWS_ROOT = 'ThisPC'
+
+/** Dual-pane splitter bounds, as a percentage of the Explorer width. */
+export const PANE_SPLIT_BOUNDS = { min: 20, max: 80 } as const
+export const PANE_SPLIT_DEFAULT = 50

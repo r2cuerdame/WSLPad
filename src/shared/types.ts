@@ -231,6 +231,20 @@ export interface ExplorerContext {
   showHidden: boolean
 }
 
+/** Which filesystem an Explorer pane is browsing (goal.md §7 dual pane). */
+export type FsKind = 'windows' | 'linux'
+
+/** Quick-access entry in the Windows pane: a drive or a known user folder. */
+export interface WindowsPlace {
+  id: string
+  /** Drive letters and volume labels are shown verbatim, never translated. */
+  label: string
+  path: string
+  kind: 'drive' | 'folder'
+  totalBytes: number | null
+  freeBytes: number | null
+}
+
 export type ConsoleStatus =
   | 'ready'
   | 'running'

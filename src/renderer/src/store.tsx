@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode
 } from 'react'
-import type { Settings, WslPadSnapshot } from '@shared/types'
+import type { FsKind, Settings, WslPadSnapshot } from '@shared/types'
 
 export type MainTab = 'dashboard' | 'explorer'
 
@@ -51,8 +51,9 @@ export interface AppStore {
   focusPid: number | null
   setFocusPid: (pid: number | null) => void
   /** Explorer path requested from outside (Dashboard path cards). */
-  explorerNavigateRequest: { id: number; path: string } | null
-  navigateExplorer: (path: string) => void
+  explorerNavigateRequest: { id: number; path: string; fs: FsKind } | null
+  /** Targets the WSL pane by default; Windows-scoped rows pass 'windows'. */
+  navigateExplorer: (path: string, fs?: FsKind) => void
   consumeExplorerNavigate: () => void
 }
 
@@ -72,6 +73,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }): React.J
   const [explorerNavigateRequest, setExplorerNavigateRequest] = useState<{
     id: number
     path: string
+    fs: FsKind
   } | null>(null)
   const toastTimers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
 
@@ -138,8 +140,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }): React.J
       focusPid,
       setFocusPid,
       explorerNavigateRequest,
-      navigateExplorer: (path: string) => {
-        setExplorerNavigateRequest({ id: nextId++, path })
+      navigateExplorer: (path: string, fs: FsKind = 'linux') => {
+        setExplorerNavigateRequest({ id: nextId++, path, fs })
         setTab('explorer')
       },
       consumeExplorerNavigate: () => setExplorerNavigateRequest(null)

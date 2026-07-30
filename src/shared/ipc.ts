@@ -13,6 +13,7 @@ import type {
   TerminalStatusEvent,
   TextFileContent,
   UpdateStatus,
+  WindowsPlace,
   WslPadSnapshot
 } from './types'
 
@@ -51,6 +52,24 @@ export const IpcChannels = {
   explorerPickImport: 'wslpad:explorer:pick-import',
   explorerPickExport: 'wslpad:explorer:pick-export',
   explorerStartDrag: 'wslpad:explorer:start-drag',
+
+  // windows filesystem (left Explorer pane)
+  windowsPlaces: 'wslpad:windows:places',
+  windowsHome: 'wslpad:windows:home',
+  windowsList: 'wslpad:windows:list',
+  windowsTree: 'wslpad:windows:tree',
+  windowsStat: 'wslpad:windows:stat',
+  windowsMkdir: 'wslpad:windows:mkdir',
+  windowsCreateFile: 'wslpad:windows:create-file',
+  windowsRename: 'wslpad:windows:rename',
+  windowsCopy: 'wslpad:windows:copy',
+  windowsTrash: 'wslpad:windows:trash',
+  windowsDelete: 'wslpad:windows:delete',
+  windowsReadText: 'wslpad:windows:read-text',
+  windowsWriteText: 'wslpad:windows:write-text',
+  windowsSearch: 'wslpad:windows:search',
+  windowsOpenPath: 'wslpad:windows:open-path',
+  windowsStartDrag: 'wslpad:windows:start-drag',
 
   // paths / shell
   pathConvert: 'wslpad:path:convert',
@@ -143,6 +162,32 @@ export interface WslPadApi {
     search(path: string, query: string): Promise<FileEntry[]>
     pickImportPaths(): Promise<string[]>
     pickExportDir(): Promise<string | null>
+    startDrag(paths: string[]): Promise<void>
+  }
+
+  /**
+   * Windows-side filesystem for the left Explorer pane. Mirrors `explorer`
+   * so both panes can share one UI component; `list(WINDOWS_ROOT)` returns the
+   * drives instead of a directory listing.
+   */
+  windows: {
+    places(): Promise<WindowsPlace[]>
+    home(): Promise<string>
+    list(path: string, opts?: ExplorerListOptions): Promise<FileEntry[]>
+    tree(path: string): Promise<FileEntry[]>
+    stat(path: string): Promise<FileStat>
+    mkdir(path: string): Promise<void>
+    createFile(path: string): Promise<void>
+    rename(path: string, newName: string): Promise<void>
+    /** copy or move within Windows; returns opId */
+    copy(sources: string[], destDir: string, move: boolean): Promise<string>
+    trash(paths: string[]): Promise<void>
+    remove(paths: string[]): Promise<void>
+    readText(path: string): Promise<TextFileContent>
+    writeText(path: string, content: string): Promise<void>
+    search(path: string, query: string): Promise<FileEntry[]>
+    /** Reveal in Windows Explorer (directories open, files are selected). */
+    openPath(path: string): Promise<void>
     startDrag(paths: string[]): Promise<void>
   }
 
