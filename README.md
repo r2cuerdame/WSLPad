@@ -93,7 +93,7 @@ by a separate hidden runner.
 ## MCP server (read-only)
 
 While WSLPad sits in the tray it serves MCP at `http://127.0.0.1:4923/mcp`
-(Streamable HTTP, localhost-only, Bearer-token auth) with 24 `Get*` tools —
+(Streamable HTTP, localhost-only, Bearer-token auth) with 26 `Get*` tools —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPathMapping`, … There are deliberately no write/run/kill tools; secrets
 and private keys never cross the MCP boundary. One-click registration for
@@ -169,7 +169,7 @@ free and total space.
 **Console** — the distro, the current directory, and the shell state (ready,
 running, waiting for input, waiting for a sudo password, disconnected).
 
-**Over MCP** — all of the above through 24 read-only `Get*` tools.
+**Over MCP** — all of the above through 26 read-only `Get*` tools.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings & languages

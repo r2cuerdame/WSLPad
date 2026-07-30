@@ -26,6 +26,8 @@ const GOAL_TOOLS = [
   'GetServices',
   'GetService',
   'GetPorts',
+  'GetDiskImage',
+  'GetWslSettings',
   'GetWarnings',
   'GetDirectory',
   'GetDirectoryTree',

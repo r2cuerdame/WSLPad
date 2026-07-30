@@ -36,6 +36,8 @@ export const MCP_TOOL_NAMES = [
   'GetServices',
   'GetService',
   'GetPorts',
+  'GetDiskImage',
+  'GetWslSettings',
   'GetWarnings',
   'GetDirectory',
   'GetDirectoryTree',
@@ -379,6 +381,54 @@ export function createMcpServer(deps: McpDeps): McpServer {
       annotations: readOnly
     },
     guard(() => withDashboard((dash) => ok(`${dash.ports.length} port(s)`, { ports: dash.ports })))
+  )
+
+  server.registerTool(
+    'GetDiskImage',
+    {
+      description:
+        'Get the distro ext4.vhdx location, its size on the Windows disk, what the ' +
+        'filesystem inside actually uses, and how much of that is reclaimable. Answers ' +
+        'why a distro occupies far more Windows disk than df reports.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) =>
+        dash.disk === null
+          ? ok('Disk image information is not available for this distribution', { disk: null })
+          : ok(
+              `${dash.disk.vhdxPath ?? 'image not located'}: ` +
+                `${dash.disk.vhdxBytes ?? '?'} bytes on the Windows disk, ` +
+                `${dash.disk.fsUsedBytes ?? '?'} bytes used inside`,
+              { disk: dash.disk }
+            )
+      )
+    )
+  )
+
+  server.registerTool(
+    'GetWslSettings',
+    {
+      description:
+        'Get every .wslconfig and wsl.conf setting with its declared value, the value ' +
+        'actually in force, and a verdict (applied, pending-restart, wrong-section, ' +
+        'unknown-key, unsupported). Includes the effective networking mode, which can ' +
+        'differ from the declared one, and whether the running VM predates the files.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) =>
+        dash.wslSettings === null
+          ? ok('WSL settings are not available for this distribution', { wslSettings: null })
+          : ok(
+              `${dash.wslSettings.settings.length} setting(s); networking declared ` +
+                `${dash.wslSettings.networkingModeDeclared ?? 'unset'}, effective ` +
+                `${dash.wslSettings.networkingModeEffective ?? 'unknown'}` +
+                (dash.wslSettings.restartPending ? '; restart pending' : ''),
+              { wslSettings: dash.wslSettings }
+            )
+      )
+    )
   )
 
   server.registerTool(
