@@ -50,10 +50,26 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
 
   test('Copy for LLM puts masked Korean-instruction markdown on the clipboard', async () => {
     const { page, app } = launched
+    // The button now opens a preset menu; the full summary is the first entry.
     await page.getByRole('button', { name: 'Copy for LLM' }).first().click()
+    await page.getByRole('menuitem', { name: /Full environment summary/i }).click()
+    await expect
+      .poll(async () => app.evaluate(({ clipboard }) => clipboard.readText()), { timeout: 10000 })
+      .toContain('Ubuntu-24.04')
     const clip = await app.evaluate(({ clipboard }) => clipboard.readText())
-    expect(clip).toContain('Ubuntu-24.04')
     expect(clip).toContain('위 환경 상태를 기준으로 문제를 분석하라.')
     expect(clip).not.toContain('super-secret-fixture-value')
+  })
+
+  test('the agent-context preset produces a compact masked block', async () => {
+    const { page, app } = launched
+    await page.getByRole('button', { name: 'Copy for LLM' }).first().click()
+    await page.getByRole('menuitem', { name: /Agent context/i }).click()
+    await expect
+      .poll(async () => app.evaluate(({ clipboard }) => clipboard.readText()), { timeout: 10000 })
+      .toContain('Ubuntu-24.04')
+    const clip = await app.evaluate(({ clipboard }) => clipboard.readText())
+    expect(clip).not.toContain('super-secret-fixture-value')
+    expect(clip).not.toContain('hunter2')
   })
 })

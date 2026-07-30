@@ -8,6 +8,7 @@ import {
   type ExplorerListOpts
 } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote } from '../wsl/escape'
+import { collectDirSizes } from './dir-sizes'
 import { readTextFile, writeTextFile } from './editor'
 import { listDirectory, listTree, searchDirectory, statPath } from './listing'
 import {
@@ -124,6 +125,19 @@ export function createRealExplorerBackend(runner: DistroRunner): ExplorerBackend
     cancelOp: async (opId) => {
       const op = ops.get(opId)
       if (op) op.cancelled = true
+    },
+
+    dirSizes: async (distro, path, token) => {
+      // Registered in the same map as the transfer ops so the existing
+      // cancelOp channel stops a long du without a second cancel surface.
+      ops.set(token, { cancelled: false })
+      try {
+        return await collectDirSizes(runner, distro, path, {
+          isCancelled: () => ops.get(token)?.cancelled ?? false
+        })
+      } finally {
+        ops.delete(token)
+      }
     },
 
     search: (distro, path, query) => searchDirectory(runner, distro, path, query),

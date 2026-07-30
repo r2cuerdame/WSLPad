@@ -42,6 +42,26 @@ export const RUNNER_TIMEOUT_MS = 10000
 export const RUNNER_SLOW_TIMEOUT_MS = 30000
 export const RUNNER_MAX_OUTPUT_BYTES = 4 * 1024 * 1024
 
+/**
+ * Liveness probe for a wedged distro (issue #37). The timeout is far below the
+ * runner's so the probe itself can never be the thing that hangs a poll, and
+ * the backoff doubles from base to max so a distro that stays wedged is asked
+ * once a minute instead of once per tier per tick.
+ */
+export const PROBE_TIMEOUT_MS = 2000
+export const PROBE_BACKOFF_BASE_MS = 5000
+export const PROBE_BACKOFF_MAX_MS = 60000
+/** A fresh success is trusted this long, so three tiers share one probe. */
+export const PROBE_TRUST_MS = 2000
+
+/**
+ * Clock drift that stops being noise (issue #28). Both clocks are read a round
+ * trip apart, so a couple of seconds is measurement error; tens of seconds is
+ * the drift that makes apt, TLS handshakes and build caches fail without ever
+ * naming the clock. Shared so the warning rule and the card agree on the line.
+ */
+export const CLOCK_SKEW_WARN_SECONDS = 10
+
 export const CONSOLE_FONT_SIZE_BOUNDS = { min: 8, max: 32 } as const
 export const CONSOLE_SCROLLBACK_BOUNDS = { min: 200, max: 100000 } as const
 export const CONSOLE_DEFAULTS = {

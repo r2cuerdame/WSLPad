@@ -15,6 +15,7 @@ function setting(over: Partial<WslSettingInfo>): WslSettingInfo {
     declaredValue: null,
     effectiveValue: null,
     origin: 'default',
+    provenance: 'wsl-default',
     verdict: 'not-set',
     note: null,
     ...over
@@ -27,6 +28,7 @@ const SETTINGS: WslSettingInfo[] = [
     declaredValue: '16GB',
     effectiveValue: '15.6GB',
     origin: 'wslconfig',
+    provenance: 'user',
     verdict: 'applied',
     note: 'Read from MemTotal in the guest.'
   }),
@@ -35,6 +37,7 @@ const SETTINGS: WslSettingInfo[] = [
     declaredValue: '12',
     effectiveValue: '8',
     origin: 'wslconfig',
+    provenance: 'user',
     verdict: 'pending-restart',
     note: 'The running VM still reports 8. Applies after wsl --shutdown.'
   }),
@@ -42,6 +45,7 @@ const SETTINGS: WslSettingInfo[] = [
     key: 'memroy',
     declaredValue: '8GB',
     origin: 'wslconfig',
+    provenance: 'user',
     verdict: 'unknown-key',
     note: 'WSL ignores this key. Did you mean memory?'
   }),
@@ -50,6 +54,7 @@ const SETTINGS: WslSettingInfo[] = [
     section: 'experimental',
     declaredValue: 'mirrored',
     origin: 'wslconfig',
+    provenance: 'user',
     verdict: 'wrong-section',
     note: 'Current WSL releases read networkingMode from [wsl2], not [experimental].'
   }),
@@ -61,6 +66,7 @@ const SETTINGS: WslSettingInfo[] = [
     declaredValue: 'true',
     effectiveValue: 'true',
     origin: 'wsl-conf',
+    provenance: 'user',
     verdict: 'applied',
     note: 'PID 1 is systemd.'
   }),
@@ -69,7 +75,8 @@ const SETTINGS: WslSettingInfo[] = [
     section: 'interop',
     scope: 'linux',
     effectiveValue: 'true',
-    origin: 'computed'
+    origin: 'computed',
+    provenance: 'computed'
   })
 ]
 
@@ -253,6 +260,34 @@ describe('WslSettingsCard table', () => {
     expect(row[1]).toBe('12')
     expect(row[2]).toBe('8')
     expect(rowFor('wsl2.processors').textContent).toContain('Applies after wsl --shutdown')
+  })
+
+  it('never lets "you set this" and "WSL decided this" look alike', async () => {
+    await renderCard()
+    fireEvent.click(screen.getByLabelText('Hide unset defaults'))
+    const chip = (label: string): HTMLElement => {
+      const found = rowFor(label).querySelectorAll('td')[3].querySelector('.badge')
+      if (found === null) throw new Error(`no provenance chip for ${label}`)
+      return found as HTMLElement
+    }
+    // A line the user wrote reads as theirs whatever became of it.
+    expect(chip('wsl2.memory').textContent).toBe('Your file')
+    expect(chip('wsl2.memroy').textContent).toBe('Your file')
+    expect(chip('experimental.networkingMode').textContent).toBe('Your file')
+    // …and is the only one that gets the accent, so a scan separates the two.
+    expect(chip('wsl2.memory').className).toContain('badge-accent')
+    expect(chip('interop.appendWindowsPath').className).not.toContain('badge-accent')
+    expect(chip('interop.appendWindowsPath').textContent).toBe('Computed by WSL')
+  })
+
+  it('names the source of an undeclared row without the file column', async () => {
+    await renderCard()
+    fireEvent.click(screen.getByLabelText('Hide unset defaults'))
+    expect(cells(rowFor('wsl2.localhostForwarding'))).toContain('WSL default')
+    // The file is already the group heading; repeating it as a column said
+    // nothing the reader could not see.
+    expect(screen.queryByRole('columnheader', { name: 'Source' })).toBeNull()
+    expect(screen.getAllByRole('columnheader', { name: 'Set by' }).length).toBeGreaterThan(0)
   })
 
   it('marks an unreadable effective value instead of inventing one', async () => {

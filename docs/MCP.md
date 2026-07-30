@@ -65,6 +65,9 @@ at-a-glance status badge):
 | `GetPorts` | Listening ports, each marked with whether Windows also binds it |
 | `GetDiskImage` | ext4.vhdx location, size on the Windows disk, reclaimable space |
 | `GetWslSettings` | Declared vs effective .wslconfig and wsl.conf, with verdicts |
+| `GetFirewall` | Hyper-V firewall state for the WSL virtual machine |
+| `GetDns` | resolv.conf, generateResolvConf, DNS tunnelling, nameservers |
+| `GetClock` | Windows time, distro time and the skew between them |
 | `GetWarnings` | Current warnings (stopped distro, failed units, …) |
 | `GetDirectory` | Directory listing (`{ path, showHidden? }`) |
 | `GetDirectoryTree` | Bounded-depth subtree (`{ path, depth? ≤ 3 }`) |

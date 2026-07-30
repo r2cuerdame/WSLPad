@@ -41,7 +41,11 @@ export function parseSs(text: string): PortInfo[] {
       localhostUrl: listening && isTcp && port >= 80 ? `http://localhost:${port}` : null,
       // Correlated against the Windows port table later; unknown until then.
       windowsBound: null,
-      windowsProcess: null
+      windowsProcess: null,
+      // Reachability needs the Windows table and the firewall, neither of which
+      // this parser sees: it stays unknown rather than claiming a scope.
+      reachability: 'unknown',
+      reachabilityReason: null
     })
   }
   return out

@@ -5,10 +5,12 @@ import {
   disk,
   hermes,
   makeDashboard,
+  pathInfo,
   port,
   resources,
   svc,
   system,
+  tool,
   ubuntu
 } from './helpers'
 
@@ -115,6 +117,35 @@ describe('computeWarnings', () => {
     const tcp6 = { ...port(8080, 200), protocol: 'tcp6' as const }
     const dashboard = makeDashboard({ ports: [port(8080, 100), tcp6, port(9090, 100)] })
     expect(keys(computeWarnings(input({ dashboard })))).not.toContain('warnings.portConflict')
+  })
+
+  it('lists the paths and tools that sit on the slow side of the boundary', () => {
+    const dashboard = makeDashboard({
+      paths: [
+        pathInfo(),
+        { ...pathInfo(), id: 'projects', label: 'Current project', side: 'windows-mount' }
+      ],
+      tools: [tool(), tool({ id: 'git', displayName: 'Git', side: 'windows-mount' })]
+    })
+    const w = computeWarnings(input({ dashboard })).find(
+      (x) => x.messageKey === 'warnings.crossBoundaryPaths'
+    )
+    // Informational: a path on the Windows drive can be exactly where it belongs.
+    expect(w?.severity).toBe('info')
+    expect(w?.params).toEqual({ count: 2, items: 'Current project, Git' })
+    expect(w?.message).toContain('Current project, Git')
+  })
+
+  it('stays silent when everything lives on the Linux disk', () => {
+    expect(keys(computeWarnings(input()))).not.toContain('warnings.crossBoundaryPaths')
+  })
+
+  it('ignores a missing path and an absent tool on the far side', () => {
+    const dashboard = makeDashboard({
+      paths: [{ ...pathInfo(), side: 'windows-mount', exists: false }],
+      tools: [tool({ installed: false, side: 'windows-mount' })]
+    })
+    expect(keys(computeWarnings(input({ dashboard })))).not.toContain('warnings.crossBoundaryPaths')
   })
 
   it('emits provided missing PATH entries', () => {

@@ -4,7 +4,14 @@
  * a root-owned read-only file (/etc/wsl.conf), symlinks (one broken) and a
  * freedesktop-style trash. All timestamps are fixed so output is deterministic.
  */
-import type { FileEntry, FileOpProgress, FileStat, TextFileContent } from '@shared/types'
+import type {
+  DirSizeEntry,
+  DirSizeResult,
+  FileEntry,
+  FileOpProgress,
+  FileStat,
+  TextFileContent
+} from '@shared/types'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
 import {
@@ -652,6 +659,39 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async cancelOp(_opId: string): Promise<void> {
     // Fixture operations complete instantly, so there is never anything to cancel.
+  }
+
+  async dirSizes(distro: string, path: string, _token: string): Promise<DirSizeResult> {
+    this.ensureDistro(distro, path)
+    assertValidLinuxPath(path)
+    const base = this.fs.normalizePath(path)
+    const dir = this.requireDir(base)
+    let total: number | null = null
+    const entries: DirSizeEntry[] = []
+    for (const child of dir.children?.values() ?? []) {
+      const childPath = this.joinPath(base, child.name)
+      // An unreadable subtree measures as unknown here exactly as du would.
+      const size = child.readable ? this.subtreeBytes(child) : null
+      if (size !== null) total = (total ?? 0) + size
+      entries.push({
+        name: child.name,
+        path: childPath,
+        isDirectory: child.type === 'directory',
+        sizeBytes: size,
+        partial: false
+      })
+    }
+    entries.sort((a, b) => (b.sizeBytes ?? -1) - (a.sizeBytes ?? -1) || a.name.localeCompare(b.name))
+    return { path: base, entries, totalBytes: total, skipped: 0, cancelled: false, error: null }
+  }
+
+  /** Apparent bytes of a node and everything under it; symlinks count as 0. */
+  private subtreeBytes(node: FsNode): number {
+    if (node.type === 'file') return Buffer.byteLength(node.content ?? '', 'utf8')
+    if (node.type !== 'directory') return 0
+    let sum = 0
+    for (const child of node.children?.values() ?? []) sum += this.subtreeBytes(child)
+    return sum
   }
 
   async search(distro: string, path: string, query: string): Promise<FileEntry[]> {

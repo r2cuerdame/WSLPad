@@ -38,6 +38,9 @@ export const MCP_TOOL_NAMES = [
   'GetPorts',
   'GetDiskImage',
   'GetWslSettings',
+  'GetFirewall',
+  'GetDns',
+  'GetClock',
   'GetWarnings',
   'GetDirectory',
   'GetDirectoryTree',
@@ -427,6 +430,65 @@ export function createMcpServer(deps: McpDeps): McpServer {
                 (dash.wslSettings.restartPending ? '; restart pending' : ''),
               { wslSettings: dash.wslSettings }
             )
+      )
+    )
+  )
+
+  server.registerTool(
+    'GetFirewall',
+    {
+      description:
+        'Get the Hyper-V firewall state for the WSL virtual machine - a layer the ' +
+        'Windows Defender Firewall window does not show, on by default, that silently ' +
+        'drops inbound traffic to the distribution.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) =>
+        dash.firewall === null
+          ? ok('Firewall state is not available', { firewall: null })
+          : ok(
+              `enabled=${dash.firewall.enabled ?? 'unknown'}, ` +
+                `inbound=${dash.firewall.defaultInbound ?? 'unknown'}`,
+              { firewall: dash.firewall }
+            )
+      )
+    )
+  )
+
+  server.registerTool(
+    'GetDns',
+    {
+      description:
+        'Get everything that decides name resolution in the distribution: whether ' +
+        '/etc/resolv.conf is the generated symlink or hand-edited, the effective ' +
+        'generateResolvConf, DNS tunnelling, the nameservers in force, and what the ' +
+        'Windows adapter hands out.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) =>
+        dash.dns === null
+          ? ok('DNS information is not available', { dns: null })
+          : ok(`${dash.dns.nameservers.length} nameserver(s) in effect`, { dns: dash.dns })
+      )
+    )
+  )
+
+  server.registerTool(
+    'GetClock',
+    {
+      description:
+        'Get the Windows time, the distribution time and the drift between them. A ' +
+        'large skew after the host sleeps breaks apt, TLS handshakes and build caches ' +
+        'without any error mentioning time.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) =>
+        dash.clock === null
+          ? ok('Clock information is not available', { clock: null })
+          : ok(`skew ${dash.clock.skewSeconds ?? 'unknown'}s`, { clock: dash.clock })
       )
     )
   )

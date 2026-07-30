@@ -17,7 +17,9 @@ const WSL_PORTS: PortInfo[] = [
     listening: true,
     localhostUrl: 'http://127.0.0.1:8080',
     windowsBound: true,
-    windowsProcess: 'wslrelay.exe'
+    windowsProcess: 'wslrelay.exe',
+    reachability: 'windows-only',
+    reachabilityReason: null
   },
   {
     protocol: 'tcp',
@@ -28,7 +30,9 @@ const WSL_PORTS: PortInfo[] = [
     listening: true,
     localhostUrl: null,
     windowsBound: false,
-    windowsProcess: null
+    windowsProcess: null,
+    reachability: 'loopback-only',
+    reachabilityReason: null
   },
   {
     protocol: 'udp',
@@ -39,7 +43,9 @@ const WSL_PORTS: PortInfo[] = [
     listening: true,
     localhostUrl: null,
     windowsBound: null,
-    windowsProcess: null
+    windowsProcess: null,
+    reachability: 'unknown',
+    reachabilityReason: null
   }
 ]
 
@@ -107,7 +113,7 @@ async function renderCard(
   return view
 }
 
-/** Rows are [source, proto, address, port, pid, process, actions]. */
+/** Rows are [source, proto, address, port, pid, process, reaches, actions]. */
 function bodyRows(): HTMLElement[] {
   return screen.getAllByRole('row').filter((r) => r.querySelectorAll('td').length > 0)
 }
@@ -243,6 +249,76 @@ describe('PortsCard sorting', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Source/ }))
     expect(bodyRows().map((r) => cells(r)[0])).toEqual(['WSL + Windows', 'WSL', 'WSL', 'Windows'])
+  })
+})
+
+describe('PortsCard reachability column', () => {
+  /** The verdict and its reason are computed in main; the card only shows them. */
+  const EXPLAINED: PortInfo[] = [
+    {
+      ...WSL_PORTS[0],
+      port: 8080,
+      reachability: 'lan',
+      reachabilityReason: 'Windows forwards port 8080 and the firewall allows inbound traffic.'
+    },
+    {
+      ...WSL_PORTS[1],
+      port: 22,
+      reachability: 'loopback-only',
+      reachabilityReason: 'Nothing on the Windows side forwards port 22.'
+    },
+    { ...WSL_PORTS[2], port: 5353, reachability: 'unknown', reachabilityReason: null },
+    { ...WSL_PORTS[1], port: 9000, listening: false, reachability: 'unreachable' }
+  ]
+
+  it('names how far every WSL listener carries', async () => {
+    await renderCard(EXPLAINED, [])
+
+    expect(cells(rowFor(8080))[6]).toBe('The network')
+    expect(cells(rowFor(22))[6]).toBe('Inside WSL only')
+    expect(cells(rowFor(5353))[6]).toBe('Unknown')
+    expect(cells(rowFor(9000))[6]).toBe('Nothing')
+  })
+
+  it('puts the reason from the collector on hover', async () => {
+    await renderCard(EXPLAINED, [])
+
+    expect(rowFor(8080).querySelectorAll('td')[6].getAttribute('title')).toBe(
+      'Windows forwards port 8080 and the firewall allows inbound traffic.'
+    )
+    expect(rowFor(22).querySelectorAll('td')[6].getAttribute('title')).toBe(
+      'Nothing on the Windows side forwards port 22.'
+    )
+  })
+
+  it('explains an unknown verdict that arrived without a reason', async () => {
+    await renderCard(EXPLAINED, [])
+
+    expect(rowFor(5353).querySelectorAll('td')[6].getAttribute('title')).toBe(
+      'The Windows port table or the firewall could not be read, so how far this port ' +
+        'carries is unknown.'
+    )
+  })
+
+  it('marks the widest scope and never dresses an unknown up as a good answer', async () => {
+    await renderCard(EXPLAINED, [])
+
+    const badgeOf = (port: number): string =>
+      rowFor(port).querySelectorAll('td')[6].querySelector('span')?.className ?? ''
+    expect(badgeOf(8080)).toContain('badge-accent')
+    expect(badgeOf(5353)).toContain('badge-dim')
+    expect(badgeOf(9000)).toContain('badge-err')
+    expect(badgeOf(22)).not.toContain('badge-ok')
+  })
+
+  it('leaves a Windows-only listener out of the WSL verdict', async () => {
+    await renderCard(EXPLAINED, WINDOWS_PORTS)
+
+    const cell = rowFor(3000).querySelectorAll('td')[6]
+    expect(cell.textContent).toBe('—')
+    expect(cell.getAttribute('title')).toBe(
+      'A Windows listener: the WSL reachability rules do not apply to it.'
+    )
   })
 })
 

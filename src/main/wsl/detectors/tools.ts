@@ -1,5 +1,6 @@
 import { RUNNER_SLOW_TIMEOUT_MS, TOOL_SPECS } from '@shared/constants'
-import type { ToolInfo } from '@shared/types'
+import { classifyPathSide } from '@shared/path-boundary'
+import type { PathSide, ToolInfo } from '@shared/types'
 import type { DistroRunner } from '../contracts'
 import { assertValidDistroName, shellQuote } from '../escape'
 
@@ -345,15 +346,27 @@ function homePath(candidate: string): string {
 }
 
 /**
- * The preamble first drops the Windows drive mounts that WSL appends to PATH:
- * every tool that is NOT installed otherwise stat-walks ~48 of them over the
- * 9p mount at ~95 ms a piece — measured at 9 s for the whole catalog, 0.6 s
- * once they are gone. W() gets those directories back at the end, reading each
- * one once with a glob instead of one PATH walk per tool, so a tool that only
- * exists on the Windows side is still reported (as `windows-interop`) for
- * ~150 ms and no forks: ~0.9 s for the whole catalog.
+ * The preamble first reads the Windows mounts out of /proc/mounts and reports
+ * them as MNT: lines, because [automount] root is configurable: assuming
+ * /mnt/<drive> on a distro that moved it would report a Windows executable as
+ * a Linux one, which is exactly the confident wrong answer this card exists to
+ * prevent. A DrvFs row is recognised three ways because the layout changed:
+ * WSL 1 wrote the drive letter as the source with type drvfs, older WSL 2 wrote
+ * `drvfs` as the source, and current WSL 2 writes `C:\` over 9p with drvfs only
+ * naming itself in the aname= option. M() answers "is this path on a Windows
+ * mount?" for both users below and falls back to the documented /mnt/<drive>
+ * layout when the mount table could not be read.
  *
- * Per-tool work as shell functions so the emitted script stays small:
+ * It then drops those roots from PATH: every tool that is NOT installed
+ * otherwise stat-walks ~48 of their directories over the 9p mount at ~95 ms a
+ * piece — measured at 9 s for the whole catalog, 0.6 s once they are gone. W()
+ * gets those directories back at the end, reading each one once with a glob
+ * instead of one PATH walk per tool, so a tool that only exists on the Windows
+ * side is still reported (as `windows-interop`) for ~150 ms and no forks:
+ * ~0.9 s for the whole catalog.
+ *
+ * Work is done in shell functions so the emitted script stays small:
+ *   M  is this path on a Windows mount? Used by the PATH strip and the sweep.
  *   V  version command, bounded by `timeout` when the distro has one, first
  *      output line that looks like a version wins (gradle and k9s print a
  *      banner first, java prints to stderr).
@@ -364,6 +377,29 @@ function homePath(candidate: string): string {
  *   W  Windows-interop sweep for the '|name|name|' list it is handed.
  */
 const SCRIPT_PREAMBLE = `op=$PATH
+mr=
+if [ -r /proc/mounts ]; then
+  while read -r ms mp mt mo mrest; do
+    mk=0
+    [ "$ms" = drvfs ] && mk=1
+    [ "$mt" = drvfs ] && mk=1
+    case $mo in *aname=drvfs*) mk=1 ;; esac
+    [ "$mk" = 1 ] || continue
+    case $mp in /*[!A-Za-z0-9._+/-]*) continue ;; /?*) ;; *) continue ;; esac
+    mr=\${mr:+$mr }$mp
+    printf '%s\\n' "MNT:$mp"
+  done < /proc/mounts
+fi
+M() {
+  if [ -n "$mr" ]; then
+    for r in $mr; do
+      case $1 in "$r" | "$r"/*) return 0 ;; esac
+    done
+    return 1
+  fi
+  case $1 in /mnt/[A-Za-z] | /mnt/[A-Za-z]/*) return 0 ;; esac
+  return 1
+}
 np=
 IFS=:
 set -f
@@ -371,7 +407,7 @@ set -- $PATH
 set +f
 unset IFS
 for d in "$@"; do
-  case $d in /mnt/[A-Za-z] | /mnt/[A-Za-z]/*) continue ;; esac
+  M "$d" && continue
   np=\${np:+$np:}$d
 done
 [ -n "$np" ] && PATH=$np
@@ -411,7 +447,7 @@ W() {
   set +f
   unset IFS
   for d in "$@"; do
-    case $d in /mnt/[A-Za-z] | /mnt/[A-Za-z]/*) ;; *) continue ;; esac
+    M "$d" || continue
     for f in "$d"/*; do
       case "$m" in *"|\${f##*/}|"*) printf '%s\\n' "WIN:$f" ;; esac
     done
@@ -575,6 +611,39 @@ export function parseInteropBinaries(stdout: string): Map<string, string> {
   return found
 }
 
+/**
+ * Windows filesystem mounts the distro really has, straight from its mount
+ * table. Empty means the table was unreadable — the caller then keeps to the
+ * documented /mnt/<drive> layout instead of concluding there are no Windows
+ * drives, because "no drives" would silently promote every /mnt/c binary to a
+ * Linux one.
+ */
+export function parseWindowsMounts(stdout: string): string[] {
+  const roots: string[] = []
+  for (const raw of stdout.split('\n')) {
+    const line = raw.trimEnd()
+    if (!line.startsWith('MNT:')) continue
+    const point = line.slice(4).trim()
+    if (point.startsWith('/') && point !== '/' && !roots.includes(point)) roots.push(point)
+  }
+  return roots
+}
+
+function isUnderMount(path: string, mounts: readonly string[]): boolean {
+  return mounts.some((mount) => path === mount || path.startsWith(`${mount}/`))
+}
+
+/**
+ * The shared classifier knows the documented /mnt/<drive> layout; a distro that
+ * moved [automount] root elsewhere only says so in its mount table, so a mount
+ * the probe actually reported outranks an otherwise ext4-looking path.
+ */
+export function classifyToolPath(path: string | null, windowsMounts: string[]): PathSide {
+  const side = classifyPathSide(path)
+  if (side === 'ext4' && path !== null && isUnderMount(path, windowsMounts)) return 'windows-mount'
+  return side
+}
+
 export function parseUserServiceUnits(stdout: string): string[] {
   const units: string[] = []
   for (const raw of stdout.split('\n')) {
@@ -611,7 +680,8 @@ function buildToolInfo(
   spec: ToolScriptSpec,
   section: ParsedToolSection | undefined,
   units: string[],
-  interop: Map<string, string>
+  interop: Map<string, string>,
+  windowsMounts: string[]
 ): ToolInfo {
   const linuxPath = section?.path ?? null
   const version = section?.versionLine ? parseVersionLine(section.versionLine) : null
@@ -624,8 +694,9 @@ function buildToolInfo(
     executablePath !== null ||
     version !== null ||
     configPaths.some((p) => spec.installSignals.some((signal) => p.includes(signal)))
+  const side = classifyToolPath(executablePath, windowsMounts)
   const installMethod =
-    fromWindows !== null ? 'windows-interop' : inferInstallMethod(spec.id, linuxPath)
+    side === 'windows-mount' ? 'windows-interop' : inferInstallMethod(spec.id, linuxPath)
   return {
     id: spec.id,
     displayName: spec.displayName,
@@ -635,7 +706,11 @@ function buildToolInfo(
     installMethod: installed ? installMethod : null,
     configPaths,
     runningProcesses: section?.processCount ?? 0,
-    services: units.filter((u) => serviceMatchesTool(u, spec.id))
+    services: units.filter((u) => serviceMatchesTool(u, spec.id)),
+    side,
+    // The distro's own PATH entries are searched first and lost, so a command
+    // that still resolves on a Windows drive is the build that actually runs.
+    shadowedByWindows: side === 'windows-mount'
   }
 }
 
@@ -652,9 +727,12 @@ export async function runToolDetection(
   ])
   const sections = parseToolsOutput(batch.stdout)
   const interop = parseInteropBinaries(batch.stdout)
+  const windowsMounts = parseWindowsMounts(batch.stdout)
   const units =
     services !== null && services.code === 0 && !services.timedOut
       ? parseUserServiceUnits(services.stdout)
       : []
-  return specs.map((spec) => buildToolInfo(spec, sections.get(spec.id), units, interop))
+  return specs.map((spec) =>
+    buildToolInfo(spec, sections.get(spec.id), units, interop, windowsMounts)
+  )
 }

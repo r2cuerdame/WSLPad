@@ -23,6 +23,9 @@ interface ToolbarProps {
   onToggleTree: () => void
   onSearch: (query: string) => void
   onClearSearch: () => void
+  /** Absent on a filesystem whose sizes cannot be measured. */
+  onMeasure?: () => void
+  measureActive?: boolean
 }
 
 function Glyph({ d, size = 14 }: { d: string; size?: number }): React.JSX.Element {
@@ -50,7 +53,9 @@ const GLYPHS = {
   eye: 'M1.5 8S4 3.8 8 3.8 14.5 8 14.5 8 12 12.2 8 12.2 1.5 8 1.5 8zM8 6.3A1.7 1.7 0 1 0 8 9.7 1.7 1.7 0 0 0 8 6.3z',
   tree: 'M2.5 4h11M5.5 8h8M5.5 12h8M2.5 4v8',
   chevronRight: 'M6 3.5 10.5 8 6 12.5',
-  chevronLeft: 'M10 3.5 5.5 8 10 12.5'
+  chevronLeft: 'M10 3.5 5.5 8 10 12.5',
+  // Three bars of falling length: the sorted result the action produces.
+  sizes: 'M2.5 4h11M2.5 8h7M2.5 12h3.5'
 } as const
 
 export function Toolbar(props: ToolbarProps): React.JSX.Element {
@@ -86,6 +91,7 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
 
   const atRoot = props.path === null || props.adapter.isRoot(props.path)
   const sep = <span className="exp-toolsep" aria-hidden="true" />
+  const measureLabel = t('explorer.dirSizes.action', { defaultValue: 'Measure directory sizes' })
 
   return (
     <div className="exp-toolbar">
@@ -107,6 +113,20 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
       >
         <Glyph d={GLYPHS.tree} />
       </button>
+
+      {props.onMeasure && (
+        <button
+          type="button"
+          className={props.measureActive ? 'exp-toolbtn active' : 'exp-toolbtn'}
+          title={measureLabel}
+          aria-label={measureLabel}
+          aria-pressed={props.measureActive ?? false}
+          disabled={props.path === null}
+          onClick={props.onMeasure}
+        >
+          <Glyph d={GLYPHS.sizes} />
+        </button>
+      )}
 
       <div className="exp-pathbox">
         {editing || props.path === null ? (

@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { FileEntry, FsKind } from '@shared/types'
+import type { FileEntry, FsKind, PathSide } from '@shared/types'
 import { fileNameSchema } from '@shared/schemas'
 import { VirtualList } from '../components/VirtualList'
-import { resolveLinuxPath, type FsAdapter } from './fsAdapter'
+import { SideBadge } from '../components/SideBadge'
+import { entrySide, resolveLinuxPath, type FsAdapter } from './fsAdapter'
 import { formatBytes, formatDateTime, type SortDir, type SortKey } from './usePane'
 
 export const INTERNAL_DND_TYPE = 'application/x-wslpad-paths'
@@ -69,6 +70,10 @@ interface FileListProps {
   sortKey: SortKey
   sortDir: SortDir
   selection: Set<string>
+  /** [automount] root in force, so /mnt is not assumed (see path-boundary). */
+  automountRoot: string
+  /** Side of the directory being listed; rows that match it stay unmarked. */
+  paneSide: PathSide
   clipboardCutPaths: string[] | null
   creating: 'file' | 'folder' | null
   renamingPath: string | null
@@ -326,6 +331,11 @@ export function FileListView(props: FileListProps): React.JSX.Element {
     const cut = props.clipboardCutPaths?.includes(entry.path) ?? false
     const isDir = entry.type === 'directory'
     const broken = entry.type === 'symlink' && entry.targetType === null
+    // Only rows that differ from the directory itself are marked: inside
+    // /mnt/c every row crosses the boundary, and a badge on all of them would
+    // say nothing the pane's own chip has not already said.
+    const side = entrySide(entry, props.automountRoot)
+    const marked = side !== props.paneSide
     return (
       <div
         key={entry.path}
@@ -368,6 +378,7 @@ export function FileListView(props: FileListProps): React.JSX.Element {
               {entry.symlinkTarget && (
                 <span className="fl-linktarget mono"> → {entry.symlinkTarget}</span>
               )}
+              {marked && <SideBadge side={side} />}
             </>
           )}
         </span>

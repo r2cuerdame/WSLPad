@@ -3,6 +3,8 @@ import type { DiskUsage, LocaleCode, MemoryReconciliation, ResourceInfo } from '
 import { formatBytes, formatNumber, formatPercent } from '@shared/format'
 import { useApp } from '../store'
 import Card from '../components/Card'
+import Sparkline from '../components/Sparkline'
+import { useMetricHistory } from '../hooks/useMetricHistory'
 
 /** Never executed — it only lands in the Console input (goal.md §2.2). */
 const RECLAIM_COMMAND = 'wsl.exe --shutdown'
@@ -28,8 +30,32 @@ export default function ResourceCard({
   memoryDetail = null
 }: ResourceCardProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
-  const { prepareCommand, pushToast } = useApp()
+  const { snapshot, prepareCommand, pushToast } = useApp()
   const locale = i18n.language as LocaleCode
+
+  // A single value cannot answer "is this climbing?". The history lives in
+  // renderer memory for this session only — nothing is written anywhere.
+  const history = useMetricHistory({
+    distro: snapshot?.selectedDistro ?? null,
+    at: snapshot?.generatedAt ?? null,
+    cpuPercent: resources.cpuPercent,
+    memUsedBytes: resources.memUsedBytes
+  })
+
+  // Measured, never assumed: the poll interval is a setting and can be paused.
+  // A window shorter than one default tick would only round to "0 min".
+  const spanMinutes = ((): number | null => {
+    if (history.length < 2) return null
+    const from = Date.parse(history[0].at)
+    const to = Date.parse(history[history.length - 1].at)
+    if (Number.isNaN(from) || Number.isNaN(to) || to - from < 3000) return null
+    return (to - from) / 60000
+  })()
+
+  const trendLabel = (windowKey: string, nameKey: string): string =>
+    spanMinutes === null
+      ? t(nameKey)
+      : t(windowKey, { minutes: formatNumber(locale, spanMinutes, spanMinutes < 10 ? 1 : 0) })
 
   const ofText = (used: number | null, total: number | null): string =>
     used === null || total === null
@@ -105,11 +131,21 @@ export default function ResourceCard({
       <div className="res-row">
         <span className="res-label">{t('dashboard.resources.cpu')}</span>
         <Bar percent={resources.cpuPercent} />
+        <Sparkline
+          values={history.map((sample) => sample.cpuPercent)}
+          label={trendLabel('dashboard.resources.trendCpu', 'dashboard.resources.cpu')}
+          format={(value) => formatPercent(locale, value)}
+        />
         <span className="res-value">{formatPercent(locale, resources.cpuPercent)}</span>
       </div>
       <div className="res-row">
         <span className="res-label">{t('dashboard.resources.memory')}</span>
         <Bar percent={pctOf(resources.memUsedBytes, resources.memTotalBytes)} />
+        <Sparkline
+          values={history.map((sample) => sample.memUsedBytes)}
+          label={trendLabel('dashboard.resources.trendMemory', 'dashboard.resources.memory')}
+          format={(value) => formatBytes(locale, value)}
+        />
         <span className="res-value">{ofText(resources.memUsedBytes, resources.memTotalBytes)}</span>
       </div>
       <div className="res-row">
@@ -119,6 +155,12 @@ export default function ResourceCard({
           {ofText(resources.swapUsedBytes, resources.swapTotalBytes)}
         </span>
       </div>
+      {spanMinutes === null ? null : (
+        <div className="res-row dim">
+          <span className="res-label">{t('dashboard.resources.trend')}</span>
+          <span>{t('dashboard.resources.trendHint')}</span>
+        </div>
+      )}
       {memoryDetail ? (
         <>
           {/* Read top to bottom: host RAM → VM ceiling → what Windows keeps →

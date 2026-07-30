@@ -23,7 +23,7 @@ const api: WslPadApi = {
   refresh: (tier) => ipcRenderer.invoke(IpcChannels.snapshotRefresh, tier),
   setMonitoringPaused: (paused) => ipcRenderer.invoke(IpcChannels.monitoringSetPaused, paused),
   revealEnv: (name) => ipcRenderer.invoke(IpcChannels.envReveal, name),
-  copyLlmMarkdown: () => ipcRenderer.invoke(IpcChannels.llmCopyMarkdown),
+  copyLlmMarkdown: (preset) => ipcRenderer.invoke(IpcChannels.llmCopyMarkdown, preset),
   exportLlmJson: () => ipcRenderer.invoke(IpcChannels.llmExportJson),
 
   explorer: {
@@ -43,6 +43,7 @@ const api: WslPadApi = {
     exportToWindows: (paths, windowsDir) =>
       ipcRenderer.invoke(IpcChannels.explorerExport, paths, windowsDir),
     cancelOp: (opId) => ipcRenderer.invoke(IpcChannels.explorerCancelOp, opId),
+    dirSizes: (path, token) => ipcRenderer.invoke(IpcChannels.explorerDirSizes, path, token),
     search: (path, query) => ipcRenderer.invoke(IpcChannels.explorerSearch, path, query),
     pickImportPaths: () => ipcRenderer.invoke(IpcChannels.explorerPickImport),
     pickExportDir: () => ipcRenderer.invoke(IpcChannels.explorerPickExport),

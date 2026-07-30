@@ -11,7 +11,9 @@ function clamp(value: number, min: number, max: number): number {
 /**
  * Tiered polling driver (goal.md §9.3): one interval per tier, immediate
  * first run on start/resume, and a full stop while monitoring is paused.
- * Overlap protection lives in the store's per-tier in-flight guards.
+ * Overlap protection lives in the store's per-tier in-flight guards, and so
+ * does the backoff for an unresponsive distro (issue #37) — the timers stay
+ * dumb on purpose, since the store is the only place that knows what answered.
  */
 export class PollingScheduler {
   private timers = new Map<Tier, ReturnType<typeof setInterval>>()

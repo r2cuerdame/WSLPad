@@ -1,6 +1,6 @@
 import { IMPORTANT_PATH_SPECS, RUNNER_TIMEOUT_MS } from '@shared/constants'
 import type { ImportantPathInfo } from '@shared/types'
-import { WslNotAvailableError, type DistroRunner } from './contracts'
+import { classifyPathSide, WslNotAvailableError, type DistroRunner } from './contracts'
 import { assertValidDistroName, shellQuote } from './escape'
 
 /** UNC view of an absolute Linux path inside a distro (goal.md §13). */
@@ -76,7 +76,8 @@ export function parseImportantPaths(text: string, distro: string): ImportantPath
       linuxPath,
       windowsPath: linuxPathToUnc(distro, linuxPath),
       exists: type !== 'x',
-      isDirectory: type === 'd' ? true : type === 'f' ? false : null
+      isDirectory: type === 'd' ? true : type === 'f' ? false : null,
+      side: classifyPathSide(linuxPath)
     })
   }
   return out

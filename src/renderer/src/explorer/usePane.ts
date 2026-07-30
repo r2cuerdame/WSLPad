@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { FileEntry, FsKind } from '@shared/types'
+import type { DirSizeResult, FileEntry, FsKind } from '@shared/types'
 import { fileNameSchema } from '@shared/schemas'
 import { useApp } from '../store'
 import type { FsAdapter } from './fsAdapter'
@@ -128,6 +128,22 @@ export function extractWindowsPaths(files: FileList): string[] {
   return out
 }
 
+/**
+ * The directory-size panel's state. 'closed' is not the same as an empty
+ * result: a measured directory that really is empty still shows its answer.
+ */
+export interface DirSizeState {
+  status: 'closed' | 'running' | 'ready' | 'error'
+  /** Directory the panel is about; null while it has never been opened. */
+  path: string | null
+  result: DirSizeResult | null
+  error: string | null
+}
+
+const CLOSED_DIR_SIZES: DirSizeState = { status: 'closed', path: null, result: null, error: null }
+
+let dirSizeToken = 0
+
 export interface UsePaneOptions {
   /** Re-initializes the pane when it changes (distro switch). */
   resetKey: string
@@ -155,6 +171,12 @@ export interface PaneApi {
   searchQuery: string
   searchResults: FileEntry[] | null
   refreshToken: number
+  /** Directory sizes are computed on demand only — never as part of a listing. */
+  dirSizes: DirSizeState
+  canMeasure: boolean
+  measureDirSizes: () => Promise<void>
+  cancelDirSizes: () => void
+  closeDirSizes: () => void
   navigate: (path: string) => Promise<void>
   goBack: () => Promise<void>
   goForward: () => Promise<void>
@@ -195,6 +217,12 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<FileEntry[] | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [dirSizes, setDirSizes] = useState<DirSizeState>(CLOSED_DIR_SIZES)
+
+  // Measured sizes survive re-opening the panel until the directory is
+  // refreshed: a second look at the same folder must not pay for du twice.
+  const dirSizeCache = useRef(new Map<string, DirSizeResult>())
+  const activeDirSizeToken = useRef<string | null>(null)
 
   const pathRef = useRef<string | null>(null)
   const showHiddenRef = useRef(opts.showHiddenDefault)
@@ -234,6 +262,10 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
         setSearchQuery('')
         setSearchResults(null)
         setSelection(new Set())
+        // The panel is about one directory; a new one starts closed rather
+        // than showing the previous folder's numbers under a new heading.
+        activeDirSizeToken.current = null
+        setDirSizes(CLOSED_DIR_SIZES)
         optsRef.current.onPathChange?.(normalized)
       } catch {
         pushToast('error', t('errors.notFound', { path: normalized }))
@@ -244,9 +276,61 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     [pushToast, t]
   )
 
+  const closeDirSizes = useCallback((): void => {
+    activeDirSizeToken.current = null
+    setDirSizes(CLOSED_DIR_SIZES)
+  }, [])
+
+  /** Cancelling stops waiting immediately; the main process drops the result. */
+  const cancelDirSizes = useCallback((): void => {
+    const token = activeDirSizeToken.current
+    if (token !== null) void adapterRef.current.cancelDirSizes?.(token).catch(() => undefined)
+    closeDirSizes()
+  }, [closeDirSizes])
+
+  const measureDirSizes = useCallback(async (): Promise<void> => {
+    const fs = adapterRef.current
+    const current = pathRef.current
+    if (!fs.dirSizes || current === null) return
+    const cached = dirSizeCache.current.get(current)
+    if (cached) {
+      activeDirSizeToken.current = null
+      setDirSizes({ status: 'ready', path: current, result: cached, error: null })
+      return
+    }
+    const token = `dirsize-${++dirSizeToken}`
+    activeDirSizeToken.current = token
+    setDirSizes({ status: 'running', path: current, result: null, error: null })
+    try {
+      const result = await fs.dirSizes(current, token)
+      // A newer request, a cancel or a navigation already replaced this run.
+      if (activeDirSizeToken.current !== token) return
+      activeDirSizeToken.current = null
+      if (result.cancelled) {
+        setDirSizes(CLOSED_DIR_SIZES)
+        return
+      }
+      if (result.error === null) dirSizeCache.current.set(current, result)
+      setDirSizes({ status: 'ready', path: current, result, error: null })
+    } catch (err) {
+      if (activeDirSizeToken.current !== token) return
+      activeDirSizeToken.current = null
+      setDirSizes({
+        status: 'error',
+        path: current,
+        result: null,
+        error: parseExplorerError(err).message
+      })
+    }
+  }, [])
+
   const refreshDir = useCallback(async (): Promise<void> => {
     const current = pathRef.current
     if (!current) return
+    // The listing is about to change, so the measured sizes stop being an
+    // answer about it — drop them rather than leave stale numbers on screen.
+    dirSizeCache.current.delete(current)
+    closeDirSizes()
     setRefreshToken((n) => n + 1)
     setLoading(true)
     try {
@@ -258,7 +342,7 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [closeDirSizes])
 
   const goBack = useCallback(async (): Promise<void> => {
     if (backStack.length === 0) return
@@ -468,6 +552,10 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     setForwardStack([])
     setClipboard(null)
     setSelection(new Set())
+    // Sizes measured in another distro say nothing about this one.
+    dirSizeCache.current.clear()
+    activeDirSizeToken.current = null
+    setDirSizes(CLOSED_DIR_SIZES)
     pathRef.current = null
     setPath(null)
     void navigate(startPath, { replace: true }).then(() => {
@@ -507,6 +595,11 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     searchQuery,
     searchResults,
     refreshToken,
+    dirSizes,
+    canMeasure: adapter.dirSizes !== undefined,
+    measureDirSizes,
+    cancelDirSizes,
+    closeDirSizes,
     navigate,
     goBack,
     goForward,

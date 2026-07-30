@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   ActivityIcon,
   BoltIcon,
+  ExternalIcon,
   FileIcon,
   FolderIcon,
   GaugeIcon,
@@ -22,6 +23,7 @@ export type DashboardSectionId =
   | 'resources'
   | 'disk'
   | 'wslconfig'
+  | 'network'
   | 'paths'
   | 'configuration'
   | 'tools'
@@ -44,6 +46,9 @@ export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   { id: 'resources', titleKey: 'dashboard.resources.title', Icon: GaugeIcon },
   { id: 'disk', titleKey: 'dashboard.disk.title', Icon: FileIcon },
   { id: 'wslconfig', titleKey: 'dashboard.wslconfig.title', Icon: GearIcon },
+  // Traffic leaving the machine: the arrow icon, not the plug the Ports
+  // section already owns, so the two are never confused in the list.
+  { id: 'network', titleKey: 'dashboard.network.title', Icon: ExternalIcon },
   { id: 'paths', titleKey: 'dashboard.paths.title', Icon: FolderIcon },
   { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },

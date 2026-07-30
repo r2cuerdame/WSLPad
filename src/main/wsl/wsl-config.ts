@@ -10,7 +10,12 @@
  */
 import { readFile, stat } from 'fs/promises'
 import { RUNNER_SLOW_TIMEOUT_MS, RUNNER_TIMEOUT_MS } from '@shared/constants'
-import type { SettingVerdict, WslConfigInfo, WslSettingInfo } from '@shared/types'
+import type {
+  SettingProvenance,
+  SettingVerdict,
+  WslConfigInfo,
+  WslSettingInfo
+} from '@shared/types'
 import { WslNotAvailableError, type DistroRunner } from './contracts'
 import { assertValidDistroName } from './escape'
 import { SECTION_MARKER, splitSections } from './system'
@@ -373,6 +378,8 @@ export interface MountEntry {
   source: string
   point: string
   type: string
+  /** Mount options verbatim; DrvFs only names itself here on current WSL 2. */
+  options: string
 }
 
 /** /proc/mounts rows, with the octal escaping the kernel applies undone. */
@@ -385,9 +392,32 @@ export function parseMounts(text: string): MountEntry[] {
       String.fromCharCode(Number.parseInt(oct, 8))
     )
     if (!point.startsWith('/')) continue
-    out.push({ source: fields[0], point, type: fields[2] })
+    out.push({ source: fields[0], point, type: fields[2], options: fields[3] ?? '' })
   }
   return out
+}
+
+/**
+ * Is this row a Windows filesystem? The layout changed twice: WSL 1 writes the
+ * drive letter as the source with type drvfs, older WSL 2 writes `drvfs` as the
+ * source over 9p, and current WSL 2 writes `C:\` as the source with drvfs
+ * naming itself only in the aname= option. Matching one shape alone reports a
+ * machine with mounted drives as having none.
+ */
+export function isDrvFsMount(entry: MountEntry): boolean {
+  return (
+    entry.source === 'drvfs' || entry.type === 'drvfs' || entry.options.includes('aname=drvfs')
+  )
+}
+
+/**
+ * Automount puts each drive in one single-letter directory under its root, so
+ * that is what answers "are the drives mounted, and where?". Other DrvFs mounts
+ * — Docker Desktop binds a Windows folder at /Docker/host — are Windows
+ * filesystems but say nothing about [automount].
+ */
+function driveMounts(points: readonly string[]): string[] {
+  return points.filter((p) => /\/[A-Za-z]$/.test(p))
 }
 
 export interface WslObservations {
@@ -485,9 +515,7 @@ export function parseObservations(text: string): WslObservations {
   const mountText = s[9] ?? ''
   if (mountText.trim() !== '') {
     const mounts = parseMounts(mountText)
-    obs.drvfsRoots = mounts
-      .filter((m) => m.source === 'drvfs' || m.type === 'drvfs')
-      .map((m) => m.point)
+    obs.drvfsRoots = mounts.filter(isDrvFsMount).map((m) => m.point)
     obs.wslgMounted = mounts.some(
       (m) => m.point === '/mnt/wslg' || m.point.startsWith('/mnt/wslg/')
     )
@@ -637,18 +665,19 @@ export function observeEffective(
         evidence: `PID 1 is ${obs.pid1Comm}.${state}`
       }
     }
-    case 'automount.enabled':
-      return obs.drvfsRoots === null
-        ? NONE
-        : {
-            value: obs.drvfsRoots.length > 0 ? 'true' : 'false',
-            evidence:
-              obs.drvfsRoots.length > 0
-                ? `Windows drives are mounted at ${obs.drvfsRoots.join(', ')}.`
-                : 'No DrvFs mount is present in /proc/mounts.'
-          }
+    case 'automount.enabled': {
+      if (obs.drvfsRoots === null) return NONE
+      const drives = driveMounts(obs.drvfsRoots)
+      return {
+        value: drives.length > 0 ? 'true' : 'false',
+        evidence:
+          drives.length > 0
+            ? `Windows drives are mounted at ${drives.join(', ')}.`
+            : 'No Windows drive is mounted in /proc/mounts.'
+      }
+    }
     case 'automount.root': {
-      const root = obs.drvfsRoots === null ? null : observedAutomountRoot(obs.drvfsRoots)
+      const root = obs.drvfsRoots === null ? null : observedAutomountRoot(driveMounts(obs.drvfsRoots))
       return root === null
         ? NONE
         : { value: root, evidence: 'Derived from the DrvFs mount points in /proc/mounts.' }
@@ -795,7 +824,12 @@ function declaredSetting(
     section: entry.section,
     scope: ctx.scope,
     declaredValue: entry.value,
-    origin
+    origin,
+    // Provenance answers "did you choose this?", the verdict answers "did it
+    // take effect?" — two separate questions. A key sitting in the wrong
+    // section or spelled wrong is still the user's line in the user's file, and
+    // hiding that behind 'unknown' would make their own typo look like WSL's.
+    provenance: 'user'
   } as const
   const duplicateNote =
     duplicates > 1
@@ -924,6 +958,23 @@ function declaredSetting(
   }
 }
 
+/**
+ * Nothing declares the key, so who decided the value?
+ *
+ * A catalog entry with no documented default is one WSL derives from the
+ * machine — memory from half the host RAM, processors from the host count,
+ * hostname from the Windows host name — so an observed value there is
+ * 'computed'. Where a default IS documented and the system exhibits it, the
+ * honest answer is 'wsl-default'. An observed value that is neither declared
+ * nor the documented default was set by something WSLPad cannot see, and
+ * 'unknown' says so rather than crediting WSL for it.
+ */
+function defaultProvenance(known: KnownKey, observed: string | null): SettingProvenance {
+  if (observed === null) return known.defaultValue === null ? 'unknown' : 'wsl-default'
+  if (known.defaultValue === null) return 'computed'
+  return valuesMatch(known.key, known.defaultValue, observed) ? 'wsl-default' : 'unknown'
+}
+
 function defaultSetting(known: KnownKey, obs: WslObservations): WslSettingInfo {
   const effective = observeEffective(known.section, known.key, obs)
   const observed = effective.value
@@ -934,6 +985,7 @@ function defaultSetting(known: KnownKey, obs: WslObservations): WslSettingInfo {
     declaredValue: null,
     effectiveValue: observed ?? known.defaultValue,
     origin: observed !== null ? 'computed' : 'default',
+    provenance: defaultProvenance(known, observed),
     verdict: 'not-set',
     note: join(known.note ?? null, observed !== null ? effective.evidence : null)
   }

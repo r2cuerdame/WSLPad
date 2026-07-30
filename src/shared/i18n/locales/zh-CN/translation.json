@@ -90,7 +90,20 @@
       "uptime": "运行时间",
       "systemd": "Systemd",
       "ip": "IP",
-      "uncPath": "Windows 路径"
+      "uncPath": "Windows 路径",
+      "clock": "时钟",
+      "clockWindows": "Windows 时间",
+      "clockDistro": "发行版时间",
+      "clockSkew": "差值",
+      "clockInSync": "与 Windows 一致",
+      "clockBehind": "比 Windows 慢 {{seconds}} 秒",
+      "clockAhead": "比 Windows 快 {{seconds}} 秒",
+      "clockUnknown": "两个时钟中只读到了一个",
+      "clockHint": "时钟一旦跑偏，TLS 证书和软件包签名会先失败，而且没有任何提示告诉你原因。",
+      "clockApprox": "两个时钟是先后读到的，所以这个差值只是近似值。",
+      "clockFix": "把时钟重新对上",
+      "clockPrepare": "准备 {{command}}",
+      "clockPrepareHint": "命令只会放进控制台，按 Enter 之前不会执行任何东西。"
     },
     "resources": {
       "title": "资源",
@@ -123,7 +136,16 @@
       "cacheStorySome": "Windows 为这台虚拟机保留的 {{held}} 中有 {{cache}}（{{percent}}）是 Linux 页缓存，程序需要内存时 Linux 会回收它。",
       "reclaim": "把内存收回来",
       "prepareShutdown": "准备 {{command}}",
-      "reclaimHint": "在 WSL 虚拟机停止之前，Windows 会一直占着这部分内存。命令只会放进控制台，按 Enter 之前不会执行任何东西。"
+      "reclaimHint": "在 WSL 虚拟机停止之前，Windows 会一直占着这部分内存。命令只会放进控制台，按 Enter 之前不会执行任何东西。",
+      "trend": "趋势",
+      "trendCpu": "CPU，最近 {{minutes}} 分钟",
+      "trendMemory": "内存，最近 {{minutes}} 分钟",
+      "trendEmpty": "采样还不够",
+      "trendGap": "没有采样 — 发行版没有响应",
+      "trendRising": "{{label}}：上升 — 当前 {{current}}，介于 {{low}} 和 {{high}} 之间",
+      "trendSteady": "{{label}}：平稳 — 当前 {{current}}，介于 {{low}} 和 {{high}} 之间",
+      "trendFalling": "{{label}}：下降 — 当前 {{current}}，介于 {{low}} 和 {{high}} 之间",
+      "trendHint": "仅在本次会话中保存在内存里，不会写入磁盘。"
     },
     "disk": {
       "title": "磁盘映像",
@@ -178,6 +200,13 @@
         "default": "WSL 默认值",
         "computed": "推算值"
       },
+      "provenanceLabel": "由谁设定",
+      "provenance": {
+        "user": "你的文件",
+        "wsl-default": "WSL 默认值",
+        "computed": "WSL 推算",
+        "unknown": "无法归因"
+      },
       "verdict": {
         "applied": "已生效",
         "pending-restart": "需要重启",
@@ -192,13 +221,52 @@
       "noneConfigured": "这个文件里没有配置任何内容",
       "unavailable": "没有此发行版的 WSL 设置信息"
     },
+    "network": {
+      "title": "网络",
+      "firewall": "Windows 防火墙",
+      "firewallUnknown": "无法读取 Windows 防火墙的状态。",
+      "hyperVLayer": "发往这个发行版的流量还要经过一层 Hyper-V 防火墙，而“Windows Defender 防火墙”窗口里从来看不到它。WSLPad 只是读取它。",
+      "state": "防火墙",
+      "defaultInbound": "入站默认策略",
+      "defaultOutbound": "出站默认策略",
+      "loopback": "WSL 回环例外",
+      "rules": "提到 WSL 的规则",
+      "inboundBlocked": "入站流量默认被阻止，因此除非有规则放行，网络上的任何东西都到不了这个发行版。",
+      "allowInboundLabel": "让虚拟机接受入站流量",
+      "elevatedOnly": "这一条需要管理员权限的 PowerShell，所以 WSLPad 无法替你放进控制台，也绝不会执行它。请复制下来看清楚再自己运行 — 它放行的是整台虚拟机的入站流量，而不只是某一个端口。",
+      "dns": "名称解析",
+      "dnsUnknown": "无法读取解析器配置。",
+      "resolvConf": "解析器文件",
+      "generatedSymlink": "由 WSL 生成",
+      "generateResolvConf": "generateResolvConf",
+      "dnsTunneling": "DNS 隧道",
+      "nameservers": "正在使用的名称服务器",
+      "windowsDns": "Windows 适配器 DNS",
+      "dnsMismatch": "{{path}} 里的服务器并不是 Windows 下发的那些。关掉 generateResolvConf 之后 WSL 就不再维护这个文件，所以它仍然记着写入时所在的那个网络。",
+      "dnsVerdictNoNameservers": "{{path}} 里没有列出任何 nameserver，因此每次查询都会以 temporary failure in name resolution 失败。",
+      "dnsVerdictWillOverwrite": "generateResolvConf 还开着，而 {{path}} 是手工写的，所以这个发行版下次启动时 WSL 会把它覆盖掉。",
+      "dnsVerdictStale": "generateResolvConf 已关闭，WSL 不再维护 {{path}}：即使网络变了，里面写的服务器也不会变。",
+      "dnsVerdictTunneling": "DNS 隧道已开启，查询由 Windows 的解析器回答，不会发到这里列出的服务器。",
+      "portsHint": "同样的规则也决定每个监听端口能传多远。",
+      "seePorts": "查看端口",
+      "unavailable": "没有此发行版的网络信息"
+    },
     "paths": {
       "title": "重要路径",
       "copyLinux": "复制 Linux 路径",
       "copyWindows": "复制 Windows 路径",
       "openInExplorer": "在资源管理器中打开",
       "setConsolePath": "设为控制台路径",
-      "missing": "不存在"
+      "missing": "不存在",
+      "sideLabel": "文件系统",
+      "side": {
+        "ext4": "Linux 磁盘",
+        "windows-mount": "Windows 驱动器",
+        "unc": "Windows 共享",
+        "unknown": "未知"
+      },
+      "sideHintWindowsMount": "要经过 /mnt 才能访问，因此每一次文件操作都要跨过 Windows 文件系统的边界，比 Linux 磁盘慢得多。",
+      "sideHintUnc": "从 Windows 经 \\\\wsl.localhost 访问，比在发行版内部打开同一个路径要慢。"
     },
     "config": {
       "title": "配置",
@@ -221,6 +289,15 @@
       "showInstalled": "仅显示已安装",
       "filterPlaceholder": "筛选工具",
       "installedOfTotal": "已安装 {{installed}} 个，共 {{total}} 个",
+      "shadowed": "Windows 可执行文件",
+      "shadowedHint": "在 PATH 上胜出的命令是经过 /mnt 访问的 Windows 版本，而不是装在这个发行版里的那个。",
+      "shadowedFilter": "仅 Windows 可执行文件",
+      "shadowedNotice": "其中 {{count}} 个命令运行的是经由驱动器挂载点访问的 Windows 可执行文件，而不是装在这个发行版里的版本。",
+      "shadowedRemedy": "要改变这一点，请自己在 /etc/wsl.conf 的 [interop] 下写上 appendWindowsPath = false，然后重启 WSL。WSLPad 从不写这个文件。",
+      "appendOn": "WSL 把 Windows 的 PATH 追加给了这个发行版，因此它自己没有的命令都会解析到 Windows 可执行文件。",
+      "appendOff": "WSL 没有把 Windows 的 PATH 追加给这个发行版，因此没有命令会解析到 Windows 可执行文件。",
+      "appendUnknown": "WSLPad 无法读出这个发行版是否追加了 Windows 的 PATH。",
+      "sideLabel": "运行自",
       "categoryLabel": "类别",
       "category": {
         "ai": "AI",
@@ -390,7 +467,17 @@
       "reachableFromWindows": "可从 Windows 访问",
       "notReachable": "无法从 Windows 访问",
       "windowsUnknown": "无法获取 Windows 端口列表",
-      "showWindowsOnly": "包含仅 Windows 的端口"
+      "showWindowsOnly": "包含仅 Windows 的端口",
+      "reachabilityLabel": "可达范围",
+      "reachability": {
+        "lan": "整个网络",
+        "windows-only": "仅本机",
+        "loopback-only": "仅 WSL 内部",
+        "unreachable": "哪里都到不了",
+        "unknown": "未知"
+      },
+      "reachabilityUnknownHint": "无法读取 Windows 端口列表或防火墙，因此不清楚这个端口能传多远。",
+      "reachabilityWindowsRow": "这是 Windows 侧的监听端口：WSL 的可达性规则对它不适用。"
     },
     "warnings": {
       "title": "警告",
@@ -418,8 +505,21 @@
       "registered": "已注册到 {{client}}",
       "registerFailed": "无法更新 {{client}} 的配置"
     },
+    "copy": {
+      "section": "复制此板块",
+      "diagnosis": "复制这段说明",
+      "copied": "已复制到剪贴板",
+      "hint": "把这个板块显示的内容以纯文本复制，敏感值会被遮蔽。"
+    },
     "copyForLlm": "复制给 LLM",
     "copiedForLlm": "已复制环境摘要",
+    "llmPreset": {
+      "full": "完整环境摘要",
+      "bugReport": "WSL 缺陷报告（GitHub issue）",
+      "agentContext": "智能体上下文（CLAUDE.md / AGENTS.md）",
+      "copiedBugReport": "已复制缺陷报告 — 发布前请补上复现步骤",
+      "copiedAgentContext": "已复制智能体上下文"
+    },
     "exportJson": "导出 JSON",
     "exportedJson": "快照已导出到 {{path}}",
     "nav": {
@@ -517,6 +617,16 @@
       "modified": "修改时间",
       "accessed": "访问时间",
       "linkTarget": "链接目标"
+    },
+    "dirSizes": {
+      "action": "统计目录大小",
+      "title": "目录大小",
+      "running": "正在统计这个文件夹 — 可能需要几秒…",
+      "failed": "无法统计这个文件夹",
+      "unmeasured": "未统计",
+      "partial": "至少这么大 — 有一部分读不到",
+      "total": "共 {{size}}",
+      "skipped": "另有 {{count}} 个项目未统计"
     },
     "invalidName": "名称无效",
     "dropUseImport": "不支持从 Windows 直接拖放 — 请使用“从 Windows 导入…”",
@@ -666,11 +776,13 @@
     "homeInaccessible": "无法访问主目录",
     "diskLow": "{{mount}} 磁盘空间不足：已使用 {{percent}}%",
     "pathMissing": "PATH 中的条目不存在：{{path}}",
+    "crossBoundaryPaths": "有 {{count}} 个项目位于 Windows 文件系统上，WSL 在那里访问文件比在 Linux 磁盘上慢得多：{{items}}",
     "hermesNoConfig": "找到 Hermes 可执行文件，但缺少 ~/.hermes",
     "hermesNoExec": "找到 Hermes 数据，但缺少可执行文件",
     "serviceFailed": "服务 {{service}} 处于 failed 状态",
     "portConflict": "端口 {{port}} 可能存在冲突",
     "clockSkew": "WSL 时钟与 Windows 相差 {{seconds}} 秒",
+    "distroUnresponsive": "发行版 {{distro}} 没有响应；在它回应之前暂停实时数据",
     "runnerFailed": "后台查询失败：{{command}}",
     "mcpStartFailed": "MCP 服务器启动失败：{{error}}"
   },

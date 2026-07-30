@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import type { ToolInfo } from '@shared/types'
+import type { ToolInfo, WslConfigInfo, WslSettingInfo } from '@shared/types'
 import { i18n, initRendererI18n } from '@renderer/i18n'
-import ToolsCard from '@renderer/dashboard/ToolsCard'
+import ToolsCard, { effectiveAppendWindowsPath } from '@renderer/dashboard/ToolsCard'
 
 function tool(id: string, displayName: string, over: Partial<ToolInfo> = {}): ToolInfo {
   return {
@@ -15,6 +15,8 @@ function tool(id: string, displayName: string, over: Partial<ToolInfo> = {}): To
     configPaths: [],
     runningProcesses: 0,
     services: [],
+    side: 'ext4',
+    shadowedByWindows: false,
     ...over
   }
 }
@@ -29,15 +31,61 @@ const TOOLS: ToolInfo[] = [
     installed: false,
     executablePath: null,
     version: null,
-    installMethod: null
+    installMethod: null,
+    side: 'unknown'
   }),
   tool('psql', 'PostgreSQL client', {
     installed: false,
     executablePath: null,
     version: null,
-    installMethod: null
+    installMethod: null,
+    side: 'unknown'
   })
 ]
+
+/** The machine this card was written for: four commands come from Windows. */
+const SHADOWED: ToolInfo[] = [
+  tool('node', 'Node.js'),
+  tool('npm', 'npm', {
+    executablePath: '/mnt/c/Program Files/nodejs/npm',
+    version: null,
+    installMethod: 'windows-interop',
+    side: 'windows-mount',
+    shadowedByWindows: true
+  }),
+  tool('claude', 'Claude', {
+    executablePath: '/mnt/c/Users/dev/AppData/Roaming/npm/claude',
+    version: null,
+    installMethod: 'windows-interop',
+    side: 'windows-mount',
+    shadowedByWindows: true
+  })
+]
+
+function settingsWith(appendWindowsPath: string | null): WslConfigInfo {
+  const row: WslSettingInfo = {
+    key: 'appendWindowsPath',
+    section: 'interop',
+    scope: 'linux',
+    declaredValue: null,
+    effectiveValue: appendWindowsPath,
+    origin: 'computed',
+    provenance: 'wsl-default',
+    verdict: 'not-set',
+    note: null
+  }
+  return {
+    wslconfigPath: null,
+    wslconfigExists: false,
+    wslConfPath: '/etc/wsl.conf',
+    wslConfExists: true,
+    restartPending: false,
+    vmStartedAt: null,
+    networkingModeDeclared: null,
+    networkingModeEffective: null,
+    settings: [row]
+  }
+}
 
 beforeAll(async () => {
   initRendererI18n('en')
@@ -90,10 +138,23 @@ describe('ToolsCard grouping', () => {
 
     const row = rowFor('Node.js')
     const cells = Array.from(row.querySelectorAll('td')).map((td) => td.textContent)
-    expect(cells).toEqual(['Node.js', '1.0.0', '/usr/bin/node', 'apt', '3'])
+    expect(cells).toEqual(['Node.js', '1.0.0', '/usr/bin/node', 'Linux disk', 'apt', '3'])
     const pathCell = row.querySelectorAll('td')[2]
     expect(pathCell.className).toContain('truncate')
     expect(pathCell.getAttribute('title')).toBe('/usr/bin/node')
+  })
+
+  it('reports a side of unknown as unknown, not as the Linux disk', () => {
+    render(<ToolsCard tools={TOOLS} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }))
+    expect(Array.from(rowFor('Bun').querySelectorAll('td')).map((td) => td.textContent)).toEqual([
+      'Bun',
+      '—',
+      '—',
+      'Unknown',
+      '—',
+      '—'
+    ])
   })
 })
 
@@ -149,5 +210,78 @@ describe('ToolsCard empty state', () => {
     render(<ToolsCard tools={[]} />)
     expect(screen.getByText('None')).toBeTruthy()
     expect(screen.getByText('0 of 0 installed')).toBeTruthy()
+  })
+})
+
+describe('effectiveAppendWindowsPath', () => {
+  it('reads the value the running distribution exhibits', () => {
+    expect(effectiveAppendWindowsPath(settingsWith('true'))).toBe(true)
+    expect(effectiveAppendWindowsPath(settingsWith('false'))).toBe(false)
+  })
+
+  it('stays unknown rather than assuming, for every unreadable shape', () => {
+    expect(effectiveAppendWindowsPath(null)).toBeNull()
+    expect(effectiveAppendWindowsPath(settingsWith(null))).toBeNull()
+    expect(effectiveAppendWindowsPath(settingsWith('sometimes'))).toBeNull()
+    expect(effectiveAppendWindowsPath({ ...settingsWith(null), settings: [] })).toBeNull()
+  })
+})
+
+describe('ToolsCard shadowed binaries', () => {
+  it('marks the row with a word, not only a colour', () => {
+    render(<ToolsCard tools={SHADOWED} appendWindowsPath={true} />)
+
+    const sideCell = (name: string): HTMLElement => rowFor(name).querySelectorAll('td')[3]
+    expect(sideCell('npm').textContent).toBe('Windows binary')
+    expect(sideCell('npm').querySelector('.badge')?.getAttribute('title')).toContain('/mnt')
+    expect(sideCell('Node.js').textContent).toBe('Linux disk')
+  })
+
+  it('names the cause beside the list instead of only the symptom', () => {
+    render(<ToolsCard tools={SHADOWED} appendWindowsPath={true} />)
+
+    expect(screen.getByRole('status').textContent).toContain('2')
+    expect(screen.getByText('interop.appendWindowsPath')).toBeTruthy()
+    const row = screen.getByText('interop.appendWindowsPath').closest('.kv-row') as HTMLElement
+    expect(row.textContent).toContain('true')
+    expect(row.textContent).toContain('appends the Windows PATH')
+  })
+
+  it('states the remedy as an edit the user makes, and offers no button', () => {
+    render(<ToolsCard tools={SHADOWED} appendWindowsPath={true} />)
+    const remedy = screen.getByText(/appendWindowsPath = false/)
+    expect(remedy.textContent).toContain('/etc/wsl.conf')
+    expect(remedy.textContent).toContain('never writes that file')
+    // Read-only by contract: nothing here writes or prepares anything.
+    expect(screen.queryByRole('button', { name: /wsl\.conf|write|fix|disable/i })).toBeNull()
+  })
+
+  it('says the value is unknown rather than guessing at it', () => {
+    render(<ToolsCard tools={SHADOWED} />)
+    const row = screen.getByText('interop.appendWindowsPath').closest('.kv-row') as HTMLElement
+    expect(row.textContent).toContain('Unknown')
+    expect(row.textContent).toContain('could not read')
+  })
+
+  it('filters down to just the Windows binaries and back', () => {
+    render(<ToolsCard tools={SHADOWED} appendWindowsPath={true} />)
+    expect(rowNames()).toEqual(['Claude', 'Node.js', 'npm'])
+
+    const only = screen.getByLabelText('Only Windows binaries')
+    fireEvent.click(only)
+    expect(rowNames()).toEqual(['Claude', 'npm'])
+
+    fireEvent.click(only)
+    expect(rowNames()).toEqual(['Claude', 'Node.js', 'npm'])
+  })
+
+  it('keeps the notice and the filter away when nothing is shadowed', () => {
+    render(<ToolsCard tools={TOOLS} appendWindowsPath={false} />)
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByLabelText('Only Windows binaries')).toBeNull()
+    expect(screen.queryByText(/appendWindowsPath = false/)).toBeNull()
+    // The cause is still stated: this is why no command falls through.
+    const row = screen.getByText('interop.appendWindowsPath').closest('.kv-row') as HTMLElement
+    expect(row.textContent).toContain('does not append the Windows PATH')
   })
 })

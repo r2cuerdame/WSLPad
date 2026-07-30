@@ -1,5 +1,6 @@
 import type {
   ConsoleStatus,
+  DirSizeResult,
   DistroSummary,
   FileEntry,
   FileOpProgress,
@@ -48,6 +49,7 @@ export const IpcChannels = {
   explorerImport: 'wslpad:explorer:import',
   explorerExport: 'wslpad:explorer:export',
   explorerCancelOp: 'wslpad:explorer:cancel-op',
+  explorerDirSizes: 'wslpad:explorer:dir-sizes',
   explorerSearch: 'wslpad:explorer:search',
   explorerPickImport: 'wslpad:explorer:pick-import',
   explorerPickExport: 'wslpad:explorer:pick-export',
@@ -123,6 +125,13 @@ export interface ExplorerListOptions {
   showHidden?: boolean
 }
 
+/**
+ * Which Copy-for-LLM document to produce. 'default' is the full environment
+ * summary; 'bug-report' answers microsoft/WSL's issue form field by field and
+ * 'agent-context' is the compact block that goes in CLAUDE.md / AGENTS.md.
+ */
+export type LlmPreset = 'default' | 'bug-report' | 'agent-context'
+
 export interface SettingsLoadError {
   corrupted: boolean
   message: string | null
@@ -139,7 +148,7 @@ export interface WslPadApi {
   refresh(tier: 'fast' | 'medium' | 'slow' | 'all'): Promise<void>
   setMonitoringPaused(paused: boolean): Promise<void>
   revealEnv(name: string): Promise<string | null>
-  copyLlmMarkdown(): Promise<string>
+  copyLlmMarkdown(preset?: LlmPreset): Promise<string>
   exportLlmJson(): Promise<string | null>
 
   explorer: {
@@ -160,6 +169,12 @@ export interface WslPadApi {
     /** returns opId */
     exportToWindows(paths: string[], windowsDir: string): Promise<string>
     cancelOp(opId: string): Promise<void>
+    /**
+     * Sizes of the current directory's immediate children (issue #31). The
+     * token is a caller-generated op id: pass it to cancelOp() to stop a run
+     * that is taking seconds on a large tree.
+     */
+    dirSizes(path: string, token: string): Promise<DirSizeResult>
     search(path: string, query: string): Promise<FileEntry[]>
     pickImportPaths(): Promise<string[]>
     pickExportDir(): Promise<string | null>

@@ -7,6 +7,7 @@ import {
   createWslConfigCollector,
   decodeConfigFile,
   emptyObservations,
+  isDrvFsMount,
   normalizeBool,
   observedAutomountRoot,
   parseIni,
@@ -53,11 +54,17 @@ function probeOutput(values: Partial<Record<ProbeName, string>>): string {
   return joinSections(...PROBE_ORDER.map((name) => values[name] ?? ''))
 }
 
+/**
+ * Captured from a current WSL 2 machine: the drive rows name the Windows path
+ * as the source over 9p and only say `drvfs` in the aname= option, and Docker
+ * Desktop binds a Windows folder that is DrvFs but is not an automount drive.
+ */
 const MOUNTS = [
   '/dev/sdd / ext4 rw,relatime,discard,errors=remount-ro,data=ordered 0 0',
   'none /mnt/wsl tmpfs rw,relatime 0 0',
-  'drvfs /mnt/c 9p rw,noatime,dirsync,aname=drvfs;path=C:\\ 0 0',
-  'drvfs /mnt/d 9p rw,noatime,dirsync,aname=drvfs;path=D:\\ 0 0',
+  'C:\\134 /mnt/c 9p rw,noatime,aname=drvfs;path=C:\\;uid=1000,cache=5 0 0',
+  'D:\\134 /mnt/d 9p rw,noatime,aname=drvfs;path=D:\\;uid=1000,cache=5 0 0',
+  'C:\\134Program\\040Files\\134Docker /Docker/host 9p rw,noatime,aname=drvfs;path=C:\\Prog 0 0',
   'none /mnt/wslg tmpfs rw,relatime 0 0'
 ].join('\n')
 
@@ -220,16 +227,36 @@ describe('compareVersions', () => {
 })
 
 describe('parseMounts', () => {
-  it('finds DrvFs mounts in both the WSL1 and WSL2 layouts', () => {
+  it('finds DrvFs mounts in every layout WSL has shipped', () => {
+    // WSL 1: the drive letter is the source and the type says drvfs.
     const wsl1 = 'C: /mnt/c drvfs rw,noatime 0 0'
-    expect(parseMounts(`${MOUNTS}\n${wsl1}`).filter((m) => m.type === 'drvfs')).toEqual([
-      { source: 'C:', point: '/mnt/c', type: 'drvfs' }
+    // Older WSL 2: `drvfs` is the source, the type is 9p.
+    const wsl2Old = 'drvfs /mnt/e 9p rw,noatime,dirsync,aname=drvfs;path=E:\\ 0 0'
+    const found = parseMounts(`${MOUNTS}\n${wsl1}\n${wsl2Old}`).filter(isDrvFsMount)
+    expect(found.map((m) => m.point)).toEqual([
+      '/mnt/c',
+      '/mnt/d',
+      '/Docker/host',
+      '/mnt/c',
+      '/mnt/e'
     ])
-    expect(parseMounts(MOUNTS).filter((m) => m.source === 'drvfs').length).toBe(2)
+    // A row with none of the three markers is not a Windows filesystem.
+    expect(parseMounts('/dev/sdd / ext4 rw,relatime 0 0').filter(isDrvFsMount)).toEqual([])
   })
 
   it('undoes the octal escaping the kernel applies to mount points', () => {
     expect(parseMounts('drvfs /mnt/my\\040drive 9p rw 0 0')[0].point).toBe('/mnt/my drive')
+  })
+
+  it('keeps the options, because current WSL says drvfs nowhere else', () => {
+    const row = parseMounts('C:\\134 /mnt/c 9p rw,noatime,aname=drvfs;path=C:\\ 0 0')[0]
+    expect(row).toEqual({
+      source: 'C:\\134',
+      point: '/mnt/c',
+      type: '9p',
+      options: 'rw,noatime,aname=drvfs;path=C:\\'
+    })
+    expect(isDrvFsMount(row)).toBe(true)
   })
 })
 
@@ -277,7 +304,9 @@ describe('parseObservations', () => {
     expect(obs.processors).toBe('12')
     expect(obs.memTotalBytes).toBe(16302996 * 1024)
     expect(obs.swapTotalBytes).toBe(4194304 * 1024)
-    expect(obs.drvfsRoots).toEqual(['/mnt/c', '/mnt/d'])
+    // Every Windows filesystem, drives and Docker's bind alike: the automount
+    // questions narrow it to the drives, the PATH question wants all of them.
+    expect(obs.drvfsRoots).toEqual(['/mnt/c', '/mnt/d', '/Docker/host'])
     expect(obs.wslgMounted).toBe(true)
     expect(obs.kvm).toBe(true)
     expect(obs.hostname).toBe('devbox')
@@ -535,6 +564,89 @@ describe('reconcileSettings verdicts', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// provenance: who chose the value, as opposed to whether it took effect
+// ---------------------------------------------------------------------------
+
+describe('reconcileSettings provenance', () => {
+  it('credits the user for every line a file declares, working or not', () => {
+    const { settings } = reconcileSettings(
+      baseInput({
+        wslconfigEntries: parseIni(
+          '[wsl2]\nprocessors=8\nmemroy=8GB\n[experimental]\nnetworkingMode=mirrored\n'
+        ),
+        wslConfEntries: parseIni('[boot]\nsystemd=true'),
+        observations: observations({ processors: '8', pid1Comm: 'init' })
+      })
+    )
+    // applied, unknown-key, wrong-section and unsupported alike: the user wrote
+    // the line, so the verdict column carries the bad news, not this one.
+    expect(pick(settings, 'wsl2', 'processors').provenance).toBe('user')
+    expect(pick(settings, 'wsl2', 'memroy').provenance).toBe('user')
+    expect(pick(settings, 'experimental', 'networkingMode').provenance).toBe('user')
+    expect(pick(settings, 'boot', 'systemd')).toMatchObject({
+      provenance: 'user',
+      verdict: 'unsupported'
+    })
+  })
+
+  it('calls a host-derived value computed, never a default it cannot cite', () => {
+    const { settings } = reconcileSettings(
+      baseInput({
+        observations: observations({
+          processors: '16',
+          memTotalBytes: 8 * 1024 ** 3,
+          hostname: 'devbox'
+        })
+      })
+    )
+    // No documented default exists for these: WSL derives them from the machine.
+    expect(pick(settings, 'wsl2', 'processors').provenance).toBe('computed')
+    expect(pick(settings, 'wsl2', 'memory').provenance).toBe('computed')
+    expect(pick(settings, 'network', 'hostname').provenance).toBe('computed')
+  })
+
+  it('calls an undeclared value the documented default when it is one', () => {
+    const { settings } = reconcileSettings(
+      baseInput({
+        observations: observations({ drvfsRoots: ['/mnt/c'], pid1Comm: 'init' })
+      })
+    )
+    // Observed and equal to the documented default: WSL's default is in force.
+    expect(pick(settings, 'automount', 'enabled')).toMatchObject({
+      effectiveValue: 'true',
+      provenance: 'wsl-default'
+    })
+    expect(pick(settings, 'boot', 'systemd')).toMatchObject({
+      effectiveValue: 'false',
+      provenance: 'wsl-default'
+    })
+    // Never observed, but the default is documented and citable.
+    expect(pick(settings, 'wsl2', 'localhostForwarding').provenance).toBe('wsl-default')
+  })
+
+  it('refuses to attribute a value that is neither declared nor the default', () => {
+    const { settings } = reconcileSettings(
+      baseInput({ observations: observations({ networkingMode: 'mirrored' }) })
+    )
+    // Nothing in either file asks for mirrored and nat is the documented
+    // default, so something WSLPad cannot see chose this.
+    expect(pick(settings, 'wsl2', 'networkingMode')).toMatchObject({
+      effectiveValue: 'mirrored',
+      provenance: 'unknown'
+    })
+  })
+
+  it('stays unknown for a key with no documented default and nothing observed', () => {
+    const { settings } = reconcileSettings(baseInput())
+    expect(pick(settings, 'wsl2', 'kernel')).toMatchObject({
+      effectiveValue: null,
+      provenance: 'unknown'
+    })
+    expect(pick(settings, 'wsl2', 'swap').provenance).toBe('unknown')
+  })
+})
+
 describe('reconcileSettings restart arithmetic', () => {
   it('is pending only when a file is clearly newer than the VM start', () => {
     expect(reconcileSettings(baseInput({ wslconfigMtimeMs: VM_START - 1 })).restartPending).toBe(
@@ -606,6 +718,28 @@ describe('reconcileSettings distro side', () => {
       })
     )
     expect(pick(ignored.settings, 'boot', 'systemd').verdict).toBe('unsupported')
+  })
+
+  it('reads automount off the drive mounts, ignoring other Windows binds', () => {
+    // /Docker/host is DrvFs but is nobody's automount root; including it would
+    // scatter the parents and lose an answer that is right there.
+    const { settings } = reconcileSettings(
+      baseInput({ observations: observations({ drvfsRoots: ['/mnt/c', '/mnt/d', '/Docker/host'] }) })
+    )
+    expect(pick(settings, 'automount', 'enabled').effectiveValue).toBe('true')
+    expect(pick(settings, 'automount', 'root')).toMatchObject({
+      effectiveValue: '/mnt/',
+      provenance: 'wsl-default'
+    })
+  })
+
+  it('says the drives are not mounted only when no drive is mounted', () => {
+    const { settings } = reconcileSettings(
+      baseInput({ observations: observations({ drvfsRoots: ['/Docker/host'] }) })
+    )
+    const row = pick(settings, 'automount', 'enabled')
+    expect(row.effectiveValue).toBe('false')
+    expect(row.note).toContain('No Windows drive is mounted')
   })
 
   it('checks automount and interop against the mounts and PATH really in use', () => {

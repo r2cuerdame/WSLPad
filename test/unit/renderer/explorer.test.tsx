@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WslPadApi } from '@shared/ipc'
-import type { FileEntry, WslPadSnapshot } from '@shared/types'
+import type { DirSizeResult, FileEntry, WslPadSnapshot } from '@shared/types'
 import { PANE_SPLIT_BOUNDS, PANE_SPLIT_DEFAULT, WINDOWS_ROOT } from '@shared/constants'
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
@@ -84,6 +84,9 @@ function makeSnapshot(): WslPadSnapshot {
       services: [],
       ports: [],
       windowsPorts: [],
+      firewall: null,
+      clock: null,
+      dns: null,
       warnings: []
     },
     explorer: { distro: 'Ubuntu-24.04', currentPath: LINUX_HOME, showHidden: false },
@@ -106,8 +109,34 @@ function makeSnapshot(): WslPadSnapshot {
 const linuxListing: FileEntry[] = [
   entry({ name: 'config.json', path: `${LINUX_HOME}/config.json` }),
   entry({ name: 'logs', path: `${LINUX_HOME}/logs`, type: 'directory', sizeBytes: null }),
-  entry({ name: 'a.txt', path: `${LINUX_HOME}/a.txt` })
+  entry({ name: 'a.txt', path: `${LINUX_HOME}/a.txt` }),
+  // A link that quietly leads onto the Windows drive: the case a badge on the
+  // link's own path would hide (issue #26).
+  entry({
+    name: 'winlink',
+    path: `${LINUX_HOME}/winlink`,
+    type: 'symlink',
+    symlinkTarget: '/mnt/c/Users/dev',
+    targetType: 'directory'
+  })
 ]
+
+const MNT_DIR = '/mnt/c/Users/dev'
+const mntListing: FileEntry[] = [
+  entry({ name: 'report.docx', path: `${MNT_DIR}/report.docx` }),
+  entry({ name: 'repos', path: `${MNT_DIR}/repos`, type: 'directory', sizeBytes: null })
+]
+
+const rootListing: FileEntry[] = [
+  entry({ name: 'etc', path: '/etc', type: 'directory', sizeBytes: null }),
+  entry({ name: 'mnt', path: '/mnt', type: 'directory', sizeBytes: null })
+]
+
+const linuxListings: Record<string, FileEntry[]> = {
+  [LINUX_HOME]: linuxListing,
+  [MNT_DIR]: mntListing,
+  '/': rootListing
+}
 
 const windowsListings: Record<string, FileEntry[]> = {
   [WINDOWS_ROOT]: [
@@ -135,7 +164,7 @@ function makeApi(snapshot: WslPadSnapshot) {
     copyLlmMarkdown: vi.fn(async () => ''),
     exportLlmJson: vi.fn(async () => null),
     explorer: {
-      list: vi.fn(async (path: string) => (path === LINUX_HOME ? linuxListing : [])),
+      list: vi.fn(async (path: string) => linuxListings[path] ?? []),
       tree: vi.fn(async () => [] as FileEntry[]),
       stat: vi.fn(async () => ({
         ...entry({ name: 'config.json', path: `${LINUX_HOME}/config.json` }),
@@ -160,6 +189,24 @@ function makeApi(snapshot: WslPadSnapshot) {
       importFromWindows: vi.fn(async () => 'op-2'),
       exportToWindows: vi.fn(async () => 'op-3'),
       cancelOp: vi.fn(async () => undefined),
+      dirSizes: vi.fn(async (path: string): Promise<DirSizeResult> => ({
+        path,
+        entries: [
+          { name: 'logs', path: `${path}/logs`, isDirectory: true, sizeBytes: 900, partial: false },
+          {
+            name: 'config.json',
+            path: `${path}/config.json`,
+            isDirectory: false,
+            sizeBytes: 120,
+            partial: false
+          },
+          { name: 'a.txt', path: `${path}/a.txt`, isDirectory: false, sizeBytes: null, partial: false }
+        ],
+        totalBytes: 1020,
+        skipped: 0,
+        cancelled: false,
+        error: null
+      })),
       search: vi.fn(async () => [] as FileEntry[]),
       pickImportPaths: vi.fn(async () => [] as string[]),
       pickExportDir: vi.fn(async () => null),
@@ -275,10 +322,13 @@ function pane(kind: 'windows' | 'linux'): HTMLElement {
   return screen.getByTestId(`pane-${kind}`)
 }
 
+/** Row names without the symlink target and the boundary badge's screen-reader text. */
 function rowNames(kind: 'windows' | 'linux'): string[] {
-  return Array.from(pane(kind).querySelectorAll('.fl-body .fl-row .fl-name')).map(
-    (el) => el.textContent ?? ''
-  )
+  return Array.from(pane(kind).querySelectorAll('.fl-body .fl-row .fl-name')).map((el) => {
+    const clone = el.cloneNode(true) as HTMLElement
+    for (const extra of clone.querySelectorAll('.fl-linktarget, .side-badge')) extra.remove()
+    return clone.textContent ?? ''
+  })
 }
 
 /**
@@ -380,7 +430,7 @@ describe('dual pane layout', () => {
   it('sorts folders first in both panes', async () => {
     await renderExplorer()
     expect(rowNames('windows')).toEqual(['Documents', 'app.log', 'notes.txt'])
-    expect(rowNames('linux')).toEqual(['logs', 'a.txt', 'config.json'])
+    expect(rowNames('linux')).toEqual(['logs', 'a.txt', 'config.json', 'winlink'])
   })
 })
 
@@ -606,5 +656,154 @@ describe('context menus', () => {
       within(linuxMenu).getByRole('menuitem', { name: 'Prepare chmod command' })
     ).toBeDefined()
     expect(within(linuxMenu).getByRole('menuitem', { name: 'Copy Linux path' })).toBeDefined()
+  })
+})
+
+/** Badges of a pane, in row order, by the side they report. */
+function rowBadges(kind: 'windows' | 'linux'): string[] {
+  return Array.from(pane(kind).querySelectorAll('.fl-body .fl-row .side-badge')).map(
+    (el) => el.getAttribute('data-side') ?? ''
+  )
+}
+
+describe('filesystem boundary badge', () => {
+  it('marks a link that leads onto the Windows drive and leaves ext4 rows alone', async () => {
+    await renderExplorer()
+    // Only the symlink crosses; the three ext4 rows stay unmarked.
+    expect(rowBadges('linux')).toEqual(['windows-mount'])
+    const badge = pane('linux').querySelector('.fl-body .side-badge') as HTMLElement
+    expect(badge.getAttribute('title')).toContain('/mnt')
+    // Never colour alone: the side is spelled out for assistive tech too.
+    expect(badge.textContent).toContain('Windows drive')
+  })
+
+  it('marks the directory once instead of every row when the whole folder is across', async () => {
+    await renderExplorer()
+    fireEvent.doubleClick(within(pane('linux')).getByText('winlink'))
+    await waitFor(() =>
+      expect(api.explorer.list).toHaveBeenCalledWith(MNT_DIR, { showHidden: false })
+    )
+    await within(pane('linux')).findByText('report.docx')
+
+    expect(rowBadges('linux')).toEqual([])
+    const header = pane('linux').querySelector('.pane-header .side-badge') as HTMLElement
+    expect(header.getAttribute('data-side')).toBe('windows-mount')
+  })
+
+  it('marks /mnt as the crossing when it is listed from the Linux root', async () => {
+    await renderExplorer()
+    fireEvent.click(within(pane('linux')).getByRole('button', { name: 'Root' }))
+    await waitFor(() => expect(api.explorer.list).toHaveBeenCalledWith('/', { showHidden: false }))
+    await within(pane('linux')).findByText('mnt')
+
+    // /mnt itself is not a drive mount — only /mnt/<letter> is — so nothing is
+    // badged here, and the pane chip stays away from a plain ext4 directory.
+    expect(rowBadges('linux')).toEqual([])
+    expect(pane('linux').querySelector('.pane-header .side-badge')).toBeNull()
+  })
+
+  it('never badges a plain Windows drive path', async () => {
+    await renderExplorer()
+    expect(rowBadges('windows')).toEqual([])
+    expect(pane('windows').querySelector('.pane-header .side-badge')).toBeNull()
+  })
+})
+
+describe('directory sizes', () => {
+  const measureButton = (kind: 'windows' | 'linux'): HTMLElement | null =>
+    within(pane(kind)).queryByRole('button', { name: 'Measure directory sizes' })
+
+  it('is offered on the WSL pane only — Windows sizes are not measured', async () => {
+    await renderExplorer()
+    expect(measureButton('linux')).not.toBeNull()
+    expect(measureButton('windows')).toBeNull()
+  })
+
+  it('measures on demand and lists the children largest first', async () => {
+    await renderExplorer()
+    expect(api.explorer.dirSizes).not.toHaveBeenCalled()
+
+    fireEvent.click(measureButton('linux') as HTMLElement)
+    const panel = await within(pane('linux')).findByRole('region', { name: 'Directory sizes' })
+    await waitFor(() =>
+      expect(api.explorer.dirSizes).toHaveBeenCalledWith(LINUX_HOME, expect.any(String))
+    )
+
+    await waitFor(() => expect(panel.getAttribute('aria-busy')).toBe('false'))
+    const rows = Array.from(panel.querySelectorAll('.dir-sizes-row .dir-sizes-name')).map(
+      (el) => el.textContent ?? ''
+    )
+    expect(rows).toEqual(['logs/', 'config.json', 'a.txt'])
+    // An unmeasured child says so instead of showing a zero.
+    expect(panel.textContent).toContain('Not measured')
+  })
+
+  it('serves a second look from the cache and re-measures after a refresh', async () => {
+    await renderExplorer()
+    const button = measureButton('linux') as HTMLElement
+
+    fireEvent.click(button)
+    await waitFor(() => expect(api.explorer.dirSizes).toHaveBeenCalledTimes(1))
+    await within(pane('linux')).findByRole('region', { name: 'Directory sizes' })
+
+    fireEvent.click(within(pane('linux')).getByRole('button', { name: 'Close' }))
+    fireEvent.click(button)
+    await within(pane('linux')).findByRole('region', { name: 'Directory sizes' })
+    expect(api.explorer.dirSizes).toHaveBeenCalledTimes(1)
+
+    // A refresh changes the listing, so the measured numbers stop being an answer.
+    fireEvent.click(within(pane('linux')).getByRole('button', { name: 'Refresh' }))
+    await waitFor(() =>
+      expect(within(pane('linux')).queryByRole('region', { name: 'Directory sizes' })).toBeNull()
+    )
+    fireEvent.click(button)
+    await waitFor(() => expect(api.explorer.dirSizes).toHaveBeenCalledTimes(2))
+  })
+
+  it('shows progress while it runs and cancels through the existing op channel', async () => {
+    let release!: (value: DirSizeResult) => void
+    api.explorer.dirSizes.mockReturnValueOnce(
+      new Promise<DirSizeResult>((resolve) => {
+        release = resolve
+      })
+    )
+    await renderExplorer()
+
+    fireEvent.click(measureButton('linux') as HTMLElement)
+    const panel = await within(pane('linux')).findByRole('region', { name: 'Directory sizes' })
+    expect(panel.getAttribute('aria-busy')).toBe('true')
+    expect(within(panel).getByRole('status').textContent).toContain('Measuring')
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() =>
+      expect(api.explorer.cancelOp).toHaveBeenCalledWith(expect.stringContaining('dirsize-'))
+    )
+    expect(within(pane('linux')).queryByRole('region', { name: 'Directory sizes' })).toBeNull()
+
+    // A late answer for a cancelled run must not reopen the panel.
+    release({ path: LINUX_HOME, entries: [], totalBytes: 0, skipped: 0, cancelled: false, error: null })
+    await flush()
+    expect(within(pane('linux')).queryByRole('region', { name: 'Directory sizes' })).toBeNull()
+  })
+
+  it('reports a failure instead of an empty folder', async () => {
+    api.explorer.dirSizes.mockRejectedValueOnce(new Error('EACCES: /home/dev'))
+    await renderExplorer()
+
+    fireEvent.click(measureButton('linux') as HTMLElement)
+    const panel = await within(pane('linux')).findByRole('region', { name: 'Directory sizes' })
+    await waitFor(() => expect(panel.textContent).toContain('Could not measure this folder'))
+    expect(panel.querySelectorAll('.dir-sizes-row')).toHaveLength(0)
+  })
+
+  it('closes when the pane navigates away', async () => {
+    await renderExplorer()
+    fireEvent.click(measureButton('linux') as HTMLElement)
+    await within(pane('linux')).findByRole('region', { name: 'Directory sizes' })
+
+    fireEvent.doubleClick(within(pane('linux')).getByText('logs'))
+    await waitFor(() =>
+      expect(within(pane('linux')).queryByRole('region', { name: 'Directory sizes' })).toBeNull()
+    )
   })
 })

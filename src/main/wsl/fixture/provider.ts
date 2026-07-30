@@ -6,11 +6,14 @@
  * the real provider.
  */
 import type {
+  ClockInfo,
   ConfigurationFileInfo,
   DiskImageInfo,
   DistroDetails,
   DistroSummary,
+  DnsInfo,
   EnvironmentVariableInfo,
+  FirewallInfo,
   HermesInfo,
   ImportantPathInfo,
   MemoryReconciliation,
@@ -28,15 +31,19 @@ import type { WslProvider } from '../contracts'
 import { assertValidDistroName } from '../escape'
 import {
   assertFixtureDistro,
+  fixtureClock,
   fixtureConfigFiles,
   fixtureDiskImage,
   fixtureDistroDetails,
   fixtureDistros,
+  fixtureDns,
   fixtureEnvRaw,
+  fixtureFirewall,
   fixtureHermes,
   fixtureImportantPaths,
   fixtureMemoryDetail,
   fixturePorts,
+  isFixtureDistro,
   fixtureProcesses,
   fixtureResources,
   fixtureServices,
@@ -56,6 +63,11 @@ export class FixtureWslProvider implements WslProvider {
 
   async isAvailable(): Promise<boolean> {
     return true
+  }
+
+  /** The fixture distro always answers — a wedged world is not reproducible. */
+  async probeDistro(distro: string): Promise<boolean> {
+    return isFixtureDistro(distro)
   }
 
   async listDistros(): Promise<DistroSummary[]> {
@@ -103,6 +115,19 @@ export class FixtureWslProvider implements WslProvider {
   /** Host-wide table, so it takes no distro — the fixture Windows side. */
   async getWindowsPorts(): Promise<WindowsPortInfo[]> {
     return fixtureWindowsPorts()
+  }
+
+  /** Host-wide too: the firewall belongs to Windows, not to a distro. */
+  async getFirewall(): Promise<FirewallInfo> {
+    return fixtureFirewall()
+  }
+
+  async getClock(distro: string): Promise<ClockInfo> {
+    return fixtureClock(this.known(distro))
+  }
+
+  async getDns(distro: string): Promise<DnsInfo> {
+    return fixtureDns(this.known(distro))
   }
 
   async getEnvironment(distro: string): Promise<EnvironmentVariableInfo[]> {

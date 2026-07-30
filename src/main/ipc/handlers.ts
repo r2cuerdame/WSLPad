@@ -42,12 +42,15 @@ const tierSchema = z.enum(['fast', 'medium', 'slow', 'all'])
 const boolSchema = z.boolean()
 const stringSchema = z.string().min(1).max(65536)
 const clientKindSchema = z.enum(['claude-desktop', 'codex', 'hermes'])
+const llmPresetSchema = z.enum(['default', 'bug-report', 'agent-context'])
 const listOptsSchema = z.object({ showHidden: z.boolean().optional() }).optional()
 const pathsSchema = z.array(linuxPathSchema).min(1).max(1000)
 const winPathsSchema = z.array(windowsPathSchema).min(1).max(1000)
 /** The Windows pane also accepts the "This PC" sentinel wherever a dir is taken. */
 const winRootOrPathSchema = z.union([z.literal(WINDOWS_ROOT), windowsPathSchema])
 const sessionIdSchema = z.string().regex(/^term-[A-Za-z0-9._-]+$/)
+/** Renderer-generated op id for a cancellable directory-size run. */
+const opTokenSchema = z.string().regex(/^[A-Za-z0-9-]{1,64}$/)
 
 /** Wrap ExplorerError into a message the renderer can parse back (goal.md §14). */
 function rethrow(err: unknown): never {
@@ -96,8 +99,8 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   )
 
   // --- LLM export (goal.md §12) ------------------------------------------
-  handle(IpcChannels.llmCopyMarkdown, () => {
-    const md = snapshotToMarkdown(deps.store.get())
+  handle(IpcChannels.llmCopyMarkdown, (preset) => {
+    const md = snapshotToMarkdown(deps.store.get(), llmPresetSchema.parse(preset ?? 'default'))
     clipboard.writeText(md)
     return md
   })
@@ -152,6 +155,9 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     deps.explorer.exportToWindows(distro(), pathsSchema.parse(paths), windowsPathSchema.parse(windowsDir))
   )
   handle(IpcChannels.explorerCancelOp, (opId) => deps.explorer.cancelOp(stringSchema.max(128).parse(opId)))
+  handle(IpcChannels.explorerDirSizes, (path, token) =>
+    deps.explorer.dirSizes(distro(), linuxPathSchema.parse(path), opTokenSchema.parse(token))
+  )
   handle(IpcChannels.explorerSearch, (path, query) =>
     deps.explorer.search(distro(), linuxPathSchema.parse(path), stringSchema.max(256).parse(query))
   )

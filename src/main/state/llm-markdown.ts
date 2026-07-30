@@ -1,9 +1,21 @@
-import type { DashboardSnapshot, WslPadSnapshot } from '@shared/types'
+import type { LlmPreset } from '@shared/ipc'
+import type {
+  DashboardSnapshot,
+  DiskUsage,
+  PortReachability,
+  SettingOrigin,
+  ToolInfo,
+  WslPadSnapshot,
+  WslSettingInfo
+} from '@shared/types'
+import { maskTextFileContent } from '../mcp/masking'
+import { classifyPathSide } from '../wsl/contracts'
 
 /**
  * Copy-for-LLM exports (goal.md §12). The snapshot is masked by construction,
  * and the Markdown additionally exposes environment variable NAMES only —
- * values never appear here, secret or not.
+ * values never appear here, secret or not. That holds for every preset: no
+ * export in this file ever prints an environment variable value.
  */
 
 const LLM_FOOTER = [
@@ -26,6 +38,11 @@ function fmtBytes(bytes: number | null): string {
 
 function yesNo(value: boolean | null): string {
   return value === null ? 'unknown' : value ? 'yes' : 'no'
+}
+
+/** Machine-readable exports are English by construction — no i18n involved. */
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
 function pushSystem(lines: string[], dash: DashboardSnapshot): void {
@@ -184,7 +201,7 @@ function pushWarnings(lines: string[], snapshot: WslPadSnapshot): void {
   lines.push('')
 }
 
-export function snapshotToMarkdown(s: WslPadSnapshot): string {
+function defaultMarkdown(s: WslPadSnapshot): string {
   const lines: string[] = []
   const dash = s.dashboard
 
@@ -220,6 +237,420 @@ export function snapshotToMarkdown(s: WslPadSnapshot): string {
   lines.push('## Explorer', `- Selected path: ${s.explorer.currentPath ?? 'none'}`, '')
   lines.push(LLM_FOOTER)
   return lines.join('\n') + '\n'
+}
+
+// ---------------------------------------------------------------------------
+// Preset 1 — microsoft/WSL bug report (issue #30)
+// ---------------------------------------------------------------------------
+
+/** "Other Software" is context, not an inventory: a full catalog buries it. */
+const BUG_TOOL_LIMIT = 40
+
+/** A field the form requires that WSLPad does not collect — say so in place. */
+function fillIn(instruction: string): string {
+  return `_${instruction}_`
+}
+
+function heading(lines: string[], label: string): void {
+  lines.push(`### ${label}`, '')
+}
+
+function pushBugVersions(lines: string[], dash: DashboardSnapshot | null): void {
+  // Both are Windows-side facts read by commands WSLPad does not run; an
+  // invented build number would be worse than the two-second copy-paste.
+  heading(lines, 'Windows Version')
+  lines.push(fillIn('Run `cmd.exe /c ver` and paste the output here.'), '')
+  heading(lines, 'WSL Version')
+  lines.push(fillIn('Run `wsl.exe --version` and paste the output here.'), '')
+  heading(lines, 'Are you using WSL 1 or WSL 2?')
+  const version = dash?.distro.wslVersion ?? null
+  lines.push(`- [${version === 2 ? 'x' : ' '}] WSL 2`, `- [${version === 1 ? 'x' : ' '}] WSL 1`, '')
+}
+
+function pushBugKernel(lines: string[], dash: DashboardSnapshot | null): void {
+  heading(lines, 'Kernel Version')
+  const kernel = dash?.system.kernel ?? null
+  lines.push(
+    kernel ?? fillIn('Run `cat /proc/version` in the distro and paste the output here.'),
+    ''
+  )
+}
+
+function pushBugDistroVersion(
+  lines: string[],
+  s: WslPadSnapshot,
+  dash: DashboardSnapshot | null
+): void {
+  heading(lines, 'Distro Version')
+  const distro = dash?.distro ?? null
+  if (distro === null) {
+    const name = s.selectedDistro
+    lines.push(name ?? fillIn('No distribution was selected when this report was generated.'), '')
+    return
+  }
+  lines.push(distro.osName === null ? distro.name : `${distro.osName} (${distro.name})`, '')
+}
+
+function toolLine(tool: ToolInfo): string {
+  const version = tool.version ?? 'version unknown'
+  if (tool.shadowedByWindows) return `- ${tool.displayName} ${version} (Windows binary on PATH)`
+  return `- ${tool.displayName} ${version}`
+}
+
+function pushBugOtherSoftware(lines: string[], dash: DashboardSnapshot | null): void {
+  heading(lines, 'Other Software')
+  const installed = (dash?.tools ?? []).filter((t) => t.installed)
+  if (installed.length === 0) {
+    lines.push(fillIn('No tools detected inside the distribution.'), '')
+    return
+  }
+  lines.push('Detected inside the distribution:', '')
+  for (const tool of installed.slice(0, BUG_TOOL_LIMIT)) lines.push(toolLine(tool))
+  if (installed.length > BUG_TOOL_LIMIT) {
+    lines.push(`- … and ${installed.length - BUG_TOOL_LIMIT} more`)
+  }
+  lines.push('')
+}
+
+/** The environment facts a maintainer asks for in the first reply. */
+function reproFacts(dash: DashboardSnapshot): string[] {
+  const facts: string[] = []
+  const d = dash.distro
+  facts.push(`- Distribution: ${d.name} — ${d.state}${d.isDefault ? ', default distro' : ''}`)
+  if (dash.system.systemdEnabled !== null) {
+    facts.push(`- systemd: ${dash.system.systemdEnabled ? 'enabled' : 'disabled'}`)
+  }
+  const wsl = dash.wslSettings
+  if (wsl !== null) {
+    const declared = wsl.networkingModeDeclared
+    const effective = wsl.networkingModeEffective
+    if (declared !== null || effective !== null) {
+      const same = declared === effective
+      facts.push(
+        same
+          ? `- Networking mode: ${effective ?? declared}`
+          : `- Networking mode: ${declared ?? 'not declared'} declared, ` +
+              `${effective ?? 'unknown'} in effect`
+      )
+    }
+    if (wsl.restartPending) {
+      facts.push(
+        '- A declared setting is not the one the running VM uses (`wsl --shutdown` pending)'
+      )
+    }
+    if (wsl.vmStartedAt !== null) facts.push(`- Utility VM started at: ${wsl.vmStartedAt}`)
+  }
+  const skew = dash.clock?.skewSeconds ?? null
+  if (skew !== null) facts.push(`- Clock skew (distro − Windows): ${skew}s`)
+  const dns = dash.dns
+  if (dns !== null) {
+    const parts = [`${plural(dns.nameservers.length, 'nameserver')} in ${dns.resolvConfPath}`]
+    if (dns.generateResolvConf !== null) parts.push(`generateResolvConf=${dns.generateResolvConf}`)
+    if (dns.dnsTunneling !== null) parts.push(`dnsTunneling=${dns.dnsTunneling}`)
+    facts.push(`- DNS: ${parts.join(', ')}`)
+  }
+  const fw = dash.firewall
+  if (fw !== null && (fw.enabled !== null || fw.defaultInbound !== null)) {
+    const state = fw.enabled === null ? 'state unknown' : fw.enabled ? 'on' : 'off'
+    const inbound = fw.defaultInbound === null ? '' : `, default inbound ${fw.defaultInbound}`
+    facts.push(`- Windows firewall: ${state}${inbound}`)
+  }
+  const root = dash.resources.disks.find((disk) => disk.mountPoint === '/')
+  if (root?.exists === true && root.availableBytes !== null) {
+    facts.push(`- Free space on /: ${fmtBytes(root.availableBytes)}`)
+  }
+  return facts
+}
+
+function pushBugRepro(lines: string[], dash: DashboardSnapshot | null): void {
+  heading(lines, 'Repro Steps')
+  lines.push(fillIn('Fill in the steps that reproduce the problem.'), '')
+  if (dash === null) {
+    lines.push('WSLPad collected no environment data for this report.', '')
+    return
+  }
+  lines.push('Environment when this report was generated (collected by WSLPad):', '')
+  lines.push(...reproFacts(dash), '')
+}
+
+/**
+ * The declared keys of one config file, back as ini text. It is a
+ * reconstruction from what the parser kept, not the file itself — the heading
+ * above each block says so rather than letting a maintainer read a missing
+ * comment as an absent line.
+ */
+function iniFromSettings(settings: WslSettingInfo[], origin: SettingOrigin): string | null {
+  const sections = new Map<string, string[]>()
+  for (const setting of settings) {
+    if (setting.origin !== origin || setting.declaredValue === null) continue
+    const entries = sections.get(setting.section) ?? []
+    entries.push(`${setting.key}=${setting.declaredValue}`)
+    sections.set(setting.section, entries)
+  }
+  if (sections.size === 0) return null
+  const out: string[] = []
+  for (const [section, entries] of sections) out.push(`[${section}]`, ...entries, '')
+  return out.join('\n').trimEnd()
+}
+
+function pushConfigBlock(
+  lines: string[],
+  label: string,
+  path: string | null,
+  exists: boolean,
+  ini: string | null
+): void {
+  const where = path === null || path === label ? label : `${label} (${path})`
+  if (!exists) {
+    lines.push(`${where}: does not exist.`, '')
+    return
+  }
+  if (ini === null) {
+    lines.push(`${where}: exists, no keys parsed.`, '')
+    return
+  }
+  lines.push(`${where} — keys WSLPad parsed, comments and layout not preserved:`, '')
+  lines.push('```ini', maskTextFileContent(path ?? label, ini).content, '```', '')
+}
+
+function pushBugDiagnostics(
+  lines: string[],
+  s: WslPadSnapshot,
+  dash: DashboardSnapshot | null
+): void {
+  heading(lines, 'Diagnostic Logs')
+  lines.push(
+    fillIn(
+      'Attach logs if you have them — the WSL CONTRIBUTING guide explains how to gather them.'
+    ),
+    ''
+  )
+  if (s.warnings.length === 0) {
+    lines.push('WSLPad reported no warnings for this environment.', '')
+  } else {
+    lines.push('WSLPad warnings:', '')
+    for (const w of s.warnings) lines.push(`- [${w.severity}] ${w.message}`)
+    lines.push('')
+  }
+  const wsl = dash?.wslSettings ?? null
+  if (wsl === null) {
+    lines.push('WSLPad has not read `.wslconfig` or `/etc/wsl.conf` for this distribution.', '')
+    return
+  }
+  pushConfigBlock(
+    lines,
+    '.wslconfig',
+    wsl.wslconfigPath,
+    wsl.wslconfigExists,
+    iniFromSettings(wsl.settings, 'wslconfig')
+  )
+  pushConfigBlock(
+    lines,
+    '/etc/wsl.conf',
+    wsl.wslConfPath,
+    wsl.wslConfExists,
+    iniFromSettings(wsl.settings, 'wsl-conf')
+  )
+}
+
+/**
+ * microsoft/WSL's issue form (.github/ISSUE_TEMPLATE/Bug_Report.yaml) field by
+ * field, in its order and under its exact labels. GitHub renders a submitted
+ * form as `### <label>` blocks, so this pastes into the form or straight into
+ * an issue body and lands where maintainers read. Four fields are the
+ * reporter's own — the repro, the two behaviours, and the Windows-side version
+ * strings WSLPad does not run the commands for — so each says what to fill in
+ * rather than being quietly dropped or, worse, guessed at.
+ */
+function bugReportMarkdown(s: WslPadSnapshot): string {
+  const lines: string[] = []
+  const dash = s.dashboard
+  pushBugVersions(lines, dash)
+  pushBugKernel(lines, dash)
+  pushBugDistroVersion(lines, s, dash)
+  pushBugOtherSoftware(lines, dash)
+  pushBugRepro(lines, dash)
+  heading(lines, 'Expected Behavior')
+  lines.push(fillIn('Fill in what you expected to happen.'), '')
+  heading(lines, 'Actual Behavior')
+  lines.push(fillIn('Fill in what happened instead, with the terminal output.'), '')
+  pushBugDiagnostics(lines, s, dash)
+  return lines.join('\n').trimEnd() + '\n'
+}
+
+// ---------------------------------------------------------------------------
+// Preset 2 — agent context block (issue #30)
+// ---------------------------------------------------------------------------
+
+// A block that bloats CLAUDE.md gets deleted, so every list is capped and only
+// facts a shell inside the distro cannot answer for itself earn their tokens.
+const AGENT_TOOL_LIMIT = 24
+const AGENT_PATH_LIMIT = 8
+const AGENT_PORT_LIMIT = 12
+/** Below this the two clocks are the same clock for every practical purpose. */
+const CLOCK_SKEW_NOTICE_SECONDS = 5
+
+function agentHeader(lines: string[], s: WslPadSnapshot, dash: DashboardSnapshot): void {
+  const d = dash.distro
+  const os = d.osName === null ? '' : ` (${d.osName})`
+  lines.push(`## WSL environment — ${d.name}`, '')
+  lines.push(`Collected by WSLPad from the Windows side at ${s.generatedAt}.`, '')
+  lines.push(`- Distro: ${d.name}${os}, WSL ${d.wslVersion}, ${d.state}`)
+  if (dash.system.systemdEnabled !== null) {
+    lines.push(`- systemd: ${dash.system.systemdEnabled ? 'enabled' : 'disabled'}`)
+  }
+  if (dash.system.kernel !== null) lines.push(`- Kernel: ${dash.system.kernel}`)
+  if (dash.system.shell !== null) lines.push(`- Login shell: ${dash.system.shell}`)
+  lines.push(`- This distro from Windows: ${d.uncPath}`)
+  if (dash.system.windowsUserProfileLinux !== null) {
+    lines.push(`- Windows user profile from Linux: ${dash.system.windowsUserProfileLinux}`)
+  }
+  lines.push('')
+}
+
+function agentToolLine(tool: ToolInfo): string {
+  const version = tool.version === null ? '' : ` ${tool.version}`
+  const where = tool.executablePath ?? 'path unknown'
+  if (tool.shadowedByWindows)
+    return `- ${tool.id}${version} — ${where} (Windows binary wins on PATH)`
+  if (tool.side === 'windows-mount') return `- ${tool.id}${version} — ${where} (on a Windows mount)`
+  return `- ${tool.id}${version} — ${where}`
+}
+
+function agentTools(lines: string[], dash: DashboardSnapshot): void {
+  const installed = dash.tools.filter((t) => t.installed)
+  if (installed.length === 0) return
+  lines.push('### Tools on PATH', '')
+  for (const tool of installed.slice(0, AGENT_TOOL_LIMIT)) lines.push(agentToolLine(tool))
+  if (installed.length > AGENT_TOOL_LIMIT) {
+    lines.push(`- … and ${installed.length - AGENT_TOOL_LIMIT} more`)
+  }
+  lines.push('')
+}
+
+function mountLine(disk: DiskUsage): string {
+  if (!disk.exists) return `- ${disk.mountPoint} — not mounted`
+  const side = classifyPathSide(disk.mountPoint)
+  const kind =
+    side === 'windows-mount'
+      ? 'Windows drive, slow for many small files'
+      : side === 'ext4'
+        ? 'distro disk'
+        : 'mount'
+  const used = disk.usePercent === null ? '' : `, ${disk.usePercent}% used`
+  const free = disk.availableBytes === null ? '' : `, ${fmtBytes(disk.availableBytes)} free`
+  return `- ${disk.mountPoint} — ${kind}${used}${free}`
+}
+
+function agentMounts(lines: string[], dash: DashboardSnapshot): void {
+  if (dash.resources.disks.length === 0) return
+  lines.push('### Mounts', '')
+  for (const disk of dash.resources.disks) lines.push(mountLine(disk))
+  lines.push('')
+}
+
+function agentPaths(lines: string[], dash: DashboardSnapshot): void {
+  const present = dash.paths.filter((p) => p.exists !== false && p.windowsPath !== null)
+  if (present.length === 0) return
+  lines.push('### Windows ↔ Linux paths', '')
+  for (const p of present.slice(0, AGENT_PATH_LIMIT)) {
+    const mount = p.side === 'windows-mount' ? ' (Windows mount)' : ''
+    lines.push(`- ${p.linuxPath} ↔ ${p.windowsPath}${mount}`)
+  }
+  lines.push('')
+}
+
+/** Typed by the union so a new reachability value cannot silently print blank. */
+const REACHABILITY_TEXT: Record<PortReachability, string> = {
+  lan: 'reachable from the LAN',
+  'windows-only': 'reachable from Windows',
+  'loopback-only': 'only inside the distro',
+  unreachable: 'not accepting connections',
+  unknown: 'reachability unknown'
+}
+
+function agentPorts(lines: string[], dash: DashboardSnapshot): void {
+  const listening = dash.ports.filter((p) => p.listening)
+  if (listening.length === 0) return
+  lines.push('### Ports in use', '')
+  for (const port of listening.slice(0, AGENT_PORT_LIMIT)) {
+    const proc = port.processName ?? 'unknown process'
+    lines.push(`- ${port.port}/${port.protocol} ${proc} — ${REACHABILITY_TEXT[port.reachability]}`)
+  }
+  if (listening.length > AGENT_PORT_LIMIT) {
+    lines.push(`- … and ${listening.length - AGENT_PORT_LIMIT} more`)
+  }
+  lines.push('')
+}
+
+/** Only the traps that are actually armed on this machine get a line. */
+function agentGotchas(lines: string[], dash: DashboardSnapshot): void {
+  const notes: string[] = []
+  const skew = dash.clock?.skewSeconds ?? null
+  if (skew !== null && Math.abs(skew) >= CLOCK_SKEW_NOTICE_SECONDS) {
+    const direction = skew < 0 ? 'behind' : 'ahead of'
+    notes.push(
+      `- The distro clock is ${Math.abs(skew)}s ${direction} Windows — TLS handshakes and ` +
+        'package signatures can fail for no visible reason.'
+    )
+  }
+  const wsl = dash.wslSettings
+  if (wsl?.restartPending === true) {
+    notes.push('- A declared WSL setting is not in effect yet; `wsl --shutdown` applies it.')
+  }
+  if (
+    wsl !== null &&
+    wsl.networkingModeDeclared !== null &&
+    wsl.networkingModeEffective !== null &&
+    wsl.networkingModeDeclared !== wsl.networkingModeEffective
+  ) {
+    notes.push(
+      `- Networking mode ${wsl.networkingModeDeclared} was declared but ` +
+        `${wsl.networkingModeEffective} is in effect.`
+    )
+  }
+  if (dash.dns?.generateResolvConf === false) {
+    notes.push(
+      '- /etc/resolv.conf is hand-managed (generateResolvConf=false); WSL never updates it.'
+    )
+  }
+  const shadowed = dash.tools.filter((t) => t.installed && t.shadowedByWindows).length
+  if (shadowed > 0) {
+    const verb = shadowed === 1 ? 'is a Windows binary' : 'are Windows binaries'
+    notes.push(`- ${plural(shadowed, 'command')} on PATH ${verb}, marked above.`)
+  }
+  if (notes.length === 0) return
+  lines.push('### Gotchas', '', ...notes, '')
+}
+
+function agentContextMarkdown(s: WslPadSnapshot): string {
+  const dash = s.dashboard
+  if (dash === null) {
+    const name = s.selectedDistro ?? 'none selected'
+    return (
+      `## WSL environment — ${name}\n\n` +
+      'WSLPad collected no environment data, so there is nothing here an agent could rely on.\n'
+    )
+  }
+  const lines: string[] = []
+  agentHeader(lines, s, dash)
+  agentTools(lines, dash)
+  agentMounts(lines, dash)
+  agentPaths(lines, dash)
+  agentPorts(lines, dash)
+  agentGotchas(lines, dash)
+  return lines.join('\n').trimEnd() + '\n'
+}
+
+/**
+ * Copy-for-LLM Markdown. 'default' is the full environment summary and is what
+ * every existing caller gets; the other two are shaped by their destination —
+ * microsoft/WSL's issue form and an agent's CLAUDE.md / AGENTS.md.
+ */
+export function snapshotToMarkdown(s: WslPadSnapshot, preset: LlmPreset = 'default'): string {
+  if (preset === 'bug-report') return bugReportMarkdown(s)
+  if (preset === 'agent-context') return agentContextMarkdown(s)
+  return defaultMarkdown(s)
 }
 
 /** JSON export button (goal.md §12) — the snapshot is already masked by construction. */

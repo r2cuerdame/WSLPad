@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { PortInfo, PortProtocol, WindowsPortInfo } from '@shared/types'
+import type { PortInfo, PortProtocol, PortReachability, WindowsPortInfo } from '@shared/types'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
@@ -12,6 +12,15 @@ type SortKey = 'source' | 'protocol' | 'port'
 type Source = 'wsl' | 'both' | 'windows'
 
 const SOURCE_ORDER: Record<Source, number> = { both: 0, wsl: 1, windows: 2 }
+
+/** Only 'lan' is a scope worth noticing; a failed read is dim, never green. */
+const REACHABILITY_CLASS: Record<PortReachability, string> = {
+  lan: 'badge badge-accent',
+  'windows-only': 'badge',
+  'loopback-only': 'badge',
+  unreachable: 'badge badge-err',
+  unknown: 'badge badge-dim'
+}
 
 interface PortRow {
   id: string
@@ -25,6 +34,9 @@ interface PortRow {
   /** WSL row whose Windows counterpart could not be read at all. */
   unknownWindows: boolean
   windowsProcess: string | null
+  /** null on a Windows-only row: the WSL reachability rules do not apply. */
+  reachability: PortReachability | null
+  reachabilityReason: string | null
 }
 
 function readStoredWindowsOnly(): boolean {
@@ -61,7 +73,9 @@ export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps):
       processName: p.processName,
       url: p.localhostUrl,
       unknownWindows: (p.windowsBound ?? null) === null,
-      windowsProcess: p.windowsProcess ?? null
+      windowsProcess: p.windowsProcess ?? null,
+      reachability: p.reachability,
+      reachabilityReason: p.reachabilityReason
     }))
     const winRows: PortRow[] = showWindowsOnly
       ? windowsOnly.map((w) => ({
@@ -74,7 +88,9 @@ export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps):
           processName: w.processName,
           url: w.localhostUrl,
           unknownWindows: false,
-          windowsProcess: w.processName
+          windowsProcess: w.processName,
+          reachability: null,
+          reachabilityReason: null
         }))
       : []
     const dir = desc ? -1 : 1
@@ -128,6 +144,23 @@ export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps):
       : t('dashboard.ports.notReachable')
   }
 
+  /**
+   * The verdict is computed in the main process, where the networking mode and
+   * the firewall are known; the row only renders it. Its reason is English
+   * from the collector — hovering is the whole point of the column.
+   */
+  const reachabilityTitle = (row: PortRow): string => {
+    if (row.reachability === null) {
+      return t('dashboard.ports.reachabilityWindowsRow', {
+        defaultValue: 'A Windows listener: the WSL reachability rules do not apply to it.'
+      })
+    }
+    if (row.reachabilityReason !== null) return row.reachabilityReason
+    return row.reachability === 'unknown'
+      ? t('dashboard.ports.reachabilityUnknownHint')
+      : t(`dashboard.ports.reachability.${row.reachability}`)
+  }
+
   return (
     <Card
       titleKey="dashboard.ports.title"
@@ -172,6 +205,7 @@ export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps):
                 </th>
                 <th scope="col">{t('dashboard.processes.pid')}</th>
                 <th scope="col">{t('dashboard.ports.process')}</th>
+                <th scope="col">{t('dashboard.ports.reachabilityLabel')}</th>
                 <th scope="col">
                   <span className="sr-only">{t('common.details')}</span>
                 </th>
@@ -193,6 +227,15 @@ export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps):
                     <td className="mono">{pid ?? '—'}</td>
                     <td className="truncate" title={row.processName ?? undefined}>
                       {row.processName ?? '—'}
+                    </td>
+                    <td title={reachabilityTitle(row)}>
+                      {row.reachability === null ? (
+                        <span className="dim">—</span>
+                      ) : (
+                        <span className={REACHABILITY_CLASS[row.reachability]}>
+                          {t(`dashboard.ports.reachability.${row.reachability}`)}
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span className="row-actions">

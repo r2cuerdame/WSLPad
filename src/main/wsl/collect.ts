@@ -1,11 +1,15 @@
+import { PROBE_TIMEOUT_MS } from '@shared/constants'
 import type { DistroDetails, DistroSummary } from '@shared/types'
 import { WslNotAvailableError, type DistroRunner, type WslProvider } from './contracts'
+import { collectClock } from './clock'
 import { collectConfigFiles } from './config-files'
+import { createDnsCollector } from './dns'
 import { detectHermes, detectTools } from './detectors'
 import { listDistros } from './distros'
 import { collectEnvironment } from './environment'
 import { assertValidDistroName } from './escape'
 import { createDiskCollector } from './disk'
+import { createFirewallCollector } from './firewall'
 import { createMemoryCollector } from './memory'
 import { collectImportantPaths } from './paths'
 import { collectPorts } from './ports'
@@ -30,6 +34,10 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
   const wslSettings = createWslConfigCollector()
   // Created once so the Lxss registry read is cached across polls.
   const diskImage = createDiskCollector()
+  // Created once so its TTL survives polls: each read is a PowerShell start.
+  const firewall = createFirewallCollector()
+  // Same reason: the Windows half of the resolver answer is a PowerShell start.
+  const dns = createDnsCollector()
 
   return {
     async isAvailable(): Promise<boolean> {
@@ -43,6 +51,21 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
 
     listDistros(): Promise<DistroSummary[]> {
       return listDistros(runner)
+    },
+
+    /**
+     * Cheapest possible in-distro command (issue #37). `true` is a shell
+     * builtin, so a healthy distro answers in milliseconds and a wedged one
+     * costs PROBE_TIMEOUT_MS instead of one full timeout per collector.
+     */
+    async probeDistro(distro: string): Promise<boolean> {
+      assertValidDistroName(distro)
+      try {
+        const res = await runner.runInDistro(distro, 'true', { timeoutMs: PROBE_TIMEOUT_MS })
+        return !res.timedOut && res.code === 0
+      } catch {
+        return false
+      }
     },
 
     async getDistroDetails(distro: string): Promise<DistroDetails> {
@@ -86,6 +109,18 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
 
     getWindowsPorts() {
       return windowsPorts.collect()
+    },
+
+    getFirewall() {
+      return firewall.collect()
+    },
+
+    getClock(distro) {
+      return collectClock(runner, distro)
+    },
+
+    getDns(distro) {
+      return dns.collect(runner, distro)
     },
 
     getMemoryDetail(distro) {

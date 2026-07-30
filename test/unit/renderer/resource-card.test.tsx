@@ -1,10 +1,11 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, type RenderResult } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WslPadApi } from '@shared/ipc'
-import type { MemoryReconciliation, ResourceInfo } from '@shared/types'
+import type { MemoryReconciliation, ResourceInfo, WslPadSnapshot } from '@shared/types'
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
 import { AppStoreProvider, useApp } from '@renderer/store'
+import { resetMetricHistory } from '@renderer/hooks/useMetricHistory'
 import ResourceCard from '@renderer/dashboard/ResourceCard'
 import Toasts from '@renderer/components/Toasts'
 
@@ -69,6 +70,8 @@ const ALL_NULL: MemoryReconciliation = {
   autoMemoryReclaim: null
 }
 
+let snapshotListener: ((s: WslPadSnapshot) => void) | null = null
+
 function makeApi() {
   return {
     getSnapshot: vi.fn(async () => null),
@@ -82,8 +85,38 @@ function makeApi() {
       input: vi.fn(async () => undefined),
       spawn: vi.fn(async () => undefined)
     },
-    onSnapshot: vi.fn(() => () => undefined),
+    onSnapshot: vi.fn((cb: (s: WslPadSnapshot) => void) => {
+      snapshotListener = cb
+      return () => {
+        snapshotListener = null
+      }
+    }),
     onNavigateSettings: vi.fn(() => () => undefined)
+  }
+}
+
+/** Only the two fields the trend samples are real; the card reads nothing else. */
+function snapshotAt(seconds: number, distro = 'Ubuntu-24.04'): WslPadSnapshot {
+  return {
+    schemaVersion: 1,
+    generatedAt: new Date(Date.UTC(2026, 6, 30, 12, 0, seconds)).toISOString(),
+    selectedDistro: distro,
+    distros: [],
+    dashboard: null,
+    explorer: { distro: null, currentPath: null, showHidden: false },
+    terminal: { distro: null, cwd: null, status: 'disconnected' },
+    mcp: {
+      running: false,
+      transport: 'http',
+      endpoint: null,
+      port: 4923,
+      connectedClients: 0,
+      lastRequestAt: null,
+      readOnly: true,
+      tokenSet: false,
+      error: null
+    },
+    warnings: []
   }
 }
 
@@ -100,15 +133,47 @@ async function flush(): Promise<void> {
   })
 }
 
-async function renderCard(memoryDetail?: MemoryReconciliation | null): Promise<void> {
-  render(
+interface HarnessProps {
+  resources: ResourceInfo
+  memoryDetail?: MemoryReconciliation | null
+}
+
+function Harness({ resources, memoryDetail }: HarnessProps): React.JSX.Element {
+  return (
     <AppStoreProvider>
-      <ResourceCard resources={RESOURCES} memoryDetail={memoryDetail} />
+      <ResourceCard resources={resources} memoryDetail={memoryDetail} />
       <PreparedProbe />
       <Toasts />
     </AppStoreProvider>
   )
+}
+
+async function renderCard(
+  memoryDetail?: MemoryReconciliation | null,
+  resources: ResourceInfo = RESOURCES
+): Promise<RenderResult> {
+  const view = render(<Harness resources={resources} memoryDetail={memoryDetail} />)
   await flush()
+  return view
+}
+
+/** One snapshot tick, the only thing that feeds the trend. */
+async function emitSnapshot(seconds: number, distro?: string): Promise<void> {
+  await act(async () => {
+    snapshotListener?.(snapshotAt(seconds, distro))
+  })
+}
+
+/** `count` ticks one default fast tier apart, starting at `fromSeconds`. */
+async function emitTicks(count: number, fromSeconds = 0): Promise<void> {
+  for (let i = 0; i < count; i += 1) await emitSnapshot(fromSeconds + i * 3)
+}
+
+function trendName(metric: 'CPU' | 'Memory'): string {
+  const svg = screen
+    .getAllByRole('img')
+    .find((el) => el.getAttribute('aria-label')?.startsWith(metric))
+  return svg?.getAttribute('aria-label') ?? ''
 }
 
 /** The value cell of the row whose label is exactly `label`. */
@@ -135,6 +200,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  snapshotListener = null
+  // The buffer outlives the card on purpose, so each test starts it over.
+  resetMetricHistory()
 })
 
 describe('ResourceCard reconciliation block', () => {
@@ -219,6 +287,88 @@ describe('ResourceCard reclaim command', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Prepare wsl.exe --shutdown' }))
     await flush()
     expect(screen.getByTestId('prepared').textContent).toBe('wsl.exe --shutdown')
+  })
+})
+
+describe('ResourceCard trend', () => {
+  it('admits it has no history yet instead of drawing one point as a line', async () => {
+    await renderCard(null)
+    await emitSnapshot(0)
+
+    expect(trendName('CPU')).toBe('CPU: Not enough samples yet')
+    expect(trendName('Memory')).toBe('Memory: Not enough samples yet')
+    expect(document.querySelectorAll('polyline')).toHaveLength(0)
+    expect(screen.queryByText(/nothing is written to disk/)).toBeNull()
+  })
+
+  it('draws both trends once a second snapshot lands, over the measured window', async () => {
+    await renderCard(null)
+    // Twenty-one ticks of the default fast tier is exactly one minute.
+    await emitTicks(21)
+
+    expect(trendName('CPU')).toContain('CPU, last 1 min')
+    expect(trendName('Memory')).toContain('Memory, last 1 min')
+    expect(document.querySelectorAll('polyline')).toHaveLength(2)
+  })
+
+  it('answers "is this climbing?" in words when the numbers keep rising', async () => {
+    const view = await renderCard(null, { ...RESOURCES, cpuPercent: 5, memUsedBytes: 2 * GIB })
+    await emitSnapshot(0)
+    view.rerender(<Harness resources={{ ...RESOURCES, cpuPercent: 40, memUsedBytes: 6 * GIB }} />)
+    await emitSnapshot(3)
+    view.rerender(<Harness resources={{ ...RESOURCES, cpuPercent: 70, memUsedBytes: 9 * GIB }} />)
+    await emitSnapshot(6)
+
+    expect(trendName('CPU')).toContain('rising')
+    expect(trendName('CPU')).toContain('now 70%')
+    expect(trendName('CPU')).toContain('between 5% and 70%')
+    expect(trendName('Memory')).toContain('rising')
+    expect(trendName('Memory')).toContain('between 2 GB and 9 GB')
+  })
+
+  it('states in the card that the history never leaves memory', async () => {
+    await renderCard(null)
+    await emitTicks(2)
+
+    expect(screen.getByText(/nothing is written to disk/)).toBeTruthy()
+  })
+
+  it('shows a hole in the record rather than a line across a pause', async () => {
+    await renderCard(null)
+    await emitTicks(2)
+    // Monitoring paused, or the section left, for five minutes.
+    await emitSnapshot(303)
+
+    expect(trendName('CPU')).toContain('No sample')
+  })
+
+  it('starts over when the selected distro changes', async () => {
+    await renderCard(null)
+    await emitTicks(2)
+    expect(document.querySelectorAll('polyline')).toHaveLength(2)
+
+    await emitSnapshot(6, 'Debian')
+
+    expect(trendName('CPU')).toBe('CPU: Not enough samples yet')
+    expect(document.querySelectorAll('polyline')).toHaveLength(0)
+  })
+
+  it('persists nothing while it samples', async () => {
+    const writes: string[] = []
+    const original = Storage.prototype.setItem
+    Storage.prototype.setItem = function patched(key: string, value: string): void {
+      writes.push(key)
+      original.call(this, key, value)
+    }
+    try {
+      await renderCard(MEMORY)
+      await emitTicks(2)
+    } finally {
+      Storage.prototype.setItem = original
+    }
+
+    expect(writes).toEqual([])
+    expect(api.copyToClipboard).not.toHaveBeenCalled()
   })
 })
 

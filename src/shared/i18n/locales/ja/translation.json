@@ -90,7 +90,20 @@
       "uptime": "稼働時間",
       "systemd": "Systemd",
       "ip": "IP",
-      "uncPath": "Windows パス"
+      "uncPath": "Windows パス",
+      "clock": "時計",
+      "clockWindows": "Windows の時刻",
+      "clockDistro": "ディストリビューションの時刻",
+      "clockSkew": "差",
+      "clockInSync": "Windows と合っています",
+      "clockBehind": "Windows より {{seconds}} 秒遅れ",
+      "clockAhead": "Windows より {{seconds}} 秒進み",
+      "clockUnknown": "2 つの時計のうち片方しか読めませんでした",
+      "clockHint": "時計がずれていると、理由を教えてくれるものが何もないまま TLS 証明書やパッケージ署名の検証がまず失敗します。",
+      "clockApprox": "2 つの時計を読む時点が少しずれるため、この差はおおよその値です。",
+      "clockFix": "時計を合わせ直す",
+      "clockPrepare": "{{command}} を準備",
+      "clockPrepareHint": "コマンドはコンソールに置かれるだけで、Enter を押すまで何も実行されません。"
     },
     "resources": {
       "title": "リソース",
@@ -123,7 +136,16 @@
       "cacheStorySome": "Windows がこの VM のために抱えている {{held}} のうち {{cache}} ({{percent}}) は Linux のページキャッシュで、プログラムがメモリを求めれば Linux が回収します。",
       "reclaim": "メモリを取り戻す",
       "prepareShutdown": "{{command}} を準備",
-      "reclaimHint": "WSL の VM が停止するまで Windows はこのメモリを保持し続けます。コマンドはコンソールに置かれるだけで、Enter を押すまで何も実行されません。"
+      "reclaimHint": "WSL の VM が停止するまで Windows はこのメモリを保持し続けます。コマンドはコンソールに置かれるだけで、Enter を押すまで何も実行されません。",
+      "trend": "推移",
+      "trendCpu": "CPU、直近 {{minutes}} 分",
+      "trendMemory": "メモリ、直近 {{minutes}} 分",
+      "trendEmpty": "まだサンプルが足りません",
+      "trendGap": "サンプルなし — ディストリビューションが応答しませんでした",
+      "trendRising": "{{label}}: 上昇 — 現在 {{current}}、{{low}} から {{high}} の範囲",
+      "trendSteady": "{{label}}: 横ばい — 現在 {{current}}、{{low}} から {{high}} の範囲",
+      "trendFalling": "{{label}}: 下降 — 現在 {{current}}、{{low}} から {{high}} の範囲",
+      "trendHint": "このセッションの間だけメモリに保持され、ディスクには何も書き込みません。"
     },
     "disk": {
       "title": "ディスクイメージ",
@@ -178,6 +200,13 @@
         "default": "WSL の既定値",
         "computed": "計算値"
       },
+      "provenanceLabel": "設定元",
+      "provenance": {
+        "user": "あなたのファイル",
+        "wsl-default": "WSL の既定値",
+        "computed": "WSL が計算した値",
+        "unknown": "特定できません"
+      },
       "verdict": {
         "applied": "適用済み",
         "pending-restart": "再起動が必要",
@@ -192,13 +221,52 @@
       "noneConfigured": "このファイルには何も設定されていません",
       "unavailable": "このディストリビューションの WSL 設定情報はありません"
     },
+    "network": {
+      "title": "ネットワーク",
+      "firewall": "Windows ファイアウォール",
+      "firewallUnknown": "Windows ファイアウォールの状態を読み取れませんでした。",
+      "hyperVLayer": "このディストリビューション宛ての通信は、Windows Defender ファイアウォールの画面には決して現れない Hyper-V のファイアウォールを通ります。WSLPad はそれを読み取るだけです。",
+      "state": "ファイアウォール",
+      "defaultInbound": "受信の既定動作",
+      "defaultOutbound": "送信の既定動作",
+      "loopback": "WSL のループバック除外",
+      "rules": "WSL に言及するルール",
+      "inboundBlocked": "受信トラフィックは既定でブロックされているため、ルールで許可しない限りネットワーク側からこのディストリビューションには何も届きません。",
+      "allowInboundLabel": "仮想マシンへの受信トラフィックを開く",
+      "elevatedOnly": "これは管理者権限の PowerShell が必要なため、WSLPad がコンソールに置くことはできず、実行もしません。コピーして内容を確かめ、ご自身で実行してください — 1 つのポートではなく仮想マシン全体への受信を許可します。",
+      "dns": "名前解決",
+      "dnsUnknown": "リゾルバーの設定を読み取れませんでした。",
+      "resolvConf": "リゾルバーのファイル",
+      "generatedSymlink": "WSL が生成",
+      "generateResolvConf": "generateResolvConf",
+      "dnsTunneling": "DNS トンネリング",
+      "nameservers": "使用中のネームサーバー",
+      "windowsDns": "Windows アダプターの DNS",
+      "dnsMismatch": "{{path}} に書かれたサーバーは、Windows が配っているものではありません。generateResolvConf をオフにした時点で WSL はこのファイルの面倒を見なくなったため、書かれた当時のネットワークの内容が残っています。",
+      "dnsVerdictNoNameservers": "{{path}} にネームサーバーが 1 つも書かれていないため、名前解決はすべて temporary failure in name resolution で失敗します。",
+      "dnsVerdictWillOverwrite": "generateResolvConf がまだオンのまま {{path}} を手で書いているため、このディストリビューションが次に起動したときに WSL が上書きします。",
+      "dnsVerdictStale": "generateResolvConf がオフなので、WSL は {{path}} の面倒を見ません。ネットワークが変わっても、書かれたサーバーはそのまま残ります。",
+      "dnsVerdictTunneling": "DNS トンネリングがオンのため、名前解決はここに並ぶサーバーには送られず、Windows のリゾルバーが応答します。",
+      "portsHint": "待ち受け中の各ポートがどこまで届くかも、同じルールが決めます。",
+      "seePorts": "ポートを見る",
+      "unavailable": "このディストリビューションのネットワーク情報はありません"
+    },
     "paths": {
       "title": "重要なパス",
       "copyLinux": "Linux パスをコピー",
       "copyWindows": "Windows パスをコピー",
       "openInExplorer": "エクスプローラーで開く",
       "setConsolePath": "コンソールのパスに設定",
-      "missing": "存在しません"
+      "missing": "存在しません",
+      "sideLabel": "ファイルシステム",
+      "side": {
+        "ext4": "Linux のディスク",
+        "windows-mount": "Windows のドライブ",
+        "unc": "Windows の共有",
+        "unknown": "不明"
+      },
+      "sideHintWindowsMount": "/mnt 経由でたどるため、ファイル操作のたびに Windows のファイルシステムの境界を越えることになり、Linux のディスクよりはるかに遅くなります。",
+      "sideHintUnc": "Windows から \\\\wsl.localhost 経由でたどるため、ディストリビューションの中で同じパスを開くより遅くなります。"
     },
     "config": {
       "title": "構成",
@@ -221,6 +289,15 @@
       "showInstalled": "インストール済みのみ",
       "filterPlaceholder": "ツールを絞り込み",
       "installedOfTotal": "{{total}} 個中 {{installed}} 個インストール済み",
+      "shadowed": "Windows の実行ファイル",
+      "shadowedHint": "PATH で優先されるのは、このディストリビューションに入れたものではなく、/mnt 経由でたどる Windows 版のコマンドです。",
+      "shadowedFilter": "Windows の実行ファイルのみ",
+      "shadowedNotice": "このうち {{count}} 個のコマンドは、このディストリビューションに入れたものではなく、ドライブのマウント経由でたどる Windows の実行ファイルを起動します。",
+      "shadowedRemedy": "変えるには、/etc/wsl.conf の [interop] に appendWindowsPath = false をご自身で書き、WSL を再起動してください。WSLPad がそのファイルに書き込むことはありません。",
+      "appendOn": "WSL がこのディストリビューションに Windows の PATH を追加しているため、自前で持っていないコマンドはすべて Windows の実行ファイルに解決されます。",
+      "appendOff": "WSL はこのディストリビューションに Windows の PATH を追加していないため、Windows の実行ファイルに解決されるコマンドはありません。",
+      "appendUnknown": "このディストリビューションが Windows の PATH を追加するかどうかを WSLPad は読み取れませんでした。",
+      "sideLabel": "実行元",
       "categoryLabel": "カテゴリ",
       "category": {
         "ai": "AI",
@@ -390,7 +467,17 @@
       "reachableFromWindows": "Windows から接続できます",
       "notReachable": "Windows からは接続できません",
       "windowsUnknown": "Windows のポート一覧を取得できません",
-      "showWindowsOnly": "Windows のみのポートを含める"
+      "showWindowsOnly": "Windows のみのポートを含める",
+      "reachabilityLabel": "届く範囲",
+      "reachability": {
+        "lan": "ネットワーク",
+        "windows-only": "この PC まで",
+        "loopback-only": "WSL の中だけ",
+        "unreachable": "どこにも届きません",
+        "unknown": "不明"
+      },
+      "reachabilityUnknownHint": "Windows のポート一覧かファイアウォールを読み取れなかったため、このポートがどこまで届くかは分かりません。",
+      "reachabilityWindowsRow": "Windows 側のリスナーです。WSL の到達範囲のルールは当てはまりません。"
     },
     "warnings": {
       "title": "警告",
@@ -418,8 +505,21 @@
       "registered": "{{client}} に登録しました",
       "registerFailed": "{{client}} の設定を更新できませんでした"
     },
+    "copy": {
+      "section": "このセクションをコピー",
+      "diagnosis": "説明をコピー",
+      "copied": "クリップボードにコピーしました",
+      "hint": "このセクションに表示されている内容を、秘密の値は伏せたままプレーンテキストでコピーします。"
+    },
     "copyForLlm": "LLM 用にコピー",
     "copiedForLlm": "環境の概要をコピーしました",
+    "llmPreset": {
+      "full": "環境の概要をすべて",
+      "bugReport": "WSL のバグ報告 (GitHub の issue)",
+      "agentContext": "エージェント用コンテキスト (CLAUDE.md / AGENTS.md)",
+      "copiedBugReport": "バグ報告をコピーしました — 投稿する前に再現手順を書き足してください",
+      "copiedAgentContext": "エージェント用コンテキストをコピーしました"
+    },
     "exportJson": "JSON をエクスポート",
     "exportedJson": "スナップショットを {{path}} にエクスポートしました",
     "nav": {
@@ -517,6 +617,16 @@
       "modified": "更新日時",
       "accessed": "アクセス日時",
       "linkTarget": "リンク先"
+    },
+    "dirSizes": {
+      "action": "ディレクトリのサイズを測る",
+      "title": "ディレクトリのサイズ",
+      "running": "このフォルダーを測定中 — 数秒かかることがあります…",
+      "failed": "このフォルダーを測定できませんでした",
+      "unmeasured": "未測定",
+      "partial": "少なくともこの大きさ — 一部を読み取れませんでした",
+      "total": "合計 {{size}}",
+      "skipped": "他に {{count}} 個の項目は測定していません"
     },
     "invalidName": "無効な名前です",
     "dropUseImport": "Windows からのドロップはサポートされていません。「Windows からインポート…」を使用してください",
@@ -666,11 +776,13 @@
     "homeInaccessible": "ホームディレクトリにアクセスできません",
     "diskLow": "{{mount}} の空き容量が不足しています: {{percent}}% 使用中",
     "pathMissing": "PATH のエントリが存在しません: {{path}}",
+    "crossBoundaryPaths": "{{count}} 個の項目が Windows のファイルシステム上にあり、WSL からのファイル操作は Linux のディスクよりはるかに遅くなります: {{items}}",
     "hermesNoConfig": "Hermes の実行ファイルはありますが ~/.hermes がありません",
     "hermesNoExec": "Hermes のデータはありますが実行ファイルがありません",
     "serviceFailed": "サービス {{service}} は failed 状態です",
     "portConflict": "ポート {{port}} で競合の可能性があります",
     "clockSkew": "WSL の時計が Windows と {{seconds}} 秒ずれています",
+    "distroUnresponsive": "ディストリビューション {{distro}} が応答しません。応答するまでライブデータを一時停止します",
     "runnerFailed": "バックグラウンドの照会が失敗しました: {{command}}",
     "mcpStartFailed": "MCP サーバーの起動に失敗しました: {{error}}"
   },

@@ -1,3 +1,5 @@
+import { CLOCK_SKEW_WARN_SECONDS } from '@shared/constants'
+import { isCrossBoundary } from '@shared/path-boundary'
 import type { DashboardSnapshot, DistroSummary, WarningInfo } from '@shared/types'
 
 export interface WarningComputeInput {
@@ -12,6 +14,9 @@ export interface WarningComputeInput {
 
 /** At most this many hidden-runner failures become warnings (dedupe first). */
 const MAX_RUNNER_WARNINGS = 3
+
+/** Names listed inline before the cross-boundary warning switches to "+N". */
+const MAX_CROSS_BOUNDARY_NAMES = 6
 
 function slug(text: string): string {
   const cleaned = text
@@ -65,6 +70,21 @@ export function computeWarnings(input: WarningComputeInput): WarningInfo[] {
         messageKey: 'warnings.homeInaccessible',
         params: {},
         message: 'Home directory is not accessible'
+      })
+    }
+
+    // Issue #28: the failures a drifted clock causes never mention the clock,
+    // so the drift itself has to be said out loud. Sub-threshold values are
+    // measurement noise and stay off the list.
+    const skew = dash.clock?.skewSeconds ?? null
+    if (running && skew !== null && Math.abs(skew) >= CLOCK_SKEW_WARN_SECONDS) {
+      const seconds = Math.abs(skew)
+      out.push({
+        id: 'clock-skew',
+        severity: 'warning',
+        messageKey: 'warnings.clockSkew',
+        params: { seconds },
+        message: `WSL clock differs from Windows by ${seconds}s`
       })
     }
 
@@ -132,6 +152,29 @@ export function computeWarnings(input: WarningComputeInput): WarningInfo[] {
           message: `Possible port conflict on ${entry.port} (${entry.protocol})`
         })
       }
+    }
+
+    // Work under /mnt crosses the 9P/DrvFs boundary and runs up to ten times
+    // slower with no error and no warning (microsoft/WSL#4197). Nothing in the
+    // distro says so, so the fact is stated here — informational, because a
+    // path on the Windows drive can be exactly where the user wants it.
+    const crossing = [
+      ...dash.paths.filter((p) => p.exists !== false && isCrossBoundary(p.side)).map((p) => p.label),
+      ...dash.tools.filter((t) => t.installed && isCrossBoundary(t.side)).map((t) => t.displayName)
+    ]
+    if (crossing.length > 0) {
+      const shown = crossing.slice(0, MAX_CROSS_BOUNDARY_NAMES)
+      const items =
+        shown.join(', ') + (crossing.length > shown.length ? `, +${crossing.length - shown.length}` : '')
+      out.push({
+        id: 'cross-boundary-paths',
+        severity: 'info',
+        messageKey: 'warnings.crossBoundaryPaths',
+        params: { count: crossing.length, items },
+        message:
+          `${crossing.length} item(s) live on the Windows filesystem, where WSL file ` +
+          `access is far slower than on the Linux disk: ${items}`
+      })
     }
   }
 

@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { WINDOWS_ROOT } from '@shared/constants'
+import { automountRootFromSettings, classifyPathSide } from '@shared/path-boundary'
 import type { FileEntry, FsKind, WindowsPlace } from '@shared/types'
 import { useApp } from '../store'
 import { DistroIcon } from '../components/DistroIcon'
 import { CopyIcon, RetroCopyIcon, WindowsIcon } from '../components/Icons'
+import { SideBadge } from '../components/SideBadge'
 import type { MenuItem } from './ContextMenu'
+import { DirSizesPanel } from './DirSizesPanel'
 import { FileListView, LINUX_COLUMNS, WINDOWS_COLUMNS } from './FileList'
 import { FolderTree } from './FolderTree'
 import { Toolbar } from './Toolbar'
@@ -119,6 +122,14 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
   const [creating, setCreating] = useState<'file' | 'folder' | null>(null)
   const [renamingPath, setRenamingPath] = useState<string | null>(null)
   const handledNavId = useRef(0)
+
+  // Windows drives do not have to live under /mnt, so the boundary is judged
+  // against the automount root actually in force rather than a hardcoded one.
+  const automountRoot = useMemo(
+    () => automountRootFromSettings(snapshot?.dashboard?.wslSettings?.settings),
+    [snapshot?.dashboard?.wslSettings?.settings]
+  )
+  const paneSide = classifyPathSide(pane.path, automountRoot)
 
   const { navigate } = pane
   const { navRequest } = props
@@ -457,6 +468,9 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
             comes from the snapshot rather than from the header text. */}
         <PaneIcon kind={adapter.kind} distro={snapshot?.selectedDistro ?? null} />
         <span className="pane-title">{props.title}</span>
+        {/* One chip for the whole directory when it is itself across the
+            boundary, so the rows below stay unmarked instead of repeating it. */}
+        <SideBadge side={paneSide} withLabel />
         {props.active && (
           <span className="pane-active-dot" title={t('explorer.pane.activeHint')} aria-hidden="true" />
         )}
@@ -509,6 +523,14 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
             onToggleTree={toggleTree}
             onSearch={(q) => void pane.runSearch(q)}
             onClearSearch={pane.clearSearch}
+            onMeasure={pane.canMeasure ? () => void pane.measureDirSizes() : undefined}
+            measureActive={pane.dirSizes.status !== 'closed'}
+          />
+
+          <DirSizesPanel
+            state={pane.dirSizes}
+            onCancel={pane.cancelDirSizes}
+            onClose={pane.closeDirSizes}
           />
 
           <div className="pane-body">
@@ -539,6 +561,8 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
               sortKey={pane.sortKey}
               sortDir={pane.sortDir}
               selection={pane.selection}
+              automountRoot={automountRoot}
+              paneSide={paneSide}
               clipboardCutPaths={pane.clipboard?.cut ? pane.clipboard.paths : null}
               creating={creating}
               renamingPath={renamingPath}

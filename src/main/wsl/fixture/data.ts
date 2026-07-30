@@ -4,10 +4,13 @@
  * shared state — two providers always observe identical data.
  */
 import type {
+  ClockInfo,
   ConfigurationFileInfo,
   DiskImageInfo,
   DistroDetails,
   DistroSummary,
+  DnsInfo,
+  FirewallInfo,
   HermesInfo,
   ImportantPathInfo,
   MemoryReconciliation,
@@ -21,6 +24,7 @@ import type {
   WslConfigInfo
 } from '@shared/types'
 import { CONFIG_FILE_SPECS, IMPORTANT_PATH_SPECS, TOOL_SPECS } from '@shared/constants'
+import { classifyPathSide } from '../contracts'
 
 export const FIXTURE_UBUNTU = 'Ubuntu-24.04'
 export const FIXTURE_DEBIAN = 'Debian'
@@ -31,6 +35,11 @@ export const FIXTURE_WINDOWS_USERPROFILE = 'C:\\Users\\dev'
 /** Fixed ISO stamps so listings and snapshots are byte-identical across runs. */
 export const FIXTURE_SEED_MTIME = '2024-06-01T10:00:00.000Z'
 export const FIXTURE_NEW_MTIME = '2024-06-15T12:00:00.000Z'
+/** Frozen "now" for the clock card — never Date.now(), or nothing is stable. */
+export const FIXTURE_WINDOWS_NOW = '2024-06-15T12:00:00.000Z'
+/** 47 s behind Windows: enough to break TLS, small enough to be invisible. */
+export const FIXTURE_DISTRO_NOW = '2024-06-15T11:59:13.000Z'
+export const FIXTURE_CLOCK_SKEW_SECONDS = -47
 /** freedesktop .trashinfo DeletionDate format (no zone suffix). */
 export const FIXTURE_TRASH_DATE = '2024-06-15T12:00:00'
 
@@ -255,6 +264,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: '17100MB',
         effectiveValue: '17100MB',
         origin: 'wslconfig',
+        provenance: 'user',
         verdict: 'applied',
         note: null
       },
@@ -265,6 +275,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: '12',
         effectiveValue: '8',
         origin: 'wslconfig',
+        provenance: 'computed',
         verdict: 'pending-restart',
         note: 'The running VM still uses 8 processors. Applies after wsl --shutdown.'
       },
@@ -275,6 +286,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: 'mirrored',
         effectiveValue: 'nat',
         origin: 'wslconfig',
+        provenance: 'unknown',
         verdict: 'unsupported',
         note: 'Mirrored networking needs Windows 11 22H2 or newer. WSL fell back to NAT.'
       },
@@ -285,6 +297,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: 'dropcache',
         effectiveValue: null,
         origin: 'wslconfig',
+        provenance: 'unknown',
         verdict: 'wrong-section',
         note: 'WSL 2.0 and newer read autoMemoryReclaim from [wsl2], not [experimental].'
       },
@@ -295,6 +308,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: '8GB',
         effectiveValue: null,
         origin: 'wslconfig',
+        provenance: 'unknown',
         verdict: 'unknown-key',
         note: 'WSL ignores this key. Did you mean memory?'
       },
@@ -306,6 +320,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: 'C:\\\\Users\\\\dev\\\\kernels\\\\bzImage',
         effectiveValue: null,
         origin: 'wslconfig',
+        provenance: 'unknown',
         verdict: 'unknown',
         note: 'The running kernel could not be matched against this file.'
       },
@@ -316,6 +331,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: null,
         effectiveValue: '4GB',
         origin: 'computed',
+        provenance: 'computed',
         verdict: 'not-set',
         note: 'Defaults to 25% of the memory limit.'
       },
@@ -326,6 +342,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: null,
         effectiveValue: 'true',
         origin: 'default',
+        provenance: 'wsl-default',
         verdict: 'not-set',
         note: null
       },
@@ -336,6 +353,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: null,
         effectiveValue: 'true',
         origin: 'default',
+        provenance: 'wsl-default',
         verdict: 'not-set',
         note: null
       },
@@ -346,6 +364,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: 'true',
         effectiveValue: 'true',
         origin: 'wsl-conf',
+        provenance: 'user',
         verdict: 'applied',
         note: null
       },
@@ -356,6 +375,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: 'false',
         effectiveValue: 'false',
         origin: 'wsl-conf',
+        provenance: 'user',
         verdict: 'applied',
         note: null
       },
@@ -366,6 +386,7 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
         declaredValue: null,
         effectiveValue: 'true',
         origin: 'default',
+        provenance: 'wsl-default',
         verdict: 'not-set',
         note: null
       }
@@ -552,6 +573,12 @@ export function fixtureServices(distro: FixtureDistroName): ServiceInfo[] {
   ]
 }
 
+/**
+ * Four listeners, four different answers to "who can actually reach this?".
+ * They are consistent with fixtureFirewall: inbound is blocked by default and
+ * only one of the three rules opens 8080, which is why 8080 is the only entry
+ * the LAN can touch.
+ */
 export function fixturePorts(distro: FixtureDistroName): PortInfo[] {
   if (distro !== FIXTURE_UBUNTU) return []
   return [
@@ -564,7 +591,10 @@ export function fixturePorts(distro: FixtureDistroName): PortInfo[] {
       listening: true,
       localhostUrl: null,
       windowsBound: false,
-      windowsProcess: null
+      windowsProcess: null,
+      reachability: 'loopback-only',
+      reachabilityReason:
+        'Listening on every interface inside WSL, but nothing on the Windows side forwards port 22 and the firewall blocks inbound traffic.'
     },
     {
       protocol: 'tcp',
@@ -575,7 +605,10 @@ export function fixturePorts(distro: FixtureDistroName): PortInfo[] {
       listening: true,
       localhostUrl: 'http://127.0.0.1:8790',
       windowsBound: true,
-      windowsProcess: 'wslrelay.exe'
+      windowsProcess: 'wslrelay.exe',
+      reachability: 'windows-only',
+      reachabilityReason:
+        'Bound to 127.0.0.1 inside WSL. localhost forwarding carries it to this PC; other machines never see it.'
     },
     {
       protocol: 'tcp',
@@ -586,7 +619,10 @@ export function fixturePorts(distro: FixtureDistroName): PortInfo[] {
       listening: true,
       localhostUrl: 'http://127.0.0.1:8080',
       windowsBound: true,
-      windowsProcess: 'wslrelay.exe'
+      windowsProcess: 'wslrelay.exe',
+      reachability: 'lan',
+      reachabilityReason:
+        'Forwarded to Windows and allowed by an inbound firewall rule, so other machines on the network can reach it.'
     },
     {
       protocol: 'udp',
@@ -597,9 +633,70 @@ export function fixturePorts(distro: FixtureDistroName): PortInfo[] {
       listening: true,
       localhostUrl: null,
       windowsBound: false,
-      windowsProcess: null
+      windowsProcess: null,
+      reachability: 'loopback-only',
+      reachabilityReason:
+        'NAT networking does not carry mDNS out of the WSL virtual switch, so the announcements stay inside the distro.'
     }
   ]
+}
+
+/**
+ * Windows Defender Firewall in the fixture world: inbound blocked by default
+ * with three WSL rules, one of which opens 8080. This is what makes the Ports
+ * card able to say why 22 is unreachable while 8080 is not.
+ */
+export function fixtureFirewall(): FirewallInfo {
+  return {
+    enabled: true,
+    defaultInbound: 'Block',
+    defaultOutbound: 'Allow',
+    loopbackEnabled: true,
+    ruleCount: 3,
+    error: null
+  }
+}
+
+/** Both wall clocks, with the distro deliberately 47 s behind Windows. */
+export function fixtureClock(distro: FixtureDistroName): ClockInfo {
+  if (distro !== FIXTURE_UBUNTU) {
+    // A stopped distro has no clock to read; only the Windows side is known.
+    return { windowsIso: FIXTURE_WINDOWS_NOW, distroIso: null, skewSeconds: null }
+  }
+  return {
+    windowsIso: FIXTURE_WINDOWS_NOW,
+    distroIso: FIXTURE_DISTRO_NOW,
+    skewSeconds: FIXTURE_CLOCK_SKEW_SECONDS
+  }
+}
+
+/**
+ * The exact configuration that quietly breaks name resolution: someone replaced
+ * the generated symlink with a real file and set generateResolvConf=false, so
+ * WSL stopped maintaining it and the servers in it outlived the network they
+ * were copied from. The Windows adapter now hands out different ones.
+ */
+export function fixtureDns(distro: FixtureDistroName): DnsInfo {
+  if (distro !== FIXTURE_UBUNTU) {
+    return {
+      resolvConfPath: '/etc/resolv.conf',
+      isGeneratedSymlink: null,
+      generateResolvConf: null,
+      dnsTunneling: null,
+      nameservers: [],
+      windowsAdapterDns: ['192.168.1.1', '1.1.1.1'],
+      error: null
+    }
+  }
+  return {
+    resolvConfPath: '/etc/resolv.conf',
+    isGeneratedSymlink: false,
+    generateResolvConf: false,
+    dnsTunneling: false,
+    nameservers: ['10.255.255.254'],
+    windowsAdapterDns: ['192.168.1.1', '1.1.1.1'],
+    error: null
+  }
 }
 
 /**
@@ -689,8 +786,11 @@ export function fixtureEnvRaw(distro: FixtureDistroName): Record<string, string>
   }
 }
 
+/** The one important path that is not on ext4, so `side` is visible at a glance. */
+const WINDOWS_PROFILE_LINUX = '/mnt/c/Users/dev'
+
 export function fixtureImportantPaths(distro: FixtureDistroName): ImportantPathInfo[] {
-  return IMPORTANT_PATH_SPECS.map((spec) => {
+  const specPaths = IMPORTANT_PATH_SPECS.map((spec) => {
     const linuxPath = expandHome(spec.path)
     const exists = !(distro === FIXTURE_DEBIAN && spec.id === 'hermes')
     return {
@@ -699,9 +799,23 @@ export function fixtureImportantPaths(distro: FixtureDistroName): ImportantPathI
       linuxPath,
       windowsPath: exists ? toUncPath(distro, linuxPath) : null,
       exists,
-      isDirectory: exists ? true : null
+      isDirectory: exists ? true : null,
+      side: classifyPathSide(linuxPath)
     }
   })
+  return [
+    ...specPaths,
+    {
+      id: 'windows-user-profile',
+      label: WINDOWS_PROFILE_LINUX,
+      linuxPath: WINDOWS_PROFILE_LINUX,
+      // A drvfs mount already has a native Windows path; UNC would be a detour.
+      windowsPath: FIXTURE_WINDOWS_USERPROFILE,
+      exists: true,
+      isDirectory: true,
+      side: classifyPathSide(WINDOWS_PROFILE_LINUX)
+    }
+  ]
 }
 
 export function fixtureConfigFiles(distro: FixtureDistroName): ConfigurationFileInfo[] {
@@ -918,6 +1032,16 @@ const UBUNTU_TOOLS: Record<string, ToolOverride> = {
     configPaths: [],
     runningProcesses: 0,
     services: []
+  },
+  // Resolves under /mnt/c: the command that wins on PATH is the Windows build
+  // reached through interop, not anything installed inside the distro.
+  code: {
+    executablePath: '/mnt/c/Users/dev/AppData/Local/Programs/Microsoft VS Code/bin/code',
+    version: '1.91.0',
+    installMethod: 'windows-interop',
+    configPaths: [],
+    runningProcesses: 0,
+    services: []
   }
 }
 
@@ -934,9 +1058,12 @@ export function fixtureTools(distro: FixtureDistroName): ToolInfo[] {
         installMethod: null,
         configPaths: [],
         runningProcesses: 0,
-        services: []
+        services: [],
+        side: 'unknown' as const,
+        shadowedByWindows: false
       }
     }
+    const side = classifyPathSide(found.executablePath)
     return {
       id: spec.id,
       displayName: spec.displayName,
@@ -946,7 +1073,9 @@ export function fixtureTools(distro: FixtureDistroName): ToolInfo[] {
       installMethod: found.installMethod,
       configPaths: [...found.configPaths],
       runningProcesses: found.runningProcesses,
-      services: [...found.services]
+      services: [...found.services],
+      side,
+      shadowedByWindows: side === 'windows-mount'
     }
   })
 }

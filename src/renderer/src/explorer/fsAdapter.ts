@@ -1,6 +1,14 @@
 import { WINDOWS_ROOT } from '@shared/constants'
 import type { ExplorerListOptions } from '@shared/ipc'
-import type { FileEntry, FileStat, FsKind, TextFileContent } from '@shared/types'
+import { classifyPathSide } from '@shared/path-boundary'
+import type {
+  DirSizeResult,
+  FileEntry,
+  FileStat,
+  FsKind,
+  PathSide,
+  TextFileContent
+} from '@shared/types'
 import { i18n } from '../i18n'
 
 // ---------------------------------------------------------------------------
@@ -39,6 +47,18 @@ export function resolveLinuxPath(baseDir: string, target: string): string {
 export function shQuote(value: string): string {
   if (value.length === 0) return "''"
   return `'${value.replace(/'/g, `'\\''`)}'`
+}
+
+/**
+ * Which side of the WSL boundary a listed entry is on. A symlink is judged by
+ * where it leads, not by where it sits: a link in $HOME that quietly points
+ * into /mnt/c is exactly the case a badge on its own path would hide.
+ */
+export function entrySide(entry: FileEntry, automountRoot?: string | null): PathSide {
+  const target = entry.symlinkTarget
+  const absoluteTarget =
+    typeof target === 'string' && (target.startsWith('/') || /^[\\/]{2}/.test(target))
+  return classifyPathSide(absoluteTarget ? target : entry.path, automountRoot)
 }
 
 export function normalizeLinuxPath(input: string): string | null {
@@ -135,6 +155,14 @@ export interface FsAdapter {
   /** Hand the path over to Windows (Explorer / default application). */
   openNative(path: string): Promise<void>
   startDrag(paths: string[]): Promise<void>
+  /**
+   * Sizes of a directory's immediate children. Absent on a filesystem that
+   * cannot measure them — the pane then offers no action rather than an
+   * action that fails.
+   */
+  dirSizes?(path: string, token: string): Promise<DirSizeResult>
+  /** Stop a dirSizes run started with this token. */
+  cancelDirSizes?(token: string): Promise<void>
 }
 
 export function createWindowsAdapter(): FsAdapter {
@@ -195,6 +223,8 @@ export function createLinuxAdapter(home?: string | null): FsAdapter {
     writeText: (path, content) => window.wslpad.explorer.writeText(path, content),
     search: (path, query) => window.wslpad.explorer.search(path, query),
     openNative: (path) => window.wslpad.openInWindowsExplorer(path),
-    startDrag: (paths) => window.wslpad.explorer.startDrag(paths)
+    startDrag: (paths) => window.wslpad.explorer.startDrag(paths),
+    dirSizes: (path, token) => window.wslpad.explorer.dirSizes(path, token),
+    cancelDirSizes: (token) => window.wslpad.explorer.cancelOp(token)
   }
 }

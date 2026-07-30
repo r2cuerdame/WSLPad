@@ -45,6 +45,8 @@ function wslPort(over: Partial<PortInfo> = {}): PortInfo {
     localhostUrl: 'http://localhost:8080',
     windowsBound: null,
     windowsProcess: null,
+    reachability: 'unknown',
+    reachabilityReason: null,
     ...over
   }
 }

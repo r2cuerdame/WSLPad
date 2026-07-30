@@ -38,4 +38,4 @@ export const toolDetectors: ToolDetector[] = TOOL_SCRIPT_SPECS.map((spec) => ({
 }))
 
 export { detectHermes } from './hermes'
-export { inferInstallMethod, parseVersionLine } from './tools'
+export { classifyToolPath, inferInstallMethod, parseVersionLine } from './tools'

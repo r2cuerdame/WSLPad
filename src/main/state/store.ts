@@ -1,12 +1,21 @@
-import { MCP_DEFAULT_PORT, SNAPSHOT_SCHEMA_VERSION } from '@shared/constants'
+import {
+  MCP_DEFAULT_PORT,
+  PROBE_BACKOFF_BASE_MS,
+  PROBE_BACKOFF_MAX_MS,
+  PROBE_TRUST_MS,
+  SNAPSHOT_SCHEMA_VERSION
+} from '@shared/constants'
 import type {
+  ClockInfo,
   ConfigurationFileInfo,
   DashboardSnapshot,
   DiskImageInfo,
   DistroDetails,
   DistroSummary,
+  DnsInfo,
   EnvironmentVariableInfo,
   ExplorerContext,
+  FirewallInfo,
   HermesInfo,
   ImportantPathInfo,
   McpStatus,
@@ -25,6 +34,7 @@ import type {
 } from '@shared/types'
 import type { WslProvider } from '../wsl/contracts'
 import { assertValidDistroName } from '../wsl/escape'
+import { applyReachability } from '../wsl/reachability'
 import { correlatePorts } from '../wsl/windows-ports'
 import { computeWarnings } from './warnings'
 
@@ -45,6 +55,26 @@ interface DashboardSections {
   services: ServiceInfo[]
   ports: PortInfo[]
   windowsPorts: WindowsPortInfo[]
+  firewall: FirewallInfo | null
+  clock: ClockInfo | null
+  dns: DnsInfo | null
+}
+
+/**
+ * Liveness state for the selected distro (issue #37). `failures` drives both
+ * the warning and the doubling backoff; `until` is the instant before which no
+ * probe and no in-distro collection is attempted at all.
+ */
+interface ProbeState {
+  failures: number
+  /** epoch ms; while now < until the distro is treated as unresponsive */
+  until: number
+  /** epoch ms; while now < trustedUntil a recent success is reused */
+  trustedUntil: number
+}
+
+function freshProbe(): ProbeState {
+  return { failures: 0, until: 0, trustedUntil: 0 }
 }
 
 function emptySystem(): SystemInfo {
@@ -92,7 +122,10 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     processes: [],
     services: [],
     ports: [],
-    windowsPorts: []
+    windowsPorts: [],
+    firewall: null,
+    clock: null,
+    dns: null
   }
 }
 
@@ -119,7 +152,8 @@ const MAX_TRACKED_RUNNER_FAILURES = 20
  * instead of throwing (goal.md §9.2). When the selected distro is not running
  * the in-distro tiers are skipped entirely so polling never wakes a stopped
  * distro — cached dashboard data stays visible while the distro state itself
- * keeps updating from the list tier.
+ * keeps updating from the list tier. A running distro that has stopped
+ * answering is handled the same way through the liveness gate (issue #37).
  */
 export class SnapshotStore {
   private distros: DistroSummary[] = []
@@ -132,6 +166,8 @@ export class SnapshotStore {
   /** Last-good Windows listener table; null until one read succeeded. */
   private windowsPortTable: WindowsPortInfo[] | null = null
   private runnerFailures: string[] = []
+  private probe: ProbeState = freshProbe()
+  private probeInFlight: Promise<boolean> | null = null
   private subscribers = new Set<(s: WslPadSnapshot) => void>()
   private inFlight = { fast: false, medium: false, slow: false }
   private disposed = false
@@ -185,34 +221,48 @@ export class SnapshotStore {
       const distro = this.runningSelected()
       const s = this.sections
       if (distro && s) {
-        await Promise.all([
-          this.collect(
-            'resources',
-            () => this.provider.getResources(distro),
-            (v) => {
-              s.resources = v
-            }
-          ),
-          this.collect(
-            'processes',
-            () => this.provider.getProcesses(distro),
-            (v) => {
-              s.processes = v
-            }
-          ),
-          this.collect(
-            'ports',
-            () => this.provider.getPorts(distro),
-            (v) => {
-              s.ports = v
-            }
-          ),
-          this.collectMemoryDetail(distro, s),
-          this.collectWindowsPorts()
-        ])
+        // The Windows listener table is a host query: it stays fresh even when
+        // the distro itself is wedged, so it runs outside the liveness gate.
+        const windowsPorts = this.collectWindowsPorts()
+        if (await this.distroResponsive(distro)) {
+          await Promise.all([
+            this.collect(
+              'resources',
+              () => this.provider.getResources(distro),
+              (v) => {
+                s.resources = v
+              }
+            ),
+            this.collect(
+              'processes',
+              () => this.provider.getProcesses(distro),
+              (v) => {
+                s.processes = v
+              }
+            ),
+            this.collect(
+              'ports',
+              () => this.provider.getPorts(distro),
+              (v) => {
+                s.ports = v
+              }
+            ),
+            this.collectMemoryDetail(distro, s),
+            this.collectClock(distro, s)
+          ])
+        }
+        await windowsPorts
         const correlated = correlatePorts(s.ports, this.windowsPortTable)
-        s.ports = correlated.ports
         s.windowsPorts = correlated.windowsPorts
+        // The verdict needs the networking mode and the firewall, both filled
+        // by slower tiers: it is recomputed on every fast tick from whatever
+        // is known, so an input that has not arrived reads as unknown rather
+        // than as an open port.
+        s.ports = applyReachability(
+          correlated.ports,
+          s.wslSettings?.networkingModeEffective ?? null,
+          s.firewall
+        )
       }
       this.recomputeWarnings()
       this.emit()
@@ -228,22 +278,28 @@ export class SnapshotStore {
       const distro = this.runningSelected()
       const s = this.sections
       if (distro && s) {
-        await Promise.all([
-          this.collect(
-            'services',
-            () => this.provider.getServices(distro, s.system.systemdEnabled),
-            (v) => {
-              s.services = v
-            }
-          ),
-          this.collect(
-            'hermes',
-            () => this.provider.getHermes(distro),
-            (v) => {
-              s.hermes = v
-            }
-          )
-        ])
+        // Firewall is a Windows query — same reasoning as the port table.
+        const firewall = this.collectFirewall(s)
+        if (await this.distroResponsive(distro)) {
+          await Promise.all([
+            this.collect(
+              'services',
+              () => this.provider.getServices(distro, s.system.systemdEnabled),
+              (v) => {
+                s.services = v
+              }
+            ),
+            this.collect(
+              'hermes',
+              () => this.provider.getHermes(distro),
+              (v) => {
+                s.hermes = v
+              }
+            ),
+            this.collectDns(distro, s)
+          ])
+        }
+        await firewall
       }
       this.recomputeWarnings()
       this.emit()
@@ -258,7 +314,7 @@ export class SnapshotStore {
     try {
       const distro = this.runningSelected()
       const s = this.sections
-      if (distro && s) {
+      if (distro && s && (await this.distroResponsive(distro))) {
         await Promise.all([
           this.collect(
             'distro details',
@@ -391,6 +447,104 @@ export class SnapshotStore {
     )
   }
 
+  /**
+   * Windows firewall, medium tier: it explains why a listening port is not
+   * reachable, so it is polled next to the sections that quote it.
+   */
+  private async collectFirewall(s: DashboardSections): Promise<void> {
+    const read = this.provider.getFirewall
+    if (read === undefined) return
+    await this.collect(
+      'firewall',
+      () => read.call(this.provider),
+      (v) => {
+        s.firewall = v
+      }
+    )
+  }
+
+  /** Clock skew, fast tier: the value it reports is a live instant. */
+  private async collectClock(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getClock
+    if (read === undefined) return
+    await this.collect(
+      'clock',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.clock = v
+      }
+    )
+  }
+
+  /** Resolver configuration, medium tier: files and adapters change rarely. */
+  private async collectDns(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getDns
+    if (read === undefined) return
+    await this.collect(
+      'dns',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.dns = v
+      }
+    )
+  }
+
+  /**
+   * Liveness gate for every in-distro collector (issue #37). A wedged distro
+   * accepts the connection and then answers nothing, so without this each tier
+   * would sit on its own timeout every tick and the whole app would look
+   * frozen. On failure the cycle's in-distro work is skipped — last-good data
+   * stays on screen — and the next attempt is pushed out by a doubling backoff
+   * so a distro that stays wedged is asked once a minute, not once per tier.
+   * Recovery needs nothing but one successful probe.
+   */
+  private async distroResponsive(distro: string): Promise<boolean> {
+    const read = this.provider.probeDistro
+    if (read === undefined) return true
+    const now = Date.now()
+    if (now < this.probe.trustedUntil) return true
+    if (now < this.probe.until) return false
+    // Tiers overlap; one probe per cycle answers all of them.
+    if (this.probeInFlight !== null) return this.probeInFlight
+    const pending = this.runProbe(read, distro)
+    this.probeInFlight = pending
+    try {
+      return await pending
+    } finally {
+      this.probeInFlight = null
+    }
+  }
+
+  private async runProbe(
+    read: NonNullable<WslProvider['probeDistro']>,
+    distro: string
+  ): Promise<boolean> {
+    let alive = false
+    try {
+      alive = await read.call(this.provider, distro)
+    } catch {
+      alive = false
+    }
+
+    if (alive) {
+      const recovered = this.probe.failures > 0
+      this.probe = { failures: 0, until: 0, trustedUntil: Date.now() + PROBE_TRUST_MS }
+      if (recovered) this.recomputeWarnings()
+      return true
+    }
+
+    const failures = this.probe.failures + 1
+    const backoff = Math.min(
+      PROBE_BACKOFF_BASE_MS * 2 ** (failures - 1),
+      PROBE_BACKOFF_MAX_MS
+    )
+    this.probe = { failures, until: Date.now() + backoff, trustedUntil: 0 }
+    // Derived from state, so the warning appears once and stays — a wedged
+    // distro must not append a new warning on every poll.
+    this.recomputeWarnings()
+    return false
+  }
+
   /** .wslconfig / wsl.conf reconciliation, slow tier: files change rarely. */
   private async collectWslSettings(distro: string, s: DashboardSections): Promise<void> {
     const read = this.provider.getWslSettings
@@ -453,6 +607,8 @@ export class SnapshotStore {
     this.selected = summary.name
     this.sections = sectionsFor(summary)
     this.runnerFailures = []
+    // Liveness is a property of one distro: a new selection starts clean.
+    this.probe = freshProbe()
   }
 
   private runningSelected(): string | null {
@@ -462,13 +618,26 @@ export class SnapshotStore {
   }
 
   private recomputeWarnings(): void {
-    this.warnings = computeWarnings({
+    const warnings = computeWarnings({
       distros: this.distros,
       selectedDistro: this.selected,
       dashboard: this.sections ? { ...this.sections, warnings: [] } : null,
       runnerFailures: this.runnerFailures,
       mcpError: this.mcp.error
     })
+    // Liveness is store state, not a fact any collector reported, so it is
+    // appended here instead of inside the pure warning rules.
+    const distro = this.selected
+    if (distro !== null && this.probe.failures > 0) {
+      warnings.push({
+        id: 'distro-unresponsive',
+        severity: 'warning',
+        messageKey: 'warnings.distroUnresponsive',
+        params: { distro },
+        message: `Distribution ${distro} is not answering; live data is paused until it replies`
+      })
+    }
+    this.warnings = warnings
   }
 
   private build(): WslPadSnapshot {

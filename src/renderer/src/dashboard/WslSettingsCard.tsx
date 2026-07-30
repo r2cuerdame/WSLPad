@@ -1,6 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { LocaleCode, SettingVerdict, WslConfigInfo, WslSettingInfo } from '@shared/types'
+import type {
+  LocaleCode,
+  SettingProvenance,
+  SettingVerdict,
+  WslConfigInfo,
+  WslSettingInfo
+} from '@shared/types'
 import { formatDateTime } from '@shared/format'
 import { useApp } from '../store'
 import Card from '../components/Card'
@@ -22,6 +28,18 @@ const VERDICT_TONE: Record<SettingVerdict, 'ok' | 'dim' | 'warn' | 'err'> = {
   'wrong-section': 'err',
   'unknown-key': 'err',
   unsupported: 'err',
+  unknown: 'dim'
+}
+
+/**
+ * "You set this" has to be readable at a glance against "WSL decided this", so
+ * only a line the user actually wrote gets the accent chip. The three answers
+ * WSLPad arrived at on its own stay dim and differ by wording.
+ */
+const PROVENANCE_TONE: Record<SettingProvenance, 'accent' | 'dim'> = {
+  user: 'accent',
+  'wsl-default': 'dim',
+  computed: 'dim',
   unknown: 'dim'
 }
 
@@ -161,7 +179,7 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
                   <th scope="col">{t('dashboard.wslconfig.setting')}</th>
                   <th scope="col">{t('dashboard.wslconfig.declared')}</th>
                   <th scope="col">{t('dashboard.wslconfig.effective')}</th>
-                  <th scope="col">{t('dashboard.wslconfig.originLabel')}</th>
+                  <th scope="col">{t('dashboard.wslconfig.provenanceLabel')}</th>
                   <th scope="col">{t('dashboard.wslconfig.status')}</th>
                 </tr>
               </thead>
@@ -186,7 +204,11 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
                     >
                       {s.effectiveValue ?? '—'}
                     </td>
-                    <td>{t(`dashboard.wslconfig.origin.${s.origin}`)}</td>
+                    <td>
+                      <span className={`badge badge-${PROVENANCE_TONE[s.provenance]}`}>
+                        {t(`dashboard.wslconfig.provenance.${s.provenance}`)}
+                      </span>
+                    </td>
                     <td>
                       <span className={`badge badge-${VERDICT_TONE[s.verdict]}`}>
                         {t(`dashboard.wslconfig.verdict.${s.verdict}`)}

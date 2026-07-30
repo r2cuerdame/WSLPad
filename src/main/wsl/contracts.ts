@@ -1,11 +1,15 @@
 import type {
+  ClockInfo,
   ConfigurationFileInfo,
+  DirSizeResult,
   DiskImageInfo,
   DistroDetails,
   DistroSummary,
+  DnsInfo,
   EnvironmentVariableInfo,
   FileEntry,
   FileStat,
+  FirewallInfo,
   HermesInfo,
   ImportantPathInfo,
   MemoryReconciliation,
@@ -47,6 +51,9 @@ export class WslNotAvailableError extends Error {
   }
 }
 
+/** Re-exported so existing collectors keep one import site for the classifier. */
+export { classifyPathSide } from '@shared/path-boundary'
+
 export interface DistroRunner {
   /** Run `wsl.exe <args>` (management commands; UTF-16LE output). */
   runWsl(args: string[], opts?: RunOptions): Promise<RunResult>
@@ -64,6 +71,14 @@ export interface DistroRunner {
 export interface WslProvider {
   isAvailable(): Promise<boolean>
   listDistros(): Promise<DistroSummary[]>
+  /**
+   * Cheap liveness check: one trivial command with a short timeout (issue #37).
+   * A wedged distro answers nothing, and without this gate every collector in
+   * every tier would sit on its own timeout each poll. Resolves false — never
+   * throws — when the distro did not answer in time. Optional: a provider
+   * without it is simply never gated, which is the pre-0.1.3 behaviour.
+   */
+  probeDistro?(distro: string): Promise<boolean>
   getDistroDetails(distro: string): Promise<DistroDetails>
   getSystemInfo(distro: string): Promise<SystemInfo>
   getResources(distro: string): Promise<ResourceInfo>
@@ -84,6 +99,16 @@ export interface WslProvider {
   getDiskImage?(distro: string): Promise<DiskImageInfo>
   getWslSettings?(distro: string): Promise<WslConfigInfo>
   getMemoryDetail?(distro: string): Promise<MemoryReconciliation>
+  /**
+   * Windows Defender Firewall — a host query like getWindowsPorts, so it takes
+   * no distro name. Optional for the same reason as the three above: a missing
+   * method leaves the section null (unknown) instead of implying "all open".
+   */
+  getFirewall?(): Promise<FirewallInfo>
+  /** Windows vs distro wall clock; needs the distro to answer, so it is gated. */
+  getClock?(distro: string): Promise<ClockInfo>
+  /** Resolver configuration on both sides of the boundary. */
+  getDns?(distro: string): Promise<DnsInfo>
   getEnvironment(distro: string): Promise<EnvironmentVariableInfo[]>
   /** Raw value for explicit GUI reveal — never crosses MCP (goal.md §6.7). */
   revealEnv(distro: string, name: string): Promise<string | null>
@@ -160,6 +185,11 @@ export interface ExplorerBackend {
   importFromWindows(distro: string, windowsPaths: string[], destDir: string): Promise<string>
   exportToWindows(distro: string, paths: string[], windowsDir: string): Promise<string>
   cancelOp(opId: string): Promise<void>
+  /**
+   * Sizes of one directory's immediate children (issue #31). The token is an
+   * ordinary op id, so cancelOp() stops it like any other long operation.
+   */
+  dirSizes(distro: string, path: string, token: string): Promise<DirSizeResult>
   search(distro: string, path: string, query: string): Promise<FileEntry[]>
   convertPath(distro: string, input: string, to: 'windows' | 'linux'): Promise<string>
   /** Subscribe to progress for copyMove/import/export ops. Returns unsubscribe. */

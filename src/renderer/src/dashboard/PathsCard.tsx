@@ -4,6 +4,7 @@ import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import { FolderIcon, TerminalIcon } from '../components/Icons'
+import { SideBadge } from '../components/SideBadge'
 
 const dotClass = (exists: boolean | null): string =>
   exists === true ? 'dot dot-ok' : exists === false ? 'dot dot-err' : 'dot dot-unknown'
@@ -34,6 +35,8 @@ export default function PathsCard({ paths }: PathsCardProps): React.JSX.Element 
                 {p.exists === false ? (
                   <span className="badge badge-dim">{t('dashboard.paths.missing')}</span>
                 ) : null}
+                {/* Silent on ext4: the badge is here to explain the slow ones. */}
+                <SideBadge side={p.side} withLabel />
               </div>
               <div className="mono dim truncate" title={p.linuxPath}>
                 {p.linuxPath}

@@ -57,7 +57,8 @@ describe('parseImportantPaths', () => {
       linuxPath: '/home/recuerdame',
       windowsPath: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\recuerdame',
       exists: true,
-      isDirectory: true
+      isDirectory: true,
+      side: 'ext4'
     })
 
     const ssh = paths.find((p) => p.id === 'ssh')

@@ -8,11 +8,13 @@ import {
   TOOL_SCRIPT_SPECS,
   USER_SERVICES_SCRIPT,
   buildToolsScript,
+  classifyToolPath,
   inferInstallMethod,
   parseInteropBinaries,
   parseToolsOutput,
   parseUserServiceUnits,
-  parseVersionLine
+  parseVersionLine,
+  parseWindowsMounts
 } from '../../../src/main/wsl/detectors/tools'
 import { HERMES_SCRIPT, countMcpServers, parseSsLine } from '../../../src/main/wsl/detectors/hermes'
 
@@ -299,7 +301,7 @@ describe('buildToolsScript', () => {
   it('walks the Windows drive mounts once instead of once per missing tool', () => {
     const script = buildToolsScript(TOOL_SCRIPT_SPECS)
     // PATH loses the drive mounts before any tool is probed…
-    expect(script).toContain('case $d in /mnt/[A-Za-z] | /mnt/[A-Za-z]/*) continue ;; esac')
+    expect(script).toContain('M "$d" && continue')
     expect(script).toContain('[ -n "$np" ] && PATH=$np')
     // …and the single sweep at the end reads each of them with one glob.
     const sweep = callLines(script).filter((l) => l.startsWith('W '))
@@ -307,6 +309,22 @@ describe('buildToolsScript', () => {
     expect(sweep[0]).toContain('|node|')
     expect(sweep[0]).toContain('|chromium-browser|')
     expect(script).toContain('for f in "$d"/*; do')
+  })
+
+  it('reads the Windows mounts instead of assuming /mnt, and reports them', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    expect(script).toContain('done < /proc/mounts')
+    expect(script).toContain('printf \'%s\\n\' "MNT:$mp"')
+    expect(script).toContain('case $1 in "$r" | "$r"/*) return 0 ;; esac')
+    // Current WSL 2 names drvfs only in the mount options, so all three shapes
+    // of a DrvFs row have to be recognised.
+    expect(script).toContain('[ "$ms" = drvfs ] && mk=1')
+    expect(script).toContain('[ "$mt" = drvfs ] && mk=1')
+    expect(script).toContain('case $mo in *aname=drvfs*) mk=1 ;; esac')
+    // …and the documented layout stays the fallback when it cannot be read.
+    expect(script).toContain('case $1 in /mnt/[A-Za-z] | /mnt/[A-Za-z]/*) return 0 ;; esac')
+    // Reading the mount table must not cost a fork; awk stays the version probe.
+    expect(script.split('| awk')).toHaveLength(2)
   })
 
   it('is one well-formed sh program', () => {
@@ -319,7 +337,7 @@ describe('buildToolsScript', () => {
       expect(shSyntaxCheck('T() { if [ -n "$1" ]; then\n').ok).toBe(false)
     } else {
       // Structural fallback: helpers defined once, every call resolves to one.
-      for (const fn of ['V()', 'T()', 'Q()', 'C()']) {
+      for (const fn of ['V()', 'T()', 'Q()', 'C()', 'M()']) {
         expect(script.split(`${fn} `)).toHaveLength(2)
       }
       expect(script.endsWith('\n:\n')).toBe(true)
@@ -474,6 +492,39 @@ describe('parseInteropBinaries', () => {
 
   it('is empty when the distro has no Windows drive mounts on PATH', () => {
     expect(parseInteropBinaries(TOOLS_FIXTURE).size).toBe(0)
+  })
+})
+
+describe('parseWindowsMounts', () => {
+  it('collects the drive mounts the distro reported, in order, without repeats', () => {
+    const out = ['MNT:/mnt/c', 'MNT:/mnt/d', 'MNT:/mnt/c', 'TOOL:git', 'PATH:/usr/bin/git', ''].join(
+      '\n'
+    )
+    expect(parseWindowsMounts(out)).toEqual(['/mnt/c', '/mnt/d'])
+  })
+
+  it('is empty when the mount table could not be read at all', () => {
+    expect(parseWindowsMounts(TOOLS_FIXTURE)).toEqual([])
+  })
+
+  it('drops a root that is not an absolute path below /', () => {
+    expect(parseWindowsMounts('MNT:/\nMNT:relative\nMNT:\n')).toEqual([])
+  })
+})
+
+describe('classifyToolPath', () => {
+  it('uses the documented layout when the distro did not report its mounts', () => {
+    expect(classifyToolPath('/mnt/c/Program Files/nodejs/node', [])).toBe('windows-mount')
+    expect(classifyToolPath('/usr/bin/node', [])).toBe('ext4')
+    expect(classifyToolPath(null, [])).toBe('unknown')
+  })
+
+  it('believes a reported root over the shape of the path', () => {
+    // [automount] root=/windows/ — nothing about /windows/c/… looks like a
+    // Windows drive, and calling it ext4 would be a confident wrong answer.
+    expect(classifyToolPath('/windows/c/nodejs/node.exe', ['/windows/c'])).toBe('windows-mount')
+    expect(classifyToolPath('/windowsish/bin/node', ['/windows/c'])).toBe('ext4')
+    expect(classifyToolPath('/usr/bin/node', ['/windows/c'])).toBe('ext4')
   })
 })
 
@@ -684,14 +735,61 @@ describe('detectTools', () => {
       executablePath: '/mnt/c/Users/dev/AppData/Roaming/npm/pnpm',
       version: null,
       installMethod: 'windows-interop',
-      runningProcesses: 0
+      runningProcesses: 0,
+      side: 'windows-mount',
+      shadowedByWindows: true
     })
     // A distro binary always wins over the Windows one.
     expect(byId.get('node')).toMatchObject({
       executablePath: '/usr/bin/node',
       version: '22.11.0',
-      installMethod: 'apt'
+      installMethod: 'apt',
+      side: 'ext4',
+      shadowedByWindows: false
     })
+  })
+
+  it('shadows nothing when every resolved binary is inside the distro', async () => {
+    const { byId } = await run()
+    expect([...byId.values()].some((tool) => tool.shadowedByWindows)).toBe(false)
+    expect(byId.get('node')?.side).toBe('ext4')
+    // A tool that resolved nowhere has no side to report, not a Linux one.
+    expect(byId.get('pnpm')?.side).toBe('unknown')
+  })
+
+  it('shadows a binary under a relocated automount root, not just under /mnt', async () => {
+    const fixture = [
+      'MNT:/windows/c',
+      'TOOL:codex',
+      'PATH:',
+      'VER:',
+      'PROC:0',
+      'WIN:/windows/c/Users/dev/AppData/Roaming/npm/codex',
+      ''
+    ].join('\n')
+    const runner = new FakeRunner(toolsResponder(fixture))
+    const codex = (await detectTools(runner, 'Ubuntu-24.04')).find((t) => t.id === 'codex')
+    expect(codex).toMatchObject({
+      installed: true,
+      executablePath: '/windows/c/Users/dev/AppData/Roaming/npm/codex',
+      side: 'windows-mount',
+      shadowedByWindows: true,
+      installMethod: 'windows-interop'
+    })
+  })
+
+  it('keeps a distro path on the Linux side even when a root was reported', async () => {
+    const fixture = [
+      'MNT:/mnt/c',
+      'TOOL:git',
+      'PATH:/usr/bin/git',
+      'VER:git version 2.43.0',
+      'PROC:0',
+      ''
+    ].join('\n')
+    const runner = new FakeRunner(toolsResponder(fixture))
+    const git = (await detectTools(runner, 'Ubuntu-24.04')).find((t) => t.id === 'git')
+    expect(git).toMatchObject({ side: 'ext4', shadowedByWindows: false, installMethod: 'apt' })
   })
 
   it('never hands a unit to a tool whose id is only a substring of it', async () => {

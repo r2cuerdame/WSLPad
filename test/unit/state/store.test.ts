@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   DiskImageInfo,
   MemoryReconciliation,
@@ -6,8 +6,19 @@ import type {
   WslConfigInfo,
   WslPadSnapshot
 } from '@shared/types'
+import { PROBE_BACKOFF_BASE_MS, PROBE_TRUST_MS } from '@shared/constants'
 import { SnapshotStore } from '../../../src/main/state/store'
-import { debian, makeProvider, mcpStatus, resources, ubuntu, type FakeProvider } from './helpers'
+import {
+  clock,
+  debian,
+  dns,
+  firewall,
+  makeProvider,
+  mcpStatus,
+  resources,
+  ubuntu,
+  type FakeProvider
+} from './helpers'
 
 function diskImage(vhdxBytes: number): DiskImageInfo {
   return {
@@ -42,6 +53,7 @@ function wslSettings(): WslConfigInfo {
         declaredValue: '16GB',
         effectiveValue: '16GB',
         origin: 'wslconfig',
+        provenance: 'user',
         verdict: 'applied',
         note: null
       }
@@ -329,6 +341,70 @@ describe('SnapshotStore', () => {
     expect(store.get().warnings.some((w) => w.message.includes('df -k'))).toBe(true)
   })
 
+  it('collects clock in the fast tier and firewall + dns in the medium tier', async () => {
+    const extended = {
+      ...provider,
+      getFirewall: vi.fn(async () => firewall()),
+      getClock: vi.fn(async () => clock()),
+      getDns: vi.fn(async () => dns())
+    }
+    const s = new SnapshotStore(extended)
+    await s.initialize()
+    await s.refreshFast()
+    expect(s.get().dashboard?.clock?.skewSeconds).toBe(-47)
+    expect(extended.getFirewall).not.toHaveBeenCalled()
+    expect(extended.getDns).not.toHaveBeenCalled()
+
+    await s.refreshMedium()
+    expect(s.get().dashboard?.firewall?.defaultInbound).toBe('Block')
+    expect(s.get().dashboard?.dns?.generateResolvConf).toBe(false)
+  })
+
+  it('leaves firewall, clock and dns null when the provider omits them', async () => {
+    await store.initialize()
+    await store.refreshFast()
+    await store.refreshMedium()
+    const dash = store.get().dashboard
+    expect(dash?.firewall).toBeNull()
+    expect(dash?.clock).toBeNull()
+    expect(dash?.dns).toBeNull()
+    expect(store.get().warnings.some((w) => w.messageKey === 'warnings.runnerFailed')).toBe(false)
+  })
+
+  it('keeps the last-good dns when its collector fails, then recovers', async () => {
+    const getDns = vi.fn(async () => dns())
+    const s = new SnapshotStore({ ...provider, getDns })
+    await s.initialize()
+    await s.refreshMedium()
+
+    getDns.mockRejectedValueOnce(new Error('resolv.conf unreadable'))
+    await s.refreshMedium()
+    expect(s.get().dashboard?.dns?.nameservers).toEqual(['10.255.255.254'])
+    expect(s.get().warnings.some((w) => w.message.includes('dns'))).toBe(true)
+
+    getDns.mockResolvedValue(dns({ nameservers: ['192.168.1.1'] }))
+    await s.refreshMedium()
+    expect(s.get().dashboard?.dns?.nameservers).toEqual(['192.168.1.1'])
+    expect(s.get().warnings.some((w) => w.messageKey === 'warnings.runnerFailed')).toBe(false)
+  })
+
+  it('never wakes a stopped distro for clock, firewall or dns', async () => {
+    const extended = {
+      ...provider,
+      getFirewall: vi.fn(async () => firewall()),
+      getClock: vi.fn(async () => clock()),
+      getDns: vi.fn(async () => dns())
+    }
+    extended.listDistros.mockResolvedValue([ubuntu('Stopped'), debian()])
+    const s = new SnapshotStore(extended)
+    await s.initialize()
+    await s.refreshFast()
+    await s.refreshMedium()
+    expect(extended.getClock).not.toHaveBeenCalled()
+    expect(extended.getFirewall).not.toHaveBeenCalled()
+    expect(extended.getDns).not.toHaveBeenCalled()
+  })
+
   it('dispose stops refreshes and emissions', async () => {
     await store.initialize()
     const seen: WslPadSnapshot[] = []
@@ -337,5 +413,124 @@ describe('SnapshotStore', () => {
     await store.refreshFast()
     expect(seen).toHaveLength(0)
     expect(provider.getResources).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Issue #37: a wedged distro answers nothing, and before the liveness gate
+ * every collector in every tier sat on its own timeout each poll.
+ */
+describe('SnapshotStore liveness gate', () => {
+  let provider: FakeProvider
+  let probeDistro: ReturnType<typeof vi.fn>
+  let getWindowsPorts: ReturnType<typeof vi.fn>
+  let store: SnapshotStore
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    provider = makeProvider()
+    probeDistro = vi.fn(async () => false)
+    getWindowsPorts = vi.fn(async () => [])
+    store = new SnapshotStore({ ...provider, probeDistro, getWindowsPorts })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('skips in-distro work on every tier while keeping the host queries fresh', async () => {
+    await store.initialize()
+    await Promise.all([store.refreshFast(), store.refreshMedium(), store.refreshSlow()])
+
+    expect(provider.getResources).not.toHaveBeenCalled()
+    expect(provider.getProcesses).not.toHaveBeenCalled()
+    expect(provider.getServices).not.toHaveBeenCalled()
+    expect(provider.getSystemInfo).not.toHaveBeenCalled()
+    expect(provider.getTools).not.toHaveBeenCalled()
+    // Neither of these touches the distro, so neither is allowed to stall.
+    expect(provider.listDistros).toHaveBeenCalled()
+    expect(getWindowsPorts).toHaveBeenCalled()
+    // One probe answers all three tiers of the cycle.
+    expect(probeDistro).toHaveBeenCalledTimes(1)
+  })
+
+  it('backs off with a growing delay instead of probing on every poll', async () => {
+    await store.initialize()
+    await store.refreshFast()
+    expect(probeDistro).toHaveBeenCalledTimes(1)
+
+    await store.refreshFast()
+    await store.refreshMedium()
+    expect(probeDistro).toHaveBeenCalledTimes(1)
+
+    vi.advanceTimersByTime(PROBE_BACKOFF_BASE_MS)
+    await store.refreshFast()
+    expect(probeDistro).toHaveBeenCalledTimes(2)
+
+    // Second failure doubles the window: the same delay is no longer enough.
+    vi.advanceTimersByTime(PROBE_BACKOFF_BASE_MS)
+    await store.refreshFast()
+    expect(probeDistro).toHaveBeenCalledTimes(2)
+
+    vi.advanceTimersByTime(PROBE_BACKOFF_BASE_MS)
+    await store.refreshFast()
+    expect(probeDistro).toHaveBeenCalledTimes(3)
+  })
+
+  it('warns once about the unresponsive distro, not once per poll', async () => {
+    await store.initialize()
+    await store.refreshFast()
+    vi.advanceTimersByTime(PROBE_BACKOFF_BASE_MS)
+    await store.refreshFast()
+    await store.refreshMedium()
+
+    const raised = store.get().warnings.filter((w) => w.id === 'distro-unresponsive')
+    expect(raised).toHaveLength(1)
+    expect(raised[0].messageKey).toBe('warnings.distroUnresponsive')
+    expect(raised[0].params?.distro).toBe('Ubuntu-24.04')
+  })
+
+  it('keeps the last good snapshot when the distro stops answering', async () => {
+    probeDistro.mockResolvedValue(true)
+    await store.initialize()
+    await store.refreshFast()
+    expect(store.get().dashboard?.resources.cpuPercent).toBe(10)
+
+    probeDistro.mockResolvedValue(false)
+    vi.advanceTimersByTime(PROBE_TRUST_MS)
+    await store.refreshFast()
+    expect(store.get().dashboard?.resources.cpuPercent).toBe(10)
+    expect(provider.getResources).toHaveBeenCalledTimes(1)
+  })
+
+  it('recovers on the next successful probe without any user action', async () => {
+    await store.initialize()
+    await store.refreshFast()
+    expect(store.get().warnings.some((w) => w.id === 'distro-unresponsive')).toBe(true)
+    expect(provider.getResources).not.toHaveBeenCalled()
+
+    probeDistro.mockResolvedValue(true)
+    vi.advanceTimersByTime(PROBE_BACKOFF_BASE_MS)
+    await store.refreshFast()
+
+    expect(provider.getResources).toHaveBeenCalledTimes(1)
+    expect(store.get().dashboard?.resources.cpuPercent).toBe(10)
+    expect(store.get().warnings.some((w) => w.id === 'distro-unresponsive')).toBe(false)
+  })
+
+  it('treats a probe that throws as unresponsive instead of failing the poll', async () => {
+    probeDistro.mockRejectedValue(new Error('wsl.exe hung'))
+    await store.initialize()
+    await expect(store.refreshFast()).resolves.toBeUndefined()
+    expect(provider.getResources).not.toHaveBeenCalled()
+    expect(store.get().warnings.some((w) => w.id === 'distro-unresponsive')).toBe(true)
+  })
+
+  it('leaves a provider without a probe ungated', async () => {
+    const s = new SnapshotStore(makeProvider())
+    await s.initialize()
+    await s.refreshFast()
+    expect(s.get().dashboard?.resources.cpuPercent).toBe(10)
+    expect(s.get().warnings.some((w) => w.id === 'distro-unresponsive')).toBe(false)
   })
 })

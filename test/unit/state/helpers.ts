@@ -1,12 +1,15 @@
 import { vi } from 'vitest'
 import type {
+  ClockInfo,
   ConfigurationFileInfo,
   DashboardSnapshot,
   DiskUsage,
   DistroDetails,
   DistroState,
   DistroSummary,
+  DnsInfo,
   EnvironmentVariableInfo,
+  FirewallInfo,
   HermesInfo,
   ImportantPathInfo,
   McpStatus,
@@ -111,7 +114,9 @@ export function port(portNumber = 8080, pid: number | null = 100): PortInfo {
     listening: true,
     localhostUrl: `http://127.0.0.1:${portNumber}`,
     windowsBound: null,
-    windowsProcess: null
+    windowsProcess: null,
+    reachability: 'unknown',
+    reachabilityReason: null
   }
 }
 
@@ -137,6 +142,8 @@ export function tool(over: Partial<ToolInfo> = {}): ToolInfo {
     configPaths: [],
     runningProcesses: 1,
     services: [],
+    side: 'ext4',
+    shadowedByWindows: false,
     ...over
   }
 }
@@ -166,7 +173,8 @@ export function pathInfo(): ImportantPathInfo {
     linuxPath: '/home/dev',
     windowsPath: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev',
     exists: true,
-    isDirectory: true
+    isDirectory: true,
+    side: 'ext4'
   }
 }
 
@@ -198,6 +206,40 @@ export function mcpStatus(over: Partial<McpStatus> = {}): McpStatus {
   }
 }
 
+export function firewall(over: Partial<FirewallInfo> = {}): FirewallInfo {
+  return {
+    enabled: true,
+    defaultInbound: 'Block',
+    defaultOutbound: 'Allow',
+    loopbackEnabled: true,
+    ruleCount: 3,
+    error: null,
+    ...over
+  }
+}
+
+export function clock(over: Partial<ClockInfo> = {}): ClockInfo {
+  return {
+    windowsIso: '2026-07-30T12:00:00.000Z',
+    distroIso: '2026-07-30T11:59:13.000Z',
+    skewSeconds: -47,
+    ...over
+  }
+}
+
+export function dns(over: Partial<DnsInfo> = {}): DnsInfo {
+  return {
+    resolvConfPath: '/etc/resolv.conf',
+    isGeneratedSymlink: false,
+    generateResolvConf: false,
+    dnsTunneling: false,
+    nameservers: ['10.255.255.254'],
+    windowsAdapterDns: ['192.168.1.1'],
+    error: null,
+    ...over
+  }
+}
+
 export function makeDashboard(over: Partial<DashboardSnapshot> = {}): DashboardSnapshot {
   return {
     distro: details(),
@@ -215,6 +257,9 @@ export function makeDashboard(over: Partial<DashboardSnapshot> = {}): DashboardS
     services: [svc()],
     ports: [port()],
     windowsPorts: [],
+    firewall: null,
+    clock: null,
+    dns: null,
     warnings: [],
     ...over
   }

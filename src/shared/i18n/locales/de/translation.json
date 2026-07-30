@@ -90,7 +90,20 @@
       "uptime": "Laufzeit",
       "systemd": "Systemd",
       "ip": "IP",
-      "uncPath": "Windows-Pfad"
+      "uncPath": "Windows-Pfad",
+      "clock": "Uhr",
+      "clockWindows": "Windows-Zeit",
+      "clockDistro": "Zeit der Distribution",
+      "clockSkew": "Abweichung",
+      "clockInSync": "Im Gleichtakt mit Windows",
+      "clockBehind": "{{seconds}} s hinter Windows",
+      "clockAhead": "{{seconds}} s vor Windows",
+      "clockUnknown": "Nur eine der beiden Uhren konnte gelesen werden",
+      "clockHint": "Eine abgedriftete Uhr lässt TLS-Zertifikate und Paketsignaturen scheitern, bevor irgendetwas erklärt, warum.",
+      "clockApprox": "Die beiden Uhren werden einen Moment versetzt gelesen, diese Abweichung ist daher ungefähr.",
+      "clockFix": "Die Uhr wieder in Gleichtakt bringen",
+      "clockPrepare": "{{command}} vorbereiten",
+      "clockPrepareHint": "Der Befehl wird nur in der Konsole abgelegt – ausgeführt wird er erst, wenn Sie Enter drücken."
     },
     "resources": {
       "title": "Ressourcen",
@@ -123,7 +136,16 @@
       "cacheStorySome": "{{cache}} der {{held}}, die Windows für diese VM hält ({{percent}}), sind Linux-Seitencache, den Linux zurückholt, sobald Programme Speicher anfordern.",
       "reclaim": "Speicher zurückholen",
       "prepareShutdown": "{{command}} vorbereiten",
-      "reclaimHint": "Windows behält diesen Speicher, bis die WSL-VM stoppt. Der Befehl wird nur in der Konsole abgelegt – ausgeführt wird er erst, wenn Sie Enter drücken."
+      "reclaimHint": "Windows behält diesen Speicher, bis die WSL-VM stoppt. Der Befehl wird nur in der Konsole abgelegt – ausgeführt wird er erst, wenn Sie Enter drücken.",
+      "trend": "Verlauf",
+      "trendCpu": "CPU, letzte {{minutes}} Min.",
+      "trendMemory": "Arbeitsspeicher, letzte {{minutes}} Min.",
+      "trendEmpty": "Noch nicht genug Messwerte",
+      "trendGap": "Kein Messwert — die Distribution hat nicht geantwortet",
+      "trendRising": "{{label}}: steigend — aktuell {{current}}, zwischen {{low}} und {{high}}",
+      "trendSteady": "{{label}}: gleichbleibend — aktuell {{current}}, zwischen {{low}} und {{high}}",
+      "trendFalling": "{{label}}: fallend — aktuell {{current}}, zwischen {{low}} und {{high}}",
+      "trendHint": "Wird nur für diese Sitzung im Arbeitsspeicher gehalten; auf die Festplatte wird nichts geschrieben."
     },
     "disk": {
       "title": "Datenträgerabbild",
@@ -178,6 +200,13 @@
         "default": "WSL-Standard",
         "computed": "Berechnet"
       },
+      "provenanceLabel": "Gesetzt von",
+      "provenance": {
+        "user": "Ihre Datei",
+        "wsl-default": "WSL-Standard",
+        "computed": "Von WSL berechnet",
+        "unknown": "Nicht zuzuordnen"
+      },
       "verdict": {
         "applied": "Übernommen",
         "pending-restart": "Neustart nötig",
@@ -192,13 +221,52 @@
       "noneConfigured": "In dieser Datei ist nichts konfiguriert",
       "unavailable": "Keine WSL-Einstellungen für diese Distribution verfügbar"
     },
+    "network": {
+      "title": "Netzwerk",
+      "firewall": "Windows-Firewall",
+      "firewallUnknown": "Der Zustand der Windows-Firewall konnte nicht gelesen werden.",
+      "hyperVLayer": "Datenverkehr zu dieser Distribution passiert eine Hyper-V-Firewall, die das Fenster der Windows Defender Firewall nie zeigt. WSLPad liest sie nur aus.",
+      "state": "Firewall",
+      "defaultInbound": "Eingehend standardmäßig",
+      "defaultOutbound": "Ausgehend standardmäßig",
+      "loopback": "WSL-Loopback-Ausnahme",
+      "rules": "Regeln, die WSL erwähnen",
+      "inboundBlocked": "Eingehender Datenverkehr ist standardmäßig blockiert, aus dem Netzwerk erreicht diese Distribution also nichts, solange keine Regel es erlaubt.",
+      "allowInboundLabel": "Die virtuelle Maschine für eingehenden Datenverkehr öffnen",
+      "elevatedOnly": "Dieser Befehl braucht eine PowerShell mit Administratorrechten; WSLPad kann ihn deshalb nicht für Sie in der Konsole ablegen und führt ihn nie aus. Kopieren Sie ihn, lesen Sie ihn und führen Sie ihn selbst aus – er lässt eingehenden Datenverkehr in die gesamte virtuelle Maschine, nicht nur auf einen Port.",
+      "dns": "Namensauflösung",
+      "dnsUnknown": "Die Resolver-Konfiguration konnte nicht gelesen werden.",
+      "resolvConf": "Resolver-Datei",
+      "generatedSymlink": "Von WSL erzeugt",
+      "generateResolvConf": "generateResolvConf",
+      "dnsTunneling": "DNS-Tunneling",
+      "nameservers": "Verwendete Nameserver",
+      "windowsDns": "DNS des Windows-Adapters",
+      "dnsMismatch": "Die Server in {{path}} sind nicht die, die Windows verteilt. WSL hat aufgehört, diese Datei zu pflegen, als generateResolvConf abgeschaltet wurde – sie führt also noch das Netzwerk auf, in dem sie geschrieben wurde.",
+      "dnsVerdictNoNameservers": "In {{path}} steht kein nameserver, deshalb scheitert jede Abfrage mit einem temporary failure in name resolution.",
+      "dnsVerdictWillOverwrite": "{{path}} wurde von Hand geschrieben, während generateResolvConf noch eingeschaltet ist – WSL überschreibt die Datei beim nächsten Start dieser Distribution.",
+      "dnsVerdictStale": "generateResolvConf ist aus, WSL pflegt {{path}} also nicht mehr: Die Server darin bleiben so stehen, wie sie geschrieben wurden, auch wenn sich das Netzwerk ändert.",
+      "dnsVerdictTunneling": "DNS-Tunneling ist eingeschaltet, Abfragen beantwortet daher der Windows-Resolver, statt sie an die hier aufgeführten Server zu schicken.",
+      "portsHint": "Dieselben Regeln entscheiden, wie weit jeder lauschende Port trägt.",
+      "seePorts": "Zu den Ports",
+      "unavailable": "Keine Netzwerkinformationen für diese Distribution"
+    },
     "paths": {
       "title": "Wichtige Pfade",
       "copyLinux": "Linux-Pfad kopieren",
       "copyWindows": "Windows-Pfad kopieren",
       "openInExplorer": "Im Explorer öffnen",
       "setConsolePath": "Als Konsolenpfad verwenden",
-      "missing": "Fehlt"
+      "missing": "Fehlt",
+      "sideLabel": "Dateisystem",
+      "side": {
+        "ext4": "Linux-Datenträger",
+        "windows-mount": "Windows-Laufwerk",
+        "unc": "Windows-Freigabe",
+        "unknown": "Unbekannt"
+      },
+      "sideHintWindowsMount": "Wird über /mnt erreicht, jeder Dateizugriff überquert also die Grenze zum Windows-Dateisystem und ist deutlich langsamer als auf dem Linux-Datenträger.",
+      "sideHintUnc": "Wird von Windows aus über \\\\wsl.localhost erreicht, was langsamer ist, als denselben Pfad in der Distribution zu öffnen."
     },
     "config": {
       "title": "Konfiguration",
@@ -221,6 +289,15 @@
       "showInstalled": "Nur installierte",
       "filterPlaceholder": "Tools filtern",
       "installedOfTotal": "{{installed}} von {{total}} installiert",
+      "shadowed": "Windows-Programm",
+      "shadowedHint": "Der Befehl, der im PATH gewinnt, ist die über /mnt erreichte Windows-Version und keine in dieser Distribution installierte.",
+      "shadowedFilter": "Nur Windows-Programme",
+      "shadowedNotice": "{{count}} dieser Befehle starten ein Windows-Programm, das über die Laufwerkseinbindungen erreicht wird, und keine in dieser Distribution installierte Version.",
+      "shadowedRemedy": "Um das zu ändern, tragen Sie selbst appendWindowsPath = false unter [interop] in /etc/wsl.conf ein und starten Sie WSL neu. WSLPad schreibt diese Datei nie.",
+      "appendOn": "WSL hängt dieser Distribution den Windows-PATH an, deshalb landet jeder Befehl, den sie nicht selbst mitbringt, bei einem Windows-Programm.",
+      "appendOff": "WSL hängt dieser Distribution den Windows-PATH nicht an, deshalb landet kein Befehl bei einem Windows-Programm.",
+      "appendUnknown": "WSLPad konnte nicht lesen, ob diese Distribution den Windows-PATH anhängt.",
+      "sideLabel": "Läuft aus",
       "categoryLabel": "Kategorie",
       "category": {
         "ai": "KI",
@@ -390,7 +467,17 @@
       "reachableFromWindows": "Von Windows aus erreichbar",
       "notReachable": "Von Windows aus nicht erreichbar",
       "windowsUnknown": "Windows-Porttabelle nicht verfügbar",
-      "showWindowsOnly": "Nur auf Windows vorhandene Ports einbeziehen"
+      "showWindowsOnly": "Nur auf Windows vorhandene Ports einbeziehen",
+      "reachabilityLabel": "Reicht bis",
+      "reachability": {
+        "lan": "Ins Netzwerk",
+        "windows-only": "Nur dieser PC",
+        "loopback-only": "Nur innerhalb von WSL",
+        "unreachable": "Nirgendwohin",
+        "unknown": "Unbekannt"
+      },
+      "reachabilityUnknownHint": "Die Windows-Porttabelle oder die Firewall konnte nicht gelesen werden, daher ist unbekannt, wie weit dieser Port trägt.",
+      "reachabilityWindowsRow": "Ein lauschender Port von Windows: Die Erreichbarkeitsregeln von WSL gelten für ihn nicht."
     },
     "warnings": {
       "title": "Warnungen",
@@ -418,8 +505,21 @@
       "registered": "In {{client}} registriert",
       "registerFailed": "Konfiguration von {{client}} konnte nicht aktualisiert werden"
     },
+    "copy": {
+      "section": "Diesen Abschnitt kopieren",
+      "diagnosis": "Die Erklärung kopieren",
+      "copied": "In die Zwischenablage kopiert",
+      "hint": "Kopiert als reinen Text, was dieser Abschnitt zeigt – Geheimnisse bleiben maskiert."
+    },
     "copyForLlm": "Für LLM kopieren",
     "copiedForLlm": "Umgebungszusammenfassung kopiert",
+    "llmPreset": {
+      "full": "Vollständige Umgebungszusammenfassung",
+      "bugReport": "WSL-Fehlerbericht (GitHub-Issue)",
+      "agentContext": "Agentenkontext (CLAUDE.md / AGENTS.md)",
+      "copiedBugReport": "Fehlerbericht kopiert — ergänzen Sie die Reproduktionsschritte, bevor Sie ihn veröffentlichen",
+      "copiedAgentContext": "Agentenkontext kopiert"
+    },
     "exportJson": "JSON exportieren",
     "exportedJson": "Snapshot nach {{path}} exportiert",
     "nav": {
@@ -517,6 +617,16 @@
       "modified": "Geändert",
       "accessed": "Letzter Zugriff",
       "linkTarget": "Linkziel"
+    },
+    "dirSizes": {
+      "action": "Verzeichnisgrößen messen",
+      "title": "Verzeichnisgrößen",
+      "running": "Dieser Ordner wird vermessen — das kann einige Sekunden dauern…",
+      "failed": "Dieser Ordner konnte nicht vermessen werden",
+      "unmeasured": "Nicht gemessen",
+      "partial": "Mindestens so viel — ein Teil konnte nicht gelesen werden",
+      "total": "Gesamt {{size}}",
+      "skipped": "{{count}} weitere Elemente wurden nicht gemessen"
     },
     "invalidName": "Ungültiger Name",
     "dropUseImport": "Ablegen aus Windows wird hier nicht unterstützt – nutzen Sie „Aus Windows importieren…“",
@@ -666,11 +776,13 @@
     "homeInaccessible": "Home-Verzeichnis ist nicht erreichbar",
     "diskLow": "Wenig Speicherplatz auf {{mount}}: {{percent}} % belegt",
     "pathMissing": "PATH-Eintrag existiert nicht: {{path}}",
+    "crossBoundaryPaths": "{{count}} Element(e) liegen im Windows-Dateisystem, wo der Dateizugriff aus WSL deutlich langsamer ist als auf dem Linux-Datenträger: {{items}}",
     "hermesNoConfig": "Hermes-Programmdatei gefunden, aber ~/.hermes fehlt",
     "hermesNoExec": "Hermes-Daten gefunden, aber die Programmdatei fehlt",
     "serviceFailed": "Dienst {{service}} ist im Zustand failed",
     "portConflict": "Möglicher Portkonflikt auf {{port}}",
     "clockSkew": "Die WSL-Uhr weicht um {{seconds}} s von Windows ab",
+    "distroUnresponsive": "Distribution {{distro}} antwortet nicht; die Live-Daten pausieren, bis sie sich meldet",
     "runnerFailed": "Eine Hintergrundabfrage ist fehlgeschlagen: {{command}}",
     "mcpStartFailed": "MCP-Server konnte nicht gestartet werden: {{error}}"
   },

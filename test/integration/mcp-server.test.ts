@@ -7,7 +7,7 @@ import { McpServerHost } from '../../src/main/mcp/server'
 import { makeDeps, makeSnapshot } from '../unit/mcp/fixture'
 
 const TOKEN = 'wslpad-test-token-1234567890'
-const TOOL_COUNT = 26
+const TOOL_COUNT = 29
 
 function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {

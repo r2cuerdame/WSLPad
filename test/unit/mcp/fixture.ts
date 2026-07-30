@@ -245,6 +245,11 @@ export class FakeExplorer implements ExplorerBackend {
     throw this.mutation()
   }
 
+  /** Read-only, but MCP has no size tool: reaching it at all is the failure. */
+  async dirSizes(): Promise<never> {
+    throw new ExplorerError('UNKNOWN', '', 'dirSizes is not exposed through MCP')
+  }
+
   private mutation(): ExplorerError {
     return new ExplorerError('UNKNOWN', '', 'mutation attempted through the read-only MCP fixture')
   }
@@ -302,7 +307,8 @@ export function makeDashboard(): DashboardSnapshot {
         linuxPath: '/home/user',
         windowsPath: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\user',
         exists: true,
-        isDirectory: true
+        isDirectory: true,
+        side: 'ext4'
       }
     ],
     configuration: [
@@ -327,7 +333,9 @@ export function makeDashboard(): DashboardSnapshot {
         installMethod: 'apt',
         configPaths: [],
         runningProcesses: 1,
-        services: []
+        services: [],
+        side: 'ext4',
+        shadowedByWindows: false
       },
       {
         id: 'hermes',
@@ -338,7 +346,9 @@ export function makeDashboard(): DashboardSnapshot {
         installMethod: 'pipx',
         configPaths: ['/home/user/.hermes/config.json'],
         runningProcesses: 1,
-        services: ['hermes-gateway']
+        services: ['hermes-gateway'],
+        side: 'ext4',
+        shadowedByWindows: false
       }
     ],
     hermes: {
@@ -416,10 +426,15 @@ export function makeDashboard(): DashboardSnapshot {
         listening: true,
         localhostUrl: 'http://127.0.0.1:8600',
         windowsBound: null,
-        windowsProcess: null
+        windowsProcess: null,
+        reachability: 'unknown',
+        reachabilityReason: null
       }
     ],
     windowsPorts: [],
+    firewall: null,
+    clock: null,
+    dns: null,
     warnings: [
       {
         id: 'fixture-warning',

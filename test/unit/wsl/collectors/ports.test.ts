@@ -27,7 +27,9 @@ describe('parseSs', () => {
       listening: true,
       localhostUrl: null,
       windowsBound: null,
-      windowsProcess: null
+      windowsProcess: null,
+      reachability: 'unknown',
+      reachabilityReason: null
     })
 
     // no users field → null pid/process

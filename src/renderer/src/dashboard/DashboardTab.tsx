@@ -13,9 +13,10 @@ import OverviewCard from './OverviewCard'
 import ResourceCard from './ResourceCard'
 import DiskCard from './DiskCard'
 import WslSettingsCard, { settingNeedsAttention } from './WslSettingsCard'
+import NetworkCard, { networkNeedsAttention } from './NetworkCard'
 import PathsCard from './PathsCard'
 import ConfigCard from './ConfigCard'
-import ToolsCard from './ToolsCard'
+import ToolsCard, { effectiveAppendWindowsPath } from './ToolsCard'
 import HermesCard from './HermesCard'
 import EnvironmentCard from './EnvironmentCard'
 import ProcessesCard from './ProcessesCard'
@@ -121,9 +122,14 @@ export default function DashboardTab(): React.JSX.Element {
   // are the healthy majority and would drown the signal.
   const settingIssues = (dash.wslSettings?.settings ?? []).filter(settingNeedsAttention).length
 
+  // One dot, error-toned, only when something in the section actually explains
+  // a failure: a blocked inbound default or a resolver Windows no longer feeds.
+  const networkIssue = networkNeedsAttention(dash.firewall, dash.dns)
+
   const gatewayRunning = dash.hermes?.gatewayStatus === 'running'
   const badges: Partial<Record<DashboardSectionId, ReactNode>> = {
     wslconfig: settingIssues > 0 ? count(settingIssues, 'err') : undefined,
+    network: networkIssue ? dot('err', t('common.warning')) : undefined,
     tools: count(installedTools),
     hermes: dot(
       gatewayRunning ? 'ok' : 'unknown',
@@ -158,19 +164,32 @@ export default function DashboardTab(): React.JSX.Element {
   const detail = (): React.JSX.Element => {
     switch (section) {
       case 'overview':
-        return <OverviewCard distro={dash.distro} system={dash.system} />
+        return <OverviewCard distro={dash.distro} system={dash.system} clock={dash.clock} />
       case 'resources':
         return <ResourceCard resources={dash.resources} memoryDetail={dash.memoryDetail} />
       case 'disk':
         return <DiskCard disk={dash.disk} />
       case 'wslconfig':
         return <WslSettingsCard settings={dash.wslSettings} />
+      case 'network':
+        return (
+          <NetworkCard
+            firewall={dash.firewall}
+            dns={dash.dns}
+            onShowPorts={() => selectSection('ports')}
+          />
+        )
       case 'paths':
         return <PathsCard paths={dash.paths} />
       case 'configuration':
         return <ConfigCard files={dash.configuration} />
       case 'tools':
-        return <ToolsCard tools={dash.tools} />
+        return (
+          <ToolsCard
+            tools={dash.tools}
+            appendWindowsPath={effectiveAppendWindowsPath(dash.wslSettings)}
+          />
+        )
       case 'hermes':
         return <HermesCard hermes={dash.hermes} />
       case 'environment':

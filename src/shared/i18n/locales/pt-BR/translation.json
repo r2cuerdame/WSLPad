@@ -90,7 +90,20 @@
       "uptime": "Tempo de atividade",
       "systemd": "Systemd",
       "ip": "IP",
-      "uncPath": "Caminho do Windows"
+      "uncPath": "Caminho do Windows",
+      "clock": "Relógio",
+      "clockWindows": "Hora do Windows",
+      "clockDistro": "Hora da distribuição",
+      "clockSkew": "Diferença",
+      "clockInSync": "No mesmo passo do Windows",
+      "clockBehind": "{{seconds}} s atrás do Windows",
+      "clockAhead": "{{seconds}} s à frente do Windows",
+      "clockUnknown": "Só foi possível ler um dos dois relógios",
+      "clockHint": "Um relógio fora de hora faz os certificados TLS e as assinaturas de pacotes falharem antes que qualquer coisa explique o motivo.",
+      "clockApprox": "Os dois relógios são lidos com um instante de diferença, então essa diferença é aproximada.",
+      "clockFix": "Acertar o relógio de novo",
+      "clockPrepare": "Preparar {{command}}",
+      "clockPrepareHint": "O comando é apenas colocado no console — nada é executado até você pressionar Enter."
     },
     "resources": {
       "title": "Recursos",
@@ -123,7 +136,16 @@
       "cacheStorySome": "{{cache}} dos {{held}} que o Windows mantém para esta VM ({{percent}}) são cache de páginas do Linux, que o Linux recupera quando os programas pedem memória.",
       "reclaim": "Recuperar a memória",
       "prepareShutdown": "Preparar {{command}}",
-      "reclaimHint": "O Windows mantém essa memória até a VM do WSL parar. O comando é apenas colocado no console — nada é executado até você pressionar Enter."
+      "reclaimHint": "O Windows mantém essa memória até a VM do WSL parar. O comando é apenas colocado no console — nada é executado até você pressionar Enter.",
+      "trend": "Tendência",
+      "trendCpu": "CPU, últimos {{minutes}} min",
+      "trendMemory": "Memória, últimos {{minutes}} min",
+      "trendEmpty": "Ainda não há amostras suficientes",
+      "trendGap": "Sem amostra — a distribuição não respondeu",
+      "trendRising": "{{label}}: subindo — agora {{current}}, entre {{low}} e {{high}}",
+      "trendSteady": "{{label}}: estável — agora {{current}}, entre {{low}} e {{high}}",
+      "trendFalling": "{{label}}: caindo — agora {{current}}, entre {{low}} e {{high}}",
+      "trendHint": "Fica na memória apenas durante esta sessão; nada é gravado em disco."
     },
     "disk": {
       "title": "Imagem de disco",
@@ -178,6 +200,13 @@
         "default": "Padrão do WSL",
         "computed": "Calculado"
       },
+      "provenanceLabel": "Definido por",
+      "provenance": {
+        "user": "Seu arquivo",
+        "wsl-default": "Padrão do WSL",
+        "computed": "Calculado pelo WSL",
+        "unknown": "Não é possível atribuir"
+      },
       "verdict": {
         "applied": "Aplicado",
         "pending-restart": "Requer reinício",
@@ -192,13 +221,52 @@
       "noneConfigured": "Nada está configurado neste arquivo",
       "unavailable": "Nenhuma informação de configurações do WSL para esta distribuição"
     },
+    "network": {
+      "title": "Rede",
+      "firewall": "Firewall do Windows",
+      "firewallUnknown": "Não foi possível ler o estado do firewall do Windows.",
+      "hyperVLayer": "O tráfego para esta distribuição atravessa um firewall do Hyper-V que a janela do Firewall do Windows Defender nunca mostra. O WSLPad apenas o lê.",
+      "state": "Firewall",
+      "defaultInbound": "Entrada padrão",
+      "defaultOutbound": "Saída padrão",
+      "loopback": "Exceção de loopback do WSL",
+      "rules": "Regras que mencionam o WSL",
+      "inboundBlocked": "O tráfego de entrada é bloqueado por padrão, então nada vindo da rede chega a esta distribuição a menos que uma regra permita.",
+      "allowInboundLabel": "Abrir a máquina virtual para o tráfego de entrada",
+      "elevatedOnly": "Este precisa de um PowerShell de administrador, então o WSLPad não consegue colocá-lo no console para você e nunca o executa. Copie, leia e execute você mesmo — ele libera o tráfego de entrada para a máquina virtual inteira, não só para uma porta.",
+      "dns": "Resolução de nomes",
+      "dnsUnknown": "Não foi possível ler a configuração do resolvedor.",
+      "resolvConf": "Arquivo do resolvedor",
+      "generatedSymlink": "Gerado pelo WSL",
+      "generateResolvConf": "generateResolvConf",
+      "dnsTunneling": "Tunelamento de DNS",
+      "nameservers": "Servidores de nomes em uso",
+      "windowsDns": "DNS do adaptador do Windows",
+      "dnsMismatch": "Os servidores em {{path}} não são os que o Windows entrega. O WSL parou de manter este arquivo quando o generateResolvConf foi desligado, então ele ainda lista a rede em que foi escrito.",
+      "dnsVerdictNoNameservers": "{{path}} não lista nenhum nameserver, então toda consulta falha com um temporary failure in name resolution.",
+      "dnsVerdictWillOverwrite": "{{path}} foi escrito à mão com o generateResolvConf ainda ligado, então o WSL vai sobrescrevê-lo na próxima vez que esta distribuição iniciar.",
+      "dnsVerdictStale": "O generateResolvConf está desligado, então o WSL não mantém mais {{path}}: os servidores nele continuam como foram escritos, mesmo depois de a rede mudar.",
+      "dnsVerdictTunneling": "O tunelamento de DNS está ligado, então as consultas são respondidas pelo resolvedor do Windows em vez de irem para os servidores listados aqui.",
+      "portsHint": "As mesmas regras decidem até onde chega cada porta em escuta.",
+      "seePorts": "Ver as portas",
+      "unavailable": "Nenhuma informação de rede para esta distribuição"
+    },
     "paths": {
       "title": "Caminhos importantes",
       "copyLinux": "Copiar caminho do Linux",
       "copyWindows": "Copiar caminho do Windows",
       "openInExplorer": "Abrir no Explorador",
       "setConsolePath": "Usar como caminho do console",
-      "missing": "Não existe"
+      "missing": "Não existe",
+      "sideLabel": "Sistema de arquivos",
+      "side": {
+        "ext4": "Disco do Linux",
+        "windows-mount": "Unidade do Windows",
+        "unc": "Compartilhamento do Windows",
+        "unknown": "Desconhecido"
+      },
+      "sideHintWindowsMount": "É alcançado por /mnt, então toda operação de arquivo cruza a fronteira do sistema de arquivos do Windows e fica bem mais lenta que no disco do Linux.",
+      "sideHintUnc": "É alcançado a partir do Windows por \\\\wsl.localhost, o que é mais lento que abrir o mesmo caminho dentro da distribuição."
     },
     "config": {
       "title": "Configuração",
@@ -221,6 +289,15 @@
       "showInstalled": "Somente instaladas",
       "filterPlaceholder": "Filtrar ferramentas",
       "installedOfTotal": "{{installed}} de {{total}} instaladas",
+      "shadowed": "Binário do Windows",
+      "shadowedHint": "O comando que vence no PATH é a versão do Windows alcançada por /mnt, não uma instalada dentro desta distribuição.",
+      "shadowedFilter": "Somente binários do Windows",
+      "shadowedNotice": "{{count}} desses comandos executam um executável do Windows alcançado pelos pontos de montagem das unidades, e não uma versão instalada dentro desta distribuição.",
+      "shadowedRemedy": "Para mudar isso, escreva você mesmo appendWindowsPath = false em [interop] no /etc/wsl.conf e reinicie o WSL. O WSLPad nunca escreve nesse arquivo.",
+      "appendOn": "O WSL acrescenta o PATH do Windows a esta distribuição, então qualquer comando que ela não tenha por conta própria acaba em um executável do Windows.",
+      "appendOff": "O WSL não acrescenta o PATH do Windows a esta distribuição, então nenhum comando acaba em um executável do Windows.",
+      "appendUnknown": "O WSLPad não conseguiu ler se esta distribuição acrescenta o PATH do Windows.",
+      "sideLabel": "Executa de",
       "categoryLabel": "Categoria",
       "category": {
         "ai": "IA",
@@ -390,7 +467,17 @@
       "reachableFromWindows": "Acessível pelo Windows",
       "notReachable": "Não acessível pelo Windows",
       "windowsUnknown": "Tabela de portas do Windows indisponível",
-      "showWindowsOnly": "Incluir portas somente do Windows"
+      "showWindowsOnly": "Incluir portas somente do Windows",
+      "reachabilityLabel": "Alcança",
+      "reachability": {
+        "lan": "A rede",
+        "windows-only": "Somente este computador",
+        "loopback-only": "Somente dentro do WSL",
+        "unreachable": "Nada",
+        "unknown": "Desconhecido"
+      },
+      "reachabilityUnknownHint": "Não foi possível ler a tabela de portas do Windows nem o firewall, então não se sabe até onde esta porta chega.",
+      "reachabilityWindowsRow": "É uma porta em escuta do Windows: as regras de alcance do WSL não se aplicam a ela."
     },
     "warnings": {
       "title": "Avisos",
@@ -418,8 +505,21 @@
       "registered": "Registrado em {{client}}",
       "registerFailed": "Não foi possível atualizar a configuração de {{client}}"
     },
+    "copy": {
+      "section": "Copiar esta seção",
+      "diagnosis": "Copiar a explicação",
+      "copied": "Copiado para a área de transferência",
+      "hint": "Copia o que esta seção mostra como texto simples, com os segredos mascarados."
+    },
     "copyForLlm": "Copiar para LLM",
     "copiedForLlm": "Resumo do ambiente copiado",
+    "llmPreset": {
+      "full": "Resumo completo do ambiente",
+      "bugReport": "Relatório de bug do WSL (issue no GitHub)",
+      "agentContext": "Contexto para agentes (CLAUDE.md / AGENTS.md)",
+      "copiedBugReport": "Relatório de bug copiado — preencha os passos de reprodução antes de publicar",
+      "copiedAgentContext": "Contexto para agentes copiado"
+    },
     "exportJson": "Exportar JSON",
     "exportedJson": "Snapshot exportado para {{path}}",
     "nav": {
@@ -517,6 +617,16 @@
       "modified": "Modificado",
       "accessed": "Acessado",
       "linkTarget": "Destino do link"
+    },
+    "dirSizes": {
+      "action": "Medir o tamanho dos diretórios",
+      "title": "Tamanho dos diretórios",
+      "running": "Medindo esta pasta — isso pode levar alguns segundos…",
+      "failed": "Não foi possível medir esta pasta",
+      "unmeasured": "Não medido",
+      "partial": "Pelo menos isso — parte não pôde ser lida",
+      "total": "Total {{size}}",
+      "skipped": "Outros {{count}} itens não foram medidos"
     },
     "invalidName": "Nome inválido",
     "dropUseImport": "Arrastar do Windows não é suportado aqui — use “Importar do Windows…”",
@@ -666,11 +776,13 @@
     "homeInaccessible": "O diretório home não está acessível",
     "diskLow": "Pouco espaço em disco em {{mount}}: {{percent}}% usado",
     "pathMissing": "Entrada do PATH não existe: {{path}}",
+    "crossBoundaryPaths": "{{count}} item(ns) estão no sistema de arquivos do Windows, onde o acesso a arquivos pelo WSL é bem mais lento que no disco do Linux: {{items}}",
     "hermesNoConfig": "Executável do Hermes encontrado, mas ~/.hermes está ausente",
     "hermesNoExec": "Dados do Hermes encontrados, mas o executável está ausente",
     "serviceFailed": "O serviço {{service}} está em estado failed",
     "portConflict": "Possível conflito de porta em {{port}}",
     "clockSkew": "O relógio do WSL difere do Windows em {{seconds}} s",
+    "distroUnresponsive": "A distribuição {{distro}} não está respondendo; os dados ao vivo ficam pausados até ela responder",
     "runnerFailed": "Uma consulta em segundo plano falhou: {{command}}",
     "mcpStartFailed": "O servidor MCP não pôde iniciar: {{error}}"
   },

@@ -82,8 +82,23 @@ export interface DiskImageInfo {
   error: string | null
 }
 
+/**
+ * Which filesystem a path really lives on. ext4 is the distro's own disk,
+ * windows-mount is /mnt/<drive> reached through 9p or drvfs, unc is a
+ * \\wsl.localhost path read from the Windows side. 'unknown' is used whenever
+ * the path is absent or unparseable — never guessed from its shape alone.
+ */
+export type PathSide = 'ext4' | 'windows-mount' | 'unc' | 'unknown'
+
 /** Which file (or fallback) produced a WSL setting value. */
 export type SettingOrigin = 'wslconfig' | 'wsl-conf' | 'default' | 'computed'
+
+/**
+ * Who is responsible for a setting's value: a file the user wrote, WSL's own
+ * documented default, a value WSLPad derived from other settings, or unknown
+ * when the reconciler cannot attribute it.
+ */
+export type SettingProvenance = 'user' | 'wsl-default' | 'computed' | 'unknown'
 
 /** What actually became of a declared setting on the running system. */
 export type SettingVerdict =
@@ -105,6 +120,7 @@ export interface WslSettingInfo {
   /** null when the running value cannot be observed for this key. */
   effectiveValue: string | null
   origin: SettingOrigin
+  provenance: SettingProvenance
   verdict: SettingVerdict
   /** Short English explanation for the non-obvious verdicts; null when none. */
   note: string | null
@@ -155,6 +171,8 @@ export interface ImportantPathInfo {
   windowsPath: string | null
   exists: boolean | null
   isDirectory: boolean | null
+  /** Which filesystem the path is really on — why it is fast, slow or shared. */
+  side: PathSide
 }
 
 export interface ConfigurationFileInfo {
@@ -199,6 +217,14 @@ export interface ToolInfo {
   configPaths: string[]
   runningProcesses: number
   services: string[]
+  /** Which filesystem executablePath resolves on; 'unknown' when there is none. */
+  side: PathSide
+  /**
+   * True when the command that wins on PATH is a Windows binary reached through
+   * /mnt/<drive> interop — the usual reason `node --version` disagrees with the
+   * version the user installed inside the distro.
+   */
+  shadowedByWindows: boolean
 }
 
 export interface HermesProcessInfo {
@@ -254,6 +280,21 @@ export interface ServiceInfo {
 
 export type PortProtocol = 'tcp' | 'udp' | 'tcp6' | 'udp6'
 
+/**
+ * Who can actually open a listening port, widest answer wins:
+ * - 'lan'           other machines on the network can reach it
+ * - 'windows-only'  this Windows host can, other machines cannot
+ * - 'loopback-only' only processes inside the distro can
+ * - 'unreachable'   nothing can — the socket is not accepting connections
+ * - 'unknown'       an input (Windows port table, firewall) was not readable
+ */
+export type PortReachability =
+  | 'windows-only'
+  | 'lan'
+  | 'loopback-only'
+  | 'unreachable'
+  | 'unknown'
+
 export interface PortInfo {
   protocol: PortProtocol
   localAddress: string
@@ -271,6 +312,10 @@ export interface PortInfo {
   windowsBound: boolean | null
   /** Windows process holding that port (often wslrelay/wslhost under NAT). */
   windowsProcess: string | null
+  /** How far this port really carries; 'unknown' until every input is known. */
+  reachability: PortReachability
+  /** Why it stops there, in English; null when there is nothing to explain. */
+  reachabilityReason: string | null
 }
 
 /** A listener seen in the Windows TCP/UDP table (goal.md §6.10, extended). */
@@ -284,6 +329,65 @@ export interface WindowsPortInfo {
   localhostUrl: string | null
   /** True when a WSL listener on the same port explains this entry. */
   fromWsl: boolean
+}
+
+/**
+ * Windows Defender Firewall as it affects WSL (0.1.3 §network). Each field is
+ * read from a different part of the host query, so each degrades to null on
+ * its own: an unreadable rule count must not turn a known Block into "Allow".
+ */
+export interface FirewallInfo {
+  /** Firewall active on the profile in use; null when the state is unreadable. */
+  enabled: boolean | null
+  /** Default inbound action, verbatim ("Block", "Allow"); null when unreadable. */
+  defaultInbound: string | null
+  /** Default outbound action, verbatim; null when unreadable. */
+  defaultOutbound: string | null
+  /** Loopback exemption for WSL traffic; null when it could not be observed. */
+  loopbackEnabled: boolean | null
+  /** Rules that mention WSL; null when the rule list could not be enumerated. */
+  ruleCount: number | null
+  /** Collector failure text; the fields above stay null rather than guessing. */
+  error: string | null
+}
+
+/**
+ * The two wall clocks side by side. A WSL clock that drifted behind Windows
+ * breaks TLS handshakes and package signatures, and nothing inside the distro
+ * reports it — which is exactly why it belongs on the Dashboard.
+ */
+export interface ClockInfo {
+  /** ISO 8601 Windows time; null when the host clock could not be read. */
+  windowsIso: string | null
+  /** ISO 8601 distro time; null while the distro is stopped or not answering. */
+  distroIso: string | null
+  /**
+   * distro − Windows in seconds; negative means the distro is behind. null
+   * unless both instants are known: a one-sided difference is not a skew.
+   */
+  skewSeconds: number | null
+}
+
+/**
+ * Why name resolution works or does not (0.1.3 §network). The interesting case
+ * is a hand-written /etc/resolv.conf with generateResolvConf=false: WSL then
+ * never updates it, so the servers it lists outlive the network they came from.
+ */
+export interface DnsInfo {
+  /** Fixed location, known even when the file itself is missing. */
+  resolvConfPath: string
+  /** Still WSL's generated symlink; null when the path could not be stat'd. */
+  isGeneratedSymlink: boolean | null
+  /** [network] generateResolvConf; null when /etc/wsl.conf is unreadable. */
+  generateResolvConf: boolean | null
+  /** [wsl2] dnsTunneling; null when .wslconfig is unreadable. */
+  dnsTunneling: boolean | null
+  /** nameserver lines in force; empty when the file declares none. */
+  nameservers: string[]
+  /** Servers the Windows adapter hands out; empty when the host was not asked. */
+  windowsAdapterDns: string[]
+  /** Collector failure text; the lists stay empty rather than looking configured. */
+  error: string | null
 }
 
 export type WarningSeverity = 'info' | 'warning' | 'error'
@@ -319,7 +423,26 @@ export interface DashboardSnapshot {
   ports: PortInfo[]
   /** Listeners on the Windows host, so both sides of a port are visible. */
   windowsPorts: WindowsPortInfo[]
+  /** null until the Windows firewall has been read — never assumed permissive. */
+  firewall: FirewallInfo | null
+  /** null until both clocks have been sampled in the same cycle. */
+  clock: ClockInfo | null
+  /** null until the resolver configuration has been read. */
+  dns: DnsInfo | null
   warnings: WarningInfo[]
+}
+
+/**
+ * One point of the renderer-side resource history behind the Resources trend.
+ * It lives in renderer memory only: nothing here is ever persisted to disk or
+ * exposed over MCP, so a restart legitimately starts the history over.
+ */
+export interface MetricSample {
+  /** ISO 8601 sample instant. */
+  at: string
+  /** null keeps a gap in the trend instead of drawing a fabricated zero. */
+  cpuPercent: number | null
+  memUsedBytes: number | null
 }
 
 export type FileEntryType = 'file' | 'directory' | 'symlink' | 'other'
@@ -352,6 +475,38 @@ export interface ExplorerContext {
   distro: string | null
   currentPath: string | null
   showHidden: boolean
+}
+
+/**
+ * One immediate child measured by the Explorer's directory-size action.
+ * Knowing a distro is 40 GB says nothing about which directory caused it, and
+ * reaching for ncdu means installing a package in every distro (issue #31).
+ */
+export interface DirSizeEntry {
+  name: string
+  path: string
+  isDirectory: boolean
+  /** null when du could not measure it — never 0, which would read as empty. */
+  sizeBytes: number | null
+  /** du reached it but could not read all of it: the number is a floor. */
+  partial: boolean
+}
+
+/**
+ * Result of measuring one directory's immediate children, largest first.
+ * A failure leaves the entries empty rather than a page of confident zeroes.
+ */
+export interface DirSizeResult {
+  path: string
+  entries: DirSizeEntry[]
+  /** Sum of the measured entries; null when nothing could be measured. */
+  totalBytes: number | null
+  /** Children left unmeasured — past the cap, or unmeasurable; 0 when none. */
+  skipped: number
+  /** True when the caller cancelled before the numbers were complete. */
+  cancelled: boolean
+  /** Collector failure text; entries stay empty rather than looking like zero. */
+  error: string | null
 }
 
 /** Which filesystem an Explorer pane is browsing (goal.md §7 dual pane). */

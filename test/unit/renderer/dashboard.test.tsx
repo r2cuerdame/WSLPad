@@ -21,6 +21,7 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['resources', 'Resources'],
   ['disk', 'Disk image'],
   ['wslconfig', 'WSL settings'],
+  ['network', 'Network'],
   ['paths', 'Important paths'],
   ['configuration', 'Configuration files'],
   ['tools', 'Installed tools'],
@@ -89,7 +90,8 @@ function makeSnapshot(): WslPadSnapshot {
           linuxPath: '/home/dev',
           windowsPath: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev',
           exists: true,
-          isDirectory: true
+          isDirectory: true,
+          side: 'ext4'
         }
       ],
       configuration: [
@@ -124,7 +126,9 @@ function makeSnapshot(): WslPadSnapshot {
           installMethod: 'apt',
           configPaths: [],
           runningProcesses: 1,
-          services: []
+          services: [],
+          side: 'ext4',
+          shadowedByWindows: false
         },
         {
           id: 'bun',
@@ -135,7 +139,9 @@ function makeSnapshot(): WslPadSnapshot {
           installMethod: null,
           configPaths: [],
           runningProcesses: 0,
-          services: []
+          services: [],
+          side: 'unknown',
+          shadowedByWindows: false
         }
       ],
       hermes: {
@@ -211,10 +217,34 @@ function makeSnapshot(): WslPadSnapshot {
           listening: true,
           localhostUrl: 'http://127.0.0.1:8080',
           windowsBound: null,
-          windowsProcess: null
+          windowsProcess: null,
+          reachability: 'unknown',
+          reachabilityReason: null
         }
       ],
       windowsPorts: [],
+      firewall: {
+        enabled: true,
+        defaultInbound: 'Block',
+        defaultOutbound: 'Allow',
+        loopbackEnabled: true,
+        ruleCount: 3,
+        error: null
+      },
+      clock: {
+        windowsIso: '2026-07-30T12:00:00.000Z',
+        distroIso: '2026-07-30T11:59:13.000Z',
+        skewSeconds: -47
+      },
+      dns: {
+        resolvConfPath: '/etc/resolv.conf',
+        isGeneratedSymlink: false,
+        generateResolvConf: false,
+        dnsTunneling: false,
+        nameservers: ['10.255.255.254'],
+        windowsAdapterDns: ['192.168.1.1'],
+        error: null
+      },
       warnings: []
     },
     explorer: { distro: 'Ubuntu-24.04', currentPath: '/home/dev', showHidden: false },
@@ -407,6 +437,23 @@ describe('DashboardTab master–detail', () => {
     expect(navItem('paths').querySelector('.dash-nav-badge')).toBeNull()
     expect(navItem('configuration').querySelector('.dash-nav-badge')).toBeNull()
     expect(navItem('hermes').querySelector('.dot-ok')).toBeTruthy()
+  })
+
+  it('explains the firewall and the resolver in the network section', async () => {
+    await renderDashboard()
+
+    // Inbound is blocked by default in this snapshot: the section is badged.
+    expect(navItem('network').querySelector('.dot-err')).toBeTruthy()
+
+    fireEvent.click(navItem('network'))
+    const detail = screen.getByTestId('dashboard-detail')
+    expect(within(detail).getByText('Block')).toBeTruthy()
+    expect(within(detail).getByText('10.255.255.254')).toBeTruthy()
+    expect(within(detail).getByText('192.168.1.1')).toBeTruthy()
+
+    // The only action is navigation — nothing in this section mutates anything.
+    fireEvent.click(within(detail).getByRole('button', { name: 'See the ports' }))
+    expect(navItem('ports').getAttribute('aria-selected')).toBe('true')
   })
 
   it('has no MCP section — every MCP action lives in Settings', async () => {
