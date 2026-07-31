@@ -186,6 +186,7 @@
       "silentFallback": "{{declared}} requested, running as {{effective}}",
       "mismatch": "Mismatch",
       "setting": "Setting",
+      "aboutSetting": "About {{key}}",
       "scope": "Scope",
       "scopeWindows": "Windows",
       "scopeLinux": "Linux",

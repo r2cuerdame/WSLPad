@@ -9,14 +9,6 @@
   min-height: 0;
 }
 
-.dashboard-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-height: 30px;
-}
-
 /* Master list left, detail right — each scrolls on its own (goal.md §6). */
 .dashboard-split {
   flex: 1;
@@ -132,10 +124,20 @@
 
 .dashboard-detail-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-  padding: 16px 20px 10px;
+  padding: 12px 20px 10px;
   min-width: 0;
+}
+
+.dashboard-detail-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+/* Portal target for the active section's own controls (filters, toggles). */
+.dashboard-detail-actions {
+  display: contents;
 }
 
 .dashboard-detail-title {
@@ -170,34 +172,9 @@
   box-shadow: none;
 }
 
+/* The detail owns the title row, so the card's own header collapses away. */
 .dashboard-detail .dash-card-header {
-  padding: 0;
-  border-bottom: none;
-  justify-content: flex-end;
-}
-
-.dashboard-detail .dash-card-title {
   display: none;
-}
-
-.dashboard-detail .dash-card-actions {
-  padding: 0 20px 10px;
-}
-
-/* Wide enough for the section title and its filters to share one line: the
-   orphaned toolbar row underneath is what made this read like a debug panel. */
-@container (min-width: 560px) {
-  .dashboard-detail .dash-card-header {
-    position: absolute;
-    top: 12px;
-    right: 0;
-    left: auto;
-    z-index: 1;
-  }
-
-  .dashboard-detail .dash-card-actions {
-    padding: 0 20px;
-  }
 }
 
 .dashboard-detail .dash-card-body {
@@ -796,13 +773,12 @@
   white-space: nowrap;
 }
 
-/* A sentence explaining a row has to be readable: the cell's nowrap+clip cut
-   these mid-word, which is worse than saying nothing. */
-.dash-table td .cell-note {
-  max-width: 380px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  line-height: 1.45;
+/* Key plus its explanation marker on one line. */
+.setting-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 
 .dash-table tbody tr {

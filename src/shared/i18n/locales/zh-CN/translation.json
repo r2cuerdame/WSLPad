@@ -186,6 +186,7 @@
       "silentFallback": "请求的是 {{declared}}，实际以 {{effective}} 运行",
       "mismatch": "不一致",
       "setting": "设置项",
+      "aboutSetting": "{{key}} 说明",
       "scope": "范围",
       "scopeWindows": "Windows",
       "scopeLinux": "Linux",

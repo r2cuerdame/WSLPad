@@ -11,6 +11,7 @@ import { formatDateTime } from '@shared/format'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
+import InfoHint from '../components/InfoHint'
 import { FolderIcon, LinuxIcon, WarningIcon, WindowsIcon } from '../components/Icons'
 
 const STORAGE_KEY = 'wslpad.dashboard.wslconfig.hideDefaults'
@@ -209,8 +210,21 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
                 {groupRows.map((s) => (
                   <tr key={`${s.scope}.${s.section}.${s.key}`}>
                     <td>
-                      <span className="mono">{`${s.section}.${s.key}`}</span>
-                      {s.note === null ? null : <div className="cell-note dim">{s.note}</div>}
+                      {/* The note is what the key means; as a wrapped block it
+                          doubled the height of every row, so it moved into a
+                          hover/focus hint next to the key (user feedback). */}
+                      <span className="setting-name">
+                        <span className="mono">{`${s.section}.${s.key}`}</span>
+                        {s.note === null ? null : (
+                          <InfoHint
+                            label={t('dashboard.wslconfig.aboutSetting', {
+                              key: `${s.section}.${s.key}`,
+                              defaultValue: 'About {{key}}'
+                            })}
+                            description={s.note}
+                          />
+                        )}
+                      </span>
                     </td>
                     <td className="mono">{s.declaredValue ?? '—'}</td>
                     <td

@@ -186,6 +186,7 @@
       "silentFallback": "{{declared}} を要求しましたが、{{effective}} として動作しています",
       "mismatch": "不一致",
       "setting": "設定項目",
+      "aboutSetting": "{{key}} の説明",
       "scope": "スコープ",
       "scopeWindows": "Windows",
       "scopeLinux": "Linux",

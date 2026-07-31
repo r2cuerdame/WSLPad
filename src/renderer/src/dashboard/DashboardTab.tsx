@@ -24,6 +24,7 @@ import ServicesCard from './ServicesCard'
 import PortsCard from './PortsCard'
 import WarningsCard from './WarningsCard'
 import CopyForLlm from './CopyForLlm'
+import { CardActionsSlot } from './actionsSlot'
 import './dashboard.css'
 
 const STORAGE_KEY = 'wslpad.dashboard.section'
@@ -44,6 +45,9 @@ export default function DashboardTab(): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const locale = i18n.language as LocaleCode
   const [section, setSection] = useState<DashboardSectionId>(readStoredSection)
+  // The title row hosts the active section's controls; a ref callback in state
+  // so the first render after mount actually has the node to portal into.
+  const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null)
 
   const selectSection = useCallback((id: DashboardSectionId) => {
     setSection(id)
@@ -75,7 +79,6 @@ export default function DashboardTab(): React.JSX.Element {
   if (!snapshot || !dash) {
     return (
       <div className="dashboard" aria-busy="true" aria-label={t('common.loading')}>
-        <div className="dashboard-toolbar" />
         <div className="dashboard-split">
           <div className="dash-nav">
             <div className="dash-nav-list">
@@ -211,9 +214,6 @@ export default function DashboardTab(): React.JSX.Element {
 
   return (
     <div className="dashboard">
-      <div className="dashboard-toolbar">
-        <CopyForLlm />
-      </div>
       <div className="dashboard-split">
         <DashboardNav selected={section} onSelect={selectSection} badges={badges} />
         <section
@@ -221,11 +221,18 @@ export default function DashboardTab(): React.JSX.Element {
           data-testid="dashboard-detail"
           aria-label={t(titleKey)}
         >
+          {/* The export actions ride the title row: a toolbar of its own cost a
+              full row of the panel and left this corner empty (user feedback). */}
           <header className="dashboard-detail-header">
             <h2 className="dashboard-detail-title">{t(titleKey)}</h2>
             {subtitle ? <span className="dim dashboard-detail-subtitle">{subtitle}</span> : null}
+            <span className="dashboard-detail-spacer" />
+            <div className="dashboard-detail-actions" ref={setActionsSlot} />
+            <CopyForLlm />
           </header>
-          <div className="dashboard-detail-body">{detail()}</div>
+          <CardActionsSlot.Provider value={actionsSlot}>
+            <div className="dashboard-detail-body">{detail()}</div>
+          </CardActionsSlot.Provider>
         </section>
       </div>
     </div>

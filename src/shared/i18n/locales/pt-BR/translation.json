@@ -186,6 +186,7 @@
       "silentFallback": "{{declared}} solicitado, em execução como {{effective}}",
       "mismatch": "Divergência",
       "setting": "Configuração",
+      "aboutSetting": "Sobre {{key}}",
       "scope": "Escopo",
       "scopeWindows": "Windows",
       "scopeLinux": "Linux",

@@ -186,6 +186,7 @@
       "silentFallback": "{{declared}} demandé, exécuté en {{effective}}",
       "mismatch": "Incohérence",
       "setting": "Paramètre",
+      "aboutSetting": "À propos de {{key}}",
       "scope": "Portée",
       "scopeWindows": "Windows",
       "scopeLinux": "Linux",

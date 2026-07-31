@@ -186,6 +186,7 @@
       "silentFallback": "{{declared}} 요청, 실제로는 {{effective}}(으)로 실행 중",
       "mismatch": "불일치",
       "setting": "설정 항목",
+      "aboutSetting": "{{key}} 설명",
       "scope": "범위",
       "scopeWindows": "Windows",
       "scopeLinux": "Linux",

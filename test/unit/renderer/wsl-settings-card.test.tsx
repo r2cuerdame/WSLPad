@@ -290,7 +290,23 @@ describe('WslSettingsCard table', () => {
     const row = cells(rowFor('wsl2.processors'))
     expect(row[1]).toBe('12')
     expect(row[2]).toBe('8')
-    expect(rowFor('wsl2.processors').textContent).toContain('Applies after wsl --shutdown')
+    // The explanation is a hover/focus hint, not a second line in the cell.
+    const hint = within(rowFor('wsl2.processors')).getByRole('button', {
+      name: 'About wsl2.processors'
+    })
+    fireEvent.focus(hint)
+    expect(screen.getByRole('tooltip').textContent).toContain('Applies after wsl --shutdown')
+  })
+
+  it('marks only the settings that have something to explain', async () => {
+    await renderCard()
+    // memroy carries a note, localhostForwarding (hidden by default) does not.
+    expect(
+      within(rowFor('wsl2.memroy')).getByRole('button', { name: 'About wsl2.memroy' })
+    ).toBeTruthy()
+    expect(
+      within(rowFor('wsl2.memory')).queryByRole('button', { name: 'About wsl2.memory' })
+    ).toBeTruthy()
   })
 
   it('never lets "you set this" and "WSL decided this" look alike', async () => {
