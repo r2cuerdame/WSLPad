@@ -320,13 +320,21 @@
       "venv": "仮想環境",
       "config": "設定",
       "gateway": "ゲートウェイ",
+      "messengers": "メッセンジャー",
+      "supportedMessengers": "対応一覧",
+      "noMessenger": "接続なし",
+      "agents": "エージェント（プロファイル）",
+      "sessions": "アクティブセッション",
+      "jobs": "予約ジョブ",
       "dashboard": "ダッシュボード",
       "mcpServers": "MCP サーバー",
       "ports": "ポート",
       "services": "サービス",
       "logs": "ログ",
       "prepareStart": "起動コマンドを準備",
-      "prepareRestart": "再起動コマンドを準備"
+      "prepareRestart": "再起動コマンドを準備",
+      "prepareDashboard": "ダッシュボードのコマンドを準備",
+      "prepareDashboardHint": "コンソールに入力されるだけです — Enter を押すまで実行されません"
     },
     "environment": {
       "title": "環境変数",
@@ -454,6 +462,10 @@
       "protocol": "プロトコル",
       "address": "アドレス",
       "port": "ポート",
+      "portFrom": "開始ポート",
+      "portTo": "終了ポート",
+      "filterProcess": "プロセス名で絞り込み",
+      "noMatches": "条件に一致するポートはありません",
       "process": "プロセス",
       "openInBrowser": "ブラウザーで開く",
       "copyUrl": "URL をコピー",
@@ -678,7 +690,8 @@
       "waiting-sudo": "sudo パスワード待ち",
       "path-sync-pending": "パス同期待ち",
       "disconnected": "切断されました",
-      "distro-stopped": "ディストリビューション停止中"
+      "distro-stopped": "ディストリビューション停止中",
+      "start-failed": "起動できません"
     },
     "reconnect": "再接続",
     "commandPrepared": "コマンドを準備しました — 確認して Enter で実行してください",

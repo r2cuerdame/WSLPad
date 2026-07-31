@@ -172,9 +172,10 @@ describe('ToolsCard installed-only toggle', () => {
     expect(rowNames()).toEqual(['Claude', 'Node.js', 'Git', 'ripgrep'])
   })
 
-  it('summarises how much of the catalog is installed', () => {
+  it('leaves the installed-of-total count to the section header', () => {
     render(<ToolsCard tools={TOOLS} />)
-    expect(screen.getByText('4 of 6 installed')).toBeTruthy()
+    // The Dashboard prints it above the card; repeating it here read as a bug.
+    expect(screen.queryByText('4 of 6 installed')).toBeNull()
   })
 })
 
@@ -209,7 +210,6 @@ describe('ToolsCard empty state', () => {
   it('shows none when nothing matches', () => {
     render(<ToolsCard tools={[]} />)
     expect(screen.getByText('None')).toBeTruthy()
-    expect(screen.getByText('0 of 0 installed')).toBeTruthy()
   })
 })
 

@@ -320,13 +320,21 @@
       "venv": "Environnement virtuel",
       "config": "Configuration",
       "gateway": "Gateway",
+      "messengers": "Messageries",
+      "supportedMessengers": "Prises en charge",
+      "noMessenger": "Aucune connectée",
+      "agents": "Agents (profils)",
+      "sessions": "Sessions actives",
+      "jobs": "Tâches planifiées",
       "dashboard": "Dashboard",
       "mcpServers": "Serveurs MCP",
       "ports": "Ports",
       "services": "Services",
       "logs": "Journaux",
       "prepareStart": "Préparer la commande de démarrage",
-      "prepareRestart": "Préparer la commande de redémarrage"
+      "prepareRestart": "Préparer la commande de redémarrage",
+      "prepareDashboard": "Préparer la commande du tableau de bord",
+      "prepareDashboardHint": "Préparé dans la Console — rien ne s'exécute avant votre Entrée"
     },
     "environment": {
       "title": "Variables d'environnement",
@@ -454,6 +462,10 @@
       "protocol": "Proto",
       "address": "Adresse",
       "port": "Port",
+      "portFrom": "Port de début",
+      "portTo": "Port de fin",
+      "filterProcess": "Filtrer par processus",
+      "noMatches": "Aucun port ne correspond au filtre",
       "process": "Processus",
       "openInBrowser": "Ouvrir dans le navigateur",
       "copyUrl": "Copier l'URL",
@@ -678,7 +690,8 @@
       "waiting-sudo": "En attente du mot de passe sudo",
       "path-sync-pending": "Synchronisation du chemin en attente",
       "disconnected": "Déconnectée",
-      "distro-stopped": "Distribution arrêtée"
+      "distro-stopped": "Distribution arrêtée",
+      "start-failed": "Démarrage impossible"
     },
     "reconnect": "Reconnecter",
     "commandPrepared": "Commande préparée — vérifiez puis appuyez sur Entrée pour l'exécuter",

@@ -51,7 +51,7 @@ stillschweigend die Hälfte davon. Jeder Schlüssel aus `.wslconfig` und
 und einem Urteil angezeigt: übernommen, Neustart nötig, falscher Abschnitt,
 unbekannter Schlüssel oder auf diesem Build nicht unterstützt. Einschließlich
 des Netzwerkmodus, den Sie angefordert haben, gegenüber dem, den Sie bekommen
-haben.
+haben. Die beiden Dateien liegen auf zwei verschiedenen Maschinen und werden an zwei verschiedenen Stellen bearbeitet, also liest man sie einzeln — der Umschalter zeigt, wie viele Schlüssel jede Datei deklariert, und markiert die, die Aufmerksamkeit braucht.
 
 ![WSL-Einstellungen](docs/screenshots/wslconfig.png)
 
@@ -67,7 +67,9 @@ wenn er von Windows aus tatsächlich erreichbar ist, und jeder trägt jetzt ein
 **Erreichbarkeitsurteil**: reicht ins Netzwerk, nur bis zu diesem PC, nur
 innerhalb von WSL oder nirgendwohin — samt Begründung, hergeleitet aus der
 Bind-Adresse, dem wirksamen Netzwerkmodus und der Firewall. Wenn die Fakten
-nicht lesbar sind, sagt WSLPad *unbekannt*, statt zu raten.
+nicht lesbar sind, sagt WSLPad *unbekannt*, statt zu raten. Auf einer beschäftigten Maschine lauschen Hunderte von Ports, deshalb gibt es einen Portbereich und einen Prozessnamen-Filter — „wer hält 5173" ist eine Frage und keine Scroll-Übung.
+
+![Ports](docs/screenshots/ports.png)
 
 Das Dashboard führt nie etwas aus. Schaltflächen wie *kill*, *Dienst neu
 starten* oder *sudoedit* **bereiten** den Befehl lediglich in der Eingabezeile
@@ -105,6 +107,8 @@ WSL-Bereich des Explorers navigieren, folgt die Console in dasselbe
 Verzeichnis — ohne sichtbares `cd`, ohne Ihren Shell-Verlauf zuzumüllen. Nur
 Befehle, die **Sie** ausführen, erscheinen im Mitschnitt; die internen Abfragen
 von WSLPad laufen über einen separaten, verborgenen Runner.
+
+Sie erholt sich außerdem von selbst. WSL ist oft noch beschäftigt, wenn WSLPad mit Windows startet, und eine Shell, die nicht gestartet werden konnte, wird jetzt genau so gemeldet — **mit dem Grund** — statt als irreführendes „Distribution gestoppt". Sobald die Distribution als laufend gilt, versucht es die Konsole ungefragt erneut, und wenn es weiterhin nicht klappt, bleibt eine Schaltfläche zum erneuten Verbinden stehen. Die App neu zu starten ist nie die Antwort.
 
 ## MCP-Server (nur lesend)
 
@@ -173,9 +177,9 @@ zum Windows-Dateisystem es liegt und — wichtig — ob der Befehl tatsächlich 
 ein **Windows**-Programm unter `/mnt/c` auflöst statt auf eines, das in der
 Distribution installiert ist.
 
-**Hermes** — Programmdatei, Datenverzeichnis, virtuelle Umgebung,
-Konfiguration, Status von Gateway und Dashboard, Anzahl der MCP-Server, Ports,
-Benutzerdienste und Pfade der Protokolle.
+**Hermes** — Programmdatei, Datenverzeichnis, virtuelle Umgebung, Konfiguration, Status des Gateways, **mit welchen Messengern es tatsächlich verbunden ist**, die Profile, die man Agenten nennen würde (das aktuelle markiert), aktive Sitzungen, geplante Aufgaben, Status und Adresse des Dashboards, Anzahl der MCP-Server, Ports, Benutzerdienste und Pfade der Protokolle. Messenger und Profile stammen aus Hermes' eigener, nur lesender CLI; lässt sie sich nicht befragen, steht dort *unbekannt* und nicht „nichts konfiguriert". Das Web-Dashboard läuft nicht? Der Befehl zum Starten wird in der Konsole vorbereitet.
+
+![Hermes](docs/screenshots/hermes.png)
 
 **Umgebungsvariablen** — jede Variable mit ihrer Länge und ihren Merkmalen
 (PATH-artig, von Windows übernommen). Namen, die nach einem Secret aussehen,
@@ -191,7 +195,7 @@ Erklärung in normaler Sprache, was sie ist und ob sie normalerweise läuft.
 **Ports** — Protokoll, Adresse, Port, PID, Prozess, Lauschstatus, die Quelle
 (`WSL`, `Windows`, `WSL + Windows`) und ein Erreichbarkeitsurteil samt
 Begründung: reicht ins Netzwerk, nur bis zu diesem PC, nur innerhalb von WSL,
-nirgendwohin oder unbekannt.
+nirgendwohin oder unbekannt. Filtern nach Portbereich und Prozessname — die Namenssuche sieht sowohl den WSL-Prozess als auch den Windows-Prozess an, der denselben Port hält.
 
 **Netzwerk** — der Zustand der Hyper-V-Firewall für die virtuelle WSL-Maschine
 (aktiviert, Standardaktion für eingehenden und ausgehenden Datenverkehr,
@@ -208,9 +212,7 @@ MCP-Probleme.
 Besitzer, Gruppe, Linux-Berechtigungen und Linkziele. Pro Laufwerk auf der
 Windows-Seite: freier und gesamter Speicherplatz.
 
-**Console** — die Distribution, das aktuelle Verzeichnis und der Zustand der
-Shell (bereit, wird ausgeführt, wartet auf Eingabe, wartet auf ein
-sudo-Passwort, getrennt).
+**Console** — die Distribution, das aktuelle Verzeichnis und der Zustand der Shell (bereit, wird ausgeführt, wartet auf Eingabe, wartet auf ein sudo-Passwort, getrennt, Distribution gestoppt oder Start fehlgeschlagen — Letzteres mit dem Grund).
 
 **Über MCP** — alles davon über 29 `Get*`-Tools mit Nur-Lese-Zugriff.
 [docs/MCP.md](docs/MCP.md)
@@ -242,7 +244,7 @@ in den Settings), lebt im Tray und aktualisiert sich automatisch über GitHub
 Releases. Das Schließen des Fensters blendet es nur aus; *Beenden* im Tray-Menü
 beendet die App.
 
-> v0.1.0 ist nicht signiert — SmartScreen fragt einmal nach („Weitere
+> Der Installer ist nicht signiert — SmartScreen fragt einmal nach („Weitere
 > Informationen“ → „Trotzdem ausführen“).
 
 Voraussetzungen: Windows 10/11 x64. WSL ist optional — ohne WSL zeigt WSLPad
@@ -279,7 +281,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.1.3)
+## Aktuelle Einschränkungen (v0.1.4)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;

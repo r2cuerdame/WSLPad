@@ -58,7 +58,7 @@ at-a-glance status badge):
 | `GetConfigurationFiles` | wsl.conf/.wslconfig/rc files existence & paths |
 | `GetInstalledTools` | Detected dev tools with versions and install method |
 | `GetToolStatus` | One tool's detection detail (`{ tool }`) |
-| `GetHermesStatus` | Hermes install/gateway/dashboard/ports/services |
+| `GetHermesStatus` | Hermes install/gateway/dashboard, connected messengers, profiles ("agents"), active sessions, scheduled jobs, ports/services |
 | `GetEnvironment` | Env var names + masked values (secrets never raw) |
 | `GetProcesses` / `GetProcess` | Process table / one PID |
 | `GetServices` / `GetService` | systemd services / one unit |

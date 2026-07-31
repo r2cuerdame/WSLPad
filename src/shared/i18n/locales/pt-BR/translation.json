@@ -320,13 +320,21 @@
       "venv": "Ambiente virtual",
       "config": "Configuração",
       "gateway": "Gateway",
+      "messengers": "Mensageiros",
+      "supportedMessengers": "Compatíveis",
+      "noMessenger": "Nenhum conectado",
+      "agents": "Agentes (perfis)",
+      "sessions": "Sessões ativas",
+      "jobs": "Tarefas agendadas",
       "dashboard": "Dashboard",
       "mcpServers": "Servidores MCP",
       "ports": "Portas",
       "services": "Serviços",
       "logs": "Logs",
       "prepareStart": "Preparar comando de início",
-      "prepareRestart": "Preparar comando de reinício"
+      "prepareRestart": "Preparar comando de reinício",
+      "prepareDashboard": "Preparar comando do painel",
+      "prepareDashboardHint": "Preparado no Console — nada roda até você pressionar Enter"
     },
     "environment": {
       "title": "Variáveis de ambiente",
@@ -454,6 +462,10 @@
       "protocol": "Proto",
       "address": "Endereço",
       "port": "Porta",
+      "portFrom": "Porta inicial",
+      "portTo": "Porta final",
+      "filterProcess": "Filtrar por processo",
+      "noMatches": "Nenhuma porta corresponde ao filtro",
       "process": "Processo",
       "openInBrowser": "Abrir no navegador",
       "copyUrl": "Copiar URL",
@@ -678,7 +690,8 @@
       "waiting-sudo": "Aguardando a senha do sudo",
       "path-sync-pending": "Sincronização de caminho pendente",
       "disconnected": "Desconectado",
-      "distro-stopped": "Distribuição parada"
+      "distro-stopped": "Distribuição parada",
+      "start-failed": "Não foi possível iniciar"
     },
     "reconnect": "Reconectar",
     "commandPrepared": "Comando preparado — revise e pressione Enter para executar",

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createRealConsoleFactory, ensureRcInstalled } from '../../../src/main/terminal/backend'
+import {
+  consoleSpawnArgs,
+  createRealConsoleFactory,
+  ensureRcInstalled,
+  installRcOrDegrade
+} from '../../../src/main/terminal/backend'
 import { BASH_RC, ZSH_RC } from '../../../src/main/terminal/rc'
 import { shellQuote } from '../../../src/main/wsl/escape'
 import { MockRunner } from './helpers'
@@ -113,6 +118,50 @@ describe('writeCwdSyncFile', () => {
     await expect(factory.writeCwdSyncFile('Ubuntu', 's', '/tmp')).rejects.toThrow(
       /Failed to write cwd sync file/
     )
+  })
+})
+
+describe('installRcOrDegrade', () => {
+  it('keeps the detected shell when the rc lands', async () => {
+    const runner = new MockRunner()
+    expect(await installRcOrDegrade(runner, 'Ubuntu', 'bash')).toBe('bash')
+    expect(runner.calls).toHaveLength(1)
+  })
+
+  it('falls back to a plain shell rather than losing the console', async () => {
+    // The 0.1.3 wedge: WSL is busy at Windows login, the rc write fails once,
+    // and the console used to die for the whole session.
+    const runner = new MockRunner()
+    runner.results = [fail('Failed to install console rc')]
+    expect(await installRcOrDegrade(runner, 'Ubuntu', 'bash')).toBe('other')
+  })
+
+  it('does not try to install anything for an unknown shell', async () => {
+    const runner = new MockRunner()
+    expect(await installRcOrDegrade(runner, 'Ubuntu', 'other')).toBe('other')
+    expect(runner.calls).toHaveLength(0)
+  })
+})
+
+describe('consoleSpawnArgs', () => {
+  it('passes the rcfile as a bare relative path (node-pty re-quotes anything else)', () => {
+    const args = consoleSpawnArgs('Ubuntu-24.04', 'bash')
+    expect(args.slice(0, 4)).toEqual(['-d', 'Ubuntu-24.04', '--cd', '~'])
+    expect(args).toContain('--rcfile')
+    expect(args).toContain('.cache/wslpad/rc.bash')
+    expect(args).toContain('WSLPAD_SYNC_FILE=/tmp/.wslpad-cwd-Ubuntu-24.04')
+    expect(args.join(' ')).not.toContain('"')
+    expect(args.join(' ')).not.toContain('$HOME')
+  })
+
+  it('points zsh at the generated ZDOTDIR', () => {
+    const args = consoleSpawnArgs('Ubuntu', 'zsh')
+    expect(args).toContain('ZDOTDIR=.cache/wslpad/zdotdir')
+    expect(args).toContain('zsh')
+  })
+
+  it('launches a degraded shell with no injection at all', () => {
+    expect(consoleSpawnArgs('Ubuntu', 'other')).toEqual(['-d', 'Ubuntu', '--cd', '~'])
   })
 })
 

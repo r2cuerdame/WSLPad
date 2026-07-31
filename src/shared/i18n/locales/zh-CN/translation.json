@@ -320,13 +320,21 @@
       "venv": "虚拟环境",
       "config": "配置",
       "gateway": "网关",
+      "messengers": "即时通讯",
+      "supportedMessengers": "支持列表",
+      "noMessenger": "未连接",
+      "agents": "智能体（配置档）",
+      "sessions": "活动会话",
+      "jobs": "计划任务",
       "dashboard": "仪表盘",
       "mcpServers": "MCP 服务器",
       "ports": "端口",
       "services": "服务",
       "logs": "日志",
       "prepareStart": "准备启动命令",
-      "prepareRestart": "准备重启命令"
+      "prepareRestart": "准备重启命令",
+      "prepareDashboard": "准备仪表板命令",
+      "prepareDashboardHint": "只会填入控制台 — 按 Enter 才会执行"
     },
     "environment": {
       "title": "环境变量",
@@ -454,6 +462,10 @@
       "protocol": "协议",
       "address": "地址",
       "port": "端口",
+      "portFrom": "起始端口",
+      "portTo": "结束端口",
+      "filterProcess": "按进程名筛选",
+      "noMatches": "没有符合条件的端口",
       "process": "进程",
       "openInBrowser": "在浏览器中打开",
       "copyUrl": "复制 URL",
@@ -678,7 +690,8 @@
       "waiting-sudo": "等待 sudo 密码",
       "path-sync-pending": "路径同步待处理",
       "disconnected": "已断开连接",
-      "distro-stopped": "发行版已停止"
+      "distro-stopped": "发行版已停止",
+      "start-failed": "无法启动"
     },
     "reconnect": "重新连接",
     "commandPrepared": "命令已准备好 — 请检查后按 Enter 执行",

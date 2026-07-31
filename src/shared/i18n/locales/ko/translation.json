@@ -320,13 +320,21 @@
       "venv": "가상 환경",
       "config": "설정",
       "gateway": "게이트웨이",
+      "messengers": "메신저",
+      "supportedMessengers": "지원 목록",
+      "noMessenger": "연결된 메신저 없음",
+      "agents": "에이전트(프로필)",
+      "sessions": "활성 세션",
+      "jobs": "예약 작업",
       "dashboard": "대시보드",
       "mcpServers": "MCP 서버",
       "ports": "포트",
       "services": "서비스",
       "logs": "로그",
       "prepareStart": "시작 명령 준비",
-      "prepareRestart": "재시작 명령 준비"
+      "prepareRestart": "재시작 명령 준비",
+      "prepareDashboard": "대시보드 명령 준비",
+      "prepareDashboardHint": "콘솔에 입력만 됩니다 — Enter를 눌러야 실행됩니다"
     },
     "environment": {
       "title": "환경 변수",
@@ -454,6 +462,10 @@
       "protocol": "프로토콜",
       "address": "주소",
       "port": "포트",
+      "portFrom": "시작 포트",
+      "portTo": "끝 포트",
+      "filterProcess": "프로세스 이름 검색",
+      "noMatches": "조건에 맞는 포트가 없습니다",
       "process": "프로세스",
       "openInBrowser": "브라우저에서 열기",
       "copyUrl": "URL 복사",
@@ -678,7 +690,8 @@
       "waiting-sudo": "sudo 암호 대기 중",
       "path-sync-pending": "경로 동기화 대기 중",
       "disconnected": "연결 끊김",
-      "distro-stopped": "배포판 중지됨"
+      "distro-stopped": "배포판 중지됨",
+      "start-failed": "시작하지 못함"
     },
     "reconnect": "다시 연결",
     "commandPrepared": "명령이 준비되었습니다 — 확인 후 Enter를 눌러 실행하세요",

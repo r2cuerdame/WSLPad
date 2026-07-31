@@ -14,6 +14,10 @@ import CopyButton from '../components/CopyButton'
 import { FolderIcon, LinuxIcon, WarningIcon, WindowsIcon } from '../components/Icons'
 
 const STORAGE_KEY = 'wslpad.dashboard.wslconfig.hideDefaults'
+const SCOPE_STORAGE_KEY = 'wslpad.dashboard.wslconfig.scope'
+
+type Scope = 'windows' | 'linux'
+const SCOPES: readonly Scope[] = ['windows', 'linux']
 
 /** Prepared in the Console, never executed (goal.md §2.2). */
 const SHUTDOWN_COMMAND = 'wsl.exe --shutdown'
@@ -55,6 +59,14 @@ function readStoredHideDefaults(): boolean {
   }
 }
 
+function readStoredScope(): Scope {
+  try {
+    return localStorage.getItem(SCOPE_STORAGE_KEY) === 'linux' ? 'linux' : 'windows'
+  } catch {
+    return 'windows'
+  }
+}
+
 function matchesQuery(s: WslSettingInfo, query: string): boolean {
   const haystack = [`${s.section}.${s.key}`, s.declaredValue ?? '', s.effectiveValue ?? '']
   return haystack.some((h) => h.toLowerCase().includes(query))
@@ -75,6 +87,7 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
   const { navigateExplorer, prepareCommand, pushToast } = useApp()
   const [query, setQuery] = useState('')
   const [hideDefaults, setHideDefaults] = useState(readStoredHideDefaults)
+  const [scope, setScope] = useState<Scope>(readStoredScope)
 
   const all = useMemo(() => settings?.settings ?? [], [settings])
   const rows = useMemo(() => {
@@ -103,6 +116,15 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
     }
   }
 
+  const selectScope = (next: Scope): void => {
+    setScope(next)
+    try {
+      localStorage.setItem(SCOPE_STORAGE_KEY, next)
+    } catch {
+      /* storage unavailable — the choice simply does not persist */
+    }
+  }
+
   const prepareShutdown = (): void => {
     prepareCommand(SHUTDOWN_COMMAND)
     pushToast('info', t('toast.commandPrepared'))
@@ -112,7 +134,7 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
   const effective = settings.networkingModeEffective
   const mismatch = declared !== null && effective !== null && declared !== effective
 
-  const group = (scope: 'windows' | 'linux'): ReactNode => {
+  const group = (scope: Scope): ReactNode => {
     const isWindows = scope === 'windows'
     const path = isWindows ? settings.wslconfigPath : settings.wslConfPath
     const exists = isWindows ? settings.wslconfigExists : settings.wslConfExists
@@ -188,7 +210,7 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
                   <tr key={`${s.scope}.${s.section}.${s.key}`}>
                     <td>
                       <span className="mono">{`${s.section}.${s.key}`}</span>
-                      {s.note === null ? null : <div className="dim">{s.note}</div>}
+                      {s.note === null ? null : <div className="cell-note dim">{s.note}</div>}
                     </td>
                     <td className="mono">{s.declaredValue ?? '—'}</td>
                     <td
@@ -310,8 +332,33 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
         <div className="dim">{t('dashboard.wslconfig.empty')}</div>
       ) : (
         <>
-          {group('windows')}
-          {group('linux')}
+          {/* The two files belong to two different machines and are edited in
+              two different places, so they are shown one at a time rather than
+              stacked into one long scroll. Not role="tab": the app keeps
+              exactly two tabs (Dashboard, Explorer) for screen readers. */}
+          <div className="scope-switch" role="group" aria-label={t('dashboard.wslconfig.title')}>
+            {SCOPES.map((s) => {
+              const declaredCount = all.filter(
+                (x) => x.scope === s && x.declaredValue !== null
+              ).length
+              const attention = all.some((x) => x.scope === s && settingNeedsAttention(x))
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  className={s === scope ? 'scope-btn active' : 'scope-btn'}
+                  aria-pressed={s === scope}
+                  onClick={() => selectScope(s)}
+                >
+                  {s === 'windows' ? <WindowsIcon size={14} /> : <LinuxIcon size={14} />}
+                  <span>{s === 'windows' ? '.wslconfig' : '/etc/wsl.conf'}</span>
+                  <span className="scope-count">{declaredCount}</span>
+                  {attention ? <span className="scope-dot" aria-hidden="true" /> : null}
+                </button>
+              )
+            })}
+          </div>
+          {group(scope)}
         </>
       )}
     </Card>

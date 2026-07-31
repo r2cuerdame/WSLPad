@@ -1,5 +1,10 @@
 import { MAX_TEXT_FILE_BYTES, RUNNER_SLOW_TIMEOUT_MS } from '@shared/constants'
-import type { HermesInfo, HermesProcessInfo } from '@shared/types'
+import type {
+  HermesInfo,
+  HermesPlatformInfo,
+  HermesProcessInfo,
+  HermesProfileInfo
+} from '@shared/types'
 import type { DistroRunner, RunResult } from '../contracts'
 import { assertValidDistroName } from '../escape'
 
@@ -163,8 +168,159 @@ export function parseHermesOutput(stdout: string): HermesInfo {
     processes,
     ports,
     services,
-    logPaths
+    logPaths,
+    platforms: [],
+    profiles: [],
+    activeSessions: null,
+    scheduledJobs: null,
+    dashboardPort: ports.includes(HERMES_DASHBOARD_PORT) ? HERMES_DASHBOARD_PORT : null
   }
+}
+
+/** Default port of `hermes dashboard` (its own `--port` default). */
+export const HERMES_DASHBOARD_PORT = 9119
+
+/** The part of HermesInfo that only Hermes itself can answer. */
+export type HermesCliDetail = Pick<
+  HermesInfo,
+  'platforms' | 'profiles' | 'activeSessions' | 'scheduledJobs'
+>
+
+/**
+ * Ask Hermes about itself (goal.md §6.6). Two read-only CLI subcommands, both
+ * time-boxed inside the distro as well as by the Hidden Runner, and never run
+ * unless `hermes` is on PATH. `hermes status` is the only place the messaging
+ * platforms and session counts are published; `profile list` is the only place
+ * the profiles ("agents") are.
+ */
+export const HERMES_CLI_SCRIPT = `command -v hermes >/dev/null 2>&1 || exit 0
+if command -v timeout >/dev/null 2>&1; then t="timeout 20"; else t=""; fi
+export NO_COLOR=1 TERM=dumb
+printf '%s\\n' STATUSBEGIN
+$t hermes status 2>/dev/null
+printf '\\n%s\\n' STATUSEND
+printf '%s\\n' PROFILESBEGIN
+$t hermes profile list 2>/dev/null
+printf '\\n%s\\n' PROFILESEND
+:
+`
+
+// eslint-disable-next-line no-control-regex
+const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]/g
+/** Hermes marks a section with ◆; anything else at column 0 ends one. */
+const SECTION_RE = /^[◆▸*]\s*(.+?)\s*$/
+const YES = '✓'
+
+const stripAnsi = (s: string): string => s.replace(ANSI_RE, '')
+
+function parseCounter(lines: string[], label: RegExp): number | null {
+  for (const line of lines) {
+    const m = line.match(label)
+    if (m) {
+      const n = Number.parseInt(m[1], 10)
+      return Number.isFinite(n) ? n : null
+    }
+  }
+  return null
+}
+
+/** Split `hermes status` into its ◆ sections, keyed by lowercased title. */
+function statusSections(text: string): Map<string, string[]> {
+  const sections = new Map<string, string[]>()
+  let current: string[] | null = null
+  for (const raw of text.split('\n')) {
+    const line = stripAnsi(raw).replace(/\s+$/, '')
+    const header = line.match(SECTION_RE)
+    if (header) {
+      current = []
+      sections.set(header[1].toLowerCase(), current)
+      continue
+    }
+    if (current !== null) current.push(line)
+  }
+  return sections
+}
+
+export function parseHermesPlatforms(text: string): HermesPlatformInfo[] {
+  const section = statusSections(text).get('messaging platforms')
+  if (section === undefined) return []
+  const platforms: HermesPlatformInfo[] = []
+  for (const line of section) {
+    if (line.trim() === '') continue
+    const m = line.match(/^\s+(\S.*?)\s+([✓✗])\s*(.*)$/)
+    if (!m) continue
+    platforms.push({
+      name: m[1].trim(),
+      configured: m[2] === YES,
+      detail: m[3].trim() === '' ? null : m[3].trim()
+    })
+  }
+  return platforms
+}
+
+/**
+ * `hermes profile list` prints a box-drawn table: header, a ─ rule, then one
+ * row per profile with ◆ marking the sticky default. Columns are separated by
+ * runs of two or more spaces, so a model name with a single space survives.
+ */
+export function parseHermesProfiles(text: string): HermesProfileInfo[] {
+  const lines = stripAnsi(text).split('\n')
+  const ruleAt = lines.findIndex((l) => /─{3,}/.test(l))
+  if (ruleAt < 0) return []
+  const profiles: HermesProfileInfo[] = []
+  for (const line of lines.slice(ruleAt + 1)) {
+    const trimmed = line.trim()
+    if (trimmed === '' || /─{3,}/.test(trimmed)) continue
+    const isCurrent = /^[◆*]/.test(trimmed)
+    const cells = trimmed.replace(/^[◆*]\s*/, '').split(/\s{2,}/)
+    const name = cells[0]?.trim() ?? ''
+    if (name === '') continue
+    const cell = (i: number): string | null => {
+      const v = cells[i]?.trim()
+      return v === undefined || v === '' || v === '—' || v === '-' ? null : v
+    }
+    profiles.push({ name, model: cell(1), gatewayState: cell(2), isCurrent })
+  }
+  return profiles
+}
+
+export function parseHermesCliOutput(stdout: string): HermesCliDetail {
+  const between = (begin: string, end: string): string => {
+    const start = stdout.indexOf(begin)
+    if (start < 0) return ''
+    const from = start + begin.length
+    const stop = stdout.indexOf(end, from)
+    return stdout.slice(from, stop < 0 ? undefined : stop)
+  }
+  const status = between('STATUSBEGIN', 'STATUSEND')
+  const sections = statusSections(status)
+  return {
+    platforms: parseHermesPlatforms(status),
+    profiles: parseHermesProfiles(between('PROFILESBEGIN', 'PROFILESEND')),
+    activeSessions: parseCounter(sections.get('sessions') ?? [], /Active:\s*(\d+)/i),
+    scheduledJobs: parseCounter(sections.get('scheduled jobs') ?? [], /Jobs:\s*(\d+)/i)
+  }
+}
+
+/**
+ * Run the Hermes CLI queries. Returns null when Hermes could not answer at all
+ * — the caller keeps whatever it knew before rather than reporting "none".
+ */
+export async function detectHermesCli(
+  runner: DistroRunner,
+  distro: string
+): Promise<HermesCliDetail | null> {
+  assertValidDistroName(distro)
+  let result: RunResult
+  try {
+    result = await runner.runInDistro(distro, HERMES_CLI_SCRIPT, {
+      timeoutMs: RUNNER_SLOW_TIMEOUT_MS
+    })
+  } catch {
+    return null
+  }
+  if (result.timedOut || !result.stdout.includes('STATUSBEGIN')) return null
+  return parseHermesCliOutput(result.stdout)
 }
 
 /**

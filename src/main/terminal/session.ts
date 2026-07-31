@@ -34,6 +34,7 @@ export class ConsoleSession {
   private pty: PtyHandle | null = null
   private statusValue: ConsoleStatus = 'running'
   private cwdValue: string | null = null
+  private errorValue: string | null = null
   private pendingCwd: string | null = null
   private typedInput = ''
   private parseBuf = ''
@@ -58,11 +59,20 @@ export class ConsoleSession {
     return this.cwdValue
   }
 
+  get error(): string | null {
+    return this.errorValue
+  }
+
   async start(cols: number, rows: number): Promise<void> {
     try {
       this.pty = await this.opts.factory.spawn(this.opts.distro, cols, rows)
-    } catch {
-      this.setStatus('distro-stopped')
+      this.errorValue = null
+    } catch (err) {
+      // Not the same thing as a stopped distro: WSLPad could not get a shell
+      // started at all. Keeping the reason is what makes the failure fixable
+      // instead of a dead panel the user can only restart the app out of.
+      this.errorValue = err instanceof Error ? err.message : String(err)
+      this.setStatus('start-failed')
       return
     }
     this.pty.onData((data) => this.handleData(data))
@@ -100,7 +110,8 @@ export class ConsoleSession {
       sessionId: this.opts.sessionId,
       distro: this.opts.distro,
       status: this.statusValue,
-      cwd: this.cwdValue
+      cwd: this.cwdValue,
+      error: this.errorValue
     }
   }
 
@@ -225,7 +236,8 @@ export class ConsoleSession {
       sessionId: this.opts.sessionId,
       distro: this.opts.distro,
       status: this.statusValue,
-      cwd: this.cwdValue
+      cwd: this.cwdValue,
+      error: this.errorValue
     })
   }
 }

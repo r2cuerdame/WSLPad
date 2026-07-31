@@ -232,6 +232,22 @@ export interface HermesProcessInfo {
   command: string
 }
 
+/** One messaging platform the gateway can carry, as Hermes reports it. */
+export interface HermesPlatformInfo {
+  name: string
+  configured: boolean
+  /** Hermes' own wording for the state, e.g. "not configured". */
+  detail: string | null
+}
+
+/** One Hermes profile — the unit users call an "agent". */
+export interface HermesProfileInfo {
+  name: string
+  model: string | null
+  gatewayState: string | null
+  isCurrent: boolean
+}
+
 export interface HermesInfo {
   installed: boolean
   executablePath: string | null
@@ -245,6 +261,17 @@ export interface HermesInfo {
   ports: number[]
   services: string[]
   logPaths: string[]
+  /**
+   * Everything below comes from the Hermes CLI itself rather than from process
+   * inspection, so it is empty/null until that query has answered once — never
+   * a claim that nothing is configured.
+   */
+  platforms: HermesPlatformInfo[]
+  profiles: HermesProfileInfo[]
+  activeSessions: number | null
+  scheduledJobs: number | null
+  /** Port the web dashboard is listening on, when one was found. */
+  dashboardPort: number | null
 }
 
 export interface EnvironmentVariableInfo {
@@ -288,12 +315,7 @@ export type PortProtocol = 'tcp' | 'udp' | 'tcp6' | 'udp6'
  * - 'unreachable'   nothing can — the socket is not accepting connections
  * - 'unknown'       an input (Windows port table, firewall) was not readable
  */
-export type PortReachability =
-  | 'windows-only'
-  | 'lan'
-  | 'loopback-only'
-  | 'unreachable'
-  | 'unknown'
+export type PortReachability = 'windows-only' | 'lan' | 'loopback-only' | 'unreachable' | 'unknown'
 
 export interface PortInfo {
   protocol: PortProtocol
@@ -530,7 +552,10 @@ export type ConsoleStatus =
   | 'waiting-sudo'
   | 'path-sync-pending'
   | 'disconnected'
+  /** the shell exited before ever reaching a prompt — the distro is not up */
   | 'distro-stopped'
+  /** WSLPad itself could not start the shell; `error` carries the reason */
+  | 'start-failed'
 
 export interface TerminalContext {
   distro: string | null
@@ -640,13 +665,7 @@ export type SettingsPatch = {
 // File operations / transfers
 // ---------------------------------------------------------------------------
 
-export type FileOpKind =
-  | 'copy'
-  | 'move'
-  | 'trash'
-  | 'delete'
-  | 'import'
-  | 'export'
+export type FileOpKind = 'copy' | 'move' | 'trash' | 'delete' | 'import' | 'export'
 
 export type FileOpStatus = 'running' | 'done' | 'error' | 'cancelled'
 
@@ -700,6 +719,8 @@ export interface TerminalSessionInfo {
   distro: string
   status: ConsoleStatus
   cwd: string | null
+  /** why the session could not start — null whenever the console is healthy */
+  error: string | null
 }
 
 export interface TerminalDataEvent {
@@ -712,6 +733,7 @@ export interface TerminalStatusEvent {
   distro: string
   status: ConsoleStatus
   cwd: string | null
+  error: string | null
 }
 
 // ---------------------------------------------------------------------------

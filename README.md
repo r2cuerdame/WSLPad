@@ -46,7 +46,9 @@ and how much is reclaimable.
 key from `.wslconfig` and `wsl.conf` is shown with its declared value, the
 value actually in force, and a verdict: applied, restart needed, wrong section,
 unknown key, or unsupported on this build. Including the networking mode you
-asked for versus the one you got.
+asked for versus the one you got. The two files live on two different machines
+and are edited in two different places, so you read one at a time — the switch
+carries each file's declared count and flags the one needing attention.
 
 ![WSL settings](docs/screenshots/wslconfig.png)
 
@@ -61,7 +63,11 @@ genuinely reachable from Windows, and each one now carries a **reachability
 verdict**: reachable from the LAN, from this PC only, inside WSL only, or
 unreachable — with the reason, derived from the bind address, the effective
 networking mode and the firewall. When the facts aren't readable WSLPad says
-*unknown* instead of guessing.
+*unknown* instead of guessing. A busy machine lists hundreds of listeners, so
+there is a port range and a process-name filter — "who holds 5173" is a
+question, not a scrolling exercise.
+
+![Ports](docs/screenshots/ports.png)
 
 The Dashboard never executes anything. Buttons like *kill*, *restart service*
 or *sudoedit* only **prepare** the command in the Console input — you review,
@@ -96,6 +102,13 @@ follows to the same directory — without a visible `cd`, without polluting your
 shell history. Only commands
 **you** run appear in the transcript; WSLPad's internal queries are executed
 by a separate hidden runner.
+
+It also recovers on its own. WSL is often still busy when WSLPad starts with
+Windows, and a shell that could not be started is now reported as exactly that
+— **with the reason** — instead of a misleading "distribution stopped". Once
+the distro reads as running the Console retries without being asked, and if it
+still cannot start, a retry button stays there. Restarting the app is never the
+answer.
 
 ## MCP server (read-only)
 
@@ -157,8 +170,15 @@ filesystem boundary it lives on, and — importantly — whether the command
 actually resolves to a **Windows** binary under `/mnt/c` instead of one
 installed in the distro.
 
-**Hermes** — executable, data dir, virtualenv, config, gateway and dashboard
-state, MCP server count, ports, user services and log paths.
+**Hermes** — executable, data dir, virtualenv, config, gateway state, **which
+messengers it is actually connected to**, the profiles you'd call agents (with
+the current one marked), active sessions, scheduled jobs, dashboard state and
+address, MCP server count, ports, user services and log paths. The messenger
+and profile facts come from Hermes' own read-only CLI; when it cannot be asked
+the row says *unknown* rather than "none configured". Not running the web
+dashboard? The command to start it is prepared in the Console.
+
+![Hermes](docs/screenshots/hermes.png)
 
 **Environment** — every variable with its length and flags (PATH-like, came
 from Windows). Secret-looking names are masked; reveal is a deliberate click.
@@ -172,7 +192,8 @@ explanation of what it is and whether it normally runs.
 **Ports** — protocol, address, port, PID, process, listening state, the
 source (`WSL`, `Windows`, `WSL + Windows`), and a reachability verdict with its
 reason: reachable from the LAN, from this PC only, inside WSL only, unreachable,
-or unknown.
+or unknown. Filter by port range and by process name — the name search looks at
+both the WSL process and the Windows one holding the same port.
 
 **Network** — the Hyper-V firewall state for the WSL virtual machine (enabled,
 default inbound and outbound action, loopback exemption, rule count) and name
@@ -188,7 +209,8 @@ group, Linux permissions and symlink targets. Per drive on the Windows side:
 free and total space.
 
 **Console** — the distro, the current directory, and the shell state (ready,
-running, waiting for input, waiting for a sudo password, disconnected).
+running, waiting for input, waiting for a sudo password, disconnected,
+distribution stopped, or could not start — the last one with the reason).
 
 **Over MCP** — all of the above through 29 read-only `Get*` tools.
 [docs/MCP.md](docs/MCP.md)
@@ -216,7 +238,7 @@ admin rights needed (per-user install). WSLPad starts with Windows by default
 (toggle in the tray or Settings), lives in the tray, and auto-updates from
 GitHub Releases. Closing the window hides it; *Quit* in the tray menu exits.
 
-> v0.1.0 is unsigned — SmartScreen will ask once ("More info" → "Run anyway").
+> The installer is unsigned — SmartScreen will ask once ("More info" → "Run anyway").
 
 Requirements: Windows 10/11 x64. WSL is optional — without it WSLPad shows a
 setup hint instead of crashing.
@@ -250,7 +272,7 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.1.3)
+## Current limitations (v0.1.4)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is

@@ -51,6 +51,7 @@ WSLPad는 이 정보를 GUI와 MCP를 통해 구조화해서 보여준다.
 - **상단 바에 제품명을 반복 표시하지 않는다.** 창 제목 표시줄이 이미 이름을 보여주므로 툴바에서는 제거한다. (§5.1)
 - **UI는 개발자용 디버그 도구처럼 보이면 안 된다.** 절제된 색·명확한 타이포 위계·일관된 여백을 갖춘 제품 수준의 화면으로 만든다.
 - **0.1.3: 왜 안 되는지 설명한다.** Dashboard에 Network 섹션(§6.10.1)을 추가한다. Windows 방화벽 창에 보이지 않는 Hyper-V 방화벽과, 이름 해석 실패의 원인 네 가지를 한 화면에 모은다. Ports는 각 리스너가 어디까지 닿는지 판정한다(§6.10). 경로와 도구에는 ext4인지 느린 Windows 마운트 너머인지 표시하고(§6.3, §6.5), `/mnt/c`의 Windows 실행 파일에 가려진 명령을 표시한다. 시계 오차(§6.1), 설정값 출처(§6.2.3), 추이 스파크라인(§6.2), Explorer 디렉터리별 용량(§7), 버그리포트·AGENTS.md 복사 프리셋(§12)을 넣는다. 응답 없는 배포판에 앱이 멈추지 않도록 값싼 liveness 프로브와 backoff를 둔다(§9.3).
+- **0.1.4: 콘솔은 스스로 회복하고, Hermes는 누구와 연결됐는지 말한다.** 셸을 띄우지 못한 상태는 `배포판 중지됨`이 아니라 별도 상태로 보고하고 실패 이유를 함께 보여준다. 배포판이 실행 중으로 확인되면 사용자 조작 없이 다시 시도하고, 실패가 이어지면 다시 연결 버튼을 남긴다(§8.6). rc 주입에 실패해도 콘솔을 포기하지 않고 평범한 로그인 셸로 낮춰 연다(§8.4). Hermes 섹션은 연결된 메신저, 프로필(= 에이전트) 수, 활성 세션·예약 작업을 보여주고 대시보드 서버 실행 명령을 준비한다(§6.6). WSL 설정은 Windows/Linux 파일을 전환해 한 번에 하나씩 읽는다(§6.2.3). Ports에 포트 범위와 프로세스 이름 필터를 둔다(§6.10). 한 섹션에는 스크롤바가 하나만 있어야 한다.
 - **0.1.2: 안 보이던 것을 보이게 한다.** Dashboard에 Disk(§6.2.2)와 WSL 설정 선언 vs 실효(§6.2.3) 섹션을 추가하고, Resource에 메모리 화해(§6.2.1)를 넣는다. 도구 카탈로그를 범주별 60여 개로 넓히고(§6.5), 아는 서비스에 설명을 붙이며(§6.9.1), 배포판별 아이콘을 제공한다. 근거는 공개 수요 조사다 — microsoft/WSL 최다 반응 이슈 #4699(디스크 회계, reaction 1413)와 #4166(vmmem 대 게스트 메모리, reaction 447), 그리고 어떤 도구도 답하지 않는 "내 설정이 실제로 적용됐나".
 
 ---
@@ -465,6 +466,7 @@ WSL은 설정을 조용히 무시하고, 무엇이 실제로 적용됐는지 알
 - 선언한 networking mode와 **실제 동작 중인 모드**를 나란히 보여준다 (`wslinfo --networking-mode`). mirrored로 적어도 조용히 nat으로 내려가는 사례가 흔하다.
 - 설정 파일이 VM 부팅 이후에 수정됐으면 "재시작 필요"를 명시한다. `wsl --shutdown`은 Console에 **준비만** 한다.
 - 확신할 수 없으면 `applied`라고 쓰지 않는다. 실효값을 못 구하면 비워 두고 이유를 적는다.
+- 두 파일은 서로 다른 기계에 있고 고치는 곳도 다르므로 한 화면에 쌓아 놓지 않는다. `.wslconfig`와 `/etc/wsl.conf`를 전환해 한 번에 하나만 읽고, 전환 버튼에는 그 파일이 선언한 항목 수와 확인이 필요한 값이 있는지를 함께 표시한다. 필터는 전환해도 유지한다.
 
 ## 6.3 Important Paths 카드
 
@@ -581,28 +583,41 @@ Hermes는 별도의 강조 카드로 표시한다.
 - Hermes 관련 systemd user service
 - 최근 로그 위치
 
+프로세스만 봐서는 알 수 없는 것은 Hermes 자신에게 묻는다. `hermes status`와
+`hermes profile list` 두 개의 읽기 전용 명령을 Hidden Runner로 실행해 연결된
+메신저, 프로필(사용자가 "에이전트"라 부르는 단위), 활성 세션과 예약 작업 수를
+읽는다. 두 명령은 Python 프로세스를 띄우므로 배포판 안에서도 시간 제한을 걸고,
+결과는 60초 동안 재사용한다. 실패한 조회는 직전 결과를 유지한다 — **"지금 물어볼
+수 없었다"를 "아무것도 설정돼 있지 않다"로 표시해서는 안 된다.**
+
 표시 예시:
 
 ```text
 Hermes
-Installed     Yes
-Executable    /home/user/.local/bin/hermes
-Data          /home/user/.hermes
-Gateway       Running
-Dashboard     Not detected
-MCP Servers   4
+Installed      Yes
+Executable     /home/user/.local/bin/hermes
+Data           /home/user/.hermes
+Gateway        Running
+Messengers     Telegram  Slack
+Agents         2   default  research
+Active sessions 2
+Scheduled jobs  1
+Dashboard      Not detected
+MCP Servers    4
 ```
 
 Dashboard는 상태만 표시한다.
 
-서비스 시작이나 재시작이 필요한 경우:
+서비스 시작·재시작, 그리고 웹 대시보드 실행이 필요한 경우:
 
 ```text
 [Prepare start command]
 [Prepare restart command]
+[Prepare dashboard command]     # hermes dashboard --no-open
 ```
 
-버튼은 명령을 Console 입력란에 넣기만 한다. 자동 실행하지 않는다.
+버튼은 명령을 Console 입력란에 넣기만 한다. 자동 실행하지 않는다. 대시보드가
+이미 떠 있으면 버튼 대신 주소를 보여주고 브라우저로 열 수 있게 한다.
 
 ## 6.7 Environment 카드
 
@@ -728,6 +743,12 @@ Windows 포트 목록은 호스트의 TCP/UDP 테이블에서 직접 읽는다. 
 Windows에만 존재하는 리스너도 목록에 포함하며, 사용자가 토글로 숨길 수 있다.
 
 HTTP 포트로 추정되면 클릭 가능한 URL을 제공한다.
+
+바쁜 기계는 리스너가 수백 개다. "5173을 누가 잡고 있나"가 스크롤 노동이 되면
+안 되므로 포트 범위(`[시작] ~ [끝]`, 양쪽 모두 선택)와 프로세스 이름 검색을
+제공한다. 이름 검색은 WSL 쪽 프로세스와 그 포트를 잡은 Windows 프로세스 양쪽을
+모두 본다. 필터 때문에 비었을 때는 "포트가 없다"가 아니라 "조건에 맞는 포트가
+없다"고 말한다.
 
 ### 6.10.1 도달 가능성 판정과 Network 카드 (0.1.3)
 
@@ -1084,6 +1105,10 @@ user@Ubuntu:~/.hermes$
 - foreground command가 종료된 뒤 pending path sync 적용
 - Console의 사용자 실행 history는 유지
 
+동기화를 위한 rc 주입에 실패하면 — Windows 로그인 직후처럼 WSL이 바쁠 때 흔하다
+— 콘솔을 포기하지 않는다. 평범한 로그인 셸로 낮춰 열고 경로 동기화만 비활성으로
+둔다. 다음 spawn에서 rc 설치를 다시 시도한다.
+
 ## 8.5 Dashboard 명령 준비
 
 Dashboard 버튼을 클릭하면 명령을 Console의 현재 입력란에 넣는다.
@@ -1112,7 +1137,16 @@ systemctl --user restart hermes-gateway
 - Waiting for sudo password
 - Path sync pending
 - Disconnected
-- Distro stopped
+- Distro stopped — 셸이 프롬프트에 닿기도 전에 끝났다. 배포판이 떠 있지 않다.
+- Could not start — WSLPad가 셸을 시작하지 못했다. **실패 이유를 함께 표시한다.**
+
+마지막 두 상태는 서로 다른 사실이므로 같은 이름으로 부르지 않는다. 배포판이
+실행 중인데 "배포판 중지됨"이라고 말하면 사용자는 고칠 수 없는 화면을 보게 된다.
+
+죽은 세션은 다음 ensure()에서 다시 spawn한다. 그리고 화면은 스스로 회복한다:
+배포판이 실행 중으로 확인되면 사용자가 아무것도 하지 않아도 재시도하되, 시도
+횟수는 제한한다. 소진된 뒤에는 언제든 누를 수 있는 다시 연결 버튼을 남긴다 —
+앱을 재시작해야만 콘솔이 돌아오는 상태는 허용하지 않는다.
 
 ---
 

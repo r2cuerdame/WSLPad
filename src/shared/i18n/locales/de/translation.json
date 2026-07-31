@@ -320,13 +320,21 @@
       "venv": "Virtuelle Umgebung",
       "config": "Konfiguration",
       "gateway": "Gateway",
+      "messengers": "Messenger",
+      "supportedMessengers": "Unterstützt",
+      "noMessenger": "Keiner verbunden",
+      "agents": "Agenten (Profile)",
+      "sessions": "Aktive Sitzungen",
+      "jobs": "Geplante Aufgaben",
       "dashboard": "Dashboard",
       "mcpServers": "MCP-Server",
       "ports": "Ports",
       "services": "Dienste",
       "logs": "Protokolle",
       "prepareStart": "Startbefehl vorbereiten",
-      "prepareRestart": "Neustartbefehl vorbereiten"
+      "prepareRestart": "Neustartbefehl vorbereiten",
+      "prepareDashboard": "Dashboard-Befehl vorbereiten",
+      "prepareDashboardHint": "Wird nur in die Konsole geschrieben — nichts läuft ohne Enter"
     },
     "environment": {
       "title": "Umgebungsvariablen",
@@ -454,6 +462,10 @@
       "protocol": "Proto",
       "address": "Adresse",
       "port": "Port",
+      "portFrom": "Erster Port",
+      "portTo": "Letzter Port",
+      "filterProcess": "Nach Prozess filtern",
+      "noMatches": "Kein Port passt zum Filter",
       "process": "Prozess",
       "openInBrowser": "Im Browser öffnen",
       "copyUrl": "URL kopieren",
@@ -678,7 +690,8 @@
       "waiting-sudo": "Wartet auf sudo-Passwort",
       "path-sync-pending": "Pfadsynchronisierung ausstehend",
       "disconnected": "Getrennt",
-      "distro-stopped": "Distribution gestoppt"
+      "distro-stopped": "Distribution gestoppt",
+      "start-failed": "Start fehlgeschlagen"
     },
     "reconnect": "Neu verbinden",
     "commandPrepared": "Befehl vorbereitet — prüfen und mit Enter ausführen",

@@ -320,13 +320,21 @@
       "venv": "虛擬環境",
       "config": "設定",
       "gateway": "閘道",
+      "messengers": "即時通訊",
+      "supportedMessengers": "支援清單",
+      "noMessenger": "未連接",
+      "agents": "代理程式（設定檔）",
+      "sessions": "作用中工作階段",
+      "jobs": "排程工作",
       "dashboard": "儀表板",
       "mcpServers": "MCP 伺服器",
       "ports": "連接埠",
       "services": "服務",
       "logs": "記錄",
       "prepareStart": "準備啟動命令",
-      "prepareRestart": "準備重新啟動命令"
+      "prepareRestart": "準備重新啟動命令",
+      "prepareDashboard": "準備儀表板指令",
+      "prepareDashboardHint": "只會填入主控台 — 按 Enter 才會執行"
     },
     "environment": {
       "title": "環境變數",
@@ -454,6 +462,10 @@
       "protocol": "通訊協定",
       "address": "位址",
       "port": "連接埠",
+      "portFrom": "起始連接埠",
+      "portTo": "結束連接埠",
+      "filterProcess": "依處理程序名稱篩選",
+      "noMatches": "沒有符合條件的連接埠",
       "process": "處理程序",
       "openInBrowser": "在瀏覽器中開啟",
       "copyUrl": "複製 URL",
@@ -678,7 +690,8 @@
       "waiting-sudo": "等待 sudo 密碼",
       "path-sync-pending": "路徑同步擱置中",
       "disconnected": "已中斷連線",
-      "distro-stopped": "發行版已停止"
+      "distro-stopped": "發行版已停止",
+      "start-failed": "無法啟動"
     },
     "reconnect": "重新連線",
     "commandPrepared": "命令已備妥 — 請檢查後按 Enter 執行",

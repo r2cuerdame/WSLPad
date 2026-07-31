@@ -55,7 +55,10 @@ describe('TerminalManager', () => {
     factory.pty.emit(PROMPT)
     await manager.setCwd(info.sessionId, '/etc')
     expect(factory.syncWrites.map((w) => w.path)).toEqual(['/etc'])
-    expect(manager.getState(info.sessionId)).toEqual({ status: 'path-sync-pending', cwd: '/home/user' })
+    expect(manager.getState(info.sessionId)).toEqual({
+      status: 'path-sync-pending',
+      cwd: '/home/user'
+    })
   })
 
   it('returns null state and ignores input for unknown sessions', async () => {
@@ -65,11 +68,12 @@ describe('TerminalManager', () => {
     await manager.setCwd('term-Nope', '/tmp')
   })
 
-  it('reports distro-stopped when spawn fails and retries on the next ensure', async () => {
+  it('reports start-failed when spawn fails and retries on the next ensure', async () => {
     const { manager, factory } = makeManager()
     factory.failSpawn = true
     const info = await manager.ensure('Ubuntu')
-    expect(info.status).toBe('distro-stopped')
+    expect(info.status).toBe('start-failed')
+    expect(info.error).toBeTruthy()
     factory.failSpawn = false
     const retried = await manager.ensure('Ubuntu')
     expect(retried.status).toBe('running')

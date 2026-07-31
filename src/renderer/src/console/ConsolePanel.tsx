@@ -4,11 +4,7 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import type { ConsoleStatus } from '@shared/types'
-import {
-  CONSOLE_DEFAULTS,
-  CONSOLE_DEFAULT_HEIGHT,
-  CONSOLE_HEIGHT_BOUNDS
-} from '@shared/constants'
+import { CONSOLE_DEFAULTS, CONSOLE_DEFAULT_HEIGHT, CONSOLE_HEIGHT_BOUNDS } from '@shared/constants'
 import { useApp } from '../store'
 import './console.css'
 
@@ -31,8 +27,16 @@ const STATUS_CLASS: Record<ConsoleStatus, string> = {
   'waiting-sudo': 'warn',
   'path-sync-pending': 'busy',
   disconnected: 'err',
-  'distro-stopped': 'err'
+  'distro-stopped': 'err',
+  'start-failed': 'err'
 }
+
+/** No live shell behind them — every one of these is retryable. */
+const DEAD_STATUSES: readonly ConsoleStatus[] = ['disconnected', 'distro-stopped', 'start-failed']
+
+/** Automatic recovery attempts before the panel defers to the retry button. */
+const MAX_AUTO_RETRIES = 3
+const AUTO_RETRY_DELAY_MS = 2000
 
 /**
  * Always-visible interactive console (goal.md §5.3, §8). Commands prepared by
@@ -57,6 +61,7 @@ export function ConsolePanel(): React.JSX.Element {
   )
   const [status, setStatus] = useState<ConsoleStatus>('disconnected')
   const [cwd, setCwd] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [reconnectToken, setReconnectToken] = useState(0)
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -156,6 +161,7 @@ export function ConsolePanel(): React.JSX.Element {
     statusRef.current = 'disconnected'
     setStatus('disconnected')
     setCwd(null)
+    setError(null)
     void window.wslpad.terminal
       .ensure(distro)
       .then((res) => {
@@ -164,13 +170,15 @@ export function ConsolePanel(): React.JSX.Element {
         statusRef.current = res.status
         setStatus(res.status)
         setCwd(res.cwd)
+        setError(res.error)
         const term = termRef.current
         if (term) void window.wslpad.terminal.resize(res.sessionId, term.cols, term.rows)
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!cancelled) {
           statusRef.current = 'disconnected'
           setStatus('disconnected')
+          setError(err instanceof Error ? err.message : String(err))
         }
       })
     return () => {
@@ -187,6 +195,7 @@ export function ConsolePanel(): React.JSX.Element {
         statusRef.current = ev.status
         setStatus(ev.status)
         setCwd(ev.cwd)
+        setError(ev.error)
       }
     })
     return () => {
@@ -194,6 +203,31 @@ export function ConsolePanel(): React.JSX.Element {
       offStatus()
     }
   }, [])
+
+  // Self-healing (the 0.1.3 wedge): WSL is frequently still busy when WSLPad
+  // autostarts at Windows login, and a single failed spawn used to leave a dead
+  // panel with no way back short of restarting the app. Once the distro is
+  // reported running again, retry on the user's behalf — bounded, so a distro
+  // that genuinely cannot open a shell is not respawned forever.
+  const distroRunning =
+    distro !== null && snapshot?.distros.some((d) => d.name === distro && d.state === 'Running')
+  const autoRetriesRef = useRef(0)
+  useEffect(() => {
+    if (!distroRunning) {
+      autoRetriesRef.current = 0
+      return
+    }
+    if (!DEAD_STATUSES.includes(status)) {
+      autoRetriesRef.current = 0
+      return
+    }
+    if (autoRetriesRef.current >= MAX_AUTO_RETRIES) return
+    const timer = setTimeout(() => {
+      autoRetriesRef.current += 1
+      setReconnectToken((n) => n + 1)
+    }, AUTO_RETRY_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [distroRunning, status])
 
   // Refit whenever the panel geometry changes.
   useEffect(() => {
@@ -220,6 +254,8 @@ export function ConsolePanel(): React.JSX.Element {
       pushToast('info', t('console.commandPrepared'))
     } else if (st === 'distro-stopped') {
       pushToast('error', t('errors.distroStopped', { distro: distro ?? '' }))
+    } else if (st === 'start-failed') {
+      pushToast('error', t('console.status.start-failed'))
     } else {
       pushToast(
         'error',
@@ -268,20 +304,30 @@ export function ConsolePanel(): React.JSX.Element {
       )}
       <div className="console-header">
         <span className="console-title">{t('console.title')}</span>
-        <span className={`console-status st-${STATUS_CLASS[status]}`}>
+        <span className={`console-status st-${STATUS_CLASS[status]}`} title={error ?? undefined}>
           {t(`console.status.${status}`)}
         </span>
+        {/* The reason is the whole point of reporting a failure — a bare
+            "could not start" tells the user nothing they can act on. */}
+        {error && DEAD_STATUSES.includes(status) && (
+          <span className="console-error truncate" title={error}>
+            {error}
+          </span>
+        )}
         {cwd && (
           <span className="console-cwd mono" title={cwd}>
             {cwd}
           </span>
         )}
         <span className="console-spacer" />
-        {status === 'disconnected' && distro && (
+        {DEAD_STATUSES.includes(status) && distro && (
           <button
             type="button"
             className="console-btn"
-            onClick={() => setReconnectToken((n) => n + 1)}
+            onClick={() => {
+              autoRetriesRef.current = 0
+              setReconnectToken((n) => n + 1)
+            }}
           >
             {t('console.reconnect')}
           </button>

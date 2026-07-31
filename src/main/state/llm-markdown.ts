@@ -102,12 +102,31 @@ function pushHermes(lines: string[], dash: DashboardSnapshot): void {
     lines.push('- Not detected', '')
     return
   }
+  const connected = hermes.platforms.filter((p) => p.configured).map((p) => p.name)
+  // "unknown" and "none" are different answers: the CLI may simply not have
+  // been asked yet, and an LLM must not read that as "nothing is configured".
+  const messengers =
+    hermes.platforms.length === 0
+      ? 'unknown'
+      : connected.length === 0
+        ? 'none'
+        : connected.join(', ')
   lines.push(
     `- Installed: ${hermes.installed ? 'yes' : 'no'}`,
     `- Executable: ${hermes.executablePath ?? 'not found'}`,
     `- Data: ${hermes.dataDir ?? 'not found'}`,
     `- Gateway: ${hermes.gatewayStatus}`,
-    `- Dashboard: ${hermes.dashboardStatus}`,
+    `- Messengers connected: ${messengers}`,
+    `- Profiles (agents): ${
+      hermes.profiles.length === 0
+        ? 'unknown'
+        : hermes.profiles.map((p) => (p.isCurrent ? `${p.name} (current)` : p.name)).join(', ')
+    }`,
+    `- Active sessions: ${hermes.activeSessions ?? 'unknown'}`,
+    `- Scheduled jobs: ${hermes.scheduledJobs ?? 'unknown'}`,
+    `- Dashboard: ${hermes.dashboardStatus}${
+      hermes.dashboardPort === null ? '' : ` (http://127.0.0.1:${hermes.dashboardPort})`
+    }`,
     `- MCP servers: ${hermes.mcpServerCount ?? 'unknown'}`,
     ''
   )

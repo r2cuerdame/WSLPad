@@ -1094,6 +1094,18 @@ export function fixtureHermes(distro: FixtureDistroName): HermesInfo | null {
     processes: [{ pid: 4242, command: '/home/dev/.local/bin/hermes gateway --port 8790' }],
     ports: [8790],
     services: ['hermes-gateway.service'],
-    logPaths: ['/home/dev/.hermes/logs/gateway.log']
+    logPaths: ['/home/dev/.hermes/logs/gateway.log'],
+    platforms: [
+      { name: 'Telegram', configured: true, detail: 'bot @fixture_bot' },
+      { name: 'Discord', configured: false, detail: 'not configured' },
+      { name: 'Slack', configured: false, detail: 'not configured' }
+    ],
+    profiles: [
+      { name: 'default', model: 'claude-opus-5', gatewayState: 'running', isCurrent: true },
+      { name: 'research', model: 'gpt-5', gatewayState: 'stopped', isCurrent: false }
+    ],
+    activeSessions: 2,
+    scheduledJobs: 1,
+    dashboardPort: null
   }
 }

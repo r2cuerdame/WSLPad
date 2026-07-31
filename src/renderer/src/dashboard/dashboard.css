@@ -207,6 +207,20 @@
   padding: 0 20px 18px;
 }
 
+/* One scrollbar per section. When the body already holds a scrolling list or
+   table, the body must not scroll as well — two bars side by side is what made
+   this look unfinished (user feedback). */
+.dashboard-detail .dash-card-body:has(.dash-scroll),
+.dashboard-detail .dash-card-body:has(.vlist),
+.dashboard-detail .dash-card-body:has(.dash-table-wrap) {
+  overflow: hidden;
+}
+
+/* Everything around the list keeps its height; only the list gives way. */
+.dashboard-detail .dash-card-body > * {
+  flex-shrink: 0;
+}
+
 /* Virtualized lists and tables must be bounded to scroll (goal.md §15); the
    unclassed wrapper is the Processes header + list column. */
 .dashboard-detail .dash-card-body > div:not([class]) {
@@ -219,9 +233,18 @@
 .dashboard-detail .vlist,
 .dashboard-detail .dash-scroll {
   flex: 1;
+  flex-shrink: 1;
   height: auto;
   min-height: 180px;
   max-height: none;
+  overflow: auto;
+}
+
+/* A plain table is its section's scroll region too, whether it sits directly
+   in the body or inside a per-file group. */
+.dashboard-detail .dash-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -349,6 +372,64 @@
 }
 
 /* --- badges + dots --- */
+
+/* Windows / Linux switch above the settings table. */
+.scope-switch {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  align-self: flex-start;
+}
+
+.scope-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.scope-btn:hover {
+  color: var(--text);
+}
+
+.scope-btn.active {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 8%));
+}
+
+.scope-count {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.scope-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+
+/* Several chips on one value line (messengers, agents) wrap instead of
+   stretching the row. */
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
 
 .badge {
   display: inline-flex;
@@ -546,6 +627,19 @@
   color: var(--text-faint);
 }
 
+/* Port range: two narrow number fields around a tilde. */
+.dash-input-num {
+  width: 78px;
+  padding-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.port-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .dash-input:focus {
   outline: none;
   border-color: var(--accent);
@@ -700,6 +794,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A sentence explaining a row has to be readable: the cell's nowrap+clip cut
+   these mid-word, which is worse than saying nothing. */
+.dash-table td .cell-note {
+  max-width: 380px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .dash-table tbody tr {
@@ -914,11 +1017,8 @@
   margin: 16px 20px;
   background:
     linear-gradient(var(--bg-hover) 0 0) 0 0 / 180px 15px no-repeat,
-    repeating-linear-gradient(
-        var(--bg-hover) 0 12px,
-        transparent 12px 30px
-      )
-      0 40px / 78% 210px no-repeat;
+    repeating-linear-gradient(var(--bg-hover) 0 12px, transparent 12px 30px) 0 40px / 78% 210px
+      no-repeat;
   background-color: transparent;
   border-radius: 0;
 }

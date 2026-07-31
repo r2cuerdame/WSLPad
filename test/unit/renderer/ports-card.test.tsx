@@ -115,7 +115,7 @@ async function renderCard(
 
 /** Rows are [source, proto, address, port, pid, process, reaches, actions]. */
 function bodyRows(): HTMLElement[] {
-  return screen.getAllByRole('row').filter((r) => r.querySelectorAll('td').length > 0)
+  return screen.queryAllByRole('row').filter((r) => r.querySelectorAll('td').length > 0)
 }
 
 function cells(row: HTMLElement): string[] {
@@ -319,6 +319,52 @@ describe('PortsCard reachability column', () => {
     expect(cell.getAttribute('title')).toBe(
       'A Windows listener: the WSL reachability rules do not apply to it.'
     )
+  })
+})
+
+describe('PortsCard filters', () => {
+  const ports = (): number[] => bodyRows().map((r) => Number(cells(r)[3]))
+
+  it('narrows to a port range, inclusive at both ends', async () => {
+    await renderCard()
+    fireEvent.change(screen.getByLabelText('Lowest port'), { target: { value: '22' } })
+    fireEvent.change(screen.getByLabelText('Highest port'), { target: { value: '3000' } })
+    expect(ports().sort((a, b) => a - b)).toEqual([22, 3000])
+  })
+
+  it('takes an open-ended range from either side', async () => {
+    await renderCard()
+    fireEvent.change(screen.getByLabelText('Lowest port'), { target: { value: '5000' } })
+    expect(ports().sort((a, b) => a - b)).toEqual([5353, 8080])
+
+    fireEvent.change(screen.getByLabelText('Lowest port'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Highest port'), { target: { value: '100' } })
+    expect(ports()).toEqual([22])
+  })
+
+  it('searches the process name on either side of the port', async () => {
+    await renderCard()
+    fireEvent.change(screen.getByLabelText('Filter by process'), { target: { value: 'node' } })
+    // 'node' (WSL), 'node.exe' (Windows-only) and the WSL row whose Windows
+    // counterpart is wslrelay.exe all matter — the last one only via 'node'.
+    expect(ports().sort((a, b) => a - b)).toEqual([3000, 8080])
+
+    fireEvent.change(screen.getByLabelText('Filter by process'), { target: { value: 'RELAY' } })
+    expect(ports()).toEqual([8080])
+  })
+
+  it('combines the range with the name search', async () => {
+    await renderCard()
+    fireEvent.change(screen.getByLabelText('Filter by process'), { target: { value: 'node' } })
+    fireEvent.change(screen.getByLabelText('Lowest port'), { target: { value: '4000' } })
+    expect(ports()).toEqual([8080])
+  })
+
+  it('says the filter found nothing rather than claiming there are no ports', async () => {
+    await renderCard()
+    fireEvent.change(screen.getByLabelText('Filter by process'), { target: { value: 'zzz' } })
+    expect(screen.getByText('No port matches the filter')).toBeTruthy()
+    expect(screen.queryByText('None')).toBeNull()
   })
 })
 

@@ -51,7 +51,7 @@ la moitié. Chaque clé de `.wslconfig` et de `wsl.conf` est affichée avec sa
 valeur déclarée, la valeur réellement en vigueur et un verdict : appliqué,
 redémarrage nécessaire, mauvaise section, clé inconnue, ou non pris en charge
 sur cette version. Y compris le mode réseau que vous avez demandé face à celui
-que vous avez obtenu.
+que vous avez obtenu. Les deux fichiers vivent sur deux machines différentes et se modifient à deux endroits différents : on en lit donc un à la fois — le sélecteur indique le nombre de clés déclarées par chaque fichier et signale celui qui demande votre attention.
 
 ![Paramètres WSL](docs/screenshots/wslconfig.png)
 
@@ -67,7 +67,9 @@ lorsqu'il est réellement accessible depuis Windows, et chacun porte désormais 
 verdict de **portée** : le réseau, ce PC seulement, à l'intérieur de WSL
 seulement, ou rien — avec la raison, déduite de l'adresse d'écoute, du mode
 réseau effectif et du pare-feu. Quand les faits ne sont pas lisibles, WSLPad dit
-*inconnue* au lieu de deviner.
+*inconnue* au lieu de deviner. Une machine chargée affiche des centaines de ports en écoute : il y a donc un filtre par plage de ports et par nom de processus — « qui tient le 5173 » est une question, pas un exercice de défilement.
+
+![Ports](docs/screenshots/ports.png)
 
 Le Dashboard n'exécute jamais rien. Les boutons comme *kill*, *redémarrer un
 service* ou *sudoedit* se contentent de **préparer** la commande dans la saisie
@@ -106,6 +108,8 @@ volet WSL de l'Explorer, la Console suit vers le même dossier — sans `cd`
 visible, sans polluer l'historique de votre shell. Seules les commandes que
 **vous** lancez apparaissent dans la transcription ; les requêtes internes de
 WSLPad passent par un runner caché distinct.
+
+Elle se répare aussi toute seule. WSL est souvent encore occupé quand WSLPad démarre avec Windows, et un shell qui n'a pas pu démarrer est désormais signalé comme tel — **avec la raison** — au lieu d'un trompeur « distribution arrêtée ». Dès que la distribution est vue en cours d'exécution, la Console réessaie sans qu'on le lui demande, et si elle n'y arrive toujours pas, un bouton de reconnexion reste là. Redémarrer l'application n'est jamais la réponse.
 
 ## Serveur MCP (lecture seule)
 
@@ -174,9 +178,9 @@ de quel côté de la frontière du système de fichiers il vit, et — c'est
 important — si la commande se résout en réalité vers un binaire **Windows** sous
 `/mnt/c` au lieu d'une version installée dans la distribution.
 
-**Hermes** — exécutable, dossier de données, environnement virtuel,
-configuration, état du gateway et du dashboard, nombre de serveurs MCP, ports,
-services utilisateur et chemins des journaux.
+**Hermes** — exécutable, dossier de données, environnement virtuel, configuration, état du gateway, **à quelles messageries il est réellement connecté**, les profils que vous appelleriez des agents (le courant est signalé), sessions actives, tâches planifiées, état et adresse du dashboard, nombre de serveurs MCP, ports, services utilisateur et chemins des journaux. Les messageries et les profils viennent de la CLI en lecture seule de Hermes lui-même ; quand elle ne peut pas être interrogée, la ligne indique *inconnu* et non « aucune configurée ». Le dashboard web n'est pas lancé ? La commande pour le démarrer est préparée dans la Console.
+
+![Hermes](docs/screenshots/hermes.png)
 
 **Variables d'environnement** — chaque variable avec sa longueur et ses
 indicateurs (de type PATH, venue de Windows). Les noms qui ressemblent à des
@@ -192,7 +196,7 @@ normalement.
 
 **Ports** — protocole, adresse, port, PID, processus, état d'écoute, la source
 (`WSL`, `Windows`, `WSL + Windows`), et un verdict de portée avec sa raison : le
-réseau, ce PC seulement, à l'intérieur de WSL seulement, rien, ou inconnue.
+réseau, ce PC seulement, à l'intérieur de WSL seulement, rien, ou inconnue. Filtrage par plage de ports et par nom de processus — la recherche par nom examine à la fois le processus WSL et le processus Windows qui tient le même port.
 
 **Réseau** — l'état du pare-feu Hyper-V pour la machine virtuelle WSL (activé,
 action par défaut sur le trafic entrant et sortant, exception de loopback,
@@ -209,9 +213,7 @@ problèmes MCP.
 propriétaire, groupe, permissions Linux et cibles des liens symboliques. Par
 lecteur côté Windows : espace libre et espace total.
 
-**Console** — la distribution, le dossier courant, et l'état du shell (prêt, en
-cours d'exécution, en attente d'une saisie, en attente d'un mot de passe sudo,
-déconnecté).
+**Console** — la distribution, le dossier courant, et l'état du shell (prêt, en cours d'exécution, en attente d'une saisie, en attente d'un mot de passe sudo, déconnecté, distribution arrêtée, ou démarrage impossible — ce dernier avec la raison).
 
 **Via MCP** — tout ce qui précède à travers 29 outils `Get*` en lecture seule.
 [docs/MCP.md](docs/MCP.md)
@@ -244,7 +246,7 @@ Settings), reste dans la zone de notification et se met à jour automatiquement
 depuis les GitHub Releases. Fermer la fenêtre la masque ; *Quitter* dans le menu
 de la zone de notification ferme l'application.
 
-> La v0.1.0 n'est pas signée — SmartScreen posera la question une fois
+> L'installeur n'est pas signé — SmartScreen posera la question une fois
 > (« Informations complémentaires » → « Exécuter quand même »).
 
 Prérequis : Windows 10/11 x64. WSL est facultatif — sans lui, WSLPad affiche une
@@ -282,7 +284,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.1.3)
+## Limites actuelles (v0.1.4)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)

@@ -11,6 +11,7 @@ import type {
   Settings,
   SettingsPatch,
   TerminalDataEvent,
+  TerminalSessionInfo,
   TerminalStatusEvent,
   TextFileContent,
   UpdateStatus,
@@ -215,7 +216,7 @@ export interface WslPadApi {
   readClipboard(): Promise<string>
 
   terminal: {
-    ensure(distro: string): Promise<{ sessionId: string; status: ConsoleStatus; cwd: string | null }>
+    ensure(distro: string): Promise<TerminalSessionInfo>
     input(sessionId: string, data: string): Promise<void>
     resize(sessionId: string, cols: number, rows: number): Promise<void>
     setCwd(sessionId: string, path: string): Promise<void>

@@ -363,7 +363,12 @@ export function makeDashboard(): DashboardSnapshot {
       processes: [{ pid: 4321, command: 'hermes gateway' }],
       ports: [8600],
       services: ['hermes-gateway'],
-      logPaths: ['/home/user/.hermes/logs']
+      logPaths: ['/home/user/.hermes/logs'],
+      platforms: [{ name: 'Telegram', configured: true, detail: null }],
+      profiles: [{ name: 'default', model: null, gatewayState: 'running', isCurrent: true }],
+      activeSessions: 1,
+      scheduledJobs: 0,
+      dashboardPort: null
     },
     environment: [
       {

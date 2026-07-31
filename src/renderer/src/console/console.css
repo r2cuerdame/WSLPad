@@ -80,6 +80,13 @@
   background: var(--err-soft);
 }
 
+/* Failure reason sits next to the chip: readable, but never louder than it. */
+.console-error {
+  font-size: 11px;
+  color: var(--err);
+  max-width: 420px;
+}
+
 .console-cwd {
   font-size: 11px;
   color: var(--text-faint);

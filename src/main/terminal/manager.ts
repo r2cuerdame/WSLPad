@@ -11,6 +11,9 @@ import { ConsoleSession } from './session'
 const DEFAULT_COLS = 80
 const DEFAULT_ROWS = 24
 
+/** Statuses with no live pty behind them: the next ensure() respawns. */
+const DEAD_STATUSES: readonly ConsoleStatus[] = ['disconnected', 'distro-stopped', 'start-failed']
+
 export interface TerminalManagerCallbacks {
   onData(ev: TerminalDataEvent): void
   onStatus(ev: TerminalStatusEvent): void
@@ -18,9 +21,8 @@ export interface TerminalManagerCallbacks {
 
 /**
  * Owns all interactive console sessions: exactly one per distro (goal.md §8.2)
- * with the deterministic id `term-<distro>`. Dead sessions (disconnected or
- * distro-stopped) are respawned on the next ensure() so a user can recover a
- * console simply by reselecting the distro.
+ * with the deterministic id `term-<distro>`. Dead sessions are respawned on the
+ * next ensure(), so recovering a console never needs more than a retry.
  */
 export class TerminalManager {
   private sessions = new Map<string, ConsoleSession>()
@@ -35,7 +37,7 @@ export class TerminalManager {
     assertValidDistroName(distro)
     const sessionId = `term-${distro}`
     const existing = this.sessions.get(sessionId)
-    if (existing && existing.status !== 'disconnected' && existing.status !== 'distro-stopped') {
+    if (existing && !DEAD_STATUSES.includes(existing.status)) {
       return existing.info()
     }
     const inFlight = this.ensuring.get(sessionId)
@@ -79,7 +81,7 @@ export class TerminalManager {
       onStatus: (ev) => this.callbacks.onStatus(ev)
     })
     this.sessions.set(sessionId, session)
-    // spawn failure (missing distro / broken WSL) surfaces as distro-stopped
+    // spawn failure (missing distro / broken WSL) surfaces as start-failed
     await session.start(DEFAULT_COLS, DEFAULT_ROWS)
     return session.info()
   }

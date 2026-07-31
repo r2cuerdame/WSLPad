@@ -39,6 +39,27 @@ interface PortRow {
   reachabilityReason: string | null
 }
 
+/** '' means "no bound"; anything unparsable is treated the same way. */
+function parseBound(raw: string): number | null {
+  const n = Number.parseInt(raw.trim(), 10)
+  return Number.isFinite(n) ? n : null
+}
+
+export function matchesPortFilters(
+  row: { port: number; processName: string | null; windowsProcess: string | null },
+  from: number | null,
+  to: number | null,
+  name: string
+): boolean {
+  if (from !== null && row.port < from) return false
+  if (to !== null && row.port > to) return false
+  if (name === '') return true
+  const needle = name.toLowerCase()
+  return [row.processName, row.windowsProcess].some(
+    (v) => v !== null && v.toLowerCase().includes(needle)
+  )
+}
+
 function readStoredWindowsOnly(): boolean {
   try {
     return localStorage.getItem(STORAGE_KEY) !== '0'
@@ -59,6 +80,9 @@ export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps):
   const [showWindowsOnly, setShowWindowsOnly] = useState(readStoredWindowsOnly)
   const [sortKey, setSortKey] = useState<SortKey>('port')
   const [desc, setDesc] = useState(false)
+  const [portFrom, setPortFrom] = useState('')
+  const [portTo, setPortTo] = useState('')
+  const [nameQuery, setNameQuery] = useState('')
 
   const windowsOnly = useMemo(() => windowsPorts.filter((w) => !w.fromWsl), [windowsPorts])
 
@@ -96,14 +120,23 @@ export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps):
     const dir = desc ? -1 : 1
     const bySource = (a: PortRow, b: PortRow): number =>
       SOURCE_ORDER[a.source] - SOURCE_ORDER[b.source]
-    return [...wslRows, ...winRows].sort((a, b) => {
-      if (sortKey === 'protocol') {
-        return a.protocol.localeCompare(b.protocol) * dir || a.port - b.port
-      }
-      if (sortKey === 'source') return bySource(a, b) * dir || a.port - b.port
-      return (a.port - b.port) * dir || bySource(a, b)
-    })
-  }, [ports, windowsOnly, showWindowsOnly, sortKey, desc])
+    // A busy machine lists a couple of hundred listeners; "which process holds
+    // 5173" should not be a scrolling exercise.
+    const from = parseBound(portFrom)
+    const to = parseBound(portTo)
+    const name = nameQuery.trim().toLowerCase()
+    return [...wslRows, ...winRows]
+      .filter((r) => matchesPortFilters(r, from, to, name))
+      .sort((a, b) => {
+        if (sortKey === 'protocol') {
+          return a.protocol.localeCompare(b.protocol) * dir || a.port - b.port
+        }
+        if (sortKey === 'source') return bySource(a, b) * dir || a.port - b.port
+        return (a.port - b.port) * dir || bySource(a, b)
+      })
+  }, [ports, windowsOnly, showWindowsOnly, sortKey, desc, portFrom, portTo, nameQuery])
+
+  const filtering = portFrom !== '' || portTo !== '' || nameQuery.trim() !== ''
 
   const toggleWindowsOnly = (next: boolean): void => {
     setShowWindowsOnly(next)
@@ -165,20 +198,55 @@ export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps):
     <Card
       titleKey="dashboard.ports.title"
       actions={
-        windowsOnly.length > 0 ? (
-          <label className="dim">
+        <>
+          <span className="port-range">
             <input
-              type="checkbox"
-              checked={showWindowsOnly}
-              onChange={(e) => toggleWindowsOnly(e.target.checked)}
-            />{' '}
-            {t('dashboard.ports.showWindowsOnly')}
-          </label>
-        ) : undefined
+              type="number"
+              className="dash-input dash-input-num"
+              value={portFrom}
+              min={0}
+              max={65535}
+              placeholder="0"
+              aria-label={t('dashboard.ports.portFrom')}
+              onChange={(e) => setPortFrom(e.target.value)}
+            />
+            <span className="dim" aria-hidden="true">
+              ~
+            </span>
+            <input
+              type="number"
+              className="dash-input dash-input-num"
+              value={portTo}
+              min={0}
+              max={65535}
+              placeholder="65535"
+              aria-label={t('dashboard.ports.portTo')}
+              onChange={(e) => setPortTo(e.target.value)}
+            />
+          </span>
+          <input
+            type="search"
+            className="dash-input"
+            value={nameQuery}
+            placeholder={t('dashboard.ports.filterProcess')}
+            aria-label={t('dashboard.ports.filterProcess')}
+            onChange={(e) => setNameQuery(e.target.value)}
+          />
+          {windowsOnly.length > 0 ? (
+            <label className="dim">
+              <input
+                type="checkbox"
+                checked={showWindowsOnly}
+                onChange={(e) => toggleWindowsOnly(e.target.checked)}
+              />{' '}
+              {t('dashboard.ports.showWindowsOnly')}
+            </label>
+          ) : null}
+        </>
       }
     >
       {rows.length === 0 ? (
-        <div className="dim">{t('common.none')}</div>
+        <div className="dim">{filtering ? t('dashboard.ports.noMatches') : t('common.none')}</div>
       ) : (
         <div className="dash-table-wrap dash-scroll">
           <table className="dash-table">

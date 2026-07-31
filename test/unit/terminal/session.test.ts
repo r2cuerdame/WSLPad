@@ -105,11 +105,28 @@ describe('ConsoleSession state machine', () => {
     expect(session.status).toBe('distro-stopped')
   })
 
-  it('reports distro-stopped when spawn fails', async () => {
+  it('separates "could not start" from "the distro is down", and says why', async () => {
+    const factory = new MockFactory()
+    factory.failSpawn = true
+    const { session, statuses } = await started(factory)
+    expect(session.status).toBe('start-failed')
+    // Without the reason the panel is a dead end — the user cannot tell a busy
+    // distro from a broken WSL install.
+    expect(session.error).toBeTruthy()
+    expect(statuses.at(-1)?.error).toBe(session.error)
+    expect(session.info().error).toBe(session.error)
+  })
+
+  it('clears a previous failure once the shell starts', async () => {
     const factory = new MockFactory()
     factory.failSpawn = true
     const { session } = await started(factory)
-    expect(session.status).toBe('distro-stopped')
+    expect(session.error).toBeTruthy()
+
+    factory.failSpawn = false
+    await session.start(80, 24)
+    expect(session.error).toBeNull()
+    expect(session.info().error).toBeNull()
   })
 
   it('dispose kills the pty', async () => {

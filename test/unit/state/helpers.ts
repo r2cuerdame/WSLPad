@@ -162,6 +162,11 @@ export function hermes(over: Partial<HermesInfo> = {}): HermesInfo {
     ports: [],
     services: [],
     logPaths: [],
+    platforms: [],
+    profiles: [],
+    activeSessions: null,
+    scheduledJobs: null,
+    dashboardPort: null,
     ...over
   }
 }

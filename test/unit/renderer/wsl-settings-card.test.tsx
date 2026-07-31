@@ -153,8 +153,15 @@ async function renderCard(value: WslConfigInfo | null = info()): Promise<void> {
   await flush()
 }
 
+/** The card shows one file at a time; this is how the reader switches. */
+function switchTo(scope: 'windows' | 'linux'): void {
+  fireEvent.click(
+    screen.getByRole('button', { name: scope === 'windows' ? /\.wslconfig/ : /\/etc\/wsl\.conf/ })
+  )
+}
+
 function bodyRows(): HTMLElement[] {
-  return screen.getAllByRole('row').filter((r) => r.querySelectorAll('td').length > 0)
+  return screen.queryAllByRole('row').filter((r) => r.querySelectorAll('td').length > 0)
 }
 
 function rowFor(label: string): HTMLElement {
@@ -235,15 +242,39 @@ describe('WslSettingsCard restart banner', () => {
 })
 
 describe('WslSettingsCard table', () => {
-  it('groups the two files, each with its own path', async () => {
+  it('shows one file at a time, starting on the Windows side', async () => {
     await renderCard()
-    const headings = screen
-      .getAllByText(/^(\.wslconfig|\/etc\/wsl\.conf)$/)
-      .filter((el) => el.className === 'path-label')
-      .map((el) => el.textContent)
-    expect(headings).toEqual(['.wslconfig', '/etc/wsl.conf'])
+    const heading = (): string[] =>
+      screen
+        .getAllByText(/^(\.wslconfig|\/etc\/wsl\.conf)$/)
+        .filter((el) => el.className === 'path-label')
+        .map((el) => el.textContent ?? '')
+
+    expect(heading()).toEqual(['.wslconfig'])
     expect(screen.getByText('C:\\Users\\dev\\.wslconfig')).toBeTruthy()
+
+    switchTo('linux')
+    expect(heading()).toEqual(['/etc/wsl.conf'])
     expect(screen.getByTitle('/etc/wsl.conf')).toBeTruthy()
+    expect(screen.queryByText('C:\\Users\\dev\\.wslconfig')).toBeNull()
+  })
+
+  it('remembers which file was being read', async () => {
+    await renderCard()
+    switchTo('linux')
+    expect(window.localStorage.getItem('wslpad.dashboard.wslconfig.scope')).toBe('linux')
+
+    cleanup()
+    await renderCard()
+    expect(screen.getByTitle('/etc/wsl.conf')).toBeTruthy()
+  })
+
+  it('counts what each file declares on its own switch', async () => {
+    await renderCard()
+    const label = (name: RegExp): string => screen.getByRole('button', { name }).textContent ?? ''
+    // 4 declared in .wslconfig, 1 in wsl.conf — visible without switching.
+    expect(label(/\.wslconfig/)).toContain('4')
+    expect(label(/\/etc\/wsl\.conf/)).toContain('1')
   })
 
   it('pairs every verdict chip with a word', async () => {
@@ -276,6 +307,8 @@ describe('WslSettingsCard table', () => {
     expect(chip('experimental.networkingMode').textContent).toBe('Your file')
     // …and is the only one that gets the accent, so a scan separates the two.
     expect(chip('wsl2.memory').className).toContain('badge-accent')
+
+    switchTo('linux')
     expect(chip('interop.appendWindowsPath').className).not.toContain('badge-accent')
     expect(chip('interop.appendWindowsPath').textContent).toBe('Computed by WSL')
   })
@@ -303,17 +336,17 @@ describe('WslSettingsCard table', () => {
 describe('WslSettingsCard filters', () => {
   it('hides unset defaults by default and remembers being switched off', async () => {
     await renderCard()
-    expect(bodyRows()).toHaveLength(5)
+    expect(bodyRows()).toHaveLength(4)
     expect(bodyRows().some((r) => cells(r)[0].startsWith('wsl2.localhostForwarding'))).toBe(false)
 
     fireEvent.click(screen.getByLabelText('Hide unset defaults'))
-    expect(bodyRows()).toHaveLength(7)
+    expect(bodyRows()).toHaveLength(5)
     expect(window.localStorage.getItem('wslpad.dashboard.wslconfig.hideDefaults')).toBe('0')
 
     cleanup()
     await renderCard()
     expect((screen.getByLabelText('Hide unset defaults') as HTMLInputElement).checked).toBe(false)
-    expect(bodyRows()).toHaveLength(7)
+    expect(bodyRows()).toHaveLength(5)
   })
 
   it('filters on key, section and value', async () => {
@@ -321,6 +354,13 @@ describe('WslSettingsCard filters', () => {
     fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'processors' } })
     expect(bodyRows()).toHaveLength(1)
     expect(cells(bodyRows()[0])[0]).toContain('wsl2.processors')
+  })
+
+  it('keeps the filter in force across the file switch', async () => {
+    await renderCard()
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'processors' } })
+    switchTo('linux')
+    expect(bodyRows()).toHaveLength(0)
     expect(screen.getByText('No setting matches the filter')).toBeTruthy()
   })
 })
@@ -338,20 +378,20 @@ describe('WslSettingsCard file actions', () => {
 
   it('opens .wslconfig in the Windows pane and wsl.conf in its Linux directory', async () => {
     await renderCard()
-    const buttons = screen.getAllByRole('button', { name: 'Show in Explorer' })
-
-    fireEvent.click(buttons[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Show in Explorer' }))
     expect(screen.getByTestId('nav').textContent).toBe('windows:C:\\Users\\dev\\.wslconfig')
     expect(screen.getByTestId('tab').textContent).toBe('explorer')
 
-    fireEvent.click(buttons[1])
+    switchTo('linux')
+    fireEvent.click(screen.getByRole('button', { name: 'Show in Explorer' }))
     expect(screen.getByTestId('nav').textContent).toBe('linux:/etc')
   })
 
   it('disables the Explorer action for a file that is not there', async () => {
     await renderCard(info({ wslConfExists: false }))
-    const buttons = screen.getAllByRole('button', { name: 'Show in Explorer' })
-    expect((buttons[1] as HTMLButtonElement).disabled).toBe(true)
+    switchTo('linux')
+    const button = screen.getByRole('button', { name: 'Show in Explorer' })
+    expect((button as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getAllByText('Missing')).toHaveLength(1)
   })
 })
@@ -364,6 +404,7 @@ describe('WslSettingsCard empty states', () => {
 
   it('says so when a file declares nothing', async () => {
     await renderCard(info({ settings: SETTINGS.filter((s) => s.scope === 'windows') }))
+    switchTo('linux')
     expect(screen.getByText('Nothing is configured in this file')).toBeTruthy()
   })
 })

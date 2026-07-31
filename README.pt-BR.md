@@ -48,7 +48,7 @@ distribuição de fato usa por dentro e quanto é recuperável.
 silêncio. Cada chave do `.wslconfig` e do `wsl.conf` aparece com o valor
 declarado, o valor de fato em vigor e um veredito: aplicado, requer reinício,
 seção errada, chave desconhecida ou sem suporte nesta build. Inclusive o modo de
-rede que você pediu contra o que você recebeu.
+rede que você pediu contra o que você recebeu. Os dois arquivos vivem em duas máquinas diferentes e são editados em lugares diferentes, então você lê um de cada vez — o seletor mostra quantas chaves cada arquivo declara e sinaliza o que precisa de atenção.
 
 ![Configurações do WSL](docs/screenshots/wslconfig.png)
 
@@ -64,7 +64,9 @@ quando ele é realmente acessível pelo Windows, e cada um agora traz um
 **veredito de alcance**: alcança a rede, somente este computador, somente dentro
 do WSL, ou nada — com o motivo, derivado do endereço de bind, do modo de rede em
 vigor e do firewall. Quando os fatos não podem ser lidos, o WSLPad diz
-*desconhecido* em vez de adivinhar.
+*desconhecido* em vez de adivinhar. Uma máquina movimentada lista centenas de portas em escuta, então há um filtro por faixa de portas e por nome de processo — "quem está com a 5173" é uma pergunta, não um exercício de rolagem.
+
+![Portas](docs/screenshots/ports.png)
 
 O Dashboard (o Painel) nunca executa nada. Botões como *kill*, *reiniciar
 serviço* ou *sudoedit* apenas **preparam** o comando no campo do Console — você
@@ -102,6 +104,8 @@ Explorer, o Console acompanha e vai para o mesmo diretório — sem um `cd`
 visível, sem poluir o histórico do seu shell. Só os comandos que **você**
 executa aparecem na transcrição; as consultas internas do WSLPad são executadas
 por um runner oculto separado.
+
+Ele também se recupera sozinho. O WSL costuma continuar ocupado quando o WSLPad sobe junto com o Windows, e um shell que não pôde ser iniciado agora é relatado exatamente assim — **com o motivo** — em vez de um enganoso "distribuição parada". Assim que a distribuição aparece como em execução, o Console tenta de novo sem ser pedido, e se ainda assim não iniciar, o botão de reconectar continua ali. Reiniciar o aplicativo nunca é a resposta.
 
 ## Servidor MCP (somente leitura)
 
@@ -168,9 +172,9 @@ sistema de arquivos ela fica e — o mais importante — se o comando na verdade
 acaba em um binário do **Windows** sob `/mnt/c` em vez de um instalado na
 distribuição.
 
-**Hermes** — executável, diretório de dados, virtualenv, configuração, estado do
-gateway e do dashboard, número de servidores MCP, portas, serviços de usuário e
-caminhos de log.
+**Hermes** — executável, diretório de dados, virtualenv, configuração, estado do gateway, **a quais mensageiros ele está de fato conectado**, os perfis que você chamaria de agentes (com o atual marcado), sessões ativas, tarefas agendadas, estado e endereço do painel, número de servidores MCP, portas, serviços de usuário e caminhos de log. Mensageiros e perfis vêm da CLI somente leitura do próprio Hermes; quando não dá para perguntar, a linha diz *desconhecido* em vez de "nenhum configurado". O painel web não está rodando? O comando para iniciá-lo fica preparado no Console.
+
+![Hermes](docs/screenshots/hermes.png)
 
 **Variáveis de ambiente** — cada variável com seu comprimento e seus marcadores
 (tipo PATH, veio do Windows). Nomes que parecem segredos são mascarados;
@@ -187,7 +191,7 @@ fica em execução.
 **Portas** — protocolo, endereço, porta, PID, processo, estado de escuta, a
 origem (`WSL`, `Windows`, `WSL + Windows`) e um veredito de alcance com o seu
 motivo: alcança a rede, somente este computador, somente dentro do WSL, nada ou
-desconhecido.
+desconhecido. Filtre por faixa de portas e por nome de processo — a busca por nome olha tanto o processo do WSL quanto o do Windows que segura a mesma porta.
 
 **Rede** — o estado do firewall do Hyper-V para a máquina virtual do WSL
 (ligado, ação padrão de entrada e de saída, exceção de loopback, número de
@@ -204,8 +208,7 @@ plano, problemas de MCP.
 WSL, proprietário, grupo, permissões do Linux e destinos de links simbólicos.
 Por unidade, no lado do Windows: espaço livre e total.
 
-**Console** — a distribuição, o diretório atual e o estado do shell (pronto, em
-execução, aguardando entrada, aguardando a senha do sudo, desconectado).
+**Console** — a distribuição, o diretório atual e o estado do shell (pronto, em execução, aguardando entrada, aguardando a senha do sudo, desconectado, distribuição parada ou não foi possível iniciar — este último com o motivo).
 
 **Pelo MCP** — tudo isso acima por meio de 29 ferramentas `Get*` somente leitura.
 [docs/MCP.md](docs/MCP.md)
@@ -236,7 +239,7 @@ WSLPad inicia com o Windows (alterne pela bandeja ou em Settings), fica na
 bandeja e se atualiza sozinho pelo GitHub Releases. Fechar a janela apenas a
 oculta; *Sair* no menu da bandeja encerra o app.
 
-> A v0.1.0 não é assinada — o SmartScreen vai perguntar uma vez ("Mais informações" → "Executar assim mesmo").
+> O instalador não é assinado — o SmartScreen vai perguntar uma vez ("Mais informações" → "Executar assim mesmo").
 
 Requisitos: Windows 10/11 x64. O WSL é opcional — sem ele, o WSLPad mostra uma
 dica de configuração em vez de quebrar.
@@ -272,7 +275,7 @@ não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronizaç�
 nuvem, nem chat de IA, nem correção automática. Identidade:
 **Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
 
-## Limitações atuais (v0.1.3)
+## Limitações atuais (v0.1.4)
 
 - Somente Windows x64; o instalador não é assinado (aviso do SmartScreen)
 - Os números da imagem de disco dependem do registro do Windows e do `fsutil`;

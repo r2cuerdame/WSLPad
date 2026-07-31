@@ -3,10 +3,22 @@ import { useTranslation } from 'react-i18next'
 import type { HermesInfo } from '@shared/types'
 import { useApp } from '../store'
 import Card from '../components/Card'
+import { ExternalIcon } from '../components/Icons'
 
 const shQuote = (v: string): string => `'${v.replace(/'/g, "'\\''")}'`
 
-function Kv({ k, mono, children }: { k: string; mono?: boolean; children: ReactNode }): React.JSX.Element {
+/** `hermes dashboard` binds 127.0.0.1 and opens a browser unless told not to. */
+const DASHBOARD_COMMAND = 'hermes dashboard --no-open'
+
+function Kv({
+  k,
+  mono,
+  children
+}: {
+  k: string
+  mono?: boolean
+  children: ReactNode
+}): React.JSX.Element {
   return (
     <div className="kv-row">
       <span className="kv-key">{k}</span>
@@ -32,6 +44,11 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
     pushToast('info', t('toast.commandPrepared'))
   }
 
+  const prepareDashboard = (): void => {
+    prepareCommand(DASHBOARD_COMMAND)
+    pushToast('info', t('toast.commandPrepared'))
+  }
+
   const v = (x: string | null): string => x ?? '—'
   const detect = (status: 'running' | 'not-detected'): React.JSX.Element =>
     status === 'running' ? (
@@ -40,19 +57,41 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
       <span className="badge badge-dim">{t('common.notDetected')}</span>
     )
 
+  const connected = hermes?.platforms.filter((p) => p.configured) ?? []
+  const dashboardUrl =
+    hermes?.dashboardPort === null || hermes?.dashboardPort === undefined
+      ? null
+      : `http://127.0.0.1:${hermes.dashboardPort}`
+
   return (
     <Card
       titleKey="dashboard.hermes.title"
       className="dash-card-hermes"
       actions={
-        service ? (
+        hermes?.installed ? (
           <>
-            <button type="button" className="btn btn-small" onClick={() => prepare('start')}>
-              {t('dashboard.hermes.prepareStart')}
-            </button>
-            <button type="button" className="btn btn-small" onClick={() => prepare('restart')}>
-              {t('dashboard.hermes.prepareRestart')}
-            </button>
+            {service ? (
+              <>
+                <button type="button" className="btn btn-small" onClick={() => prepare('start')}>
+                  {t('dashboard.hermes.prepareStart')}
+                </button>
+                <button type="button" className="btn btn-small" onClick={() => prepare('restart')}>
+                  {t('dashboard.hermes.prepareRestart')}
+                </button>
+              </>
+            ) : null}
+            {/* The dashboard is a server the user starts; WSLPad only writes
+                the command into the Console (goal.md §2.2). */}
+            {hermes.dashboardStatus === 'running' ? null : (
+              <button
+                type="button"
+                className="btn btn-small"
+                title={t('dashboard.hermes.prepareDashboardHint')}
+                onClick={prepareDashboard}
+              >
+                {t('dashboard.hermes.prepareDashboard')}
+              </button>
+            )}
           </>
         ) : undefined
       }
@@ -61,9 +100,7 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
         <div className="dim">{t('common.notDetected')}</div>
       ) : (
         <>
-          <Kv k={t('common.installed')}>
-            {hermes.installed ? t('common.yes') : t('common.no')}
-          </Kv>
+          <Kv k={t('common.installed')}>{hermes.installed ? t('common.yes') : t('common.no')}</Kv>
           <Kv k={t('dashboard.hermes.executable')} mono>
             {v(hermes.executablePath)}
           </Kv>
@@ -77,7 +114,73 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
             {v(hermes.configPath)}
           </Kv>
           <Kv k={t('dashboard.hermes.gateway')}>{detect(hermes.gatewayStatus)}</Kv>
-          <Kv k={t('dashboard.hermes.dashboard')}>{detect(hermes.dashboardStatus)}</Kv>
+
+          {/* Which messenger the gateway actually carries. Hermes lists every
+              platform it supports, so only the configured ones are named — but
+              an empty answer says "none configured", not "unknown". */}
+          <Kv k={t('dashboard.hermes.messengers')}>
+            {hermes.platforms.length === 0 ? (
+              <span className="dim">{t('common.unknown')}</span>
+            ) : connected.length === 0 ? (
+              <span className="badge badge-dim">{t('dashboard.hermes.noMessenger')}</span>
+            ) : (
+              <span className="badge-row">
+                {connected.map((p) => (
+                  <span key={p.name} className="badge badge-ok" title={p.detail ?? undefined}>
+                    {p.name}
+                  </span>
+                ))}
+              </span>
+            )}
+          </Kv>
+          {hermes.platforms.length > 0 && connected.length === 0 ? (
+            <Kv k={t('dashboard.hermes.supportedMessengers')}>
+              <span className="dim truncate" title={hermes.platforms.map((p) => p.name).join(', ')}>
+                {hermes.platforms.map((p) => p.name).join(', ')}
+              </span>
+            </Kv>
+          ) : null}
+
+          <Kv k={t('dashboard.hermes.agents')}>
+            {hermes.profiles.length === 0 ? (
+              <span className="dim">{t('common.unknown')}</span>
+            ) : (
+              <>
+                {hermes.profiles.length}
+                <span className="badge-row">
+                  {hermes.profiles.map((p) => (
+                    <span
+                      key={p.name}
+                      className={p.isCurrent ? 'badge badge-accent' : 'badge badge-dim'}
+                      title={[p.model, p.gatewayState].filter(Boolean).join(' · ') || undefined}
+                    >
+                      {p.name}
+                    </span>
+                  ))}
+                </span>
+              </>
+            )}
+          </Kv>
+          <Kv k={t('dashboard.hermes.sessions')}>{hermes.activeSessions ?? '—'}</Kv>
+          <Kv k={t('dashboard.hermes.jobs')}>{hermes.scheduledJobs ?? '—'}</Kv>
+
+          <Kv k={t('dashboard.hermes.dashboard')}>
+            {detect(hermes.dashboardStatus)}
+            {dashboardUrl === null ? null : (
+              <>
+                <span className="mono">{dashboardUrl}</span>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={t('dashboard.ports.openInBrowser')}
+                  title={t('dashboard.ports.openInBrowser')}
+                  onClick={() => void window.wslpad.openExternal(dashboardUrl)}
+                >
+                  <ExternalIcon size={14} />
+                </button>
+              </>
+            )}
+          </Kv>
           <Kv k={t('dashboard.hermes.mcpServers')}>{hermes.mcpServerCount ?? '—'}</Kv>
           <Kv k={t('dashboard.hermes.ports')} mono>
             {hermes.ports.length > 0 ? hermes.ports.join(', ') : '—'}

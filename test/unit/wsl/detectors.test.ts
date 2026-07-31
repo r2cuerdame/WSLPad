@@ -16,7 +16,14 @@ import {
   parseVersionLine,
   parseWindowsMounts
 } from '../../../src/main/wsl/detectors/tools'
-import { HERMES_SCRIPT, countMcpServers, parseSsLine } from '../../../src/main/wsl/detectors/hermes'
+import {
+  HERMES_CLI_SCRIPT,
+  HERMES_SCRIPT,
+  countMcpServers,
+  detectHermesCli,
+  parseHermesCliOutput,
+  parseSsLine
+} from '../../../src/main/wsl/detectors/hermes'
 
 // ---------------------------------------------------------------------------
 // Test doubles + captured-style fixture outputs
@@ -497,9 +504,14 @@ describe('parseInteropBinaries', () => {
 
 describe('parseWindowsMounts', () => {
   it('collects the drive mounts the distro reported, in order, without repeats', () => {
-    const out = ['MNT:/mnt/c', 'MNT:/mnt/d', 'MNT:/mnt/c', 'TOOL:git', 'PATH:/usr/bin/git', ''].join(
-      '\n'
-    )
+    const out = [
+      'MNT:/mnt/c',
+      'MNT:/mnt/d',
+      'MNT:/mnt/c',
+      'TOOL:git',
+      'PATH:/usr/bin/git',
+      ''
+    ].join('\n')
     expect(parseWindowsMounts(out)).toEqual(['/mnt/c', '/mnt/d'])
   })
 
@@ -932,7 +944,14 @@ describe('detectHermes', () => {
       ],
       ports: [8765],
       services: ['hermes-gateway.service'],
-      logPaths: ['/home/dev/.hermes/logs']
+      logPaths: ['/home/dev/.hermes/logs'],
+      // Process inspection cannot answer these; they stay empty until the
+      // Hermes CLI has been asked (detectHermesCli).
+      platforms: [],
+      profiles: [],
+      activeSessions: null,
+      scheduledJobs: null,
+      dashboardPort: null
     })
   })
 
@@ -1015,6 +1034,134 @@ describe('detectHermes', () => {
   it('rejects invalid distro names', async () => {
     const runner = new FakeRunner(respondHermes(ok(HERMES_FIXTURE)))
     await expect(detectHermes(runner, '../evil')).rejects.toThrow(/Invalid WSL distro/)
+    expect(runner.calls).toHaveLength(0)
+  })
+})
+
+// Captured from `hermes status` / `hermes profile list` on Ubuntu-24.04.
+const HERMES_CLI_FIXTURE = [
+  'STATUSBEGIN',
+  '',
+  '┌─────────────────────────────────────────┐',
+  '│           ⚕ Hermes Agent Status         │',
+  '└─────────────────────────────────────────┘',
+  '',
+  '◆ Environment',
+  '  Project:      /usr/local/lib/hermes-agent',
+  '  Python:       3.11.15',
+  '',
+  '◆ Messaging Platforms',
+  '  Telegram      ✓ bot @wslpad_bot',
+  '  Discord       ✗ not configured',
+  '  WhatsApp      ✗ not configured',
+  '  Slack         ✓ workspace purpleship',
+  '',
+  '◆ Gateway Service',
+  '  Status:       ✓ running',
+  '  Manager:      systemd (system)',
+  '  PID(s):       155',
+  '',
+  '◆ Scheduled Jobs',
+  '  Jobs:         3',
+  '',
+  '◆ Sessions',
+  '  Active:       2',
+  '',
+  'STATUSEND',
+  'PROFILESBEGIN',
+  '',
+  ' Profile          Model                  Gateway      Alias        Distribution',
+  ' ───────────────    ──────────────────    ───────────    ─────────    ────────────',
+  ' ◆default          claude-opus-5          running      —            —',
+  ' research          gpt-5 mini             stopped      —            —',
+  '',
+  'PROFILESEND',
+  ''
+].join('\n')
+
+describe('HERMES_CLI_SCRIPT', () => {
+  it('asks Hermes nothing that could change it', () => {
+    expect(HERMES_CLI_SCRIPT).toContain('hermes status')
+    expect(HERMES_CLI_SCRIPT).toContain('hermes profile list')
+    expect(HERMES_CLI_SCRIPT).not.toMatch(
+      /\bhermes\s+(chat|send|setup|gateway\s+(start|stop|restart|install)|config\s+set|profile\s+(create|delete|use))\b/
+    )
+  })
+
+  it('never runs at all unless hermes is installed', () => {
+    expect(HERMES_CLI_SCRIPT.split('\n')[0]).toContain('command -v hermes')
+    expect(HERMES_CLI_SCRIPT.split('\n')[0]).toContain('exit 0')
+  })
+
+  it('time-boxes the CLI inside the distro too', () => {
+    expect(HERMES_CLI_SCRIPT).toContain('timeout 20')
+  })
+})
+
+describe('parseHermesCliOutput', () => {
+  it('names the messengers actually connected, and the ones only supported', () => {
+    const detail = parseHermesCliOutput(HERMES_CLI_FIXTURE)
+    expect(detail.platforms.filter((p) => p.configured).map((p) => p.name)).toEqual([
+      'Telegram',
+      'Slack'
+    ])
+    expect(detail.platforms).toHaveLength(4)
+    expect(detail.platforms[0].detail).toBe('bot @wslpad_bot')
+  })
+
+  it('reads the profiles as the agent list, marking the current one', () => {
+    const { profiles } = parseHermesCliOutput(HERMES_CLI_FIXTURE)
+    expect(profiles).toEqual([
+      { name: 'default', model: 'claude-opus-5', gatewayState: 'running', isCurrent: true },
+      { name: 'research', model: 'gpt-5 mini', gatewayState: 'stopped', isCurrent: false }
+    ])
+  })
+
+  it('reads the session and job counters', () => {
+    const detail = parseHermesCliOutput(HERMES_CLI_FIXTURE)
+    expect(detail.activeSessions).toBe(2)
+    expect(detail.scheduledJobs).toBe(3)
+  })
+
+  it('reports nothing rather than guessing when a section is missing', () => {
+    const detail = parseHermesCliOutput('STATUSBEGIN\n◆ Environment\n  Python: 3.11\nSTATUSEND')
+    expect(detail.platforms).toEqual([])
+    expect(detail.profiles).toEqual([])
+    expect(detail.activeSessions).toBeNull()
+    expect(detail.scheduledJobs).toBeNull()
+  })
+
+  it('survives ANSI colouring', () => {
+    const coloured = HERMES_CLI_FIXTURE.replace('Telegram', '[32mTelegram[0m')
+    expect(parseHermesCliOutput(coloured).platforms[0].name).toBe('Telegram')
+  })
+})
+
+describe('detectHermesCli', () => {
+  const respondCli =
+    (result: RunResult | Error): Responder =>
+    (script) =>
+      script === HERMES_CLI_SCRIPT ? result : new Error(`unexpected script: ${script}`)
+
+  it('returns the parsed detail on a good run', async () => {
+    const runner = new FakeRunner(respondCli(ok(HERMES_CLI_FIXTURE)))
+    const detail = await detectHermesCli(runner, 'Ubuntu-24.04')
+    expect(detail?.activeSessions).toBe(2)
+  })
+
+  it('returns null — never an empty answer — when Hermes could not be asked', async () => {
+    expect(await detectHermesCli(new FakeRunner(respondCli(ok(''))), 'Ubuntu-24.04')).toBeNull()
+    expect(
+      await detectHermesCli(new FakeRunner(respondCli(ok('', null, true))), 'Ubuntu-24.04')
+    ).toBeNull()
+    expect(
+      await detectHermesCli(new FakeRunner(() => new Error('down')), 'Ubuntu-24.04')
+    ).toBeNull()
+  })
+
+  it('rejects invalid distro names', async () => {
+    const runner = new FakeRunner(respondCli(ok(HERMES_CLI_FIXTURE)))
+    await expect(detectHermesCli(runner, '../evil')).rejects.toThrow(/Invalid WSL distro/)
     expect(runner.calls).toHaveLength(0)
   })
 })

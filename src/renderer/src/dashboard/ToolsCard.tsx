@@ -62,7 +62,6 @@ export default function ToolsCard({
   const [shadowedOnly, setShadowedOnly] = useState(false)
   const [query, setQuery] = useState('')
 
-  const installedCount = useMemo(() => tools.filter((tool) => tool.installed).length, [tools])
   const shadowedCount = useMemo(
     () => tools.filter((tool) => tool.shadowedByWindows).length,
     [tools]
@@ -89,8 +88,7 @@ export default function ToolsCard({
   const cause =
     appendWindowsPath === null
       ? t('dashboard.tools.appendUnknown', {
-          defaultValue:
-            'WSLPad could not read whether this distribution appends the Windows PATH.'
+          defaultValue: 'WSLPad could not read whether this distribution appends the Windows PATH.'
         })
       : appendWindowsPath
         ? t('dashboard.tools.appendOn', {
@@ -107,12 +105,8 @@ export default function ToolsCard({
       titleKey="dashboard.tools.title"
       actions={
         <>
-          <span className="dim">
-            {t('dashboard.tools.installedOfTotal', {
-              installed: installedCount,
-              total: tools.length
-            })}
-          </span>
+          {/* The section header already states "N of M installed" — printing it
+              again next to the filter was pure duplication. */}
           <input
             type="search"
             className="dash-input"

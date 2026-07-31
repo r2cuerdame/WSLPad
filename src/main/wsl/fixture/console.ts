@@ -239,11 +239,24 @@ class FixtureShell implements PtyHandle {
 
 export class FixtureConsoleFactory implements ConsoleBackendFactory {
   private shells = new Map<string, Set<FixtureShell>>()
+  /**
+   * How many spawns still have to fail. WSL is routinely busy for a few seconds
+   * after Windows login, so E2E needs a way to reproduce a shell that cannot be
+   * started yet and check that the Console comes back on its own.
+   */
+  private failingSpawns: number
 
-  constructor(private fs: FixtureFilesystem = new FixtureFilesystem()) {}
+  constructor(private fs: FixtureFilesystem = new FixtureFilesystem()) {
+    const configured = Number.parseInt(process.env.WSLPAD_FIXTURE_CONSOLE_FAIL ?? '', 10)
+    this.failingSpawns = Number.isFinite(configured) && configured > 0 ? configured : 0
+  }
 
   spawn(distro: string, cols: number, rows: number): Promise<PtyHandle> {
     assertValidDistroName(distro)
+    if (this.failingSpawns > 0) {
+      this.failingSpawns -= 1
+      return Promise.reject(new Error('fixture: the distro is busy starting up'))
+    }
     const set = this.shells.get(distro) ?? new Set<FixtureShell>()
     this.shells.set(distro, set)
     const shell: FixtureShell = new FixtureShell(this.fs, distro, cols, rows, () =>

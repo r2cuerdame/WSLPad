@@ -156,7 +156,15 @@ function makeSnapshot(): WslPadSnapshot {
         processes: [],
         ports: [8420],
         services: ['hermes-gateway.service'],
-        logPaths: []
+        logPaths: [],
+        platforms: [
+          { name: 'Telegram', configured: true, detail: null },
+          { name: 'Discord', configured: false, detail: 'not configured' }
+        ],
+        profiles: [{ name: 'default', model: null, gatewayState: 'running', isCurrent: true }],
+        activeSessions: 0,
+        scheduledJobs: 0,
+        dashboardPort: null
       },
       environment: [
         {

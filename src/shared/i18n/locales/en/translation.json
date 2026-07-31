@@ -320,13 +320,21 @@
       "venv": "Virtualenv",
       "config": "Config",
       "gateway": "Gateway",
+      "messengers": "Messengers",
+      "supportedMessengers": "Supported",
+      "noMessenger": "None connected",
+      "agents": "Agents (profiles)",
+      "sessions": "Active sessions",
+      "jobs": "Scheduled jobs",
       "dashboard": "Dashboard",
       "mcpServers": "MCP servers",
       "ports": "Ports",
       "services": "Services",
       "logs": "Logs",
       "prepareStart": "Prepare start command",
-      "prepareRestart": "Prepare restart command"
+      "prepareRestart": "Prepare restart command",
+      "prepareDashboard": "Prepare dashboard command",
+      "prepareDashboardHint": "Prepared in the Console — nothing runs until you press Enter"
     },
     "environment": {
       "title": "Environment",
@@ -454,6 +462,10 @@
       "protocol": "Proto",
       "address": "Address",
       "port": "Port",
+      "portFrom": "Lowest port",
+      "portTo": "Highest port",
+      "filterProcess": "Filter by process",
+      "noMatches": "No port matches the filter",
       "process": "Process",
       "openInBrowser": "Open in browser",
       "copyUrl": "Copy URL",
@@ -678,7 +690,8 @@
       "waiting-sudo": "Waiting for sudo password",
       "path-sync-pending": "Path sync pending",
       "disconnected": "Disconnected",
-      "distro-stopped": "Distribution stopped"
+      "distro-stopped": "Distribution stopped",
+      "start-failed": "Could not start"
     },
     "reconnect": "Reconnect",
     "commandPrepared": "Command prepared — review and press Enter to run",

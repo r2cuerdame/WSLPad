@@ -39,6 +39,58 @@ export async function ensureRcInstalled(
 }
 
 /**
+ * Install the rc, or give it up. A busy or briefly unreachable distro (WSL is
+ * routinely still settling when WSLPad autostarts at Windows login) must not
+ * cost the user their console: the plain login shell is launched instead, so
+ * only invisible cwd sync degrades. `shellKind` keeps its cached answer, so the
+ * next spawn tries the rc again.
+ */
+export async function installRcOrDegrade(
+  runner: DistroRunner,
+  distro: string,
+  kind: ShellKind
+): Promise<ShellKind> {
+  if (kind === 'other') return 'other'
+  try {
+    await ensureRcInstalled(runner, distro, kind)
+    return kind
+  } catch {
+    return 'other'
+  }
+}
+
+/**
+ * wsl.exe arguments for one console session. Paths are relative to the session
+ * cwd (`--cd ~`): quotes or `$HOME` would be re-quoted by node-pty's Windows
+ * argv encoding and reach the in-distro shell as literal characters, silently
+ * skipping the rcfile. 'other' launches plain — a usable console without sync.
+ */
+export function consoleSpawnArgs(distro: string, kind: ShellKind): string[] {
+  const args = ['-d', distro, '--cd', '~']
+  if (kind === 'bash') {
+    args.push(
+      '--',
+      'env',
+      `WSLPAD_SYNC_FILE=${syncFilePath(distro)}`,
+      'bash',
+      '--rcfile',
+      '.cache/wslpad/rc.bash',
+      '-i'
+    )
+  } else if (kind === 'zsh') {
+    args.push(
+      '--',
+      'env',
+      `WSLPAD_SYNC_FILE=${syncFilePath(distro)}`,
+      'ZDOTDIR=.cache/wslpad/zdotdir',
+      'zsh',
+      '-i'
+    )
+  }
+  return args
+}
+
+/**
  * Real node-pty console backend (goal.md §8). Spawns wsl.exe under ConPTY with
  * the WSLPad rc injected so the session emits OSC 7 / OSC 133;A markers and
  * consumes cwd sync files invisibly. node-pty is imported lazily so simply
@@ -69,33 +121,8 @@ export function createRealConsoleFactory(runner: DistroRunner): ConsoleBackendFa
 
   const spawn = async (distro: string, cols: number, rows: number): Promise<PtyHandle> => {
     assertValidDistroName(distro)
-    const kind = await shellKind(distro)
-    if (kind !== 'other') await ensureRcInstalled(runner, distro, kind)
-    const args = ['-d', distro, '--cd', '~']
-    // Paths are relative to the session cwd (`--cd ~`): quotes or `$HOME`
-    // would be re-quoted by node-pty's Windows argv encoding and reach the
-    // in-distro shell as literal characters, silently skipping the rcfile.
-    if (kind === 'bash') {
-      args.push(
-        '--',
-        'env',
-        `WSLPAD_SYNC_FILE=${syncFilePath(distro)}`,
-        'bash',
-        '--rcfile',
-        '.cache/wslpad/rc.bash',
-        '-i'
-      )
-    } else if (kind === 'zsh') {
-      args.push(
-        '--',
-        'env',
-        `WSLPAD_SYNC_FILE=${syncFilePath(distro)}`,
-        'ZDOTDIR=.cache/wslpad/zdotdir',
-        'zsh',
-        '-i'
-      )
-    }
-    // 'other' shells launch plain: usable console, cwd sync gracefully unsupported
+    const kind = await installRcOrDegrade(runner, distro, await shellKind(distro))
+    const args = consoleSpawnArgs(distro, kind)
     const pty = await import('node-pty')
     const env: Record<string, string> = {}
     for (const [key, value] of Object.entries(process.env)) {
