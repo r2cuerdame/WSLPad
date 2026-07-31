@@ -79,7 +79,7 @@ async function flush(): Promise<void> {
 async function renderCard(disk: DiskImageInfo | null): Promise<void> {
   render(
     <AppStoreProvider>
-      <DiskCard disk={disk} zone={null} />
+      <DiskCard disk={disk} zone={null} consumers={null} />
       <PreparedProbe />
     </AppStoreProvider>
   )
@@ -138,7 +138,7 @@ describe('DiskCard populated', () => {
   it('draws the used-inside share against the image size', async () => {
     const { container } = render(
       <AppStoreProvider>
-        <DiskCard disk={diskImage()} zone={null} />
+        <DiskCard disk={diskImage()} zone={null} consumers={null} />
       </AppStoreProvider>
     )
     await flush()

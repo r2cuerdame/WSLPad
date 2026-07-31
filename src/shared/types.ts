@@ -439,9 +439,24 @@ export interface ProcessInfo {
   executablePath: string | null
 }
 
+export type ServiceScope = 'system' | 'user'
+
+/**
+ * The tail of one unit's journal, read in place. `error` carries the reason a
+ * log could not be shown — a distro without systemd, a unit with no entries —
+ * so an empty list never has to stand in for one.
+ */
+export interface ServiceLog {
+  unit: string
+  scope: ServiceScope
+  lines: string[]
+  truncated: boolean
+  error: string | null
+}
+
 export interface ServiceInfo {
   name: string
-  scope: 'system' | 'user'
+  scope: ServiceScope
   loadState: string
   activeState: string
   subState: string
@@ -642,6 +657,38 @@ export interface TerminalProfilesInfo {
   error: string | null
 }
 
+/**
+ * One known cache or store inside the distro, and what it weighs. `bytes` is
+ * null when the measurement did not finish — never a stand-in zero, because a
+ * cache reported as empty is exactly the one nobody then clears.
+ */
+export interface DiskConsumerInfo {
+  id: string
+  path: string
+  exists: boolean
+  bytes: number | null
+  /** Prepared for the Console, never run; null when there is nothing safe to offer. */
+  cleanup: string | null
+  needsRoot: boolean
+  /**
+   * The id of another measured consumer this one sits inside — `/var/log/journal`
+   * inside `/var/log`. Both are worth showing; only the outer one counts toward
+   * the total, or the same bytes would be added twice.
+   */
+  containedIn: string | null
+}
+
+/**
+ * What is filling the disk image, by name. Deliberately not exhaustive: a
+ * fixed list of known suspects, bounded, with `partial` set whenever something
+ * could not be measured so the total is never mistaken for the whole story.
+ */
+export interface DiskConsumersInfo {
+  consumers: DiskConsumerInfo[]
+  measuredBytes: number
+  partial: boolean
+}
+
 /** One directory holding `:Zone.Identifier` files, and what they weigh there. */
 export interface ZoneIdentifierGroup {
   directory: string
@@ -686,6 +733,8 @@ export interface DashboardSnapshot {
   docker: DockerInfo | null
   /** null until the home directory has been searched for Windows download markers. */
   zoneIdentifier: ZoneIdentifierInfo | null
+  /** null until the known caches have been measured. */
+  diskConsumers: DiskConsumersInfo | null
   /** null until Windows Terminal's settings have been read. Host-wide. */
   terminalProfiles: TerminalProfilesInfo | null
   environment: EnvironmentVariableInfo[]

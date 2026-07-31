@@ -5,6 +5,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import type { ConsoleStatus } from '@shared/types'
 import { CONSOLE_DEFAULTS, CONSOLE_DEFAULT_HEIGHT, CONSOLE_HEIGHT_BOUNDS } from '@shared/constants'
+import { classifyPathSide, isCrossBoundary } from '@shared/path-boundary'
 import { useApp } from '../store'
 import './console.css'
 
@@ -317,6 +318,13 @@ export function ConsolePanel(): React.JSX.Element {
         {cwd && (
           <span className="console-cwd mono" title={cwd}>
             {cwd}
+          </span>
+        )}
+        {/* Said where it is paid: a shell in a Windows-mounted directory looks
+            exactly like any other shell, and every file it touches crosses 9P. */}
+        {cwd && isCrossBoundary(classifyPathSide(cwd)) && (
+          <span className="badge badge-warn" title={t('console.slowPathHint')}>
+            {t('console.slowPath')}
           </span>
         )}
         <span className="console-spacer" />

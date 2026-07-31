@@ -23,6 +23,7 @@ const api: WslPadApi = {
   refresh: (tier) => ipcRenderer.invoke(IpcChannels.snapshotRefresh, tier),
   setMonitoringPaused: (paused) => ipcRenderer.invoke(IpcChannels.monitoringSetPaused, paused),
   revealEnv: (name) => ipcRenderer.invoke(IpcChannels.envReveal, name),
+  serviceLog: (unit, scope, lines) => ipcRenderer.invoke(IpcChannels.serviceLog, unit, scope, lines),
   copyLlmMarkdown: (preset) => ipcRenderer.invoke(IpcChannels.llmCopyMarkdown, preset),
   exportLlmJson: () => ipcRenderer.invoke(IpcChannels.llmExportJson),
 

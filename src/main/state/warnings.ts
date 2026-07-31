@@ -1,5 +1,5 @@
 import { CLOCK_SKEW_WARN_SECONDS } from '@shared/constants'
-import { isCrossBoundary } from '@shared/path-boundary'
+import { classifyPathSide, isCrossBoundary } from '@shared/path-boundary'
 import type { DashboardSnapshot, DistroSummary, WarningInfo } from '@shared/types'
 
 export interface WarningComputeInput {
@@ -10,6 +10,8 @@ export interface WarningComputeInput {
   mcpError: string | null
   /** PATH entries known to be missing — provided by a caller that scanned them. */
   missingPathEntries?: string[]
+  /** Where the Console is sitting right now, when it is sitting anywhere. */
+  consoleCwd?: string | null
 }
 
 /** At most this many hidden-runner failures become warnings (dedupe first). */
@@ -176,6 +178,24 @@ export function computeWarnings(input: WarningComputeInput): WarningInfo[] {
           `access is far slower than on the Linux disk: ${items}`
       })
     }
+  }
+
+  // The same boundary, but where it is actually being paid: a shell sitting in
+  // a Windows-mounted directory. Every build, every `git status`, every
+  // `npm install` run from here crosses 9P for each file it touches, which is
+  // the single most common reason "WSL is slow" (microsoft/WSL#4197). Nothing
+  // in the shell says so — the prompt looks exactly the same.
+  const cwd = input.consoleCwd
+  if (typeof cwd === 'string' && isCrossBoundary(classifyPathSide(cwd))) {
+    out.push({
+      id: 'console-cwd-cross-boundary',
+      severity: 'info',
+      messageKey: 'warnings.consoleCwdCrossBoundary',
+      params: { path: cwd },
+      message:
+        `The Console is working in ${cwd}, which is on the Windows filesystem — ` +
+        'file-heavy work there is far slower than on the Linux disk'
+    })
   }
 
   for (const entry of input.missingPathEntries ?? []) {

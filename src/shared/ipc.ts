@@ -13,6 +13,8 @@ import type {
   TerminalDataEvent,
   TerminalSessionInfo,
   TerminalStatusEvent,
+  ServiceLog,
+  ServiceScope,
   TextFileContent,
   TrashEntry,
   UpdateStatus,
@@ -33,6 +35,7 @@ export const IpcChannels = {
   snapshotRefresh: 'wslpad:snapshot:refresh',
   monitoringSetPaused: 'wslpad:monitoring:set-paused',
   envReveal: 'wslpad:env:reveal',
+  serviceLog: 'wslpad:service:log',
   llmCopyMarkdown: 'wslpad:llm:copy-markdown',
   llmExportJson: 'wslpad:llm:export-json',
 
@@ -152,6 +155,8 @@ export interface WslPadApi {
   refresh(tier: 'fast' | 'medium' | 'slow' | 'all'): Promise<void>
   setMonitoringPaused(paused: boolean): Promise<void>
   revealEnv(name: string): Promise<string | null>
+  /** The tail of one unit journal, read on demand and never polled. */
+  serviceLog(unit: string, scope: ServiceScope, lines?: number): Promise<ServiceLog>
   copyLlmMarkdown(preset?: LlmPreset): Promise<string>
   exportLlmJson(): Promise<string | null>
 

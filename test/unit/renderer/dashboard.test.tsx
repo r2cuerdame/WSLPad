@@ -148,6 +148,7 @@ function makeSnapshot(): WslPadSnapshot {
       ],
       docker: null,
       zoneIdentifier: null,
+      diskConsumers: null,
       terminalProfiles: null,
       hermes: {
         installed: true,

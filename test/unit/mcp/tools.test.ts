@@ -43,6 +43,8 @@ const GOAL_TOOLS = [
   'GetCommandResolution',
   'GetZoneIdentifiers',
   'GetTerminalProfiles',
+  'GetDiskConsumers',
+  'GetServiceLog',
   'GetExplorerContext',
   'GetConsoleContext'
 ]
@@ -391,5 +393,63 @@ describe('tools shaped like the questions an agent actually asks', () => {
     expect(result.content[0].text).toContain('no Windows Terminal profile')
     const suggested = result.structuredContent?.suggestedProfile as string
     expect(JSON.parse(suggested)).toMatchObject({ commandLine: `wsl.exe -d ${dash.distro.name}` })
+  })
+})
+
+describe('the disk and journal tools', () => {
+  it('reports the known caches, and says the total is not the whole story', async () => {
+    const snapshot = makeSnapshot()
+    const dash = snapshot.dashboard
+    if (dash === null) throw new Error('fixture has no dashboard')
+    dash.diskConsumers = {
+      consumers: [
+        {
+          id: 'journal',
+          path: '/var/log/journal',
+          exists: true,
+          bytes: 838_860_800,
+          cleanup: 'sudo journalctl --vacuum-size=200M',
+          needsRoot: true,
+          containedIn: null
+        }
+      ],
+      measuredBytes: 838_860_800,
+      partial: true
+    }
+    const client = await connect(makeDeps({ snapshot }))
+    const result = await call(client, 'GetDiskConsumers')
+
+    expect(result.content[0].text).toContain('could not be measured')
+    const info = result.structuredContent?.diskConsumers as { consumers: Array<{ cleanup: string }> }
+    expect(info.consumers[0].cleanup).toContain('vacuum-size')
+  })
+
+  it('says the caches are unmeasured rather than empty', async () => {
+    const client = await connect(makeDeps())
+    const result = await call(client, 'GetDiskConsumers')
+    expect(result.structuredContent?.diskConsumers).toBeNull()
+    expect(result.content[0].text).toContain('not been measured')
+  })
+
+  it('reads a unit journal on demand', async () => {
+    const client = await connect({
+      ...makeDeps(),
+      readServiceLog: async (_distro: string, unit: string, scope: 'system' | 'user') => ({
+        unit,
+        scope,
+        lines: ['2024-06-15T11:58:02+0000 host app[1]: started'],
+        truncated: false,
+        error: null
+      })
+    })
+    const result = await call(client, 'GetServiceLog', { unit: 'app.service' })
+    expect(result.content[0].text).toContain('1 line(s) from app.service')
+  })
+
+  it('does not pretend to have read a log it could not', async () => {
+    const client = await connect(makeDeps())
+    const result = await call(client, 'GetServiceLog', { unit: 'app.service' })
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('not available')
   })
 })

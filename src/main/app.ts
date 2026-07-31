@@ -78,6 +78,13 @@ export class WslPadApp {
         // Fixture mode has no runner: reporting "cannot look" is the honest
         // answer, and the tool says so rather than "not installed".
         return runner === null ? null : resolveCommand(runner, distro, command)
+      },
+      readServiceLog: async (distro, unit, scope) => {
+        const read = this.backends.provider.getServiceLog
+        if (read === undefined) {
+          return { unit, scope, lines: [], truncated: false, error: 'not available here' }
+        }
+        return read.call(this.backends.provider, distro, unit, scope)
       }
     })
     this.mcp.onStatus((s) => {

@@ -60,6 +60,14 @@ const trashNamesSchema = z
   )
   .min(1)
   .max(1000)
+/** systemd unit names only — nothing that could escape its quotes downstream. */
+const unitNameSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9@._:\\-]+$/)
+const serviceScopeSchema = z.union([z.literal('system'), z.literal('user')])
+const logLinesSchema = z.number().int().min(1).max(1000).optional()
 const winPathsSchema = z.array(windowsPathSchema).min(1).max(1000)
 /** The Windows pane also accepts the "This PC" sentinel wherever a dir is taken. */
 const winRootOrPathSchema = z.union([z.literal(WINDOWS_ROOT), windowsPathSchema])
@@ -109,6 +117,27 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   handle(IpcChannels.monitoringSetPaused, (paused) =>
     deps.applySettingsPatch({ monitoring: { paused: boolSchema.parse(paused) } })
   )
+  handle(IpcChannels.serviceLog, (unit, scope, lines) => {
+    const read = deps.provider.getServiceLog
+    const parsedUnit = unitNameSchema.parse(unit)
+    const parsedScope = serviceScopeSchema.parse(scope)
+    if (read === undefined) {
+      return Promise.resolve({
+        unit: parsedUnit,
+        scope: parsedScope,
+        lines: [],
+        truncated: false,
+        error: 'Service logs are not available for this distribution'
+      })
+    }
+    return read.call(
+      deps.provider,
+      selectedDistroOf(deps),
+      parsedUnit,
+      parsedScope,
+      logLinesSchema.parse(lines)
+    )
+  })
   handle(IpcChannels.envReveal, (name) =>
     deps.provider.revealEnv(selectedDistroOf(deps), stringSchema.max(256).parse(name))
   )

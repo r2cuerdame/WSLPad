@@ -91,7 +91,7 @@ Console 会跟着切到同一个目录 —— 不会出现可见的 `cd`，也�
 ## MCP 服务器（只读）
 
 只要 WSLPad 还在托盘里，它就会在 `http://127.0.0.1:4923/mcp` 上提供 MCP 服务
-（Streamable HTTP，仅限本机，Bearer 令牌认证），带 35 个 `Get*` 工具 ——
+（Streamable HTTP，仅限本机，Bearer 令牌认证），带 37 个 `Get*` 工具 ——
 `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、`GetTextFile`、
 `GetPortOwner`, `GetCommandResolution`…… 这里刻意没有任何写入/执行/终止类的工具；密钥和私钥绝不会
 越过 MCP 边界。支持一键注册到 Claude Desktop（stdio 桥接）、Codex 和 Hermes，
@@ -192,7 +192,19 @@ WSL 回环例外、提到 WSL 的规则数），以及名称解析：`/etc/resol
 还原。如果目标位置已经有东西，还原会停下：会毁掉文件的“撤销”不是撤销。
 
 
-**通过 MCP** —— 以上全部内容，都可以通过 35 个只读 `Get*` 工具拿到。
+**空间去哪了** —— 磁盘部分会说出镜像大小与 Linux 实际用量之间的差额由什么填满：
+软件包缓存、systemd 日志、构建缓存、回收站、Docker 的存储，每一项都带上清理命令。
+在开发这个应用的机器上，那是 1.2 GB 谁也不知道的东西。
+
+**服务日志，就地查看** —— 不开 shell 就能看到某个单元日志的最后几行。用 ISO
+时间戳，并且能区分「日志是空的」和「你没有权限读」—— 这个区分别的工具都不做。
+
+**慢速路径，在付出代价的地方标出来** —— 控制台位于 `/mnt` 下时会标注。在那里
+构建时每碰一个文件都要跨越 Windows 边界，这是「WSL 慢」最常见的原因，而提示符
+看起来一模一样。
+
+
+**通过 MCP** —— 以上全部内容，都可以通过 37 个只读 `Get*` 工具拿到。
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings（设置）与语言
@@ -252,7 +264,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 界面、调试器或 LSP，没有云同步，没有 AI 聊天，也不会自动帮你修东西。它的身份
 就是：**Dashboard + Explorer + Console + 只读 MCP** —— 别无其他。
 
-## 当前限制（v0.2.0）
+## 当前限制（v0.3.0）
 
 - 仅支持 Windows x64；安装程序未签名（会有 SmartScreen 警告）
 - 磁盘映像的数字需要读取 Windows 注册表和 `fsutil`；只要有一样读不到，这个
@@ -272,8 +284,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 
 ## 路线图
 
-接下来：只读的服务日志视图（不用开 shell 的 `journalctl`）、提示项目位于慢速
-`/mnt` 路径、ARM64 构建，以及签名的安装程序。
+接下来：为控制台准备 VHDX 收缩与扩容命令、ARM64 构建，以及签名的安装程序。
 
 ## 社区
 

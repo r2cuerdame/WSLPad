@@ -14,6 +14,7 @@ import type {
   DistroSummary,
   DnsInfo,
   DockerInfo,
+  DiskConsumersInfo,
   TerminalProfilesInfo,
   ZoneIdentifierInfo,
   EnvironmentVariableInfo,
@@ -56,6 +57,7 @@ interface DashboardSections {
   hermes: HermesInfo | null
   docker: DockerInfo | null
   zoneIdentifier: ZoneIdentifierInfo | null
+  diskConsumers: DiskConsumersInfo | null
   terminalProfiles: TerminalProfilesInfo | null
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
@@ -128,6 +130,7 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     hermes: null,
     docker: null,
     zoneIdentifier: null,
+    diskConsumers: null,
     terminalProfiles: null,
     environment: [],
     processes: [],
@@ -376,6 +379,7 @@ export class SnapshotStore {
           this.collectWslSettings(distro, s),
           this.collectDocker(distro, s),
           this.collectZoneIdentifiers(distro, s),
+          this.collectDiskConsumers(distro, s),
           this.collectTerminalProfiles(s)
         ])
       }
@@ -492,6 +496,19 @@ export class SnapshotStore {
       () => read.call(this.provider, distro),
       (v) => {
         s.docker = v
+      }
+    )
+  }
+
+  /** Known caches, slow tier: several du walks, and they grow over hours. */
+  private async collectDiskConsumers(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getDiskConsumers
+    if (read === undefined) return
+    await this.collect(
+      'disk consumers',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.diskConsumers = v
       }
     )
   }
@@ -702,7 +719,8 @@ export class SnapshotStore {
       selectedDistro: this.selected,
       dashboard: this.sections ? { ...this.sections, warnings: [] } : null,
       runnerFailures: this.runnerFailures,
-      mcpError: this.mcp.error
+      mcpError: this.mcp.error,
+      consoleCwd: this.terminal.cwd
     })
     // Liveness is store state, not a fact any collector reported, so it is
     // appended here instead of inside the pure warning rules.

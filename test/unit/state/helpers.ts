@@ -258,6 +258,7 @@ export function makeDashboard(over: Partial<DashboardSnapshot> = {}): DashboardS
     tools: [tool()],
     docker: null,
     zoneIdentifier: null,
+    diskConsumers: null,
     terminalProfiles: null,
     hermes: null,
     environment: [envVar('PATH', '/usr/bin:/usr/local/bin')],

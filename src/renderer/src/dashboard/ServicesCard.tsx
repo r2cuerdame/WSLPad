@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ServiceInfo } from '@shared/types'
+import type { ServiceInfo, ServiceScope } from '@shared/types'
 import {
   findServiceCatalogEntry,
   type ServiceCatalogEntry,
@@ -9,7 +9,8 @@ import {
 import { useApp } from '../store'
 import Card from '../components/Card'
 import InfoHint from '../components/InfoHint'
-import { FileIcon, PauseIcon, PlayIcon, RefreshIcon } from '../components/Icons'
+import { FileIcon, PauseIcon, PlayIcon, RefreshIcon, TerminalIcon } from '../components/Icons'
+import ServiceLogDialog from './ServiceLogDialog'
 
 const shQuote = (v: string): string => `'${v.replace(/'/g, "'\\''")}'`
 
@@ -38,6 +39,7 @@ export default function ServicesCard({
   const { t } = useTranslation()
   const { prepareCommand, pushToast, refresh } = useApp()
   const [query, setQuery] = useState('')
+  const [logFor, setLogFor] = useState<{ unit: string; scope: ServiceScope } | null>(null)
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -137,11 +139,20 @@ export default function ServicesCard({
                 <button
                   type="button"
                   className="icon-btn"
+                  aria-label={t('dashboard.services.viewLog', { defaultValue: 'Show recent log' })}
+                  title={t('dashboard.services.viewLog', { defaultValue: 'Show recent log' })}
+                  onClick={() => setLogFor({ unit: s.name, scope: s.scope })}
+                >
+                  <FileIcon size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
                   aria-label={t('dashboard.services.prepareLogs')}
                   title={t('dashboard.services.prepareLogs')}
                   onClick={() => prepare(logsCmd(s))}
                 >
-                  <FileIcon size={14} />
+                  <TerminalIcon size={14} />
                 </button>
                 <button
                   type="button"
@@ -175,6 +186,13 @@ export default function ServicesCard({
           )
         })}
       </div>
+      {logFor === null ? null : (
+        <ServiceLogDialog
+          unit={logFor.unit}
+          scope={logFor.scope}
+          onClose={() => setLogFor(null)}
+        />
+      )}
     </Card>
   )
 }

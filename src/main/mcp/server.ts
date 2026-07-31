@@ -6,7 +6,13 @@ import {
 } from 'node:http'
 import type { AddressInfo, Socket } from 'node:net'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import type { CommandResolution, McpStatus, WslPadSnapshot } from '@shared/types'
+import type {
+  CommandResolution,
+  McpStatus,
+  ServiceLog,
+  ServiceScope,
+  WslPadSnapshot
+} from '@shared/types'
 import type { ExplorerBackend } from '../wsl/contracts'
 import { createMcpServer } from './tools'
 
@@ -20,6 +26,8 @@ export interface McpDeps {
    * The name is validated before it reaches a shell.
    */
   resolveCommand?(distro: string, command: string): Promise<CommandResolution | null>
+  /** The tail of a unit journal. Optional: without it the tool says it cannot look. */
+  readServiceLog?(distro: string, unit: string, scope: ServiceScope): Promise<ServiceLog>
 }
 
 const CLIENT_WINDOW_MS = 5 * 60 * 1000

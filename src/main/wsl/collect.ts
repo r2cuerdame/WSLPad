@@ -2,6 +2,7 @@ import { PROBE_TIMEOUT_MS } from '@shared/constants'
 import type {
   DistroDetails,
   DistroSummary,
+  DiskConsumersInfo,
   DockerInfo,
   ZoneIdentifierInfo
 } from '@shared/types'
@@ -16,6 +17,7 @@ import { listDistros } from './distros'
 import { collectEnvironment } from './environment'
 import { assertValidDistroName } from './escape'
 import { createDiskCollector } from './disk'
+import { collectDiskConsumers } from './disk-consumers'
 import { createFirewallCollector } from './firewall'
 import { createPortProxyCollector } from './portproxy'
 import { createMemoryCollector } from './memory'
@@ -24,6 +26,7 @@ import { collectPorts } from './ports'
 import { collectProcesses } from './processes'
 import { collectResources } from './resources'
 import { collectServices } from './services'
+import { readServiceLog } from './service-log'
 import { collectSystemInfo } from './system'
 import { createWindowsPortCollector } from './windows-ports'
 import { createWslConfigCollector } from './wsl-config'
@@ -49,6 +52,12 @@ const DOCKER_TTL_MS = 120_000
  * `find` costs the machine.
  */
 const ZONE_TTL_MS = 300_000
+
+/**
+ * How long one cache measurement is reused. It runs several du walks; the
+ * caches it measures grow over hours, not seconds.
+ */
+const CONSUMERS_TTL_MS = 300_000
 
 /**
  * Real WslProvider wiring all hidden-runner collectors (goal.md §9). The
@@ -106,6 +115,16 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     const fresh = await detectZoneIdentifiers(runner, distro)
     if (fresh === null) return cached?.info ?? null
     zoneCache.set(distro, { at: Date.now(), info: fresh })
+    return fresh
+  }
+
+  const consumersCache = new Map<string, { at: number; info: DiskConsumersInfo }>()
+  const consumersInfo = async (distro: string): Promise<DiskConsumersInfo | null> => {
+    const cached = consumersCache.get(distro)
+    if (cached && Date.now() - cached.at < CONSUMERS_TTL_MS) return cached.info
+    const fresh = await collectDiskConsumers(runner, distro)
+    if (fresh === null) return cached?.info ?? null
+    consumersCache.set(distro, { at: Date.now(), info: fresh })
     return fresh
   }
 
@@ -243,6 +262,14 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
 
     getZoneIdentifiers(distro) {
       return zoneInfo(distro)
+    },
+
+    getDiskConsumers(distro) {
+      return consumersInfo(distro)
+    },
+
+    getServiceLog(distro, unit, scope, lines) {
+      return readServiceLog(runner, distro, unit, scope, lines)
     },
 
     async getTerminalProfiles() {

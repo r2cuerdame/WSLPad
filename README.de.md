@@ -115,7 +115,7 @@ Sie erholt sich außerdem von selbst. WSL ist oft noch beschäftigt, wenn WSLPad
 
 Solange WSLPad im Tray sitzt, stellt es MCP unter `http://127.0.0.1:4923/mcp`
 bereit (Streamable HTTP, nur localhost, Authentifizierung per Bearer-Token) mit
-35 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
+37 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
 `GetTextFile`, `GetPortOwner`, `GetCommandResolution`, … Tools zum Schreiben, Ausführen oder Beenden
 gibt es bewusst nicht; Secrets und private Schlüssel überschreiten die
 MCP-Grenze nie. Registrierung per Klick für Claude Desktop (stdio-Bridge),
@@ -247,7 +247,23 @@ und ein Wiederherstellen, das sie zurücklegt. Liegt am Ziel schon etwas, bricht
 es ab: ein Rückgängig, das eine Datei zerstört, ist kein Rückgängig.
 
 
-**Über MCP** — alles davon über 35 `Get*`-Tools mit Nur-Lese-Zugriff.
+**Wo der Platz geblieben ist** — der Disk-Abschnitt benennt, was die Lücke
+zwischen Imagegröße und tatsächlicher Nutzung füllt: Paket-Caches, das
+systemd-Journal, Build-Caches, der Papierkorb, Dockers Speicher, jeweils mit dem
+Befehl, der ihn leeren würde. Auf dem Rechner, auf dem das entstand: 1,2 GB, von
+denen niemand wusste.
+
+**Dienstprotokolle, an Ort und Stelle** — die letzten Zeilen eines Unit-Journals,
+ohne eine Shell zu öffnen. ISO-Zeitstempel, und es unterscheidet ein leeres
+Journal von einem, das dieser Benutzer nicht lesen darf.
+
+**Langsame Pfade, dort benannt, wo sie kosten** — eine Konsole unter `/mnt` wird
+markiert. Jede Datei, die ein Build dort anfasst, überquert die Windows-Grenze:
+der häufigste Grund für "WSL ist langsam", und die Eingabeaufforderung sieht
+exakt gleich aus.
+
+
+**Über MCP** — alles davon über 37 `Get*`-Tools mit Nur-Lese-Zugriff.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings & Sprachen
@@ -319,7 +335,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.2.0)
+## Aktuelle Einschränkungen (v0.3.0)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;
@@ -344,9 +360,8 @@ Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 
 ## Roadmap
 
-Als Nächstes: eine Nur-Lese-Ansicht der Dienstprotokolle (`journalctl`, ohne
-eine Shell zu öffnen), ein Hinweis auf Projekte, die auf einem langsamen
-`/mnt`-Pfad liegen, ein ARM64-Build und ein signierter Installer.
+Als Nächstes: vorbereitete Befehle zum Verkleinern und Vergrößern der VHDX, ein
+ARM64-Build und ein signierter Installer.
 
 ## Community
 

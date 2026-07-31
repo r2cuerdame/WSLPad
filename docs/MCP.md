@@ -82,6 +82,8 @@ at-a-glance status badge):
 | `GetCommandResolution` | Which binary a command name really runs: resolved path, every match on PATH in order, what the winner shadows, and whether it is a Windows executable under /mnt (`{ command }`) |
 | `GetZoneIdentifiers` | Count and location of the `*:Zone.Identifier` files Windows leaves behind, plus the cleanup command |
 | `GetTerminalProfiles` | Windows Terminal profiles, which distro each opens, and the JSON to add a missing one |
+| `GetDiskConsumers` | What is filling the disk image by name — package caches, the systemd journal, build caches, the trash, Docker's store — each with the command that would clear it |
+| `GetServiceLog` | The tail of one unit journal (`{ unit, scope? }`), ISO timestamps, bounded; explains an empty system journal the user may not read |
 | `GetExplorerContext` | Path currently open in the Explorer tab |
 | `GetConsoleContext` | Console distro/cwd/status |
 

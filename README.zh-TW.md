@@ -92,7 +92,7 @@ Console 會跟著切到同一個目錄 —— 不會出現看得見的 `cd`，�
 ## MCP 伺服器（唯讀）
 
 只要 WSLPad 還待在系統匣裡，它就會在 `http://127.0.0.1:4923/mcp` 提供 MCP 服務
-（Streamable HTTP、僅限 localhost、Bearer 權杖驗證），共 35 個 `Get*` 工具 ——
+（Streamable HTTP、僅限 localhost、Bearer 權杖驗證），共 37 個 `Get*` 工具 ——
 `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、`GetTextFile`、
 `GetPortOwner`, `GetCommandResolution`、……刻意不提供任何寫入／執行／終止類工具；機密與私鑰絕不會越過
 MCP 邊界。可一鍵註冊到 Claude Desktop（stdio 橋接）、Codex 與 Hermes，另外還有
@@ -193,7 +193,19 @@ Linux 權限與符號連結目標。Windows 這側則是每個磁碟機的可用
 的還原。如果目標位置已經有東西，還原會停下：會毀掉檔案的「復原」不是復原。
 
 
-**透過 MCP** —— 以上全部，都能透過 35 個唯讀的 `Get*` 工具取得。
+**空間跑哪去了** —— 磁碟區段會說出映像大小與 Linux 實際用量之間的差額由什麼填滿：
+套件快取、systemd 日誌、建置快取、資源回收筒、Docker 的儲存區，每一項都附上清理指令。
+在開發這個應用的機器上，那是 1.2 GB 誰也不知道的東西。
+
+**服務記錄，就地檢視** —— 不開 shell 就能看到某個單元日誌的最後幾行。使用 ISO
+時間戳，並且能分辨「日誌是空的」和「你沒有權限讀」—— 這個分辨別的工具都不做。
+
+**慢速路徑，在付出代價的地方標出來** —— 主控台位於 `/mnt` 下時會標注。在那裡
+建置時每碰一個檔案都要跨越 Windows 邊界，這是「WSL 慢」最常見的原因，而提示字元
+看起來一模一樣。
+
+
+**透過 MCP** —— 以上全部，都能透過 37 個唯讀的 `Get*` 工具取得。
 [docs/MCP.md](docs/MCP.md)
 
 ## 設定與語言
@@ -253,7 +265,7 @@ WSLPad *不是*發行版管理器或市集，不是 Docker Desktop，不是 IDE�
 偵錯器／LSP，沒有雲端同步，沒有 AI 聊天，也不會自動幫你修東西。它的定位是：
 **Dashboard + Explorer + Console + 唯讀 MCP** —— 沒有別的。
 
-## 目前的限制（v0.2.0）
+## 目前的限制（v0.3.0）
 
 - 僅支援 Windows x64；安裝程式未經簽章（會跳 SmartScreen 警告）
 - 磁碟映像的數字需要 Windows 登錄檔與 `fsutil`；只要有一邊讀不到，該區塊就會照實
@@ -273,8 +285,7 @@ WSLPad *不是*發行版管理器或市集，不是 Docker Desktop，不是 IDE�
 
 ## 路線圖
 
-接下來：唯讀的服務記錄檢視（不用開 shell 的 `journalctl`）、提示專案位於慢速
-`/mnt` 路徑、ARM64 建置，以及簽署過的安裝程式。
+接下來：為主控台準備 VHDX 縮小與擴充指令、ARM64 建置，以及簽署過的安裝程式。
 
 ## 社群
 

@@ -244,7 +244,22 @@ destino, la restauración se detiene: deshacer destruyendo un archivo no es
 deshacer.
 
 
-**Por MCP** — todo lo anterior a través de 35 herramientas `Get*` de solo
+**Adónde se fue el espacio** — la sección de disco nombra lo que llena la
+diferencia entre el tamaño de la imagen y lo que Linux usa: cachés de paquetes,
+el diario de systemd, cachés de compilación, la papelera, el almacén de Docker,
+cada uno con el comando que lo vaciaría. En la máquina donde se escribió esto,
+1,2 GB que nadie conocía.
+
+**Registros de servicio, en el sitio** — las últimas líneas del diario de una
+unidad sin abrir una shell. Con marcas de tiempo ISO, y distingue un diario
+vacío de uno que este usuario no tiene permiso para leer.
+
+**Rutas lentas, señaladas donde se pagan** — una consola situada bajo `/mnt`
+queda marcada. Cada archivo que toca una compilación ahí cruza la frontera de
+Windows: la razón más común de que "WSL vaya lento", y el prompt es idéntico.
+
+
+**Por MCP** — todo lo anterior a través de 37 herramientas `Get*` de solo
 lectura. [docs/MCP.md](docs/MCP.md)
 
 ## Settings e idiomas
@@ -316,7 +331,7 @@ no es un IDE, no trae interfaz de Git, depurador ni LSP, no sincroniza con la
 nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 **Dashboard + Explorer + Console + MCP de solo lectura**, nada más.
 
-## Limitaciones actuales (v0.2.0)
+## Limitaciones actuales (v0.3.0)
 
 - Solo Windows x64; el instalador no está firmado (aviso de SmartScreen)
 - Las cifras de la imagen de disco necesitan el registro de Windows y `fsutil`;
@@ -343,9 +358,8 @@ nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 
 ## Hoja de ruta
 
-Lo siguiente: una vista de solo lectura de los registros de servicio
-(`journalctl` sin abrir una shell), avisar cuando un proyecto vive en una ruta
-lenta de `/mnt`, una compilación ARM64 y un instalador firmado.
+Lo siguiente: comandos preparados para reducir y ampliar el VHDX, una
+compilación ARM64 y un instalador firmado.
 
 ## Comunidad
 

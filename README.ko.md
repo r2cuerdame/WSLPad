@@ -109,7 +109,7 @@ WSLPad 내부 조회는 별도의 숨은 러너가 실행합니다.
 ## MCP 서버 (읽기 전용)
 
 WSLPad가 트레이에 떠 있는 동안 `http://127.0.0.1:4923/mcp`에서 MCP를 제공합니다
-(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 35개의 `Get*` —
+(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 37개의 `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPortOwner`, `GetCommandResolution`, … 쓰기/실행/종료 도구는 의도적으로 두지 않았고, 비밀 값과 개인
 키는 MCP 경계를 넘지 않습니다. Claude Desktop(stdio 브리지), Codex, Hermes는 클릭
@@ -234,7 +234,21 @@ sudo 암호 대기 중, 연결 끊김, 배포판 중지됨, 시작하지 못함 
 되돌리기가 아닙니다.
 
 
-**MCP로** — 위의 모든 것을 35개의 읽기 전용 `Get*` 도구로.
+**용량이 어디로 갔나** — 이미지 크기와 실제 사용량의 차이를 무엇이 채우고
+있는지 이름으로 말합니다. 패키지 캐시, systemd 저널, 빌드 캐시, 휴지통,
+Docker 저장소, 각각 정리 명령까지. 이 앱을 만든 기계에서는 아무도 몰랐던
+1.2 GB였습니다.
+
+**서비스 로그를 그 자리에서** — 셸을 열지 않고 유닛 저널의 마지막 줄들을
+봅니다. ISO 타임스탬프를 쓰고, 비어 있는 저널과 **읽을 권한이 없는 저널**을
+구분해서 말합니다 — 다른 어떤 도구도 하지 않는 구분입니다.
+
+**느린 경로는 그 자리에서** — 콘솔이 `/mnt` 아래에 앉아 있으면 표시합니다.
+거기서 도는 빌드는 파일마다 Windows 경계를 넘습니다. "WSL이 느리다"의 최대
+원인인데, 프롬프트는 똑같이 생겼습니다.
+
+
+**MCP로** — 위의 모든 것을 37개의 읽기 전용 `Get*` 도구로.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings(설정) & 언어
@@ -299,7 +313,7 @@ WSLPad는 배포판 관리자나 마켓플레이스가 *아니고*, Docker Deskt
 없습니다. 정체성은 **Dashboard + Explorer + Console + 읽기 전용 MCP** — 그게
 전부입니다.
 
-## 현재 제한 사항 (v0.2.0)
+## 현재 제한 사항 (v0.3.0)
 
 - Windows x64 전용이며, 설치 프로그램은 서명되어 있지 않습니다(SmartScreen 경고)
 - 디스크 이미지 수치에는 Windows 레지스트리와 `fsutil`이 필요합니다. 둘 중 하나라도
@@ -320,8 +334,7 @@ WSLPad는 배포판 관리자나 마켓플레이스가 *아니고*, Docker Deskt
 
 ## 로드맵
 
-다음 차례: 읽기 전용 서비스 로그 뷰(셸을 열지 않는 `journalctl`), 느린 `/mnt`
-위에 있는 프로젝트 표시, ARM64 빌드, 그리고 서명된 설치 프로그램.
+다음 차례: VHDX 축소·확장 명령 준비, ARM64 빌드, 그리고 서명된 설치 프로그램.
 
 ## 커뮤니티
 

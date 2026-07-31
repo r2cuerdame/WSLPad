@@ -188,7 +188,7 @@ export default function DashboardTab(): React.JSX.Element {
       case 'resources':
         return <ResourceCard resources={dash.resources} memoryDetail={dash.memoryDetail} />
       case 'disk':
-        return <DiskCard disk={dash.disk} zone={dash.zoneIdentifier} />
+        return <DiskCard disk={dash.disk} zone={dash.zoneIdentifier} consumers={dash.diskConsumers} />
       case 'wslconfig':
         return <WslSettingsCard settings={dash.wslSettings} />
       case 'network':

@@ -55,6 +55,8 @@ export const MCP_TOOL_NAMES = [
   'GetCommandResolution',
   'GetZoneIdentifiers',
   'GetTerminalProfiles',
+  'GetDiskConsumers',
+  'GetServiceLog',
   'GetExplorerContext',
   'GetConsoleContext'
 ] as const
@@ -824,6 +826,59 @@ export function createMcpServer(deps: McpDeps): McpServer {
             // Offered as text, exactly as the UI offers it.
             suggestedProfile: mine === null ? terminalProfileSnippet(dash.distro.name) : null
           }
+        )
+      })
+    )
+  )
+
+  server.registerTool(
+    'GetDiskConsumers',
+    {
+      description:
+        'What is filling the disk image, by name: package caches, the systemd journal, ' +
+        'build caches, the trash and Docker\'s store, each with the command that would ' +
+        'clear it. Known caches only — deliberately not a full accounting, and it says so.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) =>
+        dash.diskConsumers === null
+          ? ok('the known caches have not been measured yet', { diskConsumers: null })
+          : ok(
+              `${dash.diskConsumers.measuredBytes} bytes measured across ` +
+                `${dash.diskConsumers.consumers.filter((c) => c.exists).length} known cache(s)` +
+                (dash.diskConsumers.partial ? ', and something could not be measured' : ''),
+              { diskConsumers: dash.diskConsumers }
+            )
+      )
+    )
+  )
+
+  server.registerTool(
+    'GetServiceLog',
+    {
+      description:
+        'The tail of one systemd unit journal, read on demand. ISO timestamps, bounded ' +
+        'line count, and never a start/stop/restart of the unit.',
+      inputSchema: {
+        unit: z.string().min(1).max(128).describe('Unit name, e.g. "docker.service"'),
+        scope: z
+          .enum(['system', 'user'])
+          .optional()
+          .describe('systemd scope; defaults to system')
+      },
+      annotations: readOnly
+    },
+    guard(({ unit, scope }: { unit: string; scope?: 'system' | 'user' }) =>
+      withDistro(async (distro) => {
+        const read = deps.readServiceLog
+        if (read === undefined) return fail('service logs are not available')
+        const log = await read(distro, unit, scope ?? 'system')
+        return ok(
+          log.error !== null
+            ? `${unit}: ${log.error}`
+            : `${log.lines.length} line(s) from ${unit}`,
+          { log }
         )
       })
     )

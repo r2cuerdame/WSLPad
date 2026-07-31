@@ -18,10 +18,13 @@ import type {
   ProcessInfo,
   ResourceInfo,
   ServiceInfo,
+  ServiceLog,
+  ServiceScope,
   SystemInfo,
   ToolInfo,
   WindowsPortInfo,
   DockerInfo,
+  DiskConsumersInfo,
   TerminalProfilesInfo,
   ZoneIdentifierInfo,
   PortProxyInfo,
@@ -1182,6 +1185,45 @@ export function fixturePortProxy(): PortProxyInfo {
  * Ubuntu has the profile Windows Terminal generated for it; Debian was
  * imported later and has none — the case the block exists to show.
  */
+/** Shaped like a real machine: the journal and the package cache dominate. */
+/** ISO timestamps, like journalctl --output=short-iso: no localized month names. */
+export function fixtureServiceLog(unit: string, scope: ServiceScope): ServiceLog {
+  if (unit !== 'hermes-gateway') {
+    return { unit, scope, lines: [], truncated: false, error: null }
+  }
+  return {
+    unit,
+    scope,
+    lines: [
+      '2024-06-15T11:58:02+0000 wslpad-fixture hermes[4321]: starting gateway',
+      '2024-06-15T11:58:02+0000 wslpad-fixture hermes[4321]: listening on 127.0.0.1:8600',
+      '2024-06-15T11:58:03+0000 wslpad-fixture hermes[4321]: 4 MCP servers registered',
+      '2024-06-15T12:00:00+0000 wslpad-fixture hermes[4321]: profile default connected'
+    ],
+    truncated: false,
+    error: null
+  }
+}
+
+export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersInfo | null {
+  if (distro !== FIXTURE_UBUNTU) return null
+  const consumers = [
+    { id: 'logs', path: '/var/log', exists: true, bytes: 861_074_268, cleanup: null, needsRoot: false, containedIn: null },
+    { id: 'journal', path: '/var/log/journal', exists: true, bytes: 838_860_800, cleanup: 'sudo journalctl --vacuum-size=200M', needsRoot: true, containedIn: 'logs' },
+    { id: 'apt-cache', path: '/var/cache/apt', exists: true, bytes: 354_354_783, cleanup: 'sudo apt clean', needsRoot: true, containedIn: null },
+    { id: 'user-cache', path: '/home/dev/.cache', exists: true, bytes: 1_372_061, cleanup: null, needsRoot: false, containedIn: null },
+    { id: 'snap', path: '/var/lib/snapd', exists: true, bytes: 188_317, cleanup: null, needsRoot: false, containedIn: null },
+    { id: 'tmp', path: '/tmp', exists: true, bytes: 8_741, cleanup: null, needsRoot: false, containedIn: null },
+    { id: 'trash', path: '/home/dev/.local/share/Trash', exists: true, bytes: 0, cleanup: null, needsRoot: false, containedIn: null },
+    { id: 'docker', path: '/var/lib/docker', exists: false, bytes: null, cleanup: null, needsRoot: false, containedIn: null }
+  ]
+  return {
+    consumers,
+    measuredBytes: 861_074_268 + 354_354_783 + 1_372_061 + 188_317 + 8_741,
+    partial: false
+  }
+}
+
 export function fixtureTerminalProfiles(): TerminalProfilesInfo {
   return {
     settingsPath:

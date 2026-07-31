@@ -2,6 +2,7 @@ import type {
   ClockInfo,
   ConfigurationFileInfo,
   DirSizeResult,
+  DiskConsumersInfo,
   DiskImageInfo,
   DistroDetails,
   DistroSummary,
@@ -19,6 +20,8 @@ import type {
   PortInfo,
   ResourceInfo,
   ServiceInfo,
+  ServiceLog,
+  ServiceScope,
   SystemInfo,
   TextFileContent,
   TrashEntry,
@@ -138,6 +141,13 @@ export interface WslProvider {
    * than claiming a clean tree.
    */
   getZoneIdentifiers?(distro: string): Promise<ZoneIdentifierInfo | null>
+  /** Known caches and stores inside the distro, measured. Optional like the rest. */
+  getDiskConsumers?(distro: string): Promise<DiskConsumersInfo | null>
+  /**
+   * The tail of a unit journal, read on demand rather than polled — nobody
+   * needs a log they are not looking at. Optional: without it the UI says so.
+   */
+  getServiceLog?(distro: string, unit: string, scope: ServiceScope, lines?: number): Promise<ServiceLog>
   /** Host-wide: Windows Terminal profiles live in Windows, not in a distro. */
   getTerminalProfiles?(): Promise<TerminalProfilesInfo>
 }

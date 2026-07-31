@@ -116,7 +116,7 @@ Elle se répare aussi toute seule. WSL est souvent encore occupé quand WSLPad d
 
 Tant que WSLPad reste dans la zone de notification, il sert MCP sur
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, localhost uniquement,
-authentification par jeton Bearer) avec 35 outils `Get*` —
+authentification par jeton Bearer) avec 37 outils `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPortOwner`, `GetCommandResolution`, … Il n'y a délibérément aucun outil d'écriture, d'exécution
 ou de kill ; les secrets et les clés privées ne franchissent jamais la
@@ -249,7 +249,23 @@ destination, la restauration s'arrête : annuler en détruisant un fichier, ce
 n'est pas annuler.
 
 
-**Via MCP** — tout ce qui précède à travers 35 outils `Get*` en lecture seule.
+**Où est passée la place** — la section disque nomme ce qui remplit l'écart
+entre la taille de l'image et ce que Linux utilise : caches de paquets, journal
+systemd, caches de compilation, corbeille, stockage de Docker, chacun avec la
+commande qui le viderait. Sur la machine où ceci a été écrit : 1,2 Go que
+personne ne connaissait.
+
+**Journaux de service, sur place** — les dernières lignes du journal d'une unité
+sans ouvrir de shell. Horodatage ISO, et il distingue un journal vide d'un
+journal que cet utilisateur n'a pas le droit de lire.
+
+**Chemins lents, signalés là où ils coûtent** — une console située sous `/mnt`
+est marquée. Chaque fichier qu'une compilation y touche traverse la frontière
+Windows : la raison la plus fréquente d'un « WSL lent », et l'invite est
+strictement identique.
+
+
+**Via MCP** — tout ce qui précède à travers 37 outils `Get*` en lecture seule.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings et langues
@@ -323,7 +339,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.2.0)
+## Limites actuelles (v0.3.0)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)
@@ -352,9 +368,8 @@ d'autre.
 
 ## Feuille de route
 
-Ensuite : une vue en lecture seule des journaux de service (`journalctl` sans
-ouvrir de shell), signaler un projet installé sur un chemin `/mnt` lent, une
-compilation ARM64 et un installateur signé.
+Ensuite : les commandes de réduction et d'agrandissement du VHDX préparées pour
+la console, une compilation ARM64 et un installateur signé.
 
 ## Communauté
 

@@ -23,9 +23,12 @@ import type {
   ProcessInfo,
   ResourceInfo,
   ServiceInfo,
+  ServiceLog,
+  ServiceScope,
   SystemInfo,
   ToolInfo,
   WindowsPortInfo,
+  DiskConsumersInfo,
   TerminalProfilesInfo,
   WslConfigInfo,
   ZoneIdentifierInfo
@@ -44,6 +47,8 @@ import {
   fixtureEnvRaw,
   fixtureFirewall,
   fixtureDocker,
+  fixtureDiskConsumers,
+  fixtureServiceLog,
   fixtureTerminalProfiles,
   fixtureZoneIdentifiers,
   fixturePortProxy,
@@ -136,6 +141,14 @@ export class FixtureWslProvider implements WslProvider {
 
   async getZoneIdentifiers(distro: string): Promise<ZoneIdentifierInfo | null> {
     return fixtureZoneIdentifiers(this.known(distro))
+  }
+
+  async getServiceLog(_distro: string, unit: string, scope: ServiceScope): Promise<ServiceLog> {
+    return fixtureServiceLog(unit, scope)
+  }
+
+  async getDiskConsumers(distro: string): Promise<DiskConsumersInfo | null> {
+    return fixtureDiskConsumers(this.known(distro))
   }
 
   async getTerminalProfiles(): Promise<TerminalProfilesInfo> {

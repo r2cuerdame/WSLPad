@@ -1171,3 +1171,10 @@
   white-space: pre;
   overflow-x: auto;
 }
+
+/* A journal tail: scrolls on its own rather than stretching the dialog. */
+.service-log {
+  max-height: 50vh;
+  overflow: auto;
+  white-space: pre;
+}

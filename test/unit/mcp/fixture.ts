@@ -361,6 +361,7 @@ export function makeDashboard(): DashboardSnapshot {
     ],
     docker: null,
     zoneIdentifier: null,
+    diskConsumers: null,
     terminalProfiles: null,
     hermes: {
       installed: true,

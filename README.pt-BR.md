@@ -112,7 +112,7 @@ Ele também se recupera sozinho. O WSL costuma continuar ocupado quando o WSLPad
 
 Enquanto o WSLPad fica na bandeja, ele serve MCP em
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, apenas localhost, autenticação
-por token Bearer) com 35 ferramentas `Get*` — `GetDashboardSnapshot`,
+por token Bearer) com 37 ferramentas `Get*` — `GetDashboardSnapshot`,
 `GetInstalledTools`, `GetPorts`, `GetTextFile`, `GetPortOwner`, `GetCommandResolution`, … Não existem,
 de propósito, ferramentas de escrita/execução/kill; segredos e chaves privadas
 nunca cruzam a fronteira do MCP. Registro em um clique para Claude Desktop
@@ -242,7 +242,22 @@ restauração que o coloca de volta. Se já houver algo no destino, a restauraç
 para: desfazer destruindo um arquivo não é desfazer.
 
 
-**Pelo MCP** — tudo isso acima por meio de 35 ferramentas `Get*` somente leitura.
+**Para onde foi o espaço** — a seção de disco nomeia o que preenche a diferença
+entre o tamanho da imagem e o que o Linux usa: caches de pacotes, o journal do
+systemd, caches de build, a lixeira, o armazenamento do Docker, cada um com o
+comando que o esvaziaria. Na máquina onde isto foi escrito: 1,2 GB que ninguém
+conhecia.
+
+**Logs de serviço, ali mesmo** — as últimas linhas do journal de uma unidade sem
+abrir um shell. Com carimbos ISO, e distingue um journal vazio de um que este
+usuário não tem permissão para ler.
+
+**Caminhos lentos, apontados onde custam** — um console dentro de `/mnt` fica
+marcado. Cada arquivo que um build toca ali cruza a fronteira do Windows: o
+motivo mais comum de "o WSL está lento", e o prompt é idêntico.
+
+
+**Pelo MCP** — tudo isso acima por meio de 37 ferramentas `Get*` somente leitura.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings e idiomas
@@ -312,7 +327,7 @@ não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronizaç�
 nuvem, nem chat de IA, nem correção automática. Identidade:
 **Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
 
-## Limitações atuais (v0.2.0)
+## Limitações atuais (v0.3.0)
 
 - Somente Windows x64; o instalador não é assinado (aviso do SmartScreen)
 - Os números da imagem de disco dependem do registro do Windows e do `fsutil`;
@@ -336,9 +351,8 @@ nuvem, nem chat de IA, nem correção automática. Identidade:
 
 ## Roadmap
 
-A seguir: uma visão somente leitura dos logs de serviço (`journalctl` sem abrir
-um shell), avisar quando um projeto está num caminho `/mnt` lento, uma
-compilação ARM64 e um instalador assinado.
+A seguir: comandos preparados para encolher e expandir o VHDX, uma compilação
+ARM64 e um instalador assinado.
 
 ## Comunidade
 

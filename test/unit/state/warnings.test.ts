@@ -188,3 +188,36 @@ describe('computeWarnings', () => {
     }
   })
 })
+
+describe('a Console sitting on the slow side', () => {
+  it('says so, because the prompt never will', () => {
+    // microsoft/WSL#4197: every file a build touches under /mnt crosses 9P,
+    // and nothing in the shell hints at it.
+    const w = computeWarnings(input({ consoleCwd: '/mnt/c/Users/dev/project' })).find(
+      (x) => x.messageKey === 'warnings.consoleCwdCrossBoundary'
+    )
+    expect(w?.severity).toBe('info')
+    expect(w?.params).toEqual({ path: '/mnt/c/Users/dev/project' })
+    expect(w?.message).toContain('/mnt/c/Users/dev/project')
+  })
+
+  it('stays quiet for a directory on the Linux disk', () => {
+    expect(keys(computeWarnings(input({ consoleCwd: '/home/dev/project' })))).not.toContain(
+      'warnings.consoleCwdCrossBoundary'
+    )
+  })
+
+  it('claims nothing when the Console is nowhere', () => {
+    expect(keys(computeWarnings(input({ consoleCwd: null })))).not.toContain(
+      'warnings.consoleCwdCrossBoundary'
+    )
+    expect(keys(computeWarnings(input()))).not.toContain('warnings.consoleCwdCrossBoundary')
+  })
+
+  it('is reported even for a distro whose dashboard has not been collected', () => {
+    // The Console can be open before the first slow poll finishes, and the
+    // fact does not depend on any of it.
+    const out = computeWarnings(input({ dashboard: null, consoleCwd: '/mnt/d/work' }))
+    expect(keys(out)).toContain('warnings.consoleCwdCrossBoundary')
+  })
+})

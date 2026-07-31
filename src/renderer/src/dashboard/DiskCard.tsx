@@ -1,11 +1,17 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { DiskImageInfo, LocaleCode, ZoneIdentifierInfo } from '@shared/types'
+import type {
+  DiskConsumersInfo,
+  DiskImageInfo,
+  LocaleCode,
+  ZoneIdentifierInfo
+} from '@shared/types'
 import { formatBytes } from '@shared/format'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import { FolderIcon, TerminalIcon } from '../components/Icons'
+import DiskConsumersBlock from './DiskConsumersBlock'
 import ZoneIdentifierBlock from './ZoneIdentifierBlock'
 
 function Kv({
@@ -50,6 +56,8 @@ export interface DiskCardProps {
   disk: DiskImageInfo | null
   /** Independent of the image: it is counted even when the vhdx cannot be found. */
   zone: ZoneIdentifierInfo | null
+  /** What is inside the gap the numbers above describe. */
+  consumers: DiskConsumersInfo | null
 }
 
 /**
@@ -57,7 +65,7 @@ export interface DiskCardProps {
  * on Windows versus how much of it Linux still uses. Nothing here mutates the
  * image — compacting it is a Windows-side operation the user runs themselves.
  */
-export default function DiskCard({ disk, zone }: DiskCardProps): React.JSX.Element {
+export default function DiskCard({ disk, zone, consumers }: DiskCardProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const locale = i18n.language as LocaleCode
   const { prepareCommand, pushToast } = useApp()
@@ -66,6 +74,7 @@ export default function DiskCard({ disk, zone }: DiskCardProps): React.JSX.Eleme
     return (
       <Card titleKey="dashboard.disk.title">
         <div className="dim">{t('dashboard.disk.unavailable')}</div>
+        <DiskConsumersBlock consumers={consumers} />
         <ZoneIdentifierBlock zone={zone} />
       </Card>
     )
@@ -117,6 +126,7 @@ export default function DiskCard({ disk, zone }: DiskCardProps): React.JSX.Eleme
         {disk.fsUsedBytes !== null ? (
           <Kv k={t('dashboard.disk.fsUsed')}>{bytes(disk.fsUsedBytes)}</Kv>
         ) : null}
+        <DiskConsumersBlock consumers={consumers} />
         <ZoneIdentifierBlock zone={zone} />
       </Card>
     )
@@ -274,7 +284,8 @@ export default function DiskCard({ disk, zone }: DiskCardProps): React.JSX.Eleme
             : null}
         </>
       ) : null}
-      <ZoneIdentifierBlock zone={zone} />
+      <DiskConsumersBlock consumers={consumers} />
+        <ZoneIdentifierBlock zone={zone} />
     </Card>
   )
 }
