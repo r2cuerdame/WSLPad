@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WslPadApi } from '@shared/ipc'
-import type { WslPadSnapshot } from '@shared/types'
+import type { UpdateStatus, WslPadSnapshot } from '@shared/types'
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
 import { AppStoreProvider, useApp } from '@renderer/store'
@@ -83,7 +83,7 @@ function makeApi() {
       })),
       install: vi.fn(async () => undefined),
       getStatus: vi.fn(async () => ({ state: 'idle', version: null, percent: null, error: null })),
-      onStatus: vi.fn(() => () => undefined)
+      onStatus: vi.fn((_cb: (s: UpdateStatus) => void) => () => undefined)
     },
     app: {
       version: vi.fn(async () => '0.1.0'),
@@ -273,5 +273,67 @@ describe('SettingsDrawer MCP section', () => {
     expect(screen.getByRole('button', { name: 'Copy config JSON' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Register in Hermes' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Copy endpoint' })).toBeNull()
+  })
+})
+
+describe('SettingsDrawer updates section', () => {
+  it('keeps the result in the section, not only in a toast that vanishes', async () => {
+    await renderDrawer()
+    fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }))
+    await flush()
+
+    expect(api.updates.check).toHaveBeenCalled()
+    // The toast says it once…
+    expect(screen.getAllByText('You are up to date').length).toBeGreaterThan(0)
+    // …and the section still says it after the toast is gone.
+    const status = screen.getByTestId('update-state')
+    expect(status.textContent).toContain('You are up to date')
+  })
+
+  it('reports download progress as it arrives', async () => {
+    let emit: ((s: UpdateStatus) => void) | null = null
+    api.updates.onStatus.mockImplementation((cb: (s: UpdateStatus) => void) => {
+      emit = cb
+      return () => undefined
+    })
+    await renderDrawer()
+
+    await act(async () => {
+      emit?.({ state: 'downloading', version: '9.9.9', percent: 42.4, error: null })
+    })
+    expect(screen.getByTestId('update-state').textContent).toContain('Downloading update… 42%')
+  })
+
+  it('offers a restart once an update is ready, and says what happens otherwise', async () => {
+    let emit: ((s: UpdateStatus) => void) | null = null
+    api.updates.onStatus.mockImplementation((cb: (s: UpdateStatus) => void) => {
+      emit = cb
+      return () => undefined
+    })
+    await renderDrawer()
+
+    await act(async () => {
+      emit?.({ state: 'downloaded', version: '9.9.9', percent: 100, error: null })
+    })
+    const status = screen.getByTestId('update-state')
+    expect(status.textContent).toContain('Update 9.9.9 ready')
+    expect(status.textContent).toContain('installs when you quit')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restart and update' }))
+    expect(api.updates.install).toHaveBeenCalled()
+  })
+
+  it('shows why a check failed instead of a bare "failed"', async () => {
+    let emit: ((s: UpdateStatus) => void) | null = null
+    api.updates.onStatus.mockImplementation((cb: (s: UpdateStatus) => void) => {
+      emit = cb
+      return () => undefined
+    })
+    await renderDrawer()
+
+    await act(async () => {
+      emit?.({ state: 'error', version: null, percent: null, error: 'ENOTFOUND github.com' })
+    })
+    expect(screen.getByTestId('update-state').textContent).toContain('ENOTFOUND github.com')
   })
 })

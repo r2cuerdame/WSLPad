@@ -136,6 +136,8 @@ export function createRealConsoleFactory(runner: DistroRunner): ConsoleBackendFa
       env
     })
     return {
+      // Only the injected rc emits OSC 133/7; a degraded shell has neither.
+      supportsMarkers: kind !== 'other',
       write: (data: string) => proc.write(data),
       resize: (c: number, r: number) => proc.resize(Math.max(2, c), Math.max(2, r)),
       kill: () => proc.kill(),

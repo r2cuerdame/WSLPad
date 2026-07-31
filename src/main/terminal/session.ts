@@ -67,6 +67,12 @@ export class ConsoleSession {
     try {
       this.pty = await this.opts.factory.spawn(this.opts.distro, cols, rows)
       this.errorValue = null
+      // A shell without the rc will never report a prompt, so waiting for one
+      // would leave a perfectly usable console permanently "not ready".
+      if (this.pty.supportsMarkers === false) {
+        this.everReady = true
+        this.setStatus('ready')
+      }
     } catch (err) {
       // Not the same thing as a stopped distro: WSLPad could not get a shell
       // started at all. Keeping the reason is what makes the failure fixable
@@ -92,6 +98,10 @@ export class ConsoleSession {
 
   async setCwd(path: string): Promise<void> {
     if (this.disposed || !this.pty) return
+    // Without the rc there is no hook to consume the sync file, and no prompt
+    // marker to clear the pending state — so the request is dropped rather
+    // than parking the console in path-sync-pending forever.
+    if (this.pty.supportsMarkers === false) return
     if (this.statusValue === 'ready' && this.typedInput.length === 0) {
       this.setStatus('path-sync-pending')
       await this.applyCwd(path)

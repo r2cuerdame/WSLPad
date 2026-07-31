@@ -7,6 +7,7 @@ import {
   type SettingsPatch
 } from '@shared/types'
 import type { SettingsLoadError } from '@shared/ipc'
+import type { UpdateStatus } from '@shared/types'
 import {
   CONSOLE_DEFAULTS,
   CONSOLE_FONT_SIZE_BOUNDS,
@@ -129,6 +130,7 @@ export function SettingsDrawer(): React.JSX.Element | null {
   const { t, i18n } = useTranslation()
   const [loadError, setLoadError] = useState<SettingsLoadError | null>(null)
   const [version, setVersion] = useState<string | null>(null)
+  const [update, setUpdate] = useState<UpdateStatus | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
   const [portAtOpen, setPortAtOpen] = useState<number | null>(null)
   const [fontFamilyText, setFontFamilyText] = useState<string | null>(null)
@@ -139,7 +141,13 @@ export function SettingsDrawer(): React.JSX.Element | null {
     if (!settingsOpen) return
     void window.wslpad.settings.getLoadError().then(setLoadError)
     void window.wslpad.app.version().then(setVersion)
+    void window.wslpad.updates.getStatus().then(setUpdate)
   }, [settingsOpen])
+
+  // A toast said the result once and then took it away, leaving the section
+  // showing nothing at all — download progress and a ready update had no home
+  // in the UI (user feedback). The state now lives in the section itself.
+  useEffect(() => window.wslpad.updates.onStatus(setUpdate), [])
 
   useEffect(() => {
     if (!settingsOpen) {
@@ -175,24 +183,26 @@ export function SettingsDrawer(): React.JSX.Element | null {
     setFontFamilyText(null)
   }
 
+  const updateMessage = (st: UpdateStatus): string =>
+    st.state === 'available'
+      ? t('update.available', { version: st.version ?? '' })
+      : st.state === 'downloaded'
+        ? t('update.downloaded', { version: st.version ?? '' })
+        : st.state === 'downloading'
+          ? t('update.downloading', { percent: Math.round(st.percent ?? 0) })
+          : st.state === 'disabled'
+            ? t('update.disabled')
+            : st.state === 'error'
+              ? t('update.error')
+              : st.state === 'checking'
+                ? t('update.checking')
+                : t('update.notAvailable')
+
   const checkUpdates = async (): Promise<void> => {
     try {
       const st = await window.wslpad.updates.check()
-      const message =
-        st.state === 'available'
-          ? t('update.available', { version: st.version ?? '' })
-          : st.state === 'downloaded'
-            ? t('update.downloaded', { version: st.version ?? '' })
-            : st.state === 'downloading'
-              ? t('update.downloading', { percent: Math.round(st.percent ?? 0) })
-              : st.state === 'disabled'
-                ? t('update.disabled')
-                : st.state === 'error'
-                  ? t('update.error')
-                  : st.state === 'checking'
-                    ? t('update.checking')
-                    : t('update.notAvailable')
-      pushToast(st.state === 'error' ? 'error' : 'info', message)
+      setUpdate(st)
+      pushToast(st.state === 'error' ? 'error' : 'info', updateMessage(st))
     } catch {
       pushToast('error', t('update.error'))
     }
@@ -558,10 +568,37 @@ export function SettingsDrawer(): React.JSX.Element | null {
               <span className="settings-label">
                 {version !== null ? t('settings.updates.version', { version }) : ''}
               </span>
-              <button type="button" className="settings-btn" onClick={() => void checkUpdates()}>
+              <button
+                type="button"
+                className="settings-btn"
+                disabled={update?.state === 'checking'}
+                onClick={() => void checkUpdates()}
+              >
                 {t('settings.updates.check')}
               </button>
             </div>
+            {update === null || update.state === 'idle' ? null : (
+              <div className="settings-update-state" role="status" data-testid="update-state">
+                <span className={update.state === 'error' ? 'err-text' : 'dim'}>
+                  {updateMessage(update)}
+                </span>
+                {update.state === 'error' && update.error !== null ? (
+                  <span className="dim">{update.error}</span>
+                ) : null}
+                {update.state === 'downloaded' ? (
+                  <>
+                    <span className="dim">{t('update.installOnQuit')}</span>
+                    <button
+                      type="button"
+                      className="settings-btn"
+                      onClick={() => void window.wslpad.updates.install()}
+                    >
+                      {t('update.restartInstall')}
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            )}
           </section>
 
           <section>

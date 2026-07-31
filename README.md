@@ -220,7 +220,9 @@ distribution stopped, or could not start — the last one with the reason).
 The gear (top-right, always available) opens a settings drawer — never a third
 tab: language, theme (system/light/dark), start with Windows, monitoring
 pause + fast/medium/slow polling intervals, Explorer defaults, Console
-font/scrollback, update checks, reset-all — and the full **MCP panel**: status,
+font/scrollback, update checks — with the state kept in view: checking,
+available, download progress, ready to install (with a restart button), or why
+it failed — reset-all — and the full **MCP panel**: status,
 copy endpoint, copy config JSON, one-click registration for Codex / Claude
 Desktop / Hermes, connection test and token regeneration.
 
@@ -272,7 +274,7 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.1.5)
+## Current limitations (v0.1.6)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is

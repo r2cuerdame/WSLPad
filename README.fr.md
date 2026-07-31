@@ -224,7 +224,7 @@ L'engrenage (en haut à droite, toujours disponible) ouvre le panneau **Settings
 (paramètres) — jamais un troisième onglet : langue, thème
 (système/clair/sombre), démarrage avec Windows, suspension de la surveillance
 et intervalles de sondage rapide/moyen/lent, valeurs par défaut de l'Explorer,
-police et scrollback de la Console, recherche de mises à jour, réinitialisation
+police et scrollback de la Console, recherche de mises à jour — avec l'état gardé sous les yeux : recherche, disponible, progression du téléchargement, prête à installer (avec un bouton de redémarrage) ou la raison de l'échec —, réinitialisation
 complète — et le **panneau MCP** au complet : état, copie du point de
 terminaison, copie du JSON de configuration, enregistrement en un clic dans
 Codex / Claude Desktop / Hermes, test de connexion et régénération du jeton.
@@ -284,7 +284,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.1.5)
+## Limites actuelles (v0.1.6)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)

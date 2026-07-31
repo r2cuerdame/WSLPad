@@ -219,7 +219,7 @@ A engrenagem (canto superior direito, sempre disponível) abre a gaveta de
 Settings (Configurações) — nunca uma terceira aba: idioma, tema
 (sistema/claro/escuro), iniciar com o Windows, pausa do monitoramento +
 intervalos de sondagem rápido/médio/lento, padrões do Explorer,
-fonte/scrollback do Console, verificação de atualizações, restaurar tudo — e o
+fonte/scrollback do Console, verificação de atualizações — com o estado sempre à vista: verificando, disponível, progresso do download, pronta para instalar (com botão de reiniciar) ou por que falhou —, restaurar tudo — e o
 **painel MCP** completo: status, copiar endpoint, copiar JSON de configuração,
 registro em um clique para Codex / Claude Desktop / Hermes, teste de conexão e
 geração de um novo token.
@@ -275,7 +275,7 @@ não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronizaç�
 nuvem, nem chat de IA, nem correção automática. Identidade:
 **Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
 
-## Limitações atuais (v0.1.5)
+## Limitações atuais (v0.1.6)
 
 - Somente Windows x64; o instalador não é assinado (aviso do SmartScreen)
 - Os números da imagem de disco dependem do registro do Windows e do `fsutil`;

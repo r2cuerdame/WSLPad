@@ -221,7 +221,7 @@ El engranaje (arriba a la derecha, siempre disponible) abre un cajón de
 configuración, nunca una tercera pestaña: idioma, tema (sistema/claro/oscuro),
 iniciar con Windows, pausa de la supervisión e intervalos de sondeo
 rápido/medio/lento, valores predeterminados del Explorer, fuente y scrollback
-de la Console, búsqueda de actualizaciones, restablecer todo, y el **panel MCP**
+de la Console, búsqueda de actualizaciones —con el estado siempre a la vista: comprobando, disponible, progreso de descarga, lista para instalar (con botón de reinicio) o por qué falló—, restablecer todo, y el **panel MCP**
 completo: estado, copiar endpoint, copiar JSON de configuración, registro con
 un clic para Codex / Claude Desktop / Hermes, prueba de conexión y regeneración
 del token.
@@ -278,7 +278,7 @@ no es un IDE, no trae interfaz de Git, depurador ni LSP, no sincroniza con la
 nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 **Dashboard + Explorer + Console + MCP de solo lectura**, nada más.
 
-## Limitaciones actuales (v0.1.5)
+## Limitaciones actuales (v0.1.6)
 
 - Solo Windows x64; el instalador no está firmado (aviso de SmartScreen)
 - Las cifras de la imagen de disco necesitan el registro de Windows y `fsutil`;

@@ -19,6 +19,7 @@ export function flush(): Promise<void> {
 }
 
 export class ScriptedPty implements PtyHandle {
+  supportsMarkers = true
   written: string[] = []
   killed = false
   cols = 0
@@ -65,6 +66,8 @@ export class MockFactory implements ConsoleBackendFactory {
   syncWrites: Array<{ distro: string; sessionId: string; path: string }> = []
   failSpawn = false
   failSync = false
+  /** Spawn a shell with no rc injection (the degraded path). */
+  markerless = false
 
   get pty(): ScriptedPty {
     return this.ptys[this.ptys.length - 1]
@@ -77,6 +80,7 @@ export class MockFactory implements ConsoleBackendFactory {
   async spawn(_distro: string, _cols: number, _rows: number): Promise<PtyHandle> {
     if (this.failSpawn) throw new Error('wsl.exe exited immediately')
     const pty = new ScriptedPty()
+    pty.supportsMarkers = !this.markerless
     this.ptys.push(pty)
     return pty
   }

@@ -327,3 +327,13 @@
   color: var(--err);
   font-size: 12px;
 }
+
+/* Update state lives in the section, not only in a toast that goes away. */
+.settings-update-state {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px 0 6px;
+  font-size: 12px;
+}

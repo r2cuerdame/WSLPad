@@ -223,7 +223,7 @@ Das Zahnrad (oben rechts, immer verfügbar) öffnet eine Settings-Leiste
 (Einstellungen) — nie einen dritten Tab: Sprache, Design (System/Hell/Dunkel),
 Mit Windows starten, Überwachung anhalten + schnelle/mittlere/langsame
 Abfrageintervalle, Explorer-Standardwerte, Schriftart/Scrollback der Console,
-Updateprüfung, alles zurücksetzen — und das vollständige **MCP-Panel**: Status,
+Updateprüfung — mit sichtbarem Zustand: Prüfung läuft, verfügbar, Download-Fortschritt, installationsbereit (mit Neustart-Schaltfläche) oder warum es fehlschlug —, alles zurücksetzen — und das vollständige **MCP-Panel**: Status,
 Endpunkt kopieren, Konfigurations-JSON kopieren, Registrierung per Klick für
 Codex / Claude Desktop / Hermes, Verbindungstest und Token-Neugenerierung.
 
@@ -281,7 +281,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.1.5)
+## Aktuelle Einschränkungen (v0.1.6)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;

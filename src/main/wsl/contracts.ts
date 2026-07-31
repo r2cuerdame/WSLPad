@@ -207,6 +207,13 @@ export interface PtyHandle {
   kill(): void
   onData(cb: (data: string) => void): void
   onExit(cb: (code: number) => void): void
+  /**
+   * Whether this shell emits the WSLPad OSC markers. A shell launched without
+   * the rc — an unsupported login shell, or a distro too busy to install it —
+   * never reports a prompt, so readiness must not be inferred from markers
+   * that will not arrive. Undefined means "yes", the normal case.
+   */
+  supportsMarkers?: boolean
 }
 
 export interface ConsoleBackendFactory {

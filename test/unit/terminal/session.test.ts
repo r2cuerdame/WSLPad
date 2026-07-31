@@ -209,3 +209,24 @@ describe('ConsoleSession invisible cwd sync', () => {
     expect(factory.pty.input).toBe('')
   })
 })
+
+describe('ConsoleSession without the rc (degraded shell)', () => {
+  it('is ready immediately, since no prompt marker will ever arrive', async () => {
+    const factory = new MockFactory()
+    factory.markerless = true
+    const { session, statuses } = await started(factory)
+    expect(session.status).toBe('ready')
+    expect(statuses.at(-1)?.status).toBe('ready')
+  })
+
+  it('drops a cwd sync instead of waiting forever for a prompt', async () => {
+    const factory = new MockFactory()
+    factory.markerless = true
+    const { session } = await started(factory)
+
+    await session.setCwd('/home/dev/projects')
+    // No sync file, no wedged status: the console stays usable.
+    expect(factory.syncWrites).toHaveLength(0)
+    expect(session.status).toBe('ready')
+  })
+})
