@@ -62,6 +62,7 @@
     "mcpStatusStopped": "MCP : arrêté",
     "startWithWindows": "Démarrer avec Windows",
     "checkForUpdates": "Rechercher des mises à jour",
+    "installUpdate": "Installer la mise à jour {{version}} et redémarrer",
     "about": "À propos de {{name}}",
     "version": "Version {{version}}",
     "github": "Dépôt GitHub",

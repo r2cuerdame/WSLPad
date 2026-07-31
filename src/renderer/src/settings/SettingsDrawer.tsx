@@ -8,6 +8,7 @@ import {
 } from '@shared/types'
 import type { SettingsLoadError } from '@shared/ipc'
 import type { UpdateStatus } from '@shared/types'
+import { updateLabel } from '@shared/update-label'
 import {
   CONSOLE_DEFAULTS,
   CONSOLE_FONT_SIZE_BOUNDS,
@@ -183,20 +184,11 @@ export function SettingsDrawer(): React.JSX.Element | null {
     setFontFamilyText(null)
   }
 
-  const updateMessage = (st: UpdateStatus): string =>
-    st.state === 'available'
-      ? t('update.available', { version: st.version ?? '' })
-      : st.state === 'downloaded'
-        ? t('update.downloaded', { version: st.version ?? '' })
-        : st.state === 'downloading'
-          ? t('update.downloading', { percent: Math.round(st.percent ?? 0) })
-          : st.state === 'disabled'
-            ? t('update.disabled')
-            : st.state === 'error'
-              ? t('update.error')
-              : st.state === 'checking'
-                ? t('update.checking')
-                : t('update.notAvailable')
+  // Same mapping the tray uses, so the two never word the same state differently.
+  const updateMessage = (st: UpdateStatus): string => {
+    const { key, vars } = updateLabel(st)
+    return t(key, vars ?? {})
+  }
 
   const checkUpdates = async (): Promise<void> => {
     try {

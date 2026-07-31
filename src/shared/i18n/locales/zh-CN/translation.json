@@ -62,6 +62,7 @@
     "mcpStatusStopped": "MCP：已停止",
     "startWithWindows": "随 Windows 启动",
     "checkForUpdates": "检查更新",
+    "installUpdate": "安装更新 {{version}} 并重启",
     "about": "关于 {{name}}",
     "version": "版本 {{version}}",
     "github": "GitHub 仓库",

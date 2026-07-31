@@ -62,6 +62,7 @@
     "mcpStatusStopped": "MCP: 停止中",
     "startWithWindows": "Windows 起動時に実行",
     "checkForUpdates": "更新プログラムを確認",
+    "installUpdate": "アップデート {{version}} をインストールして再起動",
     "about": "{{name}} について",
     "version": "バージョン {{version}}",
     "github": "GitHub リポジトリ",

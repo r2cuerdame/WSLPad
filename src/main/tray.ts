@@ -1,6 +1,8 @@
 import { Menu, Tray, app, nativeImage, shell } from 'electron'
 import type { i18n as I18nInstance } from 'i18next'
+import type { UpdateStatus } from '@shared/types'
 import { PROJECT_URLS } from '@shared/constants'
+import { updateInProgress, updateLabel } from '@shared/update-label'
 import { resourcePath } from './resources'
 
 export interface TrayHost {
@@ -13,6 +15,8 @@ export interface TrayHost {
   isAutostartEnabled(): boolean
   setAutostartEnabled(enabled: boolean): void
   checkForUpdates(): void
+  updateStatus(): UpdateStatus
+  installUpdate(): void
   quit(): void
   selectedDistro(): string | null
 }
@@ -57,7 +61,7 @@ export class AppTray {
         checked: this.host.isAutostartEnabled(),
         click: (item) => this.host.setAutostartEnabled(item.checked)
       },
-      { label: t('tray.checkForUpdates'), click: () => this.host.checkForUpdates() },
+      this.updateItem(),
       { type: 'separator' },
       {
         label: t('tray.about', { name: t('app.name') }),
@@ -78,6 +82,32 @@ export class AppTray {
       { label: t('tray.quit'), click: () => this.host.quit() }
     ])
     this.tray.setContextMenu(menu)
+  }
+
+  /**
+   * The update entry answers where it was asked. Opening the main window on a
+   * tray click was startling and pointless — the window showed nothing about
+   * the update anyway (user feedback), so the menu itself carries the state.
+   */
+  private updateItem(): Electron.MenuItemConstructorOptions {
+    const t = this.i18n.t.bind(this.i18n)
+    const status = this.host.updateStatus()
+
+    if (status.state === 'downloaded') {
+      return {
+        label: t('tray.installUpdate', { version: status.version ?? '' }),
+        click: () => this.host.installUpdate()
+      }
+    }
+    if (updateInProgress(status)) {
+      const { key, vars } = updateLabel(status)
+      return { label: t(key, vars ?? {}), enabled: false }
+    }
+    if (status.state === 'available') {
+      const { key, vars } = updateLabel(status)
+      return { label: t(key, vars ?? {}), enabled: false }
+    }
+    return { label: t('tray.checkForUpdates'), click: () => this.host.checkForUpdates() }
   }
 
   /** E2E hook: first context-menu label in the active locale. */

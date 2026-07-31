@@ -243,7 +243,11 @@ Benutzer). WSLPad startet standardmäßig mit Windows (umschaltbar im Tray oder
 in den Settings), lebt im Tray und aktualisiert sich automatisch über GitHub
 Releases. Das Schließen des Fensters blendet es nur aus; *Beenden* im Tray-Menü
 beendet die App. Das **Über**-Untermenü im Tray führt die laufende Version, das
-GitHub-Repository, die Versionshinweise und die Sponsoring-Seite.
+GitHub-Repository, die Versionshinweise und die Sponsoring-Seite. Eine im Tray
+gestartete Updateprüfung wird auch dort beantwortet: Der Menüeintrag wird zum
+Zustand (Prüfung läuft, verfügbar, Download-Fortschritt, installationsbereit),
+und das Ergebnis kommt als Desktop-Benachrichtigung — das Fenster drängt sich
+nie in den Vordergrund.
 
 > Der Installer ist nicht signiert — SmartScreen fragt einmal nach („Weitere
 > Informationen“ → „Trotzdem ausführen“).
@@ -282,7 +286,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.1.7)
+## Aktuelle Einschränkungen (v0.1.8)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;

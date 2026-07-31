@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PROJECT_URLS } from '@shared/constants'
+import type { UpdateStatus } from '@shared/types'
 
 /** Minimal Electron menu template shape, enough to walk what the tray built. */
 interface MenuItem {
@@ -42,7 +43,9 @@ const i18n = {
     vars === undefined ? key : `${key}(${Object.values(vars).join(',')})`
 } as never
 
-function makeHost() {
+const IDLE: UpdateStatus = { state: 'idle', version: null, percent: null, error: null }
+
+function makeHost(update: UpdateStatus = IDLE) {
   return {
     showMainWindow: vi.fn(),
     toggleMainWindow: vi.fn(),
@@ -53,6 +56,8 @@ function makeHost() {
     isAutostartEnabled: () => true,
     setAutostartEnabled: vi.fn(),
     checkForUpdates: vi.fn(),
+    updateStatus: () => update,
+    installUpdate: vi.fn(),
     quit: vi.fn(),
     selectedDistro: () => 'Ubuntu-24.04'
   }
@@ -129,5 +134,46 @@ describe('project links', () => {
       expect(parsed.host).toBe('github.com')
       expect(parsed.pathname).toContain('r2cuerdame')
     }
+  })
+})
+
+describe('tray update entry', () => {
+  it('checks from the tray without opening the main window', () => {
+    const host = makeHost()
+    new AppTray(host, i18n)
+    itemIn(lastMenu(), 'tray.checkForUpdates').click?.({ checked: false })
+
+    expect(host.checkForUpdates).toHaveBeenCalled()
+    // The window used to be raised on every check, showing nothing about it.
+    expect(host.showMainWindow).not.toHaveBeenCalled()
+  })
+
+  it('reports a check in flight instead of inviting another one', () => {
+    new AppTray(makeHost({ state: 'checking', version: null, percent: null, error: null }), i18n)
+    const item = itemIn(lastMenu(), 'update.checking')
+    expect(item.enabled).toBe(false)
+  })
+
+  it('names the version being downloaded and its progress', () => {
+    new AppTray(
+      makeHost({ state: 'downloading', version: '9.9.9', percent: 41.6, error: null }),
+      i18n
+    )
+    expect(itemIn(lastMenu(), 'update.downloading').label).toBe('update.downloading(42)')
+  })
+
+  it('offers the install once an update is ready', () => {
+    const host = makeHost({ state: 'downloaded', version: '9.9.9', percent: 100, error: null })
+    new AppTray(host, i18n)
+    itemIn(lastMenu(), 'tray.installUpdate').click?.({ checked: false })
+    expect(host.installUpdate).toHaveBeenCalled()
+    expect(host.checkForUpdates).not.toHaveBeenCalled()
+  })
+
+  it('lets a failed check be retried', () => {
+    const host = makeHost({ state: 'error', version: null, percent: null, error: 'ENOTFOUND' })
+    new AppTray(host, i18n)
+    itemIn(lastMenu(), 'tray.checkForUpdates').click?.({ checked: false })
+    expect(host.checkForUpdates).toHaveBeenCalled()
   })
 })

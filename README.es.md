@@ -242,7 +242,11 @@ Windows de forma predeterminada (se cambia desde la bandeja o en Settings),
 reside en la bandeja y se actualiza solo desde GitHub Releases. Cerrar la
 ventana solo la oculta; *Salir* en el menú de la bandeja cierra la aplicación. El
 submenú **Acerca de** de la bandeja lleva la versión en ejecución, el repositorio
-de GitHub, las notas de la versión y la página de patrocinio.
+de GitHub, las notas de la versión y la página de patrocinio. Comprobar
+actualizaciones desde la bandeja se responde en la bandeja: la entrada del menú
+pasa a ser el estado (comprobando, disponible, porcentaje de descarga, lista
+para instalar) y el resultado llega como notificación de escritorio; la ventana
+nunca se te echa encima.
 
 > El instalador no está firmado: SmartScreen preguntará una vez («Más información»
 > → «Ejecutar de todas formas»).
@@ -280,7 +284,7 @@ no es un IDE, no trae interfaz de Git, depurador ni LSP, no sincroniza con la
 nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 **Dashboard + Explorer + Console + MCP de solo lectura**, nada más.
 
-## Limitaciones actuales (v0.1.7)
+## Limitaciones actuales (v0.1.8)
 
 - Solo Windows x64; el instalador no está firmado (aviso de SmartScreen)
 - Las cifras de la imagen de disco necesitan el registro de Windows y `fsutil`;

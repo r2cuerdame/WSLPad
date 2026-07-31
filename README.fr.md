@@ -246,7 +246,10 @@ Settings), reste dans la zone de notification et se met à jour automatiquement
 depuis les GitHub Releases. Fermer la fenêtre la masque ; *Quitter* dans le menu
 de la zone de notification ferme l'application. Le sous-menu **À propos** de la
 zone de notification donne la version en cours, le dépôt GitHub, les notes de
-version et la page de soutien.
+version et la page de soutien. Une recherche de mise à jour lancée depuis la
+zone de notification y répond : l'entrée de menu devient l'état (recherche,
+disponible, pourcentage de téléchargement, prête à installer) et le résultat
+arrive en notification ; la fenêtre ne surgit jamais.
 
 > L'installeur n'est pas signé — SmartScreen posera la question une fois
 > (« Informations complémentaires » → « Exécuter quand même »).
@@ -286,7 +289,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.1.7)
+## Limites actuelles (v0.1.8)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)

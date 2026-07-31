@@ -1,8 +1,9 @@
-import { BrowserWindow, app } from 'electron'
+import { BrowserWindow, Notification, app } from 'electron'
 import { join } from 'path'
 import type { i18n as I18nInstance } from 'i18next'
 import { createI18n, detectLocale } from '@shared/i18n'
 import { IpcChannels } from '@shared/ipc'
+import { updateLabel } from '@shared/update-label'
 import type { LocaleCode, Settings, SettingsPatch, UpdateStatus } from '@shared/types'
 import { AppTray } from './tray'
 import { createMainWindow } from './window'
@@ -75,6 +76,8 @@ export class WslPadApp {
       onStatus: (s) => {
         this.updateStatus = s
         this.send(IpcChannels.evUpdate, s)
+        // The tray entry mirrors the state, so it has to be rebuilt with it.
+        this.tray?.update()
       }
     })
 
@@ -153,15 +156,32 @@ export class WslPadApp {
         setAutostartEnabled: (enabled) => {
           void this.applySettingsPatch({ startWithWindows: enabled })
         },
+        // Asked from the tray, answered in the tray: stealing focus with the
+        // main window told the user nothing (the update state is not on it).
         checkForUpdates: () => {
-          this.showMainWindow()
-          void this.updater.checkNow()
+          void this.updater.checkNow().then((status) => this.notifyUpdate(status))
         },
+        updateStatus: () => this.updateStatus,
+        installUpdate: () => this.updater.quitAndInstall(),
         quit: () => this.quit(),
         selectedDistro: () => this.store.get().selectedDistro
       },
       this.i18n
     )
+  }
+
+  /**
+   * Result of a check the user asked for, as a desktop notification. Automatic
+   * background checks stay silent — a six-hourly "you are up to date" would be
+   * noise, not information.
+   */
+  private notifyUpdate(status: UpdateStatus): void {
+    if (!Notification.isSupported()) return
+    const { key, vars } = updateLabel(status)
+    new Notification({
+      title: this.i18n.t('app.name'),
+      body: this.i18n.t(key, vars ?? {})
+    }).show()
   }
 
   /** Single place where settings changes take effect immediately (goal.md §5.4). */
