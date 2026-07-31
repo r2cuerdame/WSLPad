@@ -62,6 +62,11 @@
     "mcpStatusStopped": "MCP: 停止中",
     "startWithWindows": "Windows 起動時に実行",
     "checkForUpdates": "更新プログラムを確認",
+    "about": "{{name}} について",
+    "version": "バージョン {{version}}",
+    "github": "GitHub リポジトリ",
+    "releaseNotes": "リリースノート",
+    "sponsor": "このプロジェクトを支援",
     "quit": "終了",
     "tooltip": "WSLPad — {{distro}}"
   },

@@ -1,6 +1,6 @@
 node_modules/
 out/
-release/
+release*/
 dist/
 coverage/
 test-results/
@@ -9,6 +9,3 @@ playwright-report/
 .vite/
 .DS_Store
 Thumbs.db
-release2/
-release3/
-release4/

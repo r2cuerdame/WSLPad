@@ -62,6 +62,11 @@
     "mcpStatusStopped": "MCP: 중지됨",
     "startWithWindows": "Windows 시작 시 실행",
     "checkForUpdates": "업데이트 확인",
+    "about": "{{name}} 정보",
+    "version": "버전 {{version}}",
+    "github": "GitHub 저장소",
+    "releaseNotes": "릴리스 노트",
+    "sponsor": "후원하기",
     "quit": "종료",
     "tooltip": "WSLPad — {{distro}}"
   },

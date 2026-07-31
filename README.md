@@ -239,6 +239,8 @@ Download `WSLPad-Setup-<version>.exe` from
 admin rights needed (per-user install). WSLPad starts with Windows by default
 (toggle in the tray or Settings), lives in the tray, and auto-updates from
 GitHub Releases. Closing the window hides it; *Quit* in the tray menu exits.
+The tray's **About** submenu carries the running version, the GitHub
+repository, the release notes and the sponsor page.
 
 > The installer is unsigned — SmartScreen will ask once ("More info" → "Run anyway").
 
@@ -274,7 +276,7 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.1.6)
+## Current limitations (v0.1.7)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is

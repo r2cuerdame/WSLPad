@@ -241,3 +241,14 @@ export const WINDOWS_ROOT = 'ThisPC'
 /** Dual-pane splitter bounds, as a percentage of the Explorer width. */
 export const PANE_SPLIT_BOUNDS = { min: 20, max: 80 } as const
 export const PANE_SPLIT_DEFAULT = 50
+
+/**
+ * The project's own links, opened in the user's browser from the tray's About
+ * submenu. Hard-coded rather than read from package.json so a packaged build
+ * cannot end up pointing somewhere else.
+ */
+export const PROJECT_URLS = {
+  repository: 'https://github.com/r2cuerdame/WSLPad',
+  releases: 'https://github.com/r2cuerdame/WSLPad/releases',
+  sponsor: 'https://github.com/sponsors/r2cuerdame'
+} as const

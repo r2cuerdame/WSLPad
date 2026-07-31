@@ -190,7 +190,7 @@ Windows 语言，并在缺失时回退到英文。Linux 命令、路径和技术
 `WSLPad-Setup-<version>.exe` 并运行 —— 不需要管理员权限（按用户安装）。
 WSLPad 默认随 Windows 启动（可在托盘或 Settings 里切换），常驻托盘，并通过
 GitHub Releases 自动更新。关闭窗口只是把它隐藏起来；托盘菜单里的*退出*才会
-真正结束程序。
+真正结束程序。托盘的**关于**子菜单里有当前版本、GitHub 仓库、发行说明和赞助页面。
 
 > 安装程序未签名 —— SmartScreen 会提示一次（“更多信息” → “仍要运行”）。
 
@@ -226,7 +226,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 界面、调试器或 LSP，没有云同步，没有 AI 聊天，也不会自动帮你修东西。它的身份
 就是：**Dashboard + Explorer + Console + 只读 MCP** —— 别无其他。
 
-## 当前限制（v0.1.6）
+## 当前限制（v0.1.7）
 
 - 仅支持 Windows x64；安装程序未签名（会有 SmartScreen 警告）
 - 磁盘映像的数字需要读取 Windows 注册表和 `fsutil`；只要有一样读不到，这个

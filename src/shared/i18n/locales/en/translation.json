@@ -62,6 +62,11 @@
     "mcpStatusStopped": "MCP: stopped",
     "startWithWindows": "Start with Windows",
     "checkForUpdates": "Check for updates",
+    "about": "About {{name}}",
+    "version": "Version {{version}}",
+    "github": "GitHub repository",
+    "releaseNotes": "Release notes",
+    "sponsor": "Sponsor this project",
     "quit": "Quit",
     "tooltip": "WSLPad — {{distro}}"
   },

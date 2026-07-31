@@ -237,7 +237,9 @@ Baixe `WSLPad-Setup-<version>.exe` em
 precisar de direitos de administrador (instalação por usuário). Por padrão, o
 WSLPad inicia com o Windows (alterne pela bandeja ou em Settings), fica na
 bandeja e se atualiza sozinho pelo GitHub Releases. Fechar a janela apenas a
-oculta; *Sair* no menu da bandeja encerra o app.
+oculta; *Sair* no menu da bandeja encerra o app. O submenu **Sobre** da bandeja
+leva a versão em execução, o repositório no GitHub, as notas da versão e a
+página de apoio.
 
 > O instalador não é assinado — o SmartScreen vai perguntar uma vez ("Mais informações" → "Executar assim mesmo").
 
@@ -275,7 +277,7 @@ não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronizaç�
 nuvem, nem chat de IA, nem correção automática. Identidade:
 **Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
 
-## Limitações atuais (v0.1.6)
+## Limitações atuais (v0.1.7)
 
 - Somente Windows x64; o instalador não é assinado (aviso do SmartScreen)
 - Os números da imagem de disco dependem do registro do Windows e do `fsutil`;
