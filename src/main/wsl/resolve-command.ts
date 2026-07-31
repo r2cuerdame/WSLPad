@@ -2,7 +2,7 @@ import type { CommandResolution } from '@shared/types'
 import type { DistroRunner } from './contracts'
 
 /**
- * Which binary a command name actually runs (issue #64).
+ * Which binary a command name actually runs (issue #62).
  *
  * The question an agent asks constantly and no snapshot answers: `python` may
  * be a shim, a pyenv shell function, or — the classic WSL trap — a Windows

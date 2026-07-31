@@ -2,7 +2,7 @@ import type { DashboardSnapshot, PortOwnership } from './types'
 
 /**
  * Everything known about one port, gathered from the four places that each
- * hold a piece of it (issue #64): the distro's listeners, the Windows port
+ * hold a piece of it (issue #62): the distro's listeners, the Windows port
  * table, the process list, and the Windows forwarding rules.
  *
  * Pure, and reads only what has already been collected — asking "who owns

@@ -10,7 +10,7 @@ export interface TerminalProfilesBlockProps {
 }
 
 /**
- * Whether Windows Terminal can open this distro (issue #63).
+ * Whether Windows Terminal can open this distro (issue #65).
  *
  * Terminal generates a profile per distro, but only for the ones it saw when
  * it last generated, and only while the WSL generator is enabled. A distro

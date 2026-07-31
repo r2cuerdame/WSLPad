@@ -3,7 +3,7 @@ import { join } from 'path'
 import type { TerminalProfileInfo, TerminalProfilesInfo } from '@shared/types'
 
 /**
- * Which distros Windows Terminal can actually open (issue #63).
+ * Which distros Windows Terminal can actually open (issue #65).
  *
  * Windows Terminal generates a profile for every distro it knows about — but
  * only ones it saw at generation time, and only while `Windows.Terminal.Wsl`

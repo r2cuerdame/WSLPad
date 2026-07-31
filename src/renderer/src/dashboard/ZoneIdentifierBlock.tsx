@@ -10,7 +10,7 @@ export interface ZoneIdentifierBlockProps {
 }
 
 /**
- * The `:Zone.Identifier` files Windows leaves in the distro (issue #62).
+ * The `:Zone.Identifier` files Windows leaves in the distro (issue #64).
  *
  * Every file copied in from Windows brings its mark-of-the-web stream, and on
  * ext4 that stream becomes a visible file of its own. They are harmless and

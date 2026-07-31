@@ -2,7 +2,7 @@ import type { DistroRunner } from './contracts'
 import type { ZoneIdentifierGroup, ZoneIdentifierInfo } from '@shared/types'
 
 /**
- * The `:Zone.Identifier` files Windows leaves in a distro (issue #62).
+ * The `:Zone.Identifier` files Windows leaves in a distro (issue #64).
  *
  * Every file copied from Windows into WSL carries its NTFS "mark of the web"
  * alternate data stream, and on ext4 that stream lands as a separate, visible
