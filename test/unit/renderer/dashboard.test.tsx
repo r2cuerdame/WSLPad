@@ -147,6 +147,8 @@ function makeSnapshot(): WslPadSnapshot {
         }
       ],
       docker: null,
+      zoneIdentifier: null,
+      terminalProfiles: null,
       hermes: {
         installed: true,
         executablePath: '/home/dev/.local/bin/hermes',

@@ -115,7 +115,7 @@ Además se recupera sola. WSL suele seguir ocupado cuando WSLPad arranca con Win
 Mientras WSLPad está en la bandeja, sirve MCP en `http://127.0.0.1:4923/mcp`
 (Streamable HTTP, solo en localhost, autenticación con token Bearer) con 31
 herramientas `Get*`: `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
-`GetTextFile`, `GetPathMapping`, … A propósito no hay herramientas de
+`GetTextFile`, `GetPortOwner`, `GetCommandResolution`, … A propósito no hay herramientas de
 escritura, ejecución ni kill; los secretos y las claves privadas nunca cruzan
 la frontera de MCP. Registro con un clic para Claude Desktop (puente stdio),
 Codex y Hermes, además de `Copiar para LLM`, que deja en el portapapeles un
@@ -231,7 +231,20 @@ simbólicos. Por unidad en el lado de Windows: espacio libre y total.
 
 **Console** — la distribución, el directorio actual y el estado del shell (lista, en ejecución, esperando entrada, esperando la contraseña de sudo, desconectada, distribución detenida o no se pudo iniciar — esta última con el motivo).
 
-**Por MCP** — todo lo anterior a través de 31 herramientas `Get*` de solo
+**Marcas de descarga de Windows** — cada archivo copiado desde Windows deja a su
+lado un archivo `:Zone.Identifier`, para siempre. WSLPad los cuenta, dice en qué
+carpetas están y prepara el comando para borrarlos.
+
+**Terminal de Windows** — si esta distribución tiene perfil, si está oculto y,
+cuando no lo tiene, el JSON para añadir uno. WSLPad nunca escribe settings.json.
+
+**Papelera** — qué envió el explorador a la papelera, de dónde venía cada
+archivo y una restauración que lo devuelve a su sitio. Si ya hay algo en el
+destino, la restauración se detiene: deshacer destruyendo un archivo no es
+deshacer.
+
+
+**Por MCP** — todo lo anterior a través de 35 herramientas `Get*` de solo
 lectura. [docs/MCP.md](docs/MCP.md)
 
 ## Settings e idiomas
@@ -303,7 +316,7 @@ no es un IDE, no trae interfaz de Git, depurador ni LSP, no sincroniza con la
 nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 **Dashboard + Explorer + Console + MCP de solo lectura**, nada más.
 
-## Limitaciones actuales (v0.1.10)
+## Limitaciones actuales (v0.2.0)
 
 - Solo Windows x64; el instalador no está firmado (aviso de SmartScreen)
 - Las cifras de la imagen de disco necesitan el registro de Windows y `fsutil`;
@@ -325,19 +338,14 @@ nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 - Arrastrar desde una ventana externa del Explorador de Windows depende de que
   Electron exponga las rutas de archivo; usa el panel izquierdo (o el menú de
   importación) en su lugar
-- Todavía no hay interfaz para restaurar desde la papelera (los archivos van a
-  la papelera estándar de Linux o a la Papelera de reciclaje de Windows, y se
-  pueden restaurar desde ahí)
 - El puente stdio de MCP requiere que la aplicación de la bandeja esté en
   ejecución
 
 ## Hoja de ruta
 
-Lo siguiente: herramientas MCP a la altura de un agente, diseñadas en torno a
-las preguntas que un agente hace de verdad (correspondencia de rutas, de quién
-es un puerto, qué binario se resuelve), una interfaz para restaurar desde la
-papelera, un visor de solo lectura de los registros de servicios, una
-compilación ARM64 y un instalador firmado.
+Lo siguiente: una vista de solo lectura de los registros de servicio
+(`journalctl` sin abrir una shell), avisar cuando un proyecto vive en una ruta
+lenta de `/mnt`, una compilación ARM64 y un instalador firmado.
 
 ## Comunidad
 

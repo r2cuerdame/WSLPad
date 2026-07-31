@@ -569,6 +569,105 @@ export interface WarningInfo {
   detail?: string
 }
 
+/**
+ * What a command name actually runs in a distro. `matches` is every executable
+ * of that name on PATH, in PATH order; `shadows` is what the winner hides.
+ */
+export interface CommandResolution {
+  command: string
+  kind: 'file' | 'builtin' | 'not-found'
+  /** The resolved path; null for a shell builtin or a name that resolves to nothing. */
+  path: string | null
+  matches: string[]
+  shadows: string[]
+  pathEntries: string[]
+  /** The winner lives under /mnt — a Windows executable reached through DrvFs. */
+  shadowedByWindows: boolean
+}
+
+/** Everything known about one port, from both sides of the boundary. */
+export interface PortOwnership {
+  port: number
+  /** The listener inside the distro, if there is one. */
+  linux: PortInfo | null
+  /** The listener Windows sees on the same port, if there is one. */
+  windows: WindowsPortInfo | null
+  /** The process behind the Linux listener, when the pid could be matched. */
+  process: ProcessInfo | null
+  /** Forwarding rules that mention this port on either side. */
+  forwarding: PortProxyRule[]
+  /** null when either side of the question could not be read. */
+  reachableFromWindows: boolean | null
+}
+
+/**
+ * One entry in the freedesktop trash. `present` is false when the .trashinfo
+ * outlived the file it describes — the record is still shown, because a stale
+ * record is a fact about the trash, not an empty one.
+ */
+export interface TrashEntry {
+  /** Name inside Trash/files, which is what a restore is addressed by. */
+  trashName: string
+  originalPath: string
+  /** Local time as the spec writes it; null when the record did not say. */
+  deletedAt: string | null
+  type: 'file' | 'directory' | 'other'
+  present: boolean
+  sizeBytes: number | null
+}
+
+/** One Windows Terminal profile, and the distro it opens if it opens one. */
+export interface TerminalProfileInfo {
+  name: string
+  guid: string | null
+  /** 'Windows.Terminal.Wsl' for the ones Terminal generates by itself. */
+  source: string | null
+  commandLine: string | null
+  /** null when the profile does not open a distro, or does not say which. */
+  distro: string | null
+  hidden: boolean
+  isDefault: boolean
+}
+
+/**
+ * Windows Terminal's profile list, read from its settings.json. `installed` is
+ * null only if it could not be determined at all; an unparsable file leaves the
+ * profiles empty with a reason rather than claiming there are none.
+ */
+export interface TerminalProfilesInfo {
+  settingsPath: string | null
+  installed: boolean | null
+  profiles: TerminalProfileInfo[]
+  defaultProfile: string | null
+  error: string | null
+}
+
+/** One directory holding `:Zone.Identifier` files, and what they weigh there. */
+export interface ZoneIdentifierGroup {
+  directory: string
+  count: number
+  /** null when the shell could not report sizes — never a stand-in zero. */
+  bytes: number | null
+}
+
+/**
+ * The mark-of-the-web streams Windows leaves behind in a distro. `count` is
+ * null when the search did not finish: an unfinished walk reported as a number
+ * would send someone looking for files that are still there.
+ */
+export interface ZoneIdentifierInfo {
+  /** Where the search ran — $HOME, one filesystem, never /mnt. */
+  root: string
+  count: number | null
+  bytes: number | null
+  /** The row cap was hit: there are at least `count` of them, likely more. */
+  truncated: boolean
+  groups: ZoneIdentifierGroup[]
+  /** Prepared for the Console, never run. */
+  cleanupCommand: string
+  error: string | null
+}
+
 export interface DashboardSnapshot {
   distro: DistroDetails
   system: SystemInfo
@@ -585,6 +684,10 @@ export interface DashboardSnapshot {
   hermes: HermesInfo | null
   /** null until Docker has been queried in this distribution. */
   docker: DockerInfo | null
+  /** null until the home directory has been searched for Windows download markers. */
+  zoneIdentifier: ZoneIdentifierInfo | null
+  /** null until Windows Terminal's settings have been read. Host-wide. */
+  terminalProfiles: TerminalProfilesInfo | null
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
   services: ServiceInfo[]
@@ -856,6 +959,12 @@ export interface UpdateStatus {
   version: string | null
   percent: number | null
   error: string | null
+  /**
+   * A version that was downloaded, handed to the installer, and still is not
+   * the one running. Survives restarts until it is: an aborted install leaves
+   * the old app in place and says nothing (goal.md §4.3.8).
+   */
+  installFailedVersion: string | null
 }
 
 // ---------------------------------------------------------------------------

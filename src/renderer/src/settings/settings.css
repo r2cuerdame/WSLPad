@@ -337,3 +337,18 @@
   padding: 2px 0 6px;
   font-size: 12px;
 }
+
+/* An update that silently did not install is the one update state worth a
+   box of its own — everything else is progress, this one is a wrong belief. */
+.settings-update-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 2px 0 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  border: 1px solid var(--danger-border, rgba(220 38 38 / 35%));
+  border-radius: 6px;
+  background: var(--danger-bg, rgb(220 38 38 / 6%));
+}

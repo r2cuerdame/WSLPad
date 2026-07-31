@@ -43,7 +43,16 @@ const i18n = {
     vars === undefined ? key : `${key}(${Object.values(vars).join(',')})`
 } as never
 
-const IDLE: UpdateStatus = { state: 'idle', version: null, percent: null, error: null }
+const IDLE: UpdateStatus = {
+  state: 'idle',
+  version: null,
+  percent: null,
+  error: null,
+  installFailedVersion: null
+}
+
+/** The tray only ever renders the state machine; failures ride in the drawer. */
+const status = (over: Partial<UpdateStatus>): UpdateStatus => ({ ...IDLE, ...over })
 
 function makeHost(update: UpdateStatus = IDLE) {
   return {
@@ -158,21 +167,21 @@ describe('tray update entry', () => {
   })
 
   it('reports a check in flight instead of inviting another one', () => {
-    new AppTray(makeHost({ state: 'checking', version: null, percent: null, error: null }), i18n)
+    new AppTray(makeHost(status({ state: 'checking' })), i18n)
     const item = itemIn(lastMenu(), 'update.checking')
     expect(item.enabled).toBe(false)
   })
 
   it('names the version being downloaded and its progress', () => {
     new AppTray(
-      makeHost({ state: 'downloading', version: '9.9.9', percent: 41.6, error: null }),
+      makeHost(status({ state: 'downloading', version: '9.9.9', percent: 41.6 })),
       i18n
     )
     expect(itemIn(lastMenu(), 'update.downloading').label).toBe('update.downloading(42)')
   })
 
   it('offers the install once an update is ready', () => {
-    const host = makeHost({ state: 'downloaded', version: '9.9.9', percent: 100, error: null })
+    const host = makeHost(status({ state: 'downloaded', version: '9.9.9', percent: 100 }))
     new AppTray(host, i18n)
     itemIn(lastMenu(), 'tray.installUpdate').click?.({ checked: false })
     expect(host.installUpdate).toHaveBeenCalled()
@@ -180,7 +189,7 @@ describe('tray update entry', () => {
   })
 
   it('lets a failed check be retried', () => {
-    const host = makeHost({ state: 'error', version: null, percent: null, error: 'ENOTFOUND' })
+    const host = makeHost(status({ state: 'error', error: 'ENOTFOUND' }))
     new AppTray(host, i18n)
     itemIn(lastMenu(), 'tray.checkForUpdates').click?.({ checked: false })
     expect(host.checkForUpdates).toHaveBeenCalled()

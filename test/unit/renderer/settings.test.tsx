@@ -9,6 +9,16 @@ import { AppStoreProvider, useApp } from '@renderer/store'
 import SettingsDrawer from '@renderer/settings/SettingsDrawer'
 import Toasts from '@renderer/components/Toasts'
 
+/** Only the fields a test cares about; the rest stay at their quiet defaults. */
+const update = (over: Partial<UpdateStatus>): UpdateStatus => ({
+  state: 'idle',
+  version: null,
+  percent: null,
+  error: null,
+  installFailedVersion: null,
+  ...over
+})
+
 /** Minimal snapshot: the drawer only reads `mcp` out of it. */
 function makeSnapshot(): WslPadSnapshot {
   return {
@@ -299,7 +309,7 @@ describe('SettingsDrawer updates section', () => {
     await renderDrawer()
 
     await act(async () => {
-      emit?.({ state: 'downloading', version: '9.9.9', percent: 42.4, error: null })
+      emit?.(update({ state: 'downloading', version: '9.9.9', percent: 42.4 }))
     })
     expect(screen.getByTestId('update-state').textContent).toContain('Downloading update… 42%')
   })
@@ -313,7 +323,7 @@ describe('SettingsDrawer updates section', () => {
     await renderDrawer()
 
     await act(async () => {
-      emit?.({ state: 'downloaded', version: '9.9.9', percent: 100, error: null })
+      emit?.(update({ state: 'downloaded', version: '9.9.9', percent: 100 }))
     })
     const status = screen.getByTestId('update-state')
     expect(status.textContent).toContain('Update 9.9.9 ready')
@@ -332,8 +342,31 @@ describe('SettingsDrawer updates section', () => {
     await renderDrawer()
 
     await act(async () => {
-      emit?.({ state: 'error', version: null, percent: null, error: 'ENOTFOUND github.com' })
+      emit?.(update({ state: 'error', error: 'ENOTFOUND github.com' }))
     })
     expect(screen.getByTestId('update-state').textContent).toContain('ENOTFOUND github.com')
+  })
+
+  it('says when an update was downloaded but never became the running version', async () => {
+    let emit: ((s: UpdateStatus) => void) | null = null
+    api.updates.onStatus.mockImplementation((cb: (s: UpdateStatus) => void) => {
+      emit = cb
+      return () => undefined
+    })
+    await renderDrawer()
+
+    await act(async () => {
+      emit?.(update({ state: 'idle', installFailedVersion: '9.9.9' }))
+    })
+
+    // Idle is exactly the state this arrives in: nothing is in flight, the old
+    // version is running, and nobody would think to ask.
+    const failed = screen.getByTestId('update-install-failed')
+    expect(failed.textContent).toContain('9.9.9')
+    expect(failed.textContent).toContain('quit WSLPad from the tray')
+    expect(screen.queryByTestId('update-state')).toBeNull()
+
+    fireEvent.click(within(failed).getByRole('button', { name: 'Check again' }))
+    expect(api.updates.check).toHaveBeenCalled()
   })
 })

@@ -569,6 +569,29 @@ export function SettingsDrawer(): React.JSX.Element | null {
                 {t('settings.updates.check')}
               </button>
             </div>
+            {/* Shown whatever the state machine is doing, including idle: after a
+                failed install the app comes back on the old version with nothing
+                in flight, which is exactly when nobody would ask. */}
+            {update?.installFailedVersion != null ? (
+              <div
+                className="settings-update-failed"
+                role="alert"
+                data-testid="update-install-failed"
+              >
+                <span className="err-text">
+                  {t('update.installFailed', { version: update.installFailedVersion })}
+                </span>
+                <span className="dim">{t('update.installFailedHint')}</span>
+                <button
+                  type="button"
+                  className="settings-btn"
+                  disabled={update.state === 'checking' || update.state === 'downloading'}
+                  onClick={() => void checkUpdates()}
+                >
+                  {t('update.installFailedRetry')}
+                </button>
+              </div>
+            ) : null}
             {update === null || update.state === 'idle' ? null : (
               <div className="settings-update-state" role="status" data-testid="update-state">
                 <span className={update.state === 'error' ? 'err-text' : 'dim'}>

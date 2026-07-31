@@ -38,6 +38,8 @@ export interface FilePaneProps {
   startPath: string | null
   resetKey: string
   showHiddenDefault: boolean
+  /** Only given for the WSL pane: opens the freedesktop trash (issue #23). */
+  onOpenTrash?: () => void
   navRequest: { id: number; path: string } | null
   /** Rendered instead of the browser when the filesystem is unavailable. */
   unavailableMessage?: string | null
@@ -525,6 +527,7 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
             onClearSearch={pane.clearSearch}
             onMeasure={pane.canMeasure ? () => void pane.measureDirSizes() : undefined}
             measureActive={pane.dirSizes.status !== 'closed'}
+            onOpenTrash={props.onOpenTrash}
           />
 
           <DirSizesPanel

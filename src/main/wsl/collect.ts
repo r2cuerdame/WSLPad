@@ -1,5 +1,10 @@
 import { PROBE_TIMEOUT_MS } from '@shared/constants'
-import type { DistroDetails, DistroSummary, DockerInfo } from '@shared/types'
+import type {
+  DistroDetails,
+  DistroSummary,
+  DockerInfo,
+  ZoneIdentifierInfo
+} from '@shared/types'
 import { WslNotAvailableError, type DistroRunner, type WslProvider } from './contracts'
 import { collectClock } from './clock'
 import { collectConfigFiles } from './config-files'
@@ -22,6 +27,8 @@ import { collectServices } from './services'
 import { collectSystemInfo } from './system'
 import { createWindowsPortCollector } from './windows-ports'
 import { createWslConfigCollector } from './wsl-config'
+import { createTerminalProfilesCollector } from './terminal-profiles'
+import { detectZoneIdentifiers } from './zone-identifier'
 
 /** How long one `hermes status` answer is reused (its own CLI takes seconds). */
 const HERMES_CLI_TTL_MS = 60_000
@@ -34,6 +41,14 @@ const HERMES_CLI_TTL_MS = 60_000
  * the machine would pay for a full store walk every minute, forever.
  */
 const DOCKER_TTL_MS = 120_000
+
+/**
+ * How long one Zone.Identifier count is reused. It walks the whole home
+ * directory, and the answer only changes when the user copies something in
+ * from Windows — five minutes of staleness costs nothing, five minutes of
+ * `find` costs the machine.
+ */
+const ZONE_TTL_MS = 300_000
 
 /**
  * Real WslProvider wiring all hidden-runner collectors (goal.md §9). The
@@ -55,6 +70,8 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
   const portProxy = createPortProxyCollector()
   // Same reason: the Windows half of the resolver answer is a PowerShell start.
   const dns = createDnsCollector()
+  // Same reason again: settings.json is a host file edited by hand, not by the second.
+  const terminalProfiles = createTerminalProfilesCollector()
 
   // Asking Hermes about itself starts a Python process, which is far too heavy
   // for the medium tier the rest of the Hermes section polls on. Cache it, and
@@ -79,6 +96,16 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     const fresh = await detectDocker(runner, distro)
     if (fresh === null) return cached?.info ?? null
     dockerCache.set(distro, { at: Date.now(), info: fresh })
+    return fresh
+  }
+
+  const zoneCache = new Map<string, { at: number; info: ZoneIdentifierInfo }>()
+  const zoneInfo = async (distro: string): Promise<ZoneIdentifierInfo | null> => {
+    const cached = zoneCache.get(distro)
+    if (cached && Date.now() - cached.at < ZONE_TTL_MS) return cached.info
+    const fresh = await detectZoneIdentifiers(runner, distro)
+    if (fresh === null) return cached?.info ?? null
+    zoneCache.set(distro, { at: Date.now(), info: fresh })
     return fresh
   }
 
@@ -212,6 +239,14 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
 
     getDocker(distro) {
       return dockerInfo(distro)
+    },
+
+    getZoneIdentifiers(distro) {
+      return zoneInfo(distro)
+    },
+
+    async getTerminalProfiles() {
+      return terminalProfiles.collect()
     },
 
     async getHermes(distro) {

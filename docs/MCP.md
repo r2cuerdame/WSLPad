@@ -62,6 +62,8 @@ at-a-glance status badge):
 | `GetEnvironment` | Env var names + masked values (secrets never raw) |
 | `GetProcesses` / `GetProcess` | Process table / one PID |
 | `GetServices` / `GetService` | systemd services / one unit |
+| `GetProcess` | One process by pid, from the cached list (`{ pid }`) |
+| `GetService` | One systemd unit by name (`{ name }`) |
 | `GetPorts` | Listening ports, each marked with whether Windows also binds it |
 | `GetDiskImage` | ext4.vhdx location, size on the Windows disk, reclaimable space |
 | `GetWslSettings` | Declared vs effective .wslconfig and wsl.conf, with verdicts |
@@ -76,6 +78,10 @@ at-a-glance status badge):
 | `GetFileInfo` | stat-level file properties |
 | `GetTextFile` | Bounded text file content (see limits below) |
 | `GetPathMapping` | Linux ↔ Windows path conversion (explicit failure) |
+| `GetPortOwner` | Who owns one port: the distro listener, the process behind it, the Windows-side listener, whether Windows can reach it, and any forwarding rule that mentions it (`{ port }`) |
+| `GetCommandResolution` | Which binary a command name really runs: resolved path, every match on PATH in order, what the winner shadows, and whether it is a Windows executable under /mnt (`{ command }`) |
+| `GetZoneIdentifiers` | Count and location of the `*:Zone.Identifier` files Windows leaves behind, plus the cleanup command |
+| `GetTerminalProfiles` | Windows Terminal profiles, which distro each opens, and the JSON to add a missing one |
 | `GetExplorerContext` | Path currently open in the Explorer tab |
 | `GetConsoleContext` | Console distro/cwd/status |
 

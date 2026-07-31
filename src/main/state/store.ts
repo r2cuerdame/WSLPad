@@ -14,6 +14,8 @@ import type {
   DistroSummary,
   DnsInfo,
   DockerInfo,
+  TerminalProfilesInfo,
+  ZoneIdentifierInfo,
   EnvironmentVariableInfo,
   ExplorerContext,
   FirewallInfo,
@@ -53,6 +55,8 @@ interface DashboardSections {
   tools: ToolInfo[]
   hermes: HermesInfo | null
   docker: DockerInfo | null
+  zoneIdentifier: ZoneIdentifierInfo | null
+  terminalProfiles: TerminalProfilesInfo | null
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
   services: ServiceInfo[]
@@ -123,6 +127,8 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     tools: [],
     hermes: null,
     docker: null,
+    zoneIdentifier: null,
+    terminalProfiles: null,
     environment: [],
     processes: [],
     services: [],
@@ -368,7 +374,9 @@ export class SnapshotStore {
           ),
           this.collectDiskImage(distro, s),
           this.collectWslSettings(distro, s),
-          this.collectDocker(distro, s)
+          this.collectDocker(distro, s),
+          this.collectZoneIdentifiers(distro, s),
+          this.collectTerminalProfiles(s)
         ])
       }
       this.recomputeWarnings()
@@ -484,6 +492,35 @@ export class SnapshotStore {
       () => read.call(this.provider, distro),
       (v) => {
         s.docker = v
+      }
+    )
+  }
+
+  /** Windows Terminal profiles, slow tier: one host file, edited by hand. */
+  private async collectTerminalProfiles(s: DashboardSections): Promise<void> {
+    const read = this.provider.getTerminalProfiles
+    if (read === undefined) return
+    await this.collect(
+      'terminal profiles',
+      () => read.call(this.provider),
+      (v) => {
+        s.terminalProfiles = v
+      }
+    )
+  }
+
+  /**
+   * Windows download markers, slow tier: it walks the home directory, and the
+   * count only moves when something is copied in from Windows.
+   */
+  private async collectZoneIdentifiers(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getZoneIdentifiers
+    if (read === undefined) return
+    await this.collect(
+      'download markers',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.zoneIdentifier = v
       }
     )
   }

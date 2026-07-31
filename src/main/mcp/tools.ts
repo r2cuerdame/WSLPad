@@ -8,6 +8,8 @@ import type {
   FileEntryType,
   TextFileContent
 } from '@shared/types'
+import { describeOwnership, portOwnership } from '@shared/port-ownership'
+import { terminalProfileSnippet } from '@shared/terminal-profile'
 import { ExplorerError, type ExplorerBackend } from '../wsl/contracts'
 import { assertValidLinuxPath } from '../wsl/escape'
 import { isSecretName, maskTextFileContent } from './masking'
@@ -49,6 +51,10 @@ export const MCP_TOOL_NAMES = [
   'GetFileInfo',
   'GetTextFile',
   'GetPathMapping',
+  'GetPortOwner',
+  'GetCommandResolution',
+  'GetZoneIdentifiers',
+  'GetTerminalProfiles',
   'GetExplorerContext',
   'GetConsoleContext'
 ] as const
@@ -699,6 +705,125 @@ export function createMcpServer(deps: McpDeps): McpServer {
         }
         return fail(
           `cannot map path: ${path} is neither an absolute Linux path nor an absolute Windows path`
+        )
+      })
+    )
+  )
+
+  server.registerTool(
+    'GetPortOwner',
+    {
+      description:
+        'Answer "who owns this port": the listener inside the distribution, the process ' +
+        'behind it, the Windows-side listener on the same port, whether Windows can ' +
+        'reach it, and any Windows forwarding rule that mentions it. Reads only what ' +
+        'has already been collected — asking never starts a process.',
+      inputSchema: {
+        port: z.number().int().min(1).max(65535).describe('TCP/UDP port number, e.g. 3000')
+      },
+      annotations: readOnly
+    },
+    guard(({ port }: { port: number }) =>
+      withDashboard((dash) => {
+        const owner = portOwnership(dash, port)
+        return ok(describeOwnership(owner), { ownership: owner })
+      })
+    )
+  )
+
+  server.registerTool(
+    'GetCommandResolution',
+    {
+      description:
+        'Answer "which binary does this command actually run": the resolved path, every ' +
+        'match on PATH in order, what the winner shadows, and whether it is a Windows ' +
+        'executable reached through /mnt. Resolves the name; never runs it.',
+      inputSchema: {
+        command: z
+          .string()
+          .min(1)
+          .max(64)
+          .describe('A command name such as "python" or "node" — a name, not a path')
+      },
+      annotations: readOnly
+    },
+    guard(({ command }: { command: string }) =>
+      withDistro(async (distro) => {
+        const resolve = deps.resolveCommand
+        if (resolve === undefined) return fail('command resolution is not available')
+        const resolution = await resolve(distro, command)
+        if (resolution === null) {
+          // Not the same as "not installed", and must never read as it.
+          return fail(
+            `could not resolve ${command} in ${distro}: it is not a plain command name, ` +
+              'or the distribution did not answer'
+          )
+        }
+        const summary =
+          resolution.kind === 'not-found'
+            ? `${command} resolves to nothing in ${distro}`
+            : resolution.kind === 'builtin'
+              ? `${command} is a shell builtin in ${distro}`
+              : `${command} resolves to ${resolution.path}` +
+                (resolution.shadowedByWindows ? ' — a Windows executable reached through /mnt' : '')
+        return ok(summary, { resolution })
+      })
+    )
+  )
+
+  server.registerTool(
+    'GetZoneIdentifiers',
+    {
+      description:
+        'Count the *:Zone.Identifier files Windows leaves behind in the home directory, ' +
+        'where they sit, and the command that would remove them. A null count means the ' +
+        'search did not finish — never that the tree is clean.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) =>
+        dash.zoneIdentifier === null
+          ? ok('Windows download markers have not been counted yet', { zoneIdentifier: null })
+          : ok(
+              dash.zoneIdentifier.count === null
+                ? `the search under ${dash.zoneIdentifier.root} did not finish`
+                : `${dash.zoneIdentifier.count} Windows download marker(s) under ${dash.zoneIdentifier.root}`,
+              { zoneIdentifier: dash.zoneIdentifier }
+            )
+      )
+    )
+  )
+
+  server.registerTool(
+    'GetTerminalProfiles',
+    {
+      description:
+        "Windows Terminal's profiles, which distribution each one opens, and — for a " +
+        'distribution with no profile — the JSON that would add one. WSLPad never writes ' +
+        'settings.json.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) => {
+        const profiles = dash.terminalProfiles
+        if (profiles === null) {
+          return ok('Windows Terminal settings have not been read yet', { terminalProfiles: null })
+        }
+        const mine = profiles.profiles.find((p) => p.distro === dash.distro.name) ?? null
+        return ok(
+          profiles.installed === false
+            ? 'Windows Terminal is not installed'
+            : profiles.error !== null
+              ? profiles.error
+              : mine === null
+                ? `${dash.distro.name} has no Windows Terminal profile`
+                : `${dash.distro.name} opens through the profile "${mine.name}"`,
+          {
+            terminalProfiles: profiles,
+            profileForSelectedDistro: mine,
+            // Offered as text, exactly as the UI offers it.
+            suggestedProfile: mine === null ? terminalProfileSnippet(dash.distro.name) : null
+          }
         )
       })
     )

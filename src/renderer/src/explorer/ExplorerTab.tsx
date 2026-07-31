@@ -8,6 +8,7 @@ import { ContextMenu, type MenuItem } from './ContextMenu'
 import { EditorOverlay } from './EditorOverlay'
 import { FilePane } from './FilePane'
 import { PropertiesDialog } from './PropertiesDialog'
+import { TrashDialog } from './TrashDialog'
 import { Splitter, loadSplit } from './Splitter'
 import { TransferProgress } from './TransferProgress'
 import { createLinuxAdapter, createWindowsAdapter } from './fsAdapter'
@@ -58,6 +59,7 @@ export function ExplorerTab(): React.JSX.Element {
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [editor, setEditor] = useState<TargetPath | null>(null)
   const [properties, setProperties] = useState<TargetPath | null>(null)
+  const [trashOpen, setTrashOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ count: number; run: () => void } | null>(null)
   const [navRequest, setNavRequest] = useState<{ id: number; path: string; fs: FsKind } | null>(null)
 
@@ -193,6 +195,7 @@ export function ExplorerTab(): React.JSX.Element {
             onPathChange={onLinuxPathChange}
             startPath={linuxStart}
             resetKey={distro ?? 'no-distro'}
+            onOpenTrash={distro === null ? undefined : () => setTrashOpen(true)}
             showHiddenDefault={showHiddenDefault}
             navRequest={paneNav('linux')}
             unavailableMessage={distro === null ? t('explorer.noDistro') : null}
@@ -206,6 +209,21 @@ export function ExplorerTab(): React.JSX.Element {
 
       {editor && (
         <EditorOverlay path={editor.path} fs={editor.fs} onClose={() => setEditor(null)} />
+      )}
+
+      {trashOpen && (
+        <TrashDialog
+          onClose={() => setTrashOpen(false)}
+          onRestored={(paths) => {
+            // The folder a file came back to is where someone wants to be
+            // looking; navigating there also reloads the listing it rejoined.
+            const first = paths[0]
+            if (first === undefined) return
+            const parent = first.replace(/\/[^/]*$/, '') || '/'
+            setNavRequest({ id: Date.now(), path: parent, fs: 'linux' })
+            setActivePane('linux')
+          }}
+        />
       )}
 
       {properties && (

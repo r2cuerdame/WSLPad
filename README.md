@@ -118,9 +118,9 @@ answer.
 ## MCP server (read-only)
 
 While WSLPad sits in the tray it serves MCP at `http://127.0.0.1:4923/mcp`
-(Streamable HTTP, localhost-only, Bearer-token auth) with 31 `Get*` tools —
+(Streamable HTTP, localhost-only, Bearer-token auth) with 35 `Get*` tools —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
-`GetPathMapping`, … There are deliberately no write/run/kill tools; secrets
+`GetPortOwner`, `GetCommandResolution`, … There are deliberately no write/run/kill tools; secrets
 and private keys never cross the MCP boundary. One-click registration for
 Claude Desktop (stdio bridge), Codex and Hermes, plus `Copy for LLM` which
 puts a masked Markdown state summary on your clipboard.
@@ -240,7 +240,20 @@ free and total space.
 running, waiting for input, waiting for a sudo password, disconnected,
 distribution stopped, or could not start — the last one with the reason).
 
-**Over MCP** — all of the above through 31 read-only `Get*` tools.
+**Windows download markers** — every file copied in from Windows leaves a
+`:Zone.Identifier` file beside it, forever. WSLPad counts them, names the
+folders holding them, and prepares the cleanup command.
+
+**Windows Terminal** — whether this distro has a profile at all, whether it is
+hidden, and the JSON to add one when it has none. WSLPad never writes
+settings.json.
+
+**Trash** — what Explorer sent to the trash, where each file came from, and a
+restore that puts it back. If something is already at the destination the
+restore stops: an undo that destroys a file is not an undo.
+
+
+**Over MCP** — all of the above through 35 read-only `Get*` tools.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings & languages
@@ -307,7 +320,7 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.1.10)
+## Current limitations (v0.2.0)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is
@@ -324,15 +337,13 @@ no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
   copy-only by design, so nothing is deleted if a transfer fails
 - Dragging in from an external Windows Explorer window depends on Electron
   exposing file paths; use the left pane (or the Import menu) instead
-- Trash restore UI not yet included (files land in the standard Linux Trash /
-  Windows Recycle Bin, restorable from there)
 - MCP stdio bridge requires the tray app to be running
 
 ## Roadmap
 
-Next: agent-grade MCP tools shaped around the questions an agent actually asks
-(path mapping, who owns a port, which binary resolves), a Trash restore UI, a
-read-only service log view, an ARM64 build and a signed installer.
+Next: a read-only service log view (`journalctl` without opening a shell),
+flagging a project that lives on a slow `/mnt` path, an ARM64 build and a
+signed installer.
 
 ## Community
 

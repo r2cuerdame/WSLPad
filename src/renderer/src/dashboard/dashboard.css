@@ -1158,3 +1158,16 @@
   width: 22px;
   height: 22px;
 }
+
+/* A profile to paste into settings.json: shown whole, because a truncated
+   JSON object is not something anyone can copy usefully. */
+.code-block {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-sunken, rgb(127 127 127 / 8%));
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}

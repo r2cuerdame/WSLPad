@@ -109,6 +109,27 @@ test.describe('dual-pane explorer + console (goal.md §18.3: 5, 6, 7, 8, 9, 10)'
     await page.keyboard.press('Escape')
   })
 
+  test('sends a file to the trash and puts it back from there (issue #23)', async () => {
+    const { page } = launched
+    const notes = row(wslPane(page), /^notes.md/)
+    await expect(notes).toBeVisible({ timeout: 15000 })
+    await notes.click()
+    await page.keyboard.press('Delete')
+    await expect(notes).toBeHidden({ timeout: 15000 })
+
+    await wslPane(page).getByRole('button', { name: 'Trash' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Trash' })
+    await expect(dialog).toBeVisible({ timeout: 10000 })
+    // The listing is addressed by where the file came from, which is the only
+    // thing that identifies it once it is out of its folder.
+    await dialog.getByRole('checkbox', { name: '/home/dev/notes.md' }).check()
+    await dialog.getByRole('button', { name: 'Restore' }).click()
+
+    await expect(dialog.getByText('The trash is empty.')).toBeVisible({ timeout: 10000 })
+    await page.keyboard.press('Escape')
+    await expect(row(wslPane(page), /^notes.md/)).toBeVisible({ timeout: 15000 })
+  })
+
   test('copies a file from Windows into the distro', async () => {
     const { page } = launched
     await row(winPane(page), /^Documents/).dblclick()

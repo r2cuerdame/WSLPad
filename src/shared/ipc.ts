@@ -14,6 +14,7 @@ import type {
   TerminalSessionInfo,
   TerminalStatusEvent,
   TextFileContent,
+  TrashEntry,
   UpdateStatus,
   WindowsPlace,
   WslPadSnapshot
@@ -44,6 +45,8 @@ export const IpcChannels = {
   explorerRename: 'wslpad:explorer:rename',
   explorerCopy: 'wslpad:explorer:copy',
   explorerTrash: 'wslpad:explorer:trash',
+  explorerTrashList: 'wslpad:explorer:trash-list',
+  explorerTrashRestore: 'wslpad:explorer:trash-restore',
   explorerDelete: 'wslpad:explorer:delete',
   explorerReadText: 'wslpad:explorer:read-text',
   explorerWriteText: 'wslpad:explorer:write-text',
@@ -162,6 +165,10 @@ export interface WslPadApi {
     /** copy or move sources into destDir; returns opId */
     copy(sources: string[], destDir: string, move: boolean): Promise<string>
     trash(paths: string[]): Promise<void>
+    /** What is in the distro trash right now, newest first (issue #23). */
+    listTrash(): Promise<TrashEntry[]>
+    /** Put entries back; never overwrites what is already at the destination. */
+    restoreTrash(trashNames: string[]): Promise<void>
     remove(paths: string[]): Promise<void>
     readText(path: string): Promise<TextFileContent>
     writeText(path: string, content: string): Promise<void>

@@ -45,6 +45,21 @@ const clientKindSchema = z.enum(['claude-desktop', 'codex', 'hermes'])
 const llmPresetSchema = z.enum(['default', 'bug-report', 'agent-context'])
 const listOptsSchema = z.object({ showHidden: z.boolean().optional() }).optional()
 const pathsSchema = z.array(linuxPathSchema).min(1).max(1000)
+/**
+ * A trash name is a single filename inside Trash/files — never a path. A name
+ * carrying a slash or a .. would address something outside the trash entirely.
+ */
+const trashNamesSchema = z
+  .array(
+    z
+      .string()
+      .min(1)
+      .max(255)
+      .regex(/^[^/\\]+$/)
+      .refine((n) => n !== '.' && n !== '..')
+  )
+  .min(1)
+  .max(1000)
 const winPathsSchema = z.array(windowsPathSchema).min(1).max(1000)
 /** The Windows pane also accepts the "This PC" sentinel wherever a dir is taken. */
 const winRootOrPathSchema = z.union([z.literal(WINDOWS_ROOT), windowsPathSchema])
@@ -141,6 +156,10 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     deps.explorer.copyMove(distro(), pathsSchema.parse(sources), linuxPathSchema.parse(destDir), boolSchema.parse(move))
   )
   handle(IpcChannels.explorerTrash, (paths) => deps.explorer.trash(distro(), pathsSchema.parse(paths)))
+  handle(IpcChannels.explorerTrashList, () => deps.explorer.listTrash(distro()))
+  handle(IpcChannels.explorerTrashRestore, (names) =>
+    deps.explorer.restoreTrash(distro(), trashNamesSchema.parse(names))
+  )
   handle(IpcChannels.explorerDelete, (paths) => deps.explorer.remove(distro(), pathsSchema.parse(paths)))
   handle(IpcChannels.explorerReadText, (path) =>
     deps.explorer.readText(distro(), linuxPathSchema.parse(path), MAX_EDITOR_FILE_BYTES)

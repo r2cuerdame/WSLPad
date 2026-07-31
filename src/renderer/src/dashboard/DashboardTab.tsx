@@ -188,7 +188,7 @@ export default function DashboardTab(): React.JSX.Element {
       case 'resources':
         return <ResourceCard resources={dash.resources} memoryDetail={dash.memoryDetail} />
       case 'disk':
-        return <DiskCard disk={dash.disk} />
+        return <DiskCard disk={dash.disk} zone={dash.zoneIdentifier} />
       case 'wslconfig':
         return <WslSettingsCard settings={dash.wslSettings} />
       case 'network':
@@ -203,7 +203,13 @@ export default function DashboardTab(): React.JSX.Element {
       case 'paths':
         return <PathsCard paths={dash.paths} />
       case 'configuration':
-        return <ConfigCard files={dash.configuration} />
+        return (
+          <ConfigCard
+            files={dash.configuration}
+            terminalProfiles={dash.terminalProfiles}
+            distro={dash.distro.name}
+          />
+        )
       case 'tools':
         return (
           <ToolsCard

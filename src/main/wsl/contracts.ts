@@ -21,9 +21,12 @@ import type {
   ServiceInfo,
   SystemInfo,
   TextFileContent,
+  TrashEntry,
   ToolInfo,
   WindowsPortInfo,
-  WslConfigInfo
+  TerminalProfilesInfo,
+  WslConfigInfo,
+  ZoneIdentifierInfo
 } from '@shared/types'
 
 // ---------------------------------------------------------------------------
@@ -129,6 +132,14 @@ export interface WslProvider {
    * leaves the section null (unknown) rather than implying Docker is absent.
    */
   getDocker?(distro: string): Promise<DockerInfo | null>
+  /**
+   * `:Zone.Identifier` residue in the home directory. Optional for the same
+   * reason as Docker: a provider without it leaves the section unknown rather
+   * than claiming a clean tree.
+   */
+  getZoneIdentifiers?(distro: string): Promise<ZoneIdentifierInfo | null>
+  /** Host-wide: Windows Terminal profiles live in Windows, not in a distro. */
+  getTerminalProfiles?(): Promise<TerminalProfilesInfo>
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +203,13 @@ export interface ExplorerBackend {
   /** Returns opId; progress via onProgress callback registered by caller. */
   copyMove(distro: string, sources: string[], destDir: string, move: boolean): Promise<string>
   trash(distro: string, paths: string[]): Promise<void>
+  /** What is in the trash right now, newest first (issue #23). */
+  listTrash(distro: string): Promise<TrashEntry[]>
+  /**
+   * Put entries back where they came from. Never overwrites: a restore that
+   * destroyed the file at the destination would defeat its own purpose.
+   */
+  restoreTrash(distro: string, trashNames: string[]): Promise<void>
   remove(distro: string, paths: string[]): Promise<void>
   readText(distro: string, path: string, maxBytes: number): Promise<TextFileContent>
   writeText(distro: string, path: string, content: string): Promise<void>

@@ -26,7 +26,9 @@ import type {
   SystemInfo,
   ToolInfo,
   WindowsPortInfo,
-  WslConfigInfo
+  TerminalProfilesInfo,
+  WslConfigInfo,
+  ZoneIdentifierInfo
 } from '@shared/types'
 import { isPathLikeName, isSecretName, looksWindowsOriginated, maskEnvValue } from '@shared/masking'
 import type { WslProvider } from '../contracts'
@@ -42,6 +44,8 @@ import {
   fixtureEnvRaw,
   fixtureFirewall,
   fixtureDocker,
+  fixtureTerminalProfiles,
+  fixtureZoneIdentifiers,
   fixturePortProxy,
   fixtureHermes,
   fixtureImportantPaths,
@@ -128,6 +132,14 @@ export class FixtureWslProvider implements WslProvider {
 
   async getDocker(distro: string): Promise<DockerInfo | null> {
     return fixtureDocker(this.known(distro))
+  }
+
+  async getZoneIdentifiers(distro: string): Promise<ZoneIdentifierInfo | null> {
+    return fixtureZoneIdentifiers(this.known(distro))
+  }
+
+  async getTerminalProfiles(): Promise<TerminalProfilesInfo> {
+    return fixtureTerminalProfiles()
   }
 
   /** Host-wide: portproxy rules live in Windows, judged against the distro IP. */

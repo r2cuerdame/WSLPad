@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
-import type { ConfigurationFileInfo } from '@shared/types'
+import type { ConfigurationFileInfo, TerminalProfilesInfo } from '@shared/types'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import { FileIcon, FolderIcon, TerminalIcon } from '../components/Icons'
+import TerminalProfilesBlock from './TerminalProfilesBlock'
 
 const shQuote = (v: string): string => `'${v.replace(/'/g, "'\\''")}'`
 const dirname = (p: string): string => p.replace(/\/[^/]*$/, '') || '/'
@@ -13,9 +14,16 @@ const dotClass = (exists: boolean | null): string =>
 
 export interface ConfigCardProps {
   files: ConfigurationFileInfo[]
+  /** Host-wide, but judged against the distro this dashboard describes. */
+  terminalProfiles: TerminalProfilesInfo | null
+  distro: string
 }
 
-export default function ConfigCard({ files }: ConfigCardProps): React.JSX.Element {
+export default function ConfigCard({
+  files,
+  terminalProfiles,
+  distro
+}: ConfigCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { navigateExplorer, prepareCommand, pushToast } = useApp()
 
@@ -106,6 +114,7 @@ export default function ConfigCard({ files }: ConfigCardProps): React.JSX.Elemen
           </div>
         )
       })}
+      <TerminalProfilesBlock profiles={terminalProfiles} distro={distro} />
     </Card>
   )
 }

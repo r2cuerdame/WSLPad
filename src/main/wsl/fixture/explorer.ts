@@ -10,6 +10,7 @@ import type {
   FileEntry,
   FileOpProgress,
   FileStat,
+  TrashEntry,
   TextFileContent
 } from '@shared/types'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
@@ -553,6 +554,57 @@ export class FixtureExplorerBackend implements ExplorerBackend {
         info,
         this.fs.file(`${unique}.trashinfo`, infoContent, { mtime: FIXTURE_NEW_MTIME })
       )
+    }
+  }
+
+  async listTrash(distro: string): Promise<TrashEntry[]> {
+    this.ensureDistro(distro, FIXTURE_HOME)
+    const files = this.ensureTrashDir('files')
+    const info = this.ensureTrashDir('info')
+    const entries: TrashEntry[] = []
+    for (const [name, node] of info.children ?? []) {
+      if (!name.endsWith('.trashinfo')) continue
+      const trashName = name.slice(0, -'.trashinfo'.length)
+      const content = node.content ?? ''
+      const originalPath = /^Path=(.*)$/m.exec(content)?.[1] ?? ''
+      if (originalPath === '') continue
+      const trashed = files.children?.get(trashName) ?? null
+      entries.push({
+        trashName,
+        originalPath,
+        deletedAt: /^DeletionDate=(.*)$/m.exec(content)?.[1] ?? null,
+        type: trashed === null ? 'other' : trashed.type === 'directory' ? 'directory' : 'file',
+        present: trashed !== null,
+        sizeBytes: trashed?.content?.length ?? null
+      })
+    }
+    return entries.sort((a, b) => (b.deletedAt ?? '').localeCompare(a.deletedAt ?? ''))
+  }
+
+  async restoreTrash(distro: string, trashNames: string[]): Promise<void> {
+    this.ensureDistro(distro, FIXTURE_HOME)
+    const files = this.ensureTrashDir('files')
+    const info = this.ensureTrashDir('info')
+    const entries = await this.listTrash(distro)
+    for (const trashName of trashNames) {
+      const entry = entries.find((e) => e.trashName === trashName)
+      if (entry === undefined) {
+        throw new ExplorerError('ENOENT', trashName, `Nothing in the trash is called ${trashName}`)
+      }
+      const node = files.children?.get(trashName)
+      if (node === undefined) {
+        throw new ExplorerError('ENOENT', entry.originalPath, 'The trashed copy is gone')
+      }
+      const dest = this.fs.normalizePath(entry.originalPath)
+      if (this.fs.getNode(dest) !== null) {
+        throw new ExplorerError('EEXIST', dest, `${dest} already exists`)
+      }
+      const parentPath = dest.replace(/\/[^/]*$/, '') || '/'
+      const parent = this.requireDir(parentPath)
+      files.children?.delete(trashName)
+      node.name = dest.slice(dest.lastIndexOf('/') + 1)
+      this.fs.attach(parent, node)
+      info.children?.delete(`${trashName}.trashinfo`)
     }
   }
 

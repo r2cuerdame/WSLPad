@@ -6,7 +6,7 @@ import {
 } from 'node:http'
 import type { AddressInfo, Socket } from 'node:net'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import type { McpStatus, WslPadSnapshot } from '@shared/types'
+import type { CommandResolution, McpStatus, WslPadSnapshot } from '@shared/types'
 import type { ExplorerBackend } from '../wsl/contracts'
 import { createMcpServer } from './tools'
 
@@ -14,6 +14,12 @@ export interface McpDeps {
   getSnapshot(): WslPadSnapshot
   explorer: ExplorerBackend
   getSelectedDistro(): string | null
+  /**
+   * Resolve one command name inside a distro. Optional: without it the tool
+   * reports that it cannot look, which is not the same as 'not installed'.
+   * The name is validated before it reaches a shell.
+   */
+  resolveCommand?(distro: string, command: string): Promise<CommandResolution | null>
 }
 
 const CLIENT_WINDOW_MS = 5 * 60 * 1000

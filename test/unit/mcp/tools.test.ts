@@ -39,6 +39,10 @@ const GOAL_TOOLS = [
   'GetFileInfo',
   'GetTextFile',
   'GetPathMapping',
+  'GetPortOwner',
+  'GetCommandResolution',
+  'GetZoneIdentifiers',
+  'GetTerminalProfiles',
   'GetExplorerContext',
   'GetConsoleContext'
 ]
@@ -302,5 +306,90 @@ describe('maskTextFileContent', () => {
     const masked = maskTextFileContent('/home/user/creds.pem', 'just text\n')
     expect(masked.warning).toBe('sensitive file')
     expect(masked.content).toBe('just text\n')
+  })
+})
+
+describe('tools shaped like the questions an agent actually asks', () => {
+  it('answers who owns a port from what was already collected', async () => {
+    const client = await connect(makeDeps())
+    const result = await call(client, 'GetPortOwner', { port: 8600 })
+
+    const own = result.structuredContent?.ownership as Record<string, unknown>
+    expect((own.linux as { processName: string }).processName).toBe('hermes')
+    // The pid on the listener is matched back to the process behind it, which
+    // is the join an agent would otherwise have to do itself.
+    expect((own.process as { command: string }).command).toBe('hermes gateway')
+    expect(result.content[0].text).toContain('Port 8600')
+  })
+
+  it('says nothing is listening rather than erroring on a free port', async () => {
+    const client = await connect(makeDeps())
+    const result = await call(client, 'GetPortOwner', { port: 65000 })
+    expect(result.isError).toBeFalsy()
+    expect(result.content[0].text).toContain('Nothing is listening')
+  })
+
+  it('resolves a command name to the binary that really runs', async () => {
+    const client = await connect({
+      ...makeDeps(),
+      resolveCommand: async (_distro: string, command: string) => ({
+        command,
+        kind: 'file' as const,
+        path: '/mnt/c/Users/dev/AppData/Local/Microsoft/WindowsApps/python.exe',
+        matches: ['/mnt/c/Users/dev/AppData/Local/Microsoft/WindowsApps/python.exe'],
+        shadows: [],
+        pathEntries: ['/usr/bin', '/mnt/c/Windows'],
+        shadowedByWindows: true
+      })
+    })
+    const result = await call(client, 'GetCommandResolution', { command: 'python' })
+    expect(result.content[0].text).toContain('Windows executable')
+    expect(
+      (result.structuredContent?.resolution as { shadowedByWindows: boolean }).shadowedByWindows
+    ).toBe(true)
+  })
+
+  it('does not turn "could not look" into "not installed"', async () => {
+    const client = await connect({ ...makeDeps(), resolveCommand: async () => null })
+    const result = await call(client, 'GetCommandResolution', { command: 'python' })
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('did not answer')
+    expect(result.content[0].text).not.toContain('not installed')
+  })
+
+  it('reports an uncounted home directory as uncounted, not as clean', async () => {
+    const client = await connect(makeDeps())
+    const result = await call(client, 'GetZoneIdentifiers')
+    expect(result.structuredContent?.zoneIdentifier).toBeNull()
+    expect(result.content[0].text).toContain('not been counted')
+  })
+
+  it('offers the profile JSON for a distro Windows Terminal cannot open', async () => {
+    const snapshot = makeSnapshot()
+    const dash = snapshot.dashboard
+    if (dash === null) throw new Error('fixture has no dashboard')
+    dash.terminalProfiles = {
+      settingsPath: 'C:\\settings.json',
+      installed: true,
+      defaultProfile: null,
+      profiles: [
+        {
+          name: 'Windows PowerShell',
+          guid: '{a}',
+          source: null,
+          commandLine: 'powershell.exe',
+          distro: null,
+          hidden: false,
+          isDefault: false
+        }
+      ],
+      error: null
+    }
+    const client = await connect(makeDeps({ snapshot }))
+    const result = await call(client, 'GetTerminalProfiles')
+
+    expect(result.content[0].text).toContain('no Windows Terminal profile')
+    const suggested = result.structuredContent?.suggestedProfile as string
+    expect(JSON.parse(suggested)).toMatchObject({ commandLine: `wsl.exe -d ${dash.distro.name}` })
   })
 })

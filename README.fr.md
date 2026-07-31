@@ -116,9 +116,9 @@ Elle se répare aussi toute seule. WSL est souvent encore occupé quand WSLPad d
 
 Tant que WSLPad reste dans la zone de notification, il sert MCP sur
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, localhost uniquement,
-authentification par jeton Bearer) avec 31 outils `Get*` —
+authentification par jeton Bearer) avec 35 outils `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
-`GetPathMapping`, … Il n'y a délibérément aucun outil d'écriture, d'exécution
+`GetPortOwner`, `GetCommandResolution`, … Il n'y a délibérément aucun outil d'écriture, d'exécution
 ou de kill ; les secrets et les clés privées ne franchissent jamais la
 frontière MCP. Enregistrement en un clic pour Claude Desktop (pont stdio),
 Codex et Hermes, plus `Copier pour un LLM` qui place dans votre presse-papiers
@@ -234,7 +234,22 @@ lecteur côté Windows : espace libre et espace total.
 
 **Console** — la distribution, le dossier courant, et l'état du shell (prêt, en cours d'exécution, en attente d'une saisie, en attente d'un mot de passe sudo, déconnecté, distribution arrêtée, ou démarrage impossible — ce dernier avec la raison).
 
-**Via MCP** — tout ce qui précède à travers 31 outils `Get*` en lecture seule.
+**Marqueurs de téléchargement Windows** — chaque fichier copié depuis Windows
+laisse à côté de lui un fichier `:Zone.Identifier`, pour toujours. WSLPad les
+compte, indique dans quels dossiers ils se trouvent et prépare la commande de
+nettoyage.
+
+**Terminal Windows** — si cette distribution a un profil, s'il est masqué, et le
+JSON pour en ajouter un quand il n'y en a pas. WSLPad n'écrit jamais
+settings.json.
+
+**Corbeille** — ce que l'explorateur y a envoyé, d'où venait chaque fichier, et
+une restauration qui le remet en place. Si quelque chose occupe déjà la
+destination, la restauration s'arrête : annuler en détruisant un fichier, ce
+n'est pas annuler.
+
+
+**Via MCP** — tout ce qui précède à travers 35 outils `Get*` en lecture seule.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings et langues
@@ -308,7 +323,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.1.10)
+## Limites actuelles (v0.2.0)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)
@@ -332,19 +347,14 @@ d'autre.
 - Le glisser-déposer depuis une fenêtre externe de l'Explorateur Windows dépend
   de l'exposition des chemins de fichiers par Electron ; utilisez plutôt le
   volet de gauche (ou le menu Importer)
-- L'interface de restauration depuis la corbeille n'est pas encore incluse (les
-  fichiers atterrissent dans la corbeille Linux standard / la Corbeille Windows,
-  d'où ils restent restaurables)
 - Le pont MCP stdio nécessite que l'application de la zone de notification soit
   en cours d'exécution
 
 ## Feuille de route
 
-Prochaine étape : des outils MCP de qualité agent, façonnés autour des questions
-qu'un agent pose réellement (correspondance des chemins, à qui appartient un
-port, quel binaire est résolu), une interface de restauration depuis la
-corbeille, une visionneuse de journaux de services en lecture seule, une version
-ARM64 et un programme d'installation signé.
+Ensuite : une vue en lecture seule des journaux de service (`journalctl` sans
+ouvrir de shell), signaler un projet installé sur un chemin `/mnt` lent, une
+compilation ARM64 et un installateur signé.
 
 ## Communauté
 

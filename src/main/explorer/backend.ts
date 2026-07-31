@@ -20,7 +20,7 @@ import {
   type OpContext
 } from './operations'
 import { convertLinuxToWindows, convertWindowsToLinux } from './path-convert'
-import { trashEntries } from './trash'
+import { listTrash, restoreFromTrash, trashEntries } from './trash'
 import { runExport, runImport } from './transfer'
 
 /**
@@ -105,6 +105,11 @@ export function createRealExplorerBackend(runner: DistroRunner): ExplorerBackend
       const home = await homeDir(distro)
       await trashEntries(runner, distro, paths, home)
     },
+
+    listTrash: async (distro) => listTrash(runner, distro, await homeDir(distro)),
+
+    restoreTrash: async (distro, trashNames) =>
+      restoreFromTrash(runner, distro, await homeDir(distro), trashNames),
 
     remove: (distro, paths) => removeEntries(runner, distro, paths),
 

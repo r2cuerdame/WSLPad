@@ -225,6 +225,14 @@ export class FakeExplorer implements ExplorerBackend {
     throw this.mutation()
   }
 
+  async listTrash(): Promise<never[]> {
+    return []
+  }
+
+  async restoreTrash(): Promise<void> {
+    throw this.mutation()
+  }
+
   async remove(): Promise<void> {
     throw this.mutation()
   }
@@ -352,6 +360,8 @@ export function makeDashboard(): DashboardSnapshot {
       }
     ],
     docker: null,
+    zoneIdentifier: null,
+    terminalProfiles: null,
     hermes: {
       installed: true,
       executablePath: '/home/user/.local/bin/hermes',

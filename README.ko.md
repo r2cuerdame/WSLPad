@@ -109,9 +109,9 @@ WSLPad 내부 조회는 별도의 숨은 러너가 실행합니다.
 ## MCP 서버 (읽기 전용)
 
 WSLPad가 트레이에 떠 있는 동안 `http://127.0.0.1:4923/mcp`에서 MCP를 제공합니다
-(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 31개의 `Get*` —
+(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 35개의 `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
-`GetPathMapping`, … 쓰기/실행/종료 도구는 의도적으로 두지 않았고, 비밀 값과 개인
+`GetPortOwner`, `GetCommandResolution`, … 쓰기/실행/종료 도구는 의도적으로 두지 않았고, 비밀 값과 개인
 키는 MCP 경계를 넘지 않습니다. Claude Desktop(stdio 브리지), Codex, Hermes는 클릭
 한 번으로 등록할 수 있으며, `Copy for LLM`(LLM용 복사)을 누르면 마스킹된 Markdown
 상태 요약이 클립보드에 담깁니다.
@@ -222,7 +222,19 @@ Linux 권한, 심볼릭 링크 대상. Windows 쪽에서는 드라이브마다 �
 sudo 암호 대기 중, 연결 끊김, 배포판 중지됨, 시작하지 못함 — 마지막 상태는 이유와
 함께).
 
-**MCP로** — 위의 모든 것을 31개의 읽기 전용 `Get*` 도구로.
+**Windows 다운로드 표시 파일** — Windows에서 복사해 온 파일마다 그 옆에
+`:Zone.Identifier` 파일이 영영 남습니다. 몇 개인지, 어느 폴더에 있는지 보여주고
+정리 명령을 준비합니다.
+
+**Windows 터미널** — 이 배포판을 열 프로필이 있는지, 숨겨져 있는지 보여주고,
+없으면 붙여 넣을 JSON을 제시합니다. settings.json은 직접 쓰지 않습니다.
+
+**휴지통** — Explorer가 휴지통으로 보낸 것과 각 파일이 원래 있던 자리를 보여주고
+되돌립니다. 되돌릴 자리에 이미 무언가 있으면 멈춥니다. 파일을 지우는 되돌리기는
+되돌리기가 아닙니다.
+
+
+**MCP로** — 위의 모든 것을 35개의 읽기 전용 `Get*` 도구로.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings(설정) & 언어
@@ -287,7 +299,7 @@ WSLPad는 배포판 관리자나 마켓플레이스가 *아니고*, Docker Deskt
 없습니다. 정체성은 **Dashboard + Explorer + Console + 읽기 전용 MCP** — 그게
 전부입니다.
 
-## 현재 제한 사항 (v0.1.10)
+## 현재 제한 사항 (v0.2.0)
 
 - Windows x64 전용이며, 설치 프로그램은 서명되어 있지 않습니다(SmartScreen 경고)
 - 디스크 이미지 수치에는 Windows 레지스트리와 `fsutil`이 필요합니다. 둘 중 하나라도
@@ -304,15 +316,12 @@ WSLPad는 배포판 관리자나 마켓플레이스가 *아니고*, Docker Deskt
   복사만 하므로, 전송이 실패해도 지워지는 것은 없습니다
 - 바깥의 Windows 탐색기 창에서 끌어오는 방식은 Electron이 파일 경로를 노출하는지에
   달려 있습니다. 대신 왼쪽 패널(또는 가져오기 메뉴)을 사용하세요
-- 휴지통 복원 UI는 아직 없습니다(파일은 표준 Linux 휴지통 / Windows 휴지통으로
-  들어가며, 거기서 복원할 수 있습니다)
 - MCP stdio 브리지는 트레이 앱이 실행 중이어야 동작합니다
 
 ## 로드맵
 
-다음 차례: 에이전트가 실제로 던지는 질문(경로 매핑, 그 포트를 쥐고 있는 것이
-무엇인지, 어떤 바이너리로 연결되는지)에 맞춘 에이전트급 MCP 도구, 휴지통 복원 UI,
-읽기 전용 서비스 로그 뷰, ARM64 빌드, 그리고 서명된 설치 프로그램.
+다음 차례: 읽기 전용 서비스 로그 뷰(셸을 열지 않는 `journalctl`), 느린 `/mnt`
+위에 있는 프로젝트 표시, ARM64 빌드, 그리고 서명된 설치 프로그램.
 
 ## 커뮤니티
 

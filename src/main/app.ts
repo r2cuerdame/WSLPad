@@ -14,8 +14,9 @@ import { PollingScheduler } from './state/polling'
 import { TerminalManager } from './terminal/manager'
 import { SettingsStore } from './settings/store'
 import { getAutostartEnabled, setAutostartEnabled, shouldStartHidden } from './autostart'
-import { AppUpdater } from './updater'
+import { AppUpdater, createPendingInstallStore } from './updater'
 import { McpServerHost } from './mcp/server'
+import { resolveCommand } from './wsl/resolve-command'
 
 /** Composition root: wires settings, backends, store, polling, console, MCP, tray, updater. */
 export class WslPadApp {
@@ -30,7 +31,13 @@ export class WslPadApp {
   private terminals!: TerminalManager
   private mcp!: McpServerHost
   private updater!: AppUpdater
-  private updateStatus: UpdateStatus = { state: 'idle', version: null, percent: null, error: null }
+  private updateStatus: UpdateStatus = {
+    state: 'idle',
+    version: null,
+    percent: null,
+    error: null,
+    installFailedVersion: null
+  }
 
   constructor() {
     this.i18n = createI18n('en')
@@ -62,7 +69,16 @@ export class WslPadApp {
     this.mcp = new McpServerHost({
       getSnapshot: () => this.store.get(),
       explorer: this.backends.explorer,
-      getSelectedDistro: () => this.store.get().selectedDistro
+      getSelectedDistro: () => this.store.get().selectedDistro,
+      // A live lookup, unlike everything else here — but a bounded, read-only
+      // one: the name is validated to be a command name before it can reach a
+      // shell, and resolving is never running.
+      resolveCommand: async (distro, command) => {
+        const runner = this.backends.runner
+        // Fixture mode has no runner: reporting "cannot look" is the honest
+        // answer, and the tool says so rather than "not installed".
+        return runner === null ? null : resolveCommand(runner, distro, command)
+      }
     })
     this.mcp.onStatus((s) => {
       this.store.setMcpStatus(s)
@@ -73,6 +89,10 @@ export class WslPadApp {
     this.updater = new AppUpdater({
       isPackaged: app.isPackaged,
       autoCheck: this.settings.get().updates.autoCheck,
+      currentVersion: app.getVersion(),
+      pendingInstall: createPendingInstallStore(
+        join(app.getPath('userData'), 'pending-install.json')
+      ),
       onStatus: (s) => {
         this.updateStatus = s
         this.send(IpcChannels.evUpdate, s)
@@ -249,6 +269,9 @@ export class WslPadApp {
 
   markQuitting(): void {
     this.quitting = true
+    // A downloaded update installs on quit, so this is the handoff: record the
+    // version now, and the next start can tell whether the installer took.
+    this.updater?.markInstallHandoff()
   }
 
   quit(): void {

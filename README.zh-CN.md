@@ -91,9 +91,9 @@ Console 会跟着切到同一个目录 —— 不会出现可见的 `cd`，也�
 ## MCP 服务器（只读）
 
 只要 WSLPad 还在托盘里，它就会在 `http://127.0.0.1:4923/mcp` 上提供 MCP 服务
-（Streamable HTTP，仅限本机，Bearer 令牌认证），带 31 个 `Get*` 工具 ——
+（Streamable HTTP，仅限本机，Bearer 令牌认证），带 35 个 `Get*` 工具 ——
 `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、`GetTextFile`、
-`GetPathMapping`…… 这里刻意没有任何写入/执行/终止类的工具；密钥和私钥绝不会
+`GetPortOwner`, `GetCommandResolution`…… 这里刻意没有任何写入/执行/终止类的工具；密钥和私钥绝不会
 越过 MCP 边界。支持一键注册到 Claude Desktop（stdio 桥接）、Codex 和 Hermes，
 另外还有 `复制给 LLM`，把脱敏后的 Markdown 状态摘要放进剪贴板。
 详见 [docs/MCP.md](docs/MCP.md)。
@@ -182,7 +182,17 @@ WSL 回环例外、提到 WSL 的规则数），以及名称解析：`/etc/resol
 
 **Console** —— 当前发行版、当前目录，以及 shell 状态（就绪、运行中、等待输入、等待 sudo 密码、已断开连接、发行版已停止、无法启动 —— 最后一项附带原因）。
 
-**通过 MCP** —— 以上全部内容，都可以通过 31 个只读 `Get*` 工具拿到。
+**Windows 下载标记文件** —— 每从 Windows 复制一个文件，旁边就会永久留下一个
+`:Zone.Identifier` 文件。WSLPad 会数出有多少、分布在哪些目录，并准备好清理命令。
+
+**Windows 终端** —— 这个发行版有没有配置文件、是不是被隐藏了；没有的话给出可直接
+粘贴的 JSON。WSLPad 从不写入 settings.json。
+
+**回收站** —— 资源管理器送进回收站的东西、每个文件原本的位置，以及把它放回去的
+还原。如果目标位置已经有东西，还原会停下：会毁掉文件的“撤销”不是撤销。
+
+
+**通过 MCP** —— 以上全部内容，都可以通过 35 个只读 `Get*` 工具拿到。
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings（设置）与语言
@@ -242,7 +252,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 界面、调试器或 LSP，没有云同步，没有 AI 聊天，也不会自动帮你修东西。它的身份
 就是：**Dashboard + Explorer + Console + 只读 MCP** —— 别无其他。
 
-## 当前限制（v0.1.10）
+## 当前限制（v0.2.0）
 
 - 仅支持 Windows x64；安装程序未签名（会有 SmartScreen 警告）
 - 磁盘映像的数字需要读取 Windows 注册表和 `fsutil`；只要有一样读不到，这个
@@ -258,15 +268,12 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
   传输失败时不会有任何东西被删掉
 - 从外部的 Windows 资源管理器窗口往里拖，取决于 Electron 是否暴露文件路径；
   请改用左侧窗格（或导入菜单）
-- 尚未提供回收站还原界面（文件会进入 Linux 标准回收站 / Windows 回收站，可以
-  从那里还原）
 - MCP 的 stdio 桥接需要托盘应用处于运行状态
 
 ## 路线图
 
-接下来：面向 agent 的 MCP 工具，围绕 agent 真正会问的问题来设计（路径映射、
-某个端口是谁占的、哪个可执行文件会被解析到），回收站还原界面，只读的服务日志
-查看器，ARM64 构建，以及已签名的安装程序。
+接下来：只读的服务日志视图（不用开 shell 的 `journalctl`）、提示项目位于慢速
+`/mnt` 路径、ARM64 构建，以及签名的安装程序。
 
 ## 社区
 

@@ -22,6 +22,8 @@ import type {
   ToolInfo,
   WindowsPortInfo,
   DockerInfo,
+  TerminalProfilesInfo,
+  ZoneIdentifierInfo,
   PortProxyInfo,
   WslConfigInfo
 } from '@shared/types'
@@ -1176,6 +1178,57 @@ export function fixturePortProxy(): PortProxyInfo {
  * gigabytes of build cache off it, and all of it on the docker-desktop
  * distribution's disk rather than on the one being inspected.
  */
+/**
+ * Ubuntu has the profile Windows Terminal generated for it; Debian was
+ * imported later and has none — the case the block exists to show.
+ */
+export function fixtureTerminalProfiles(): TerminalProfilesInfo {
+  return {
+    settingsPath:
+      'C:\\Users\\dev\\AppData\\Local\\Packages\\Microsoft.WindowsTerminal_8wekyb3d8bbwe\\LocalState\\settings.json',
+    installed: true,
+    defaultProfile: '{2c4de342-38b7-51cf-b940-2309a097f518}',
+    profiles: [
+      {
+        name: 'Windows PowerShell',
+        guid: '{61c54bbd-c2c6-5271-96e7-009a87ff44bf}',
+        source: null,
+        commandLine: 'powershell.exe',
+        distro: null,
+        hidden: false,
+        isDefault: false
+      },
+      {
+        name: 'Ubuntu-24.04',
+        guid: '{2c4de342-38b7-51cf-b940-2309a097f518}',
+        source: 'Windows.Terminal.Wsl',
+        commandLine: null,
+        distro: 'Ubuntu-24.04',
+        hidden: false,
+        isDefault: true
+      }
+    ],
+    error: null
+  }
+}
+
+export function fixtureZoneIdentifiers(distro: FixtureDistroName): ZoneIdentifierInfo | null {
+  if (distro !== FIXTURE_UBUNTU) return null
+  return {
+    root: '/home/dev',
+    count: 47,
+    bytes: 8_178,
+    truncated: false,
+    groups: [
+      { directory: '/home/dev/Downloads', count: 31, bytes: 5_394 },
+      { directory: '/home/dev/projects/wslpad/assets', count: 12, bytes: 2_088 },
+      { directory: '/home/dev/.local/share/fonts', count: 4, bytes: 696 }
+    ],
+    cleanupCommand: "find '/home/dev' -xdev -type f -name '*:Zone.Identifier' -print -delete",
+    error: null
+  }
+}
+
 export function fixtureDocker(distro: FixtureDistroName): DockerInfo | null {
   if (distro !== FIXTURE_UBUNTU) {
     return {

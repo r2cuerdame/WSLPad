@@ -115,8 +115,8 @@ Sie erholt sich außerdem von selbst. WSL ist oft noch beschäftigt, wenn WSLPad
 
 Solange WSLPad im Tray sitzt, stellt es MCP unter `http://127.0.0.1:4923/mcp`
 bereit (Streamable HTTP, nur localhost, Authentifizierung per Bearer-Token) mit
-31 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
-`GetTextFile`, `GetPathMapping`, … Tools zum Schreiben, Ausführen oder Beenden
+35 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
+`GetTextFile`, `GetPortOwner`, `GetCommandResolution`, … Tools zum Schreiben, Ausführen oder Beenden
 gibt es bewusst nicht; Secrets und private Schlüssel überschreiten die
 MCP-Grenze nie. Registrierung per Klick für Claude Desktop (stdio-Bridge),
 Codex und Hermes, dazu `Für LLM kopieren`, das eine maskierte
@@ -234,7 +234,20 @@ Windows-Seite: freier und gesamter Speicherplatz.
 
 **Console** — die Distribution, das aktuelle Verzeichnis und der Zustand der Shell (bereit, wird ausgeführt, wartet auf Eingabe, wartet auf ein sudo-Passwort, getrennt, Distribution gestoppt oder Start fehlgeschlagen — Letzteres mit dem Grund).
 
-**Über MCP** — alles davon über 31 `Get*`-Tools mit Nur-Lese-Zugriff.
+**Windows-Downloadmarkierungen** — jede aus Windows kopierte Datei hinterlässt
+daneben eine `:Zone.Identifier`-Datei, für immer. WSLPad zählt sie, nennt die
+Ordner, in denen sie liegen, und bereitet den Aufräumbefehl vor.
+
+**Windows Terminal** — ob diese Distribution überhaupt ein Profil hat, ob es
+ausgeblendet ist, und das JSON zum Hinzufügen, wenn keines da ist. WSLPad
+schreibt settings.json nie.
+
+**Papierkorb** — was der Explorer dorthin geschickt hat, woher jede Datei kam,
+und ein Wiederherstellen, das sie zurücklegt. Liegt am Ziel schon etwas, bricht
+es ab: ein Rückgängig, das eine Datei zerstört, ist kein Rückgängig.
+
+
+**Über MCP** — alles davon über 35 `Get*`-Tools mit Nur-Lese-Zugriff.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings & Sprachen
@@ -306,7 +319,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.1.10)
+## Aktuelle Einschränkungen (v0.2.0)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;
@@ -327,18 +340,13 @@ Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 - Das Hineinziehen aus einem externen Fenster des Windows-Explorers hängt
   davon ab, ob Electron die Dateipfade preisgibt; nutzen Sie stattdessen den
   linken Bereich (oder das Import-Menü)
-- Eine Oberfläche zum Wiederherstellen aus dem Papierkorb fehlt noch (Dateien
-  landen im normalen Linux-Papierkorb bzw. im Windows-Papierkorb und lassen
-  sich von dort wiederherstellen)
 - Die stdio-Bridge für MCP setzt voraus, dass die Tray-App läuft
 
 ## Roadmap
 
-Als Nächstes: MCP-Tools für Agenten, zugeschnitten auf die Fragen, die ein
-Agent tatsächlich stellt (Pfadabbildung, wem ein Port gehört, auf welche
-Binärdatei ein Befehl auflöst), eine Oberfläche zum Wiederherstellen aus dem
-Papierkorb, eine Nur-Lese-Ansicht der Dienstprotokolle, ein ARM64-Build und
-ein signierter Installer.
+Als Nächstes: eine Nur-Lese-Ansicht der Dienstprotokolle (`journalctl`, ohne
+eine Shell zu öffnen), ein Hinweis auf Projekte, die auf einem langsamen
+`/mnt`-Pfad liegen, ein ARM64-Build und ein signierter Installer.
 
 ## Community
 

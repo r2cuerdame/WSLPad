@@ -1332,3 +1332,19 @@
   padding: 4px 12px 8px;
   font-size: 11px;
 }
+
+/* Trash dialog: the checkbox column stays narrow so the original path — the
+   only thing that identifies an entry — gets the width. */
+.trash-table {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.trash-pick {
+  width: 28px;
+  text-align: center;
+}
+
+.trash-table td .badge {
+  margin-left: 6px;
+}

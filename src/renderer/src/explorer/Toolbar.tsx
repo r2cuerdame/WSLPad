@@ -26,6 +26,8 @@ interface ToolbarProps {
   /** Absent on a filesystem whose sizes cannot be measured. */
   onMeasure?: () => void
   measureActive?: boolean
+  /** Only the WSL pane has a trash to open — Windows has the Recycle Bin. */
+  onOpenTrash?: () => void
 }
 
 function Glyph({ d, size = 14 }: { d: string; size?: number }): React.JSX.Element {
@@ -55,7 +57,9 @@ const GLYPHS = {
   chevronRight: 'M6 3.5 10.5 8 6 12.5',
   chevronLeft: 'M10 3.5 5.5 8 10 12.5',
   // Three bars of falling length: the sorted result the action produces.
-  sizes: 'M2.5 4h11M2.5 8h7M2.5 12h3.5'
+  sizes: 'M2.5 4h11M2.5 8h7M2.5 12h3.5',
+  // A bin with a lid, which is what every file manager draws here.
+  trash: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5M6.8 7v3.5M9.2 7v3.5'
 } as const
 
 export function Toolbar(props: ToolbarProps): React.JSX.Element {
@@ -113,6 +117,18 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
       >
         <Glyph d={GLYPHS.tree} />
       </button>
+
+      {props.onOpenTrash && (
+        <button
+          type="button"
+          className="exp-toolbtn"
+          title={t('explorer.trashTitle', { defaultValue: 'Trash' })}
+          aria-label={t('explorer.trashTitle', { defaultValue: 'Trash' })}
+          onClick={props.onOpenTrash}
+        >
+          <Glyph d={GLYPHS.trash} />
+        </button>
+      )}
 
       {props.onMeasure && (
         <button

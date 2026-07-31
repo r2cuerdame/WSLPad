@@ -92,9 +92,9 @@ Console 會跟著切到同一個目錄 —— 不會出現看得見的 `cd`，�
 ## MCP 伺服器（唯讀）
 
 只要 WSLPad 還待在系統匣裡，它就會在 `http://127.0.0.1:4923/mcp` 提供 MCP 服務
-（Streamable HTTP、僅限 localhost、Bearer 權杖驗證），共 31 個 `Get*` 工具 ——
+（Streamable HTTP、僅限 localhost、Bearer 權杖驗證），共 35 個 `Get*` 工具 ——
 `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、`GetTextFile`、
-`GetPathMapping`、……刻意不提供任何寫入／執行／終止類工具；機密與私鑰絕不會越過
+`GetPortOwner`, `GetCommandResolution`、……刻意不提供任何寫入／執行／終止類工具；機密與私鑰絕不會越過
 MCP 邊界。可一鍵註冊到 Claude Desktop（stdio 橋接）、Codex 與 Hermes，另外還有
 `複製給 LLM`，把遮罩過的 Markdown 狀態摘要放進剪貼簿。
 詳見 [docs/MCP.md](docs/MCP.md)。
@@ -183,7 +183,17 @@ Linux 權限與符號連結目標。Windows 這側則是每個磁碟機的可用
 
 **Console** —— 目前的發行版、目前的目錄，以及 shell 狀態（就緒、執行中、等待輸入、等待 sudo 密碼、已中斷連線、發行版已停止、無法啟動 —— 最後一項附帶原因）。
 
-**透過 MCP** —— 以上全部，都能透過 31 個唯讀的 `Get*` 工具取得。
+**Windows 下載標記檔案** —— 每從 Windows 複製一個檔案，旁邊就會永久留下一個
+`:Zone.Identifier` 檔案。WSLPad 會數出有多少、分布在哪些目錄，並準備好清理指令。
+
+**Windows 終端機** —— 這個發行版有沒有設定檔、是不是被隱藏了；沒有的話給出可直接
+貼上的 JSON。WSLPad 從不寫入 settings.json。
+
+**資源回收筒** —— 檔案總管送進資源回收筒的東西、每個檔案原本的位置，以及把它放回去
+的還原。如果目標位置已經有東西，還原會停下：會毀掉檔案的「復原」不是復原。
+
+
+**透過 MCP** —— 以上全部，都能透過 35 個唯讀的 `Get*` 工具取得。
 [docs/MCP.md](docs/MCP.md)
 
 ## 設定與語言
@@ -243,7 +253,7 @@ WSLPad *不是*發行版管理器或市集，不是 Docker Desktop，不是 IDE�
 偵錯器／LSP，沒有雲端同步，沒有 AI 聊天，也不會自動幫你修東西。它的定位是：
 **Dashboard + Explorer + Console + 唯讀 MCP** —— 沒有別的。
 
-## 目前的限制（v0.1.10）
+## 目前的限制（v0.2.0）
 
 - 僅支援 Windows x64；安裝程式未經簽章（會跳 SmartScreen 警告）
 - 磁碟映像的數字需要 Windows 登錄檔與 `fsutil`；只要有一邊讀不到，該區塊就會照實
@@ -259,15 +269,12 @@ WSLPad *不是*發行版管理器或市集，不是 Docker Desktop，不是 IDE�
   不會刪掉任何東西
 - 從外部的 Windows 檔案總管視窗拖曳進來，取決於 Electron 是否提供檔案路徑；請改用
   左側窗格（或「從 Windows 匯入…」選單）
-- 尚未提供資源回收筒還原介面（檔案會進到標準的 Linux Trash／Windows 資源回收筒，
-  可從那裡還原）
 - MCP stdio 橋接需要系統匣應用程式處於執行狀態
 
 ## 路線圖
 
-接下來：依代理程式實際會問的問題設計的 MCP 工具（路徑對應、某個連接埠是誰的、
-某個命令會解析到哪個執行檔）、資源回收筒還原介面、唯讀的服務記錄檢視、ARM64
-版本，以及簽章過的安裝程式。
+接下來：唯讀的服務記錄檢視（不用開 shell 的 `journalctl`）、提示專案位於慢速
+`/mnt` 路徑、ARM64 建置，以及簽署過的安裝程式。
 
 ## 社群
 
