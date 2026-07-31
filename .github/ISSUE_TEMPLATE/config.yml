@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question — how do I…? / why does WSLPad show…?
+    url: https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a
+    about: Ask in Q&A. Post in whatever language you think in — WSLPad speaks nine, and so does its maintainer's translator.
+  - name: Idea — something WSLPad should show or prepare
+    url: https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas
+    about: Ideas start as a discussion so they can be argued about before anyone writes code. Accepted ones become issues.
+  - name: Show and tell — your setup, your screenshot
+    url: https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell
+    about: What WSLPad found on your machine, what you built with the MCP server, what your dashboard looks like.
+  - name: Security concern
+    url: https://github.com/r2cuerdame/WSLPad/security/advisories/new
+    about: Report privately. WSLPad reads your whole WSL environment, so a security report is taken seriously here.

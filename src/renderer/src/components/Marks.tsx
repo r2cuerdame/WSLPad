@@ -54,6 +54,30 @@ const HERMES_PNG_BASE64 = [
 
 export const HERMES_MARK_SRC = 'data:image/png;base64,' + HERMES_PNG_BASE64
 
+/**
+ * OpenClaw's own favicon, taken from the project's web assets
+ * (ui/public/favicon-32.png). Raster for the same reason as Hermes above: this
+ * is the artwork the project ships.
+ */
+const OPENCLAW_PNG_BASE64 = [
+  'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADvklEQVR42u1WSWwTVxj+3piMiZMYJaUWMoeKtqoqSumJLiDSBkQo',
+  'IiSorah6qlSVQhepSk/cWqlXIAjEKi4IBBcWsVySABIS4gCIG0IKKCRsIRAM8TLz7Jl5j//JjsczzjKOfeDAJ32a5Z///763zsMb',
+  'Dbl+fbPs7PyZ2CYBFjgPYCpH5aoaszewYcMnVOQv2dFxiNhP93EQnra3x56tWtX6tK2t6zHxQWtr673ly2Mg0HcLKe8i8aDKVTUw',
+  'DVh23ToExMY5odD+cc5NS4hFQkr4qTF2P97UVJ+TciuAswgADTNAN805hm3/nbHtI0nOF5CQK17ORQ+TyQXDL18eH0wk/hsaHtYx',
+  'Axh1J6ZBw1zGzgohVhdFhICjrlOzNH6Jcd4FIFNxD4hwOBIGej3iikCeUgbhakvXe626ukjFBiKc75BSrigtOGhy3CfS+0lNDPEs',
+  'honS+36FI8T2igzMBdZIYEtp8d4Xr/DN8wS+/vQj9CfGIX29cflVCl0pA53LluLKeNpjwgG2pjRtTWADlPwvJbJSA9eTaYiGeoh4',
+  'DDdSGfiH5VbaKMZvZUxPvFDr/0AG6hn7XOS73tOKn2ItWPpoFJ/tOYYf322GP/7dO/Ow+MEIluw+io3NTW7c5RdjVBs+MFm4Jteu',
+  'XZa1rPcE0B5i7NeSxKCz3qUQZXFJbND1w/HGxj7SGXr/2rWbACRL5pfhAe44W0zLArdtZIm06WBeODwrE34jC6NRRKmWqsuJZv66',
+  'D8CfGgNi9OI3Ei8GDeILw1DJVdBdKY11dcXapmvi90wqNV9LAmF6YL4gGGOeYrJcIFgcQIJzjwFqrCJLk7YW7+t7RMG7ps/h/Egk',
+  'gEiw+Gg6DSOXA88LT2gMdAwMPNEASApsIwoVVFf6oSAcCqnkmpA7DsZMU4mLQiOF6TjblLaGPE4bQnxFgc0ftLSciLqTr2a9oIST',
+  'udzxLGkQvwRwBgQ2tHIlfPheACedyZdUtaviBwCnpt2IxgzjHH382DeTa8ERS9fPB9mKLXK/V5b/AasbCmAPgFwQA9Ci0Z2UdNdX',
+  'pBoTgzT+PZX8jrM2sJkSrUlNAJWYUD36CwBe6ZHsigN0z7DLBWG3qjXbM+FeIcQfUkoxpQlgql6QxH9UjaoOpYT9grFvpbsyyllu',
+  'YtQBOgH0VHcqdtGfzeU+lt4hGSHeId5W9xO94QjRbev6hwAuVHss9yNN3FXS6qsAFhOXqPuJCam+KXyLGhpwIUt2yAI8u6UPtTdA',
+  'YptIaJMtRHF8HcfpkYX3eIsK8RogyDBwZR3jhAAAAABJRU5ErkJggg=='
+].join('')
+
+export const OPENCLAW_MARK_SRC = 'data:image/png;base64,' + OPENCLAW_PNG_BASE64
+
 export interface MarkProps {
   size?: number
   className?: string
@@ -69,20 +93,26 @@ const markStyle = (size: number): CSSProperties => ({
   borderRadius: 3
 })
 
-export function HermesMark({ size = 15, className }: MarkProps): React.JSX.Element {
-  return (
-    <img
-      src={HERMES_MARK_SRC}
-      width={size}
-      height={size}
-      style={markStyle(size)}
-      className={className}
-      alt=""
-      aria-hidden="true"
-      draggable={false}
-    />
-  )
+function rasterMark(src: string) {
+  return function Mark({ size = 15, className }: MarkProps): React.JSX.Element {
+    return (
+      <img
+        src={src}
+        width={size}
+        height={size}
+        style={markStyle(size)}
+        className={className}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+      />
+    )
+  }
 }
+
+export const HermesMark = rasterMark(HERMES_MARK_SRC)
+
+export const OpenClawMark = rasterMark(OPENCLAW_MARK_SRC)
 
 /**
  * Docker's whale, drawn as a filled mark rather than a stroked outline: the

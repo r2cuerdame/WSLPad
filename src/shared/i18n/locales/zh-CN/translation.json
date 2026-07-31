@@ -66,6 +66,7 @@
     "about": "关于 {{name}}",
     "version": "版本 {{version}}",
     "github": "GitHub 仓库",
+    "community": "社区讨论",
     "releaseNotes": "发行说明",
     "sponsor": "赞助此项目",
     "quit": "退出",

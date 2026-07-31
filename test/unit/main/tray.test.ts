@@ -96,15 +96,28 @@ describe('tray About submenu', () => {
     expect(itemIn(sub, 'tray.version').enabled).toBe(false)
   })
 
-  it('links GitHub, the release notes and sponsorship', () => {
+  it('links GitHub, the community, the release notes and sponsorship', () => {
     new AppTray(makeHost(), i18n)
     const sub = about().submenu ?? []
 
     itemIn(sub, 'tray.github').click?.({ checked: false })
+    itemIn(sub, 'tray.community').click?.({ checked: false })
     itemIn(sub, 'tray.releaseNotes').click?.({ checked: false })
     itemIn(sub, 'tray.sponsor').click?.({ checked: false })
 
-    expect(opened).toEqual([PROJECT_URLS.repository, PROJECT_URLS.releases, PROJECT_URLS.sponsor])
+    expect(opened).toEqual([
+      PROJECT_URLS.repository,
+      PROJECT_URLS.community,
+      PROJECT_URLS.releases,
+      PROJECT_URLS.sponsor
+    ])
+  })
+
+  it('sends the community link to Discussions, not to the issue tracker', () => {
+    // Questions asked in the issue tracker are a burden on both sides; the
+    // tray is where the question occurs to someone, so it points at the right
+    // room from the start.
+    expect(PROJECT_URLS.community).toMatch(/\/discussions$/)
   })
 
   it('opens nothing until an item is clicked', () => {

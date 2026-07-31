@@ -4,6 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/r2cuerdame/WSLPad?color=7c5cff&label=release)](https://github.com/r2cuerdame/WSLPad/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/r2cuerdame/WSLPad/total?color=7c5cff)](https://github.com/r2cuerdame/WSLPad/releases)
+[![Discussions](https://img.shields.io/github/discussions/r2cuerdame/WSLPad?color=7c5cff&label=discussions)](https://github.com/r2cuerdame/WSLPad/discussions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
@@ -306,7 +307,7 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.1.9)
+## Current limitations (v0.1.10)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is
@@ -332,6 +333,20 @@ no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 Next: agent-grade MCP tools shaped around the questions an agent actually asks
 (path mapping, who owns a port, which binary resolves), a Trash restore UI, a
 read-only service log view, an ARM64 build and a signed installer.
+
+## Community
+
+Questions, ideas and "wait — is it supposed to show that?" belong in
+[Discussions](https://github.com/r2cuerdame/WSLPad/discussions), written in any of the nine languages WSLPad speaks.
+Bugs go to the [issue tracker](https://github.com/r2cuerdame/WSLPad/issues/new/choose), security concerns to a
+[private advisory](https://github.com/r2cuerdame/WSLPad/security/advisories/new).
+
+- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — how do I, and why does it show that
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — what WSLPad should show next; the shortlist for 0.2 is
+  already there, drawn from what WSL users complain about upstream
+- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — what it found on your machine
+
+[CONTRIBUTING](.github/CONTRIBUTING.md) lists the four rules a pull request must not break.
 
 ## License
 

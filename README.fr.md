@@ -4,6 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/r2cuerdame/WSLPad?color=7c5cff&label=release)](https://github.com/r2cuerdame/WSLPad/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/r2cuerdame/WSLPad/total?color=7c5cff)](https://github.com/r2cuerdame/WSLPad/releases)
+[![Discussions](https://img.shields.io/github/discussions/r2cuerdame/WSLPad?color=7c5cff&label=discussions)](https://github.com/r2cuerdame/WSLPad/discussions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
@@ -307,7 +308,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.1.9)
+## Limites actuelles (v0.1.10)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)
@@ -344,6 +345,22 @@ qu'un agent pose réellement (correspondance des chemins, à qui appartient un
 port, quel binaire est résolu), une interface de restauration depuis la
 corbeille, une visionneuse de journaux de services en lecture seule, une version
 ARM64 et un programme d'installation signé.
+
+## Communauté
+
+Les questions, les idées et les « c'est censé afficher ça ? » vont dans les
+[Discussions](https://github.com/r2cuerdame/WSLPad/discussions), dans n'importe laquelle des neuf langues que parle WSLPad.
+Les bugs vont au [suivi des tickets](https://github.com/r2cuerdame/WSLPad/issues/new/choose), les questions de sécurité à un
+[avis privé](https://github.com/r2cuerdame/WSLPad/security/advisories/new).
+
+- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — comment faire, et pourquoi c'est affiché ainsi
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — ce que WSLPad devrait montrer ensuite ; la liste pour la
+  0.2 y est déjà, tirée de ce dont les utilisateurs de WSL se plaignent le plus
+  en amont
+- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — ce qu'il a trouvé sur votre machine
+
+[CONTRIBUTING](.github/CONTRIBUTING.md) énumère les quatre règles qu'une pull request ne doit
+pas casser.
 
 ## Licence
 

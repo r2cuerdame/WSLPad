@@ -4,6 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/r2cuerdame/WSLPad?color=7c5cff&label=release)](https://github.com/r2cuerdame/WSLPad/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/r2cuerdame/WSLPad/total?color=7c5cff)](https://github.com/r2cuerdame/WSLPad/releases)
+[![Discussions](https://img.shields.io/github/discussions/r2cuerdame/WSLPad?color=7c5cff&label=discussions)](https://github.com/r2cuerdame/WSLPad/discussions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
@@ -278,7 +279,7 @@ Docker Desktop でもなく、IDE でもありません。Git の UI もデバ�
 クラウド同期も AI チャットも自動修復もありません。正体は **Dashboard + Explorer
 + Console + 読み取り専用の MCP** — それだけです。
 
-## 現在の制限 (v0.1.9)
+## 現在の制限 (v0.1.10)
 
 - Windows x64 のみ。インストーラーは署名されていません（SmartScreen の警告）
 - ディスクイメージの数値には Windows のレジストリと `fsutil` が必要です。どちらか
@@ -307,6 +308,21 @@ Docker Desktop でもなく、IDE でもありません。Git の UI もデバ�
 （パスの対応、そのポートを持っているのは誰か、どのバイナリに解決されるか）、
 ごみ箱からの復元 UI、読み取り専用のサービスログのビュー、ARM64 ビルド、そして
 署名済みのインストーラー。
+
+## コミュニティ
+
+質問、アイデア、「これで合っているのか？」という疑問は
+[Discussions](https://github.com/r2cuerdame/WSLPad/discussions) へ。WSLPad が話す 9 つの言語のどれで書いても構いません。
+バグは[イシュー](https://github.com/r2cuerdame/WSLPad/issues/new/choose)へ、セキュリティの懸念は
+[非公開のアドバイザリ](https://github.com/r2cuerdame/WSLPad/security/advisories/new)へ。
+
+- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — やり方、そしてなぜそう表示されるのか
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 次に何を見せるべきか。0.2 の候補リストはすでにあり、WSL
+  利用者が本家で最も多く訴えている問題から選びました
+- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — あなたのマシンで何が見つかったか
+
+[CONTRIBUTING](.github/CONTRIBUTING.md) に、プルリクエストが破ってはならない 4 つの規則が
+あります。
 
 ## ライセンス
 

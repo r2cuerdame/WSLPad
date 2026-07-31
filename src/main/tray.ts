@@ -72,6 +72,10 @@ export class AppTray {
           { type: 'separator' },
           { label: t('tray.github'), click: () => void shell.openExternal(PROJECT_URLS.repository) },
           {
+            label: t('tray.community'),
+            click: () => void shell.openExternal(PROJECT_URLS.community)
+          },
+          {
             label: t('tray.releaseNotes'),
             click: () => void shell.openExternal(PROJECT_URLS.releases)
           },

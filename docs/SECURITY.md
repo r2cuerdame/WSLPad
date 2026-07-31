@@ -57,5 +57,8 @@ WSLPad is local-first by design (goal.md §16).
 
 ## Reporting
 
-This is a v0.1.0 hobby-scale project; please open a GitHub issue for any
-security concern.
+Report privately through
+[a GitHub security advisory](https://github.com/r2cuerdame/WSLPad/security/advisories/new),
+not through a public issue. Scope, expectations and turnaround are in
+[.github/SECURITY.md](../.github/SECURITY.md); this document is the design
+behind them.

@@ -4,6 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/r2cuerdame/WSLPad?color=7c5cff&label=release)](https://github.com/r2cuerdame/WSLPad/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/r2cuerdame/WSLPad/total?color=7c5cff)](https://github.com/r2cuerdame/WSLPad/releases)
+[![Discussions](https://img.shields.io/github/discussions/r2cuerdame/WSLPad?color=7c5cff&label=discussions)](https://github.com/r2cuerdame/WSLPad/discussions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
@@ -241,7 +242,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 界面、调试器或 LSP，没有云同步，没有 AI 聊天，也不会自动帮你修东西。它的身份
 就是：**Dashboard + Explorer + Console + 只读 MCP** —— 别无其他。
 
-## 当前限制（v0.1.9）
+## 当前限制（v0.1.10）
 
 - 仅支持 Windows x64；安装程序未签名（会有 SmartScreen 警告）
 - 磁盘映像的数字需要读取 Windows 注册表和 `fsutil`；只要有一样读不到，这个
@@ -266,6 +267,19 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 接下来：面向 agent 的 MCP 工具，围绕 agent 真正会问的问题来设计（路径映射、
 某个端口是谁占的、哪个可执行文件会被解析到），回收站还原界面，只读的服务日志
 查看器，ARM64 构建，以及已签名的安装程序。
+
+## 社区
+
+提问、想法，以及“这样显示对吗？”这类疑惑，都请到
+[Discussions](https://github.com/r2cuerdame/WSLPad/discussions)——用 WSLPad 支持的九种语言中的任意一种都可以。
+缺陷请提交到[问题追踪](https://github.com/r2cuerdame/WSLPad/issues/new/choose)，安全问题请通过[私密安全公告](https://github.com/r2cuerdame/WSLPad/security/advisories/new)。
+
+- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — 怎么做，以及为什么这样显示
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 接下来该展示什么；0.2 的候选清单已经在那里，取自 WSL
+  用户在上游抱怨最多的问题
+- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — 它在你的机器上发现了什么
+
+[CONTRIBUTING](.github/CONTRIBUTING.md) 列出了拉取请求绝不能破坏的四条规则。
 
 ## 许可证
 

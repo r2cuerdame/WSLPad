@@ -133,16 +133,6 @@ export const PackageIcon = icon(
 
 export const BoltIcon = icon(<path d="M9.2 1.6L3.6 8.9h3.9l-.7 5.5 5.6-7.3H8.5z" />)
 
-/** Three claw marks — OpenClaw's own mark, drawn rather than fetched (CSP). */
-export const ClawIcon = icon(
-  <>
-    <path d="M4.1 2.4c-.9 2.6-.9 5.2 0 7.8" />
-    <path d="M8 1.8c-1 3-1 6 0 9" />
-    <path d="M11.9 2.4c.9 2.6.9 5.2 0 7.8" />
-    <path d="M3.4 12.4c1.4 1.3 3 1.9 4.6 1.9s3.2-.6 4.6-1.9" />
-  </>
-)
-
 export const ListIcon = icon(
   <>
     <path d="M6 4h7.5M6 8h7.5M6 12h7.5" />

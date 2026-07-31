@@ -4,6 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/r2cuerdame/WSLPad?color=7c5cff&label=release)](https://github.com/r2cuerdame/WSLPad/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/r2cuerdame/WSLPad/total?color=7c5cff)](https://github.com/r2cuerdame/WSLPad/releases)
+[![Discussions](https://img.shields.io/github/discussions/r2cuerdame/WSLPad?color=7c5cff&label=discussions)](https://github.com/r2cuerdame/WSLPad/discussions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
@@ -305,7 +306,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.1.9)
+## Aktuelle Einschränkungen (v0.1.10)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;
@@ -338,6 +339,22 @@ Agent tatsächlich stellt (Pfadabbildung, wem ein Port gehört, auf welche
 Binärdatei ein Befehl auflöst), eine Oberfläche zum Wiederherstellen aus dem
 Papierkorb, eine Nur-Lese-Ansicht der Dienstprotokolle, ein ARM64-Build und
 ein signierter Installer.
+
+## Community
+
+Fragen, Ideen und „soll das wirklich so aussehen?“ gehören in die
+[Discussions](https://github.com/r2cuerdame/WSLPad/discussions) — in jeder der neun Sprachen, die WSLPad spricht.
+Fehler gehören in den [Issue-Tracker](https://github.com/r2cuerdame/WSLPad/issues/new/choose), Sicherheitsfragen in ein
+[privates Advisory](https://github.com/r2cuerdame/WSLPad/security/advisories/new).
+
+- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — wie geht das, und warum steht da das
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — was WSLPad als Nächstes zeigen soll; die Auswahlliste für
+  0.2 steht schon dort, zusammengestellt aus dem, worüber sich WSL-Nutzer
+  stromaufwärts am meisten beschweren
+- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — was es auf deinem Rechner gefunden hat
+
+[CONTRIBUTING](.github/CONTRIBUTING.md) nennt die vier Regeln, die ein Pull Request nicht
+brechen darf.
 
 ## Lizenz
 

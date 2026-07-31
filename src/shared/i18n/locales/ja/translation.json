@@ -66,6 +66,7 @@
     "about": "{{name}} について",
     "version": "バージョン {{version}}",
     "github": "GitHub リポジトリ",
+    "community": "コミュニティ ディスカッション",
     "releaseNotes": "リリースノート",
     "sponsor": "このプロジェクトを支援",
     "quit": "終了",

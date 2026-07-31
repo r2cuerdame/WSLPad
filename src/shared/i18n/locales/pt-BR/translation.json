@@ -66,6 +66,7 @@
     "about": "Sobre o {{name}}",
     "version": "Versão {{version}}",
     "github": "Repositório no GitHub",
+    "community": "Discussões da comunidade",
     "releaseNotes": "Notas da versão",
     "sponsor": "Apoiar o projeto",
     "quit": "Sair",

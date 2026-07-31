@@ -66,6 +66,7 @@
     "about": "{{name}} 정보",
     "version": "버전 {{version}}",
     "github": "GitHub 저장소",
+    "community": "커뮤니티 토론",
     "releaseNotes": "릴리스 노트",
     "sponsor": "후원하기",
     "quit": "종료",

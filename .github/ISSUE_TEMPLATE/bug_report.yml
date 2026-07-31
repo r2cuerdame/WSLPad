@@ -1,0 +1,74 @@
+name: Bug report
+description: WSLPad showed something wrong, or stopped doing something it should do.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two things worth knowing before you write:
+
+        - **"It says unknown" is often not a bug.** WSLPad reports *unknown*
+          on purpose when a value cannot be read — never `0`, never "none".
+          If you think the value *was* readable, that is a bug: tell us what
+          you expected and how you read it yourself.
+        - **WSLPad never changes your system.** If something on your machine
+          changed, WSLPad did not do it silently — but say so anyway, because
+          that would be a serious bug.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what WSLPad showed, and what you expected instead.
+      placeholder: |
+        1. Opened Dashboard → Disk
+        2. WSLPad showed …
+        3. I expected … because `wsl --system -d Ubuntu df -h` says …
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: WSLPad version
+      description: Tray icon → About → the first line, or Settings → Updates.
+      placeholder: '0.1.10'
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Windows and WSL build
+      description: |
+        `winver` for Windows, and the first two lines of `wsl --version`.
+        WSLPad shows both under Dashboard → Overview if it is still running.
+      placeholder: |
+        Windows 11 Pro 26200.xxxx
+        WSL 2.6.1
+        Kernel 6.6.87.2-1
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: snapshot
+    attributes:
+      label: Snapshot (optional)
+      description: |
+        Dashboard → Overview → **Copy for LLM** puts the whole snapshot on
+        your clipboard as Markdown. It is the fastest way to describe your
+        setup — but read it before you paste it here: environment **variable
+        values** are included, and only secret-shaped names (`*_TOKEN`,
+        `*_KEY`, `*_PASSWORD`, …) are masked. A `DATABASE_URL` is not.
+      render: markdown
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked that the same thing happens on the latest release.
+          required: true
+        - label: I removed anything from the snapshot I did not want to publish.
+          required: false

@@ -250,5 +250,8 @@ export const PANE_SPLIT_DEFAULT = 50
 export const PROJECT_URLS = {
   repository: 'https://github.com/r2cuerdame/WSLPad',
   releases: 'https://github.com/r2cuerdame/WSLPad/releases',
+  // Questions and ideas belong in Discussions, not in the issue tracker: the
+  // tray is where someone is standing when the question occurs to them.
+  community: 'https://github.com/r2cuerdame/WSLPad/discussions',
   sponsor: 'https://github.com/sponsors/r2cuerdame'
 } as const

@@ -4,6 +4,7 @@
 
 [![Release](https://img.shields.io/github/v/release/r2cuerdame/WSLPad?color=7c5cff&label=release)](https://github.com/r2cuerdame/WSLPad/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/r2cuerdame/WSLPad/total?color=7c5cff)](https://github.com/r2cuerdame/WSLPad/releases)
+[![Discussions](https://img.shields.io/github/discussions/r2cuerdame/WSLPad?color=7c5cff&label=discussions)](https://github.com/r2cuerdame/WSLPad/discussions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
@@ -286,7 +287,7 @@ WSLPad는 배포판 관리자나 마켓플레이스가 *아니고*, Docker Deskt
 없습니다. 정체성은 **Dashboard + Explorer + Console + 읽기 전용 MCP** — 그게
 전부입니다.
 
-## 현재 제한 사항 (v0.1.9)
+## 현재 제한 사항 (v0.1.10)
 
 - Windows x64 전용이며, 설치 프로그램은 서명되어 있지 않습니다(SmartScreen 경고)
 - 디스크 이미지 수치에는 Windows 레지스트리와 `fsutil`이 필요합니다. 둘 중 하나라도
@@ -312,6 +313,21 @@ WSLPad는 배포판 관리자나 마켓플레이스가 *아니고*, Docker Deskt
 다음 차례: 에이전트가 실제로 던지는 질문(경로 매핑, 그 포트를 쥐고 있는 것이
 무엇인지, 어떤 바이너리로 연결되는지)에 맞춘 에이전트급 MCP 도구, 휴지통 복원 UI,
 읽기 전용 서비스 로그 뷰, ARM64 빌드, 그리고 서명된 설치 프로그램.
+
+## 커뮤니티
+
+질문, 아이디어, "이게 이렇게 보이는 게 맞나?" 하는 의문은
+[Discussions](https://github.com/r2cuerdame/WSLPad/discussions)에서 다룹니다. WSLPad가 지원하는 아홉 개 언어 중 어느 것으로
+써도 됩니다. 버그는 [이슈 트래커](https://github.com/r2cuerdame/WSLPad/issues/new/choose)로, 보안 문제는
+[비공개 어드바이저리](https://github.com/r2cuerdame/WSLPad/security/advisories/new)로 보내주세요.
+
+- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — 어떻게 하는지, 왜 그렇게 보이는지
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 다음에 무엇을 보여줄지. 0.2 후보 목록은 이미 올라와 있고,
+  WSL 사용자들이 본가에서 가장 많이 불평하는 것들에서 뽑았습니다
+- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — 당신의 기계에서 무엇이 나왔는지
+
+[CONTRIBUTING](.github/CONTRIBUTING.md)에 풀 리퀘스트가 절대 깨뜨리면 안 되는 네 가지 규칙이
+있습니다.
 
 ## 라이선스
 
