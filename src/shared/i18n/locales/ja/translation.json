@@ -183,6 +183,8 @@
       "filterPlaceholder": "設定を絞り込み",
       "hideDefaults": "未設定の既定値を隠す",
       "vmStarted": "VM の起動時刻",
+      "platform": "WSL ビルド",
+      "inboxBuild": "ディストリビューション同梱の WSL です — --version がないためビルド依存の判定は不明のままです",
       "restartPending": "再起動待ち",
       "restartPendingHint": "一部の値は wsl --shutdown の後にのみ適用されます",
       "restartBannerBody": "実行中の VM はこれらのファイルが最後に保存される前に起動したため、まだ有効になっていない値があります。",
@@ -256,7 +258,20 @@
       "dnsVerdictTunneling": "DNS トンネリングがオンのため、名前解決はここに並ぶサーバーには送られず、Windows のリゾルバーが応答します。",
       "portsHint": "待ち受け中の各ポートがどこまで届くかも、同じルールが決めます。",
       "seePorts": "ポートを見る",
-      "unavailable": "このディストリビューションのネットワーク情報はありません"
+      "unavailable": "このディストリビューションのネットワーク情報はありません",
+      "portProxy": "ポート転送",
+      "noPortProxy": "このマシンに転送ルールはありません",
+      "portProxyAgainst": "このディストリビューションの現在のアドレス（{{ip}}）と照合しました",
+      "listenOn": "Windows の待ち受け",
+      "forwardsTo": "転送先",
+      "copyRepair": "このルールを直すコマンドをコピー",
+      "portProxyAdmin": "ルールの変更には管理者権限の netsh が必要でコンソールに用意できません — コマンドをコピーして自分で実行してください。",
+      "proxyVerdict": {
+        "live": "有効",
+        "stale": "どこにも届かない",
+        "elsewhere": "このディストリビューションではない",
+        "unknown": "不明"
+      }
     },
     "paths": {
       "title": "重要なパス",
@@ -343,9 +358,18 @@
       "prepareDashboard": "ダッシュボードのコマンドを準備",
       "prepareDashboardHint": "コンソールに入力されるだけです — Enter を押すまで実行されません"
     },
+    "openclaw": {
+      "title": "OpenClaw",
+      "executable": "実行ファイル",
+      "data": "データ",
+      "processes": "実行中のプロセス",
+      "notInstalled": "このディストリビューションで OpenClaw は見つかりませんでした",
+      "notInstalledHint": "openclaw コマンドと ~/.openclaw ディレクトリを探します。WSLPad は何もインストールしません。"
+    },
     "environment": {
       "title": "環境変数",
       "value": "値",
+      "copyValue": "値をコピー",
       "length": "長さ",
       "pathLike": "PATH 系",
       "fromWindows": "Windows から",

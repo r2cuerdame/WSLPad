@@ -18,6 +18,7 @@ import PathsCard from './PathsCard'
 import ConfigCard from './ConfigCard'
 import ToolsCard, { effectiveAppendWindowsPath } from './ToolsCard'
 import HermesCard from './HermesCard'
+import OpenClawCard, { findOpenClaw } from './OpenClawCard'
 import EnvironmentCard from './EnvironmentCard'
 import ProcessesCard from './ProcessesCard'
 import ServicesCard from './ServicesCard'
@@ -118,8 +119,7 @@ export default function DashboardTab(): React.JSX.Element {
 
   // Windows-only listeners are rows too, so the badge and the subtitle count
   // what the section actually shows, not just the WSL side.
-  const portRowCount =
-    dash.ports.length + dash.windowsPorts.filter((p) => !p.fromWsl).length
+  const portRowCount = dash.ports.length + dash.windowsPorts.filter((p) => !p.fromWsl).length
 
   // Only settings the user can act on are badged: applied and default values
   // are the healthy majority and would drown the signal.
@@ -130,6 +130,7 @@ export default function DashboardTab(): React.JSX.Element {
   const networkIssue = networkNeedsAttention(dash.firewall, dash.dns)
 
   const gatewayRunning = dash.hermes?.gatewayStatus === 'running'
+  const openclawRunning = (findOpenClaw(dash.tools)?.runningProcesses ?? 0) > 0
   const badges: Partial<Record<DashboardSectionId, ReactNode>> = {
     wslconfig: settingIssues > 0 ? count(settingIssues, 'err') : undefined,
     network: networkIssue ? dot('err', t('common.warning')) : undefined,
@@ -137,6 +138,10 @@ export default function DashboardTab(): React.JSX.Element {
     hermes: dot(
       gatewayRunning ? 'ok' : 'unknown',
       gatewayRunning ? t('common.running') : t('common.notDetected')
+    ),
+    openclaw: dot(
+      openclawRunning ? 'ok' : 'unknown',
+      openclawRunning ? t('common.running') : t('common.notDetected')
     ),
     environment: count(dash.environment.length),
     processes: count(dash.processes.length),
@@ -179,6 +184,7 @@ export default function DashboardTab(): React.JSX.Element {
           <NetworkCard
             firewall={dash.firewall}
             dns={dash.dns}
+            portProxy={dash.portProxy}
             onShowPorts={() => selectSection('ports')}
           />
         )
@@ -193,6 +199,8 @@ export default function DashboardTab(): React.JSX.Element {
             appendWindowsPath={effectiveAppendWindowsPath(dash.wslSettings)}
           />
         )
+      case 'openclaw':
+        return <OpenClawCard openclaw={findOpenClaw(dash.tools)} />
       case 'hermes':
         return <HermesCard hermes={dash.hermes} />
       case 'environment':

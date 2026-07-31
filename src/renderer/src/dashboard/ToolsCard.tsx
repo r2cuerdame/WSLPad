@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { TOOL_CATEGORIES, TOOL_SPECS, type ToolCategory } from '@shared/constants'
 import type { ToolInfo, WslConfigInfo } from '@shared/types'
 import Card from '../components/Card'
-import { CheckIcon, WarningIcon } from '../components/Icons'
+import CopyButton from '../components/CopyButton'
+import { useApp } from '../store'
+import { CheckIcon, FolderIcon, WarningIcon } from '../components/Icons'
 
 export interface ToolsCardProps {
   tools: ToolInfo[]
@@ -18,6 +20,19 @@ export interface ToolsCardProps {
 const CATEGORY_OF = new Map<string, ToolCategory>(TOOL_SPECS.map((s) => [s.id, s.category]))
 /** A tool the catalog no longer knows still has to land in a visible group. */
 const FALLBACK_CATEGORY: ToolCategory = 'util'
+
+/**
+ * Directory of an executable, for revealing it in the Explorer pane. Windows
+ * separators are normalised because a shadowed tool's path is a `/mnt/c` one
+ * on the Linux side but a drive path on the Windows side.
+ */
+export function dirOf(path: string): string {
+  const normalised = path.replace(/\\/g, '/')
+  const lastSlash = normalised.lastIndexOf('/')
+  if (lastSlash < 0) return '/'
+  const cut = normalised.slice(0, lastSlash)
+  return cut === '' ? '/' : cut
+}
 
 /** The wsl.conf key itself, shown verbatim — it is a setting name, not prose. */
 const APPEND_WINDOWS_PATH_KEY = 'interop.appendWindowsPath'
@@ -57,6 +72,7 @@ export default function ToolsCard({
   appendWindowsPath = null
 }: ToolsCardProps): React.JSX.Element {
   const { t } = useTranslation()
+  const { navigateExplorer, pushToast } = useApp()
   // The catalog is long enough that showing every absent tool first is noise.
   const [installedOnly, setInstalledOnly] = useState(true)
   const [shadowedOnly, setShadowedOnly] = useState(false)
@@ -181,6 +197,9 @@ export default function ToolsCard({
                 <th scope="col">{t('dashboard.tools.sideLabel')}</th>
                 <th scope="col">{t('dashboard.tools.installMethod')}</th>
                 <th scope="col">{t('dashboard.tools.processes')}</th>
+                <th scope="col">
+                  <span className="sr-only">{t('common.details')}</span>
+                </th>
               </tr>
             </thead>
             {groups.map((group) => (
@@ -188,7 +207,7 @@ export default function ToolsCard({
                 <tr>
                   <th
                     scope="colgroup"
-                    colSpan={6}
+                    colSpan={7}
                     data-category={group.category}
                     // .dash-table th sticks to the top for the header row; a
                     // group heading has to scroll with its rows.
@@ -230,6 +249,35 @@ export default function ToolsCard({
                     </td>
                     <td>{tool.installMethod ?? '—'}</td>
                     <td>{tool.runningProcesses > 0 ? tool.runningProcesses : '—'}</td>
+                    {/* A path you can read but not copy is half an answer. */}
+                    <td>
+                      <span className="row-actions">
+                        {tool.executablePath === null ? null : (
+                          <>
+                            <CopyButton
+                              text={tool.executablePath}
+                              labelKey="dashboard.config.copyPath"
+                              size={14}
+                            />
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              aria-label={t('dashboard.config.showInExplorer')}
+                              title={t('dashboard.config.showInExplorer')}
+                              onClick={() => {
+                                navigateExplorer(
+                                  dirOf(tool.executablePath as string),
+                                  tool.side === 'windows-mount' ? 'windows' : 'linux'
+                                )
+                                pushToast('info', t('toast.openedInExplorer'))
+                              }}
+                            >
+                              <FolderIcon size={14} />
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

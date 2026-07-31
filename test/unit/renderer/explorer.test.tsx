@@ -84,6 +84,7 @@ function makeSnapshot(): WslPadSnapshot {
       services: [],
       ports: [],
       windowsPorts: [],
+      portProxy: null,
       firewall: null,
       clock: null,
       dns: null,

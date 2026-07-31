@@ -183,6 +183,8 @@
       "filterPlaceholder": "Filter settings",
       "hideDefaults": "Hide unset defaults",
       "vmStarted": "VM started",
+      "platform": "WSL build",
+      "inboxBuild": "The distribution-inbox WSL: it has no --version, so build-gated verdicts stay unknown",
       "restartPending": "Restart pending",
       "restartPendingHint": "Some values apply only after wsl --shutdown",
       "restartBannerBody": "The running VM started before these files were last saved, so some values are not in force yet.",
@@ -256,7 +258,20 @@
       "dnsVerdictTunneling": "DNS tunneling is on, so lookups are answered by the Windows resolver rather than sent to the servers listed here.",
       "portsHint": "The same rules decide how far each listening port carries.",
       "seePorts": "See the ports",
-      "unavailable": "No network information for this distribution"
+      "unavailable": "No network information for this distribution",
+      "portProxy": "Port forwarding",
+      "noPortProxy": "No forwarding rules on this machine",
+      "portProxyAgainst": "Checked against the address this distribution has now: {{ip}}",
+      "listenOn": "Windows listens on",
+      "forwardsTo": "Forwards to",
+      "copyRepair": "Copy the command that repoints this rule",
+      "portProxyAdmin": "A rule is changed with netsh from an elevated prompt, which WSLPad cannot prepare in the Console — copy the command and run it yourself.",
+      "proxyVerdict": {
+        "live": "Live",
+        "stale": "Forwards nowhere",
+        "elsewhere": "Not this distro",
+        "unknown": "Unknown"
+      }
     },
     "paths": {
       "title": "Important paths",
@@ -343,9 +358,18 @@
       "prepareDashboard": "Prepare dashboard command",
       "prepareDashboardHint": "Prepared in the Console — nothing runs until you press Enter"
     },
+    "openclaw": {
+      "title": "OpenClaw",
+      "executable": "Executable",
+      "data": "Data",
+      "processes": "Running processes",
+      "notInstalled": "OpenClaw was not found in this distribution",
+      "notInstalledHint": "WSLPad looks for the openclaw command and a ~/.openclaw directory. It never installs anything."
+    },
     "environment": {
       "title": "Environment",
       "value": "Value",
+      "copyValue": "Copy value",
       "length": "Length",
       "pathLike": "PATH-like",
       "fromWindows": "From Windows",

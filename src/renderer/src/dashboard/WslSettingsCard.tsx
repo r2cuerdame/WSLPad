@@ -5,6 +5,7 @@ import type {
   SettingProvenance,
   SettingVerdict,
   WslConfigInfo,
+  WslPlatformInfo,
   WslSettingInfo
 } from '@shared/types'
 import { formatDateTime } from '@shared/format'
@@ -47,6 +48,17 @@ const PROVENANCE_TONE: Record<SettingProvenance, 'accent' | 'dim'> = {
   computed: 'dim',
   unknown: 'dim'
 }
+
+/** Component labels are product names, deliberately not translated. */
+const PLATFORM_PARTS: ReadonlyArray<[string, (p: WslPlatformInfo) => string | null]> = [
+  ['WSL', (p) => p.wsl],
+  ['Kernel', (p) => p.kernel],
+  ['WSLg', (p) => p.wslg],
+  ['MSRDC', (p) => p.msrdc],
+  ['Direct3D', (p) => p.direct3d],
+  ['DXCore', (p) => p.dxcore],
+  ['Windows', (p) => p.windows]
+]
 
 export function settingNeedsAttention(s: WslSettingInfo): boolean {
   return s.verdict !== 'applied' && s.verdict !== 'not-set'
@@ -341,6 +353,30 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
         <span className="kv-key">{t('dashboard.wslconfig.vmStarted')}</span>
         <span className="kv-val">{formatDateTime(locale, settings.vmStartedAt)}</span>
       </div>
+
+      {/* Every "unsupported on this build" verdict below is a claim about these
+          numbers, so the build is stated instead of being an invisible premise
+          (0.1.9). A distribution-inbox WSL has no --version at all. */}
+      {settings.platform === null ? null : (
+        <div className="kv-row">
+          <span className="kv-key">{t('dashboard.wslconfig.platform')}</span>
+          <span className="kv-val">
+            {settings.platform.storeBuild ? (
+              <span className="badge-row">
+                {PLATFORM_PARTS.filter(([, get]) => get(settings.platform!) !== null).map(
+                  ([label, get]) => (
+                    <span key={label} className="badge badge-dim" title={label}>
+                      {label} <span className="mono">{get(settings.platform!)}</span>
+                    </span>
+                  )
+                )}
+              </span>
+            ) : (
+              <span className="dim">{t('dashboard.wslconfig.inboxBuild')}</span>
+            )}
+          </span>
+        </div>
+      )}
 
       {all.length === 0 ? (
         <div className="dim">{t('dashboard.wslconfig.empty')}</div>

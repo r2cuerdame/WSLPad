@@ -1,11 +1,15 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { HermesInfo } from '@shared/types'
 import { useApp } from '../store'
 import Card from '../components/Card'
-import { ExternalIcon } from '../components/Icons'
+import CopyButton from '../components/CopyButton'
+import { ExternalIcon, FolderIcon } from '../components/Icons'
 
 const shQuote = (v: string): string => `'${v.replace(/'/g, "'\\''")}'`
+
+/** Parent directory of a Linux path. */
+const dirname = (p: string): string => p.replace(/\/[^/]*$/, '') || '/'
 
 /** `hermes dashboard` binds 127.0.0.1 and opens a browser unless told not to. */
 const DASHBOARD_COMMAND = 'hermes dashboard --no-open'
@@ -33,7 +37,7 @@ export interface HermesCardProps {
 
 export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Element {
   const { t } = useTranslation()
-  const { prepareCommand, pushToast } = useApp()
+  const { prepareCommand, pushToast, navigateExplorer } = useApp()
   const service = hermes?.services[0]
 
   // Buttons only prepare the command in the Console input — never run it
@@ -49,7 +53,36 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
     pushToast('info', t('toast.commandPrepared'))
   }
 
-  const v = (x: string | null): string => x ?? '—'
+  /**
+   * A path row that can be copied and opened. Every other section offers this
+   * for its paths; Hermes printed them as plain text (0.1.9 menu audit).
+   */
+  const pathRow = (label: string, path: string | null, dir = false): React.JSX.Element => (
+    <Kv k={label} mono>
+      {path === null ? (
+        '—'
+      ) : (
+        <>
+          <span className="truncate" title={path}>
+            {path}
+          </span>
+          <CopyButton text={path} labelKey="dashboard.config.copyPath" />
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t('dashboard.config.showInExplorer')}
+            title={t('dashboard.config.showInExplorer')}
+            onClick={() => {
+              navigateExplorer(dir ? path : dirname(path), 'linux')
+              pushToast('info', t('toast.openedInExplorer'))
+            }}
+          >
+            <FolderIcon size={14} />
+          </button>
+        </>
+      )}
+    </Kv>
+  )
   const detect = (status: 'running' | 'not-detected'): React.JSX.Element =>
     status === 'running' ? (
       <span className="badge badge-ok">{t('common.running')}</span>
@@ -101,18 +134,10 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
       ) : (
         <>
           <Kv k={t('common.installed')}>{hermes.installed ? t('common.yes') : t('common.no')}</Kv>
-          <Kv k={t('dashboard.hermes.executable')} mono>
-            {v(hermes.executablePath)}
-          </Kv>
-          <Kv k={t('dashboard.hermes.data')} mono>
-            {v(hermes.dataDir)}
-          </Kv>
-          <Kv k={t('dashboard.hermes.venv')} mono>
-            {v(hermes.venvPath)}
-          </Kv>
-          <Kv k={t('dashboard.hermes.config')} mono>
-            {v(hermes.configPath)}
-          </Kv>
+          {pathRow(t('dashboard.hermes.executable'), hermes.executablePath)}
+          {pathRow(t('dashboard.hermes.data'), hermes.dataDir, true)}
+          {pathRow(t('dashboard.hermes.venv'), hermes.venvPath, true)}
+          {pathRow(t('dashboard.hermes.config'), hermes.configPath)}
           <Kv k={t('dashboard.hermes.gateway')}>{detect(hermes.gatewayStatus)}</Kv>
 
           {/* Which messenger the gateway actually carries. Hermes lists every
@@ -188,9 +213,11 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
           <Kv k={t('dashboard.hermes.services')} mono>
             {hermes.services.length > 0 ? hermes.services.join(', ') : '—'}
           </Kv>
-          <Kv k={t('dashboard.hermes.logs')} mono>
-            {hermes.logPaths.length > 0 ? hermes.logPaths.join(', ') : '—'}
-          </Kv>
+          {hermes.logPaths.length === 0
+            ? pathRow(t('dashboard.hermes.logs'), null)
+            : hermes.logPaths.map((p) => (
+                <Fragment key={p}>{pathRow(t('dashboard.hermes.logs'), p, true)}</Fragment>
+              ))}
         </>
       )}
     </Card>

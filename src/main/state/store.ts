@@ -16,6 +16,7 @@ import type {
   EnvironmentVariableInfo,
   ExplorerContext,
   FirewallInfo,
+  PortProxyInfo,
   HermesInfo,
   ImportantPathInfo,
   McpStatus,
@@ -56,6 +57,7 @@ interface DashboardSections {
   ports: PortInfo[]
   windowsPorts: WindowsPortInfo[]
   firewall: FirewallInfo | null
+  portProxy: PortProxyInfo | null
   clock: ClockInfo | null
   dns: DnsInfo | null
 }
@@ -124,6 +126,7 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     ports: [],
     windowsPorts: [],
     firewall: null,
+    portProxy: null,
     clock: null,
     dns: null
   }
@@ -280,6 +283,7 @@ export class SnapshotStore {
       if (distro && s) {
         // Firewall is a Windows query — same reasoning as the port table.
         const firewall = this.collectFirewall(s)
+        const portProxy = this.collectPortProxy(s)
         if (await this.distroResponsive(distro)) {
           await Promise.all([
             this.collect(
@@ -300,6 +304,7 @@ export class SnapshotStore {
           ])
         }
         await firewall
+        await portProxy
       }
       this.recomputeWarnings()
       this.emit()
@@ -459,6 +464,23 @@ export class SnapshotStore {
       () => read.call(this.provider),
       (v) => {
         s.firewall = v
+      }
+    )
+  }
+
+  /**
+   * Windows port-forwarding rules, medium tier next to the firewall: both
+   * answer "why does this port not reach me". The rules are judged against the
+   * distro's current address, which is why the system section is read first.
+   */
+  private async collectPortProxy(s: DashboardSections): Promise<void> {
+    const read = this.provider.getPortProxy
+    if (read === undefined) return
+    await this.collect(
+      'port forwarding',
+      () => read.call(this.provider, s.system.ip),
+      (v) => {
+        s.portProxy = v
       }
     )
   }

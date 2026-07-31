@@ -104,11 +104,7 @@ describe('tray About submenu', () => {
     itemIn(sub, 'tray.releaseNotes').click?.({ checked: false })
     itemIn(sub, 'tray.sponsor').click?.({ checked: false })
 
-    expect(opened).toEqual([
-      PROJECT_URLS.repository,
-      PROJECT_URLS.releases,
-      PROJECT_URLS.sponsor
-    ])
+    expect(opened).toEqual([PROJECT_URLS.repository, PROJECT_URLS.releases, PROJECT_URLS.sponsor])
   })
 
   it('opens nothing until an item is clicked', () => {

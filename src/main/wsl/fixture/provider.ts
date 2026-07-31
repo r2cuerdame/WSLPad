@@ -14,6 +14,7 @@ import type {
   DnsInfo,
   EnvironmentVariableInfo,
   FirewallInfo,
+  PortProxyInfo,
   HermesInfo,
   ImportantPathInfo,
   MemoryReconciliation,
@@ -39,6 +40,7 @@ import {
   fixtureDns,
   fixtureEnvRaw,
   fixtureFirewall,
+  fixturePortProxy,
   fixtureHermes,
   fixtureImportantPaths,
   fixtureMemoryDetail,
@@ -120,6 +122,11 @@ export class FixtureWslProvider implements WslProvider {
   /** Host-wide too: the firewall belongs to Windows, not to a distro. */
   async getFirewall(): Promise<FirewallInfo> {
     return fixtureFirewall()
+  }
+
+  /** Host-wide: portproxy rules live in Windows, judged against the distro IP. */
+  async getPortProxy(): Promise<PortProxyInfo> {
+    return fixturePortProxy()
   }
 
   async getClock(distro: string): Promise<ClockInfo> {

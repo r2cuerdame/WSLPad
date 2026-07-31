@@ -14,6 +14,7 @@ import type {
   SettingProvenance,
   SettingVerdict,
   WslConfigInfo,
+  WslPlatformInfo,
   WslSettingInfo
 } from '@shared/types'
 import { WslNotAvailableError, type DistroRunner } from './contracts'
@@ -331,6 +332,53 @@ export function parseWslVersion(text: string): string | null {
     if (match !== null) return match[1]
   }
   return null
+}
+
+/**
+ * Components of `wsl --version`, in the order wsl.exe prints them. Only the
+ * kernel line's label is localized ("커널 버전", "Kernelversion", …), so the
+ * ASCII component names are matched when present and position carries the rest
+ * — the same locale-independence rule the distro list parsing follows.
+ */
+const PLATFORM_ORDER = ['wsl', 'kernel', 'wslg', 'msrdc', 'direct3d', 'dxcore', 'windows'] as const
+type PlatformKey = (typeof PLATFORM_ORDER)[number]
+
+const PLATFORM_MARKERS: ReadonlyArray<[PlatformKey, RegExp]> = [
+  ['wslg', /wslg/i],
+  ['msrdc', /msrdc/i],
+  ['direct3d', /direct3d/i],
+  ['dxcore', /dxcore/i],
+  ['windows', /windows/i],
+  // Checked last: "WSL" is a prefix of "WSLg" and appears in no other label.
+  ['wsl', /\bwsl\b/i]
+]
+
+export function parseWslPlatform(text: string): WslPlatformInfo {
+  const info: WslPlatformInfo = {
+    wsl: null,
+    kernel: null,
+    wslg: null,
+    msrdc: null,
+    direct3d: null,
+    dxcore: null,
+    windows: null,
+    storeBuild: false
+  }
+  let position = 0
+  for (const raw of text.split('\n')) {
+    const line = raw.trim()
+    if (line === '') continue
+    // Versions here are not all dotted triples (Direct3D: 1.611.1-81528511).
+    const value = /([\d]+(?:\.[\d]+)+(?:[-.][\w.-]+)?)\s*$/.exec(line)
+    if (value === null) continue
+    const label = line.slice(0, line.length - value[1].length)
+    const marked = PLATFORM_MARKERS.find(([, re]) => re.test(label))
+    const key = marked?.[0] ?? PLATFORM_ORDER[position]
+    if (key !== undefined && info[key] === null) info[key] = value[1]
+    position += 1
+  }
+  info.storeBuild = info.wsl !== null
+  return info
 }
 
 export function compareVersions(a: string, b: string): number {
@@ -1099,6 +1147,8 @@ export function createWslConfigCollector(deps: WslConfigDeps = {}): WslConfigCol
   // wsl.exe cannot change under a running WSLPad, so one successful read lasts.
   let cachedVersion: string | null = null
 
+  let cachedPlatform: WslPlatformInfo | null = null
+
   const readVersion = async (runner: DistroRunner): Promise<string | null> => {
     if (cachedVersion !== null) return cachedVersion
     try {
@@ -1106,10 +1156,21 @@ export function createWslConfigCollector(deps: WslConfigDeps = {}): WslConfigCol
         timeoutMs: RUNNER_TIMEOUT_MS,
         encoding: 'utf16le'
       })
-      cachedVersion = parseWslVersion(res.stdout)
+      cachedPlatform = parseWslPlatform(res.stdout)
+      cachedVersion = cachedPlatform.wsl ?? parseWslVersion(res.stdout)
     } catch {
       // Builds before the store release have no --version; stay unknown so no
       // key is ever reported unsupported without evidence.
+      cachedPlatform = {
+        wsl: null,
+        kernel: null,
+        wslg: null,
+        msrdc: null,
+        direct3d: null,
+        dxcore: null,
+        windows: null,
+        storeBuild: false
+      }
     }
     return cachedVersion
   }
@@ -1159,6 +1220,10 @@ export function createWslConfigCollector(deps: WslConfigDeps = {}): WslConfigCol
         vmStartedAt: vmStartedAtMs === null ? null : new Date(vmStartedAtMs).toISOString(),
         networkingModeDeclared: result.networkingModeDeclared,
         networkingModeEffective: result.networkingModeEffective,
+        // Read as a side effect of the version gate above, so showing it costs
+        // nothing — and every "unsupported on this build" verdict below is a
+        // claim about exactly these numbers.
+        platform: cachedPlatform,
         settings: result.settings
       }
     }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { EnvironmentVariableInfo } from '@shared/types'
 import { useApp } from '../store'
+import CopyButton from '../components/CopyButton'
 import Card from '../components/Card'
 import VirtualList from '../components/VirtualList'
 
@@ -109,6 +110,17 @@ export default function EnvironmentCard({ env }: EnvironmentCardProps): React.JS
             >
               {revealed[e.name] ?? e.maskedValue}
             </span>
+            {/* A secret is copyable only once the user has revealed it; the
+                mask itself is worthless on a clipboard (0.1.9 menu audit). */}
+            {!e.isSecret || revealed[e.name] !== undefined ? (
+              <CopyButton
+                text={revealed[e.name] ?? e.maskedValue}
+                toastKey="common.copied"
+                labelKey="dashboard.environment.copyValue"
+              />
+            ) : (
+              <span className="env-copy-gap" aria-hidden="true" />
+            )}
             <span className="dim env-len">{e.valueLength}</span>
             <span className="env-badges">
               {e.isPathLike ? (

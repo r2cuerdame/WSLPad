@@ -11,6 +11,7 @@ import { collectEnvironment } from './environment'
 import { assertValidDistroName } from './escape'
 import { createDiskCollector } from './disk'
 import { createFirewallCollector } from './firewall'
+import { createPortProxyCollector } from './portproxy'
 import { createMemoryCollector } from './memory'
 import { collectImportantPaths } from './paths'
 import { collectPorts } from './ports'
@@ -40,6 +41,8 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
   const diskImage = createDiskCollector()
   // Created once so its TTL survives polls: each read is a PowerShell start.
   const firewall = createFirewallCollector()
+  // Same reasoning: each read is a netsh start, and the rules change by hand.
+  const portProxy = createPortProxyCollector()
   // Same reason: the Windows half of the resolver answer is a PowerShell start.
   const dns = createDnsCollector()
 
@@ -127,6 +130,10 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
 
     getWindowsPorts() {
       return windowsPorts.collect()
+    },
+
+    getPortProxy(distroIp) {
+      return portProxy.collect(distroIp)
     },
 
     getFirewall() {

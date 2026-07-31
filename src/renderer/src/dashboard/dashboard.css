@@ -824,10 +824,15 @@
 
 .env-row {
   display: grid;
-  grid-template-columns: minmax(120px, 200px) minmax(0, 1fr) 48px auto auto;
+  grid-template-columns: minmax(120px, 200px) minmax(0, 1fr) 26px 48px auto auto;
   column-gap: 12px;
   align-items: center;
   min-width: 0;
+}
+
+/* Keeps the columns aligned on rows whose secret is still masked. */
+.env-copy-gap {
+  width: 26px;
 }
 
 .env-name {

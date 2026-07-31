@@ -149,7 +149,10 @@ tatsächlich liegt, ihre logische Größe, wie viel davon wirklich belegt ist, o
 sie eine Sparse-Datei ist, Größe und Belegung des Dateisystems innerhalb der
 Distribution und wie viel rückgewinnbar ist.
 
-**WSL-Einstellungen** — jeder Schlüssel aus `.wslconfig` und `/etc/wsl.conf`
+**WSL-Einstellungen** — zuerst der WSL-Build, der Kernel, WSLg, MSRDC,
+Direct3D, DXCore und die Windows-Version aus `wsl --version`, denn jedes Urteil
+„auf diesem Build nicht unterstützt" ist eine Aussage über genau diese Zahlen.
+Danach jeder Schlüssel aus `.wslconfig` und `/etc/wsl.conf`
 mit seinem deklarierten Wert, dem tatsächlich wirksamen Wert, seiner Herkunft
 (von Ihnen gesetzt, WSL-Standard oder aus Ihrer Hardware berechnet) und einem
 Urteil: übernommen, Neustart nötig, nicht gesetzt, unbekannter Schlüssel
@@ -179,6 +182,11 @@ Distribution installiert ist.
 
 **Hermes** — Programmdatei, Datenverzeichnis, virtuelle Umgebung, Konfiguration, Status des Gateways, **mit welchen Messengern es tatsächlich verbunden ist**, die Profile, die man Agenten nennen würde (das aktuelle markiert), aktive Sitzungen, geplante Aufgaben, Status und Adresse des Dashboards, Anzahl der MCP-Server, Ports, Benutzerdienste und Pfade der Protokolle. Messenger und Profile stammen aus Hermes' eigener, nur lesender CLI; lässt sie sich nicht befragen, steht dort *unbekannt* und nicht „nichts konfiguriert". Das Web-Dashboard läuft nicht? Der Befehl zum Starten wird in der Konsole vorbereitet.
 
+**OpenClaw** — ein eigener Abschnitt neben Hermes: Programmdatei,
+Datenverzeichnis, Version, Installationsweg, auf welcher Seite der
+Dateisystemgrenze es liegt und ob es läuft. Erkannt im selben Katalogdurchlauf
+wie jedes andere Werkzeug — WSLPad startet OpenClaw nie, um es zu befragen.
+
 ![Hermes](docs/screenshots/hermes.png)
 
 **Umgebungsvariablen** — jede Variable mit ihrer Länge und ihren Merkmalen
@@ -202,7 +210,7 @@ nirgendwohin oder unbekannt. Filtern nach Portbereich und Prozessname — die Na
 Loopback-Ausnahme, Anzahl der Regeln) und die Namensauflösung: ob
 `/etc/resolv.conf` der erzeugte Symlink oder von Hand bearbeitet ist, das
 wirksame `generateResolvConf`, DNS-Tunneling, die verwendeten Nameserver und
-das, was der Windows-Adapter verteilt.
+das, was der Windows-Adapter verteilt. Dazu die **Portweiterleitungs**-Regeln von Windows: Unter NAT bekommt die Distribution bei jedem WSL-Neustart eine neue Adresse, sodass eine einmal angelegte `netsh portproxy`-Regel unbemerkt ins Leere weiterleitet. WSLPad stellt jede Regel neben die aktuelle Adresse und sagt, welche tot sind.
 
 **Warnungen** — gestoppte Distribution, systemd aus, wenig Speicherplatz,
 fehlgeschlagene Units, Portkonflikte, fehlgeschlagene Hintergrundabfragen,
@@ -286,7 +294,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.1.8)
+## Aktuelle Einschränkungen (v0.1.9)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;

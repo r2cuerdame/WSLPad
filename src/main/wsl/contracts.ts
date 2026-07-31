@@ -10,6 +10,7 @@ import type {
   FileEntry,
   FileStat,
   FirewallInfo,
+  PortProxyInfo,
   HermesInfo,
   ImportantPathInfo,
   MemoryReconciliation,
@@ -105,6 +106,12 @@ export interface WslProvider {
    * method leaves the section null (unknown) instead of implying "all open".
    */
   getFirewall?(): Promise<FirewallInfo>
+  /**
+   * Windows port-forwarding rules judged against the address the distro has
+   * right now. Optional for the same reason: a missing method leaves the
+   * section null rather than implying there are no rules.
+   */
+  getPortProxy?(distroIp: string | null): Promise<PortProxyInfo>
   /** Windows vs distro wall clock; needs the distro to answer, so it is gated. */
   getClock?(distro: string): Promise<ClockInfo>
   /** Resolver configuration on both sides of the boundary. */

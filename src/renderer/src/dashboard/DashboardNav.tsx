@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   ActivityIcon,
   BoltIcon,
+  ClawIcon,
   ExternalIcon,
   FileIcon,
   FolderIcon,
@@ -28,6 +29,7 @@ export type DashboardSectionId =
   | 'configuration'
   | 'tools'
   | 'hermes'
+  | 'openclaw'
   | 'environment'
   | 'processes'
   | 'services'
@@ -53,6 +55,7 @@ export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },
   { id: 'hermes', titleKey: 'dashboard.hermes.title', Icon: BoltIcon },
+  { id: 'openclaw', titleKey: 'dashboard.openclaw.title', Icon: ClawIcon },
   { id: 'environment', titleKey: 'dashboard.environment.title', Icon: ListIcon },
   { id: 'processes', titleKey: 'dashboard.processes.title', Icon: ActivityIcon },
   { id: 'services', titleKey: 'dashboard.services.title', Icon: ServerIcon },

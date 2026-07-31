@@ -183,6 +183,8 @@
       "filterPlaceholder": "Einstellungen filtern",
       "hideDefaults": "Nicht gesetzte Standardwerte ausblenden",
       "vmStarted": "VM gestartet",
+      "platform": "WSL-Build",
+      "inboxBuild": "Das mit Windows gelieferte WSL: Es hat kein --version, build-abhängige Urteile bleiben unbekannt",
       "restartPending": "Neustart ausstehend",
       "restartPendingHint": "Manche Werte gelten erst nach wsl --shutdown",
       "restartBannerBody": "Die laufende VM wurde gestartet, bevor diese Dateien zuletzt gespeichert wurden – einige Werte sind daher noch nicht in Kraft.",
@@ -256,7 +258,20 @@
       "dnsVerdictTunneling": "DNS-Tunneling ist eingeschaltet, Abfragen beantwortet daher der Windows-Resolver, statt sie an die hier aufgeführten Server zu schicken.",
       "portsHint": "Dieselben Regeln entscheiden, wie weit jeder lauschende Port trägt.",
       "seePorts": "Zu den Ports",
-      "unavailable": "Keine Netzwerkinformationen für diese Distribution"
+      "unavailable": "Keine Netzwerkinformationen für diese Distribution",
+      "portProxy": "Portweiterleitung",
+      "noPortProxy": "Auf diesem Rechner gibt es keine Weiterleitungsregeln",
+      "portProxyAgainst": "Verglichen mit der Adresse, die diese Distribution jetzt hat: {{ip}}",
+      "listenOn": "Windows lauscht auf",
+      "forwardsTo": "Leitet weiter an",
+      "copyRepair": "Befehl kopieren, der diese Regel korrigiert",
+      "portProxyAdmin": "Eine Regel ändert man mit netsh in einer Eingabeaufforderung als Administrator, die WSLPad nicht in der Konsole vorbereiten kann — kopieren Sie den Befehl und führen Sie ihn selbst aus.",
+      "proxyVerdict": {
+        "live": "Aktiv",
+        "stale": "Führt ins Leere",
+        "elsewhere": "Nicht diese Distribution",
+        "unknown": "Unbekannt"
+      }
     },
     "paths": {
       "title": "Wichtige Pfade",
@@ -343,9 +358,18 @@
       "prepareDashboard": "Dashboard-Befehl vorbereiten",
       "prepareDashboardHint": "Wird nur in die Konsole geschrieben — nichts läuft ohne Enter"
     },
+    "openclaw": {
+      "title": "OpenClaw",
+      "executable": "Programmdatei",
+      "data": "Daten",
+      "processes": "Laufende Prozesse",
+      "notInstalled": "OpenClaw wurde in dieser Distribution nicht gefunden",
+      "notInstalledHint": "WSLPad sucht den Befehl openclaw und ein Verzeichnis ~/.openclaw. Es installiert nie etwas."
+    },
     "environment": {
       "title": "Umgebungsvariablen",
       "value": "Wert",
+      "copyValue": "Wert kopieren",
       "length": "Länge",
       "pathLike": "PATH-artig",
       "fromWindows": "Von Windows",

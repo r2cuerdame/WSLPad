@@ -90,6 +90,7 @@ function info(over: Partial<WslConfigInfo> = {}): WslConfigInfo {
     vmStartedAt: '2026-01-02T11:50:00.000Z',
     networkingModeDeclared: null,
     networkingModeEffective: 'nat',
+    platform: null,
     settings: SETTINGS,
     ...over
   }

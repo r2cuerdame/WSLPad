@@ -14,6 +14,7 @@ import {
   parseMounts,
   parseObservations,
   parseSize,
+  parseWslPlatform,
   parseWslVersion,
   reconcileSettings,
   suggestKey,
@@ -898,5 +899,52 @@ describe('createWslConfigCollector', () => {
     for (const verb of ['sudo', 'rm ', 'mv ', 'chmod', 'chown', 'tee', 'sed -i', '>>', 'wsl --']) {
       expect(script).not.toContain(verb)
     }
+  })
+})
+
+describe('parseWslPlatform', () => {
+  /** Captured on a Korean Windows: only the kernel label is localized. */
+  const KOREAN = [
+    'WSL 버전: 2.6.3.0',
+    '커널 버전: 6.6.87.2-1',
+    'WSLg 버전: 1.0.71',
+    'MSRDC 버전: 1.2.6353',
+    'Direct3D 버전: 1.611.1-81528511',
+    'DXCore 버전: 10.0.26100.1-240331-1435.ge-release',
+    'Windows 버전: 10.0.26200.7840'
+  ].join('\n')
+
+  it('reads every component off a localized build', () => {
+    expect(parseWslPlatform(KOREAN)).toEqual({
+      wsl: '2.6.3.0',
+      kernel: '6.6.87.2-1',
+      wslg: '1.0.71',
+      msrdc: '1.2.6353',
+      direct3d: '1.611.1-81528511',
+      dxcore: '10.0.26100.1-240331-1435.ge-release',
+      windows: '10.0.26200.7840',
+      storeBuild: true
+    })
+  })
+
+  it('reads the English build the same way', () => {
+    const english = KOREAN.replace(/버전/g, 'version').replace('커널', 'Kernel')
+    const info = parseWslPlatform(english)
+    expect(info.wsl).toBe('2.6.3.0')
+    expect(info.kernel).toBe('6.6.87.2-1')
+    expect(info.windows).toBe('10.0.26200.7840')
+  })
+
+  it('never mistakes WSLg for WSL', () => {
+    const info = parseWslPlatform('WSLg version: 1.0.71\nWSL version: 2.6.3.0')
+    expect(info.wslg).toBe('1.0.71')
+    expect(info.wsl).toBe('2.6.3.0')
+  })
+
+  it('reports an inbox build as such rather than inventing versions', () => {
+    const info = parseWslPlatform('')
+    expect(info.storeBuild).toBe(false)
+    expect(info.wsl).toBeNull()
+    expect(info.windows).toBeNull()
   })
 })

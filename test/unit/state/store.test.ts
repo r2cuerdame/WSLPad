@@ -45,6 +45,17 @@ function wslSettings(): WslConfigInfo {
     vmStartedAt: '2026-07-30T08:00:00.000Z',
     networkingModeDeclared: 'nat',
     networkingModeEffective: 'nat',
+      platform: {
+            wsl: '2.6.3.0',
+            kernel: '6.6.87.2-1',
+            wslg: '1.0.71',
+            msrdc: '1.2.6353',
+            direct3d: '1.611.1-81528511',
+            dxcore: '10.0.26100.1-240331-1435.ge-release',
+            windows: '10.0.26200.7840',
+            storeBuild: true
+          },
+    
     settings: [
       {
         key: 'memory',

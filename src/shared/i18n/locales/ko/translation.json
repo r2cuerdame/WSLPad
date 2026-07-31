@@ -183,6 +183,8 @@
       "filterPlaceholder": "설정 필터",
       "hideDefaults": "지정하지 않은 기본값 숨기기",
       "vmStarted": "VM 시작 시각",
+      "platform": "WSL 빌드",
+      "inboxBuild": "배포판 내장 WSL입니다 — --version이 없어 빌드 기준 판정은 알 수 없음으로 둡니다",
       "restartPending": "다시 시작 대기 중",
       "restartPendingHint": "일부 값은 wsl --shutdown 이후에만 적용됩니다",
       "restartBannerBody": "실행 중인 VM이 이 파일들을 마지막으로 저장하기 전에 시작되어, 아직 적용되지 않은 값이 있습니다.",
@@ -256,7 +258,20 @@
       "dnsVerdictTunneling": "DNS 터널링이 켜져 있어, 조회는 여기 적힌 서버로 가지 않고 Windows 리졸버가 응답합니다.",
       "portsHint": "수신 중인 각 포트가 어디까지 닿는지도 같은 규칙이 정합니다.",
       "seePorts": "포트 보기",
-      "unavailable": "이 배포판의 네트워크 정보가 없습니다"
+      "unavailable": "이 배포판의 네트워크 정보가 없습니다",
+      "portProxy": "포트 포워딩",
+      "noPortProxy": "이 컴퓨터에 포워딩 규칙이 없습니다",
+      "portProxyAgainst": "지금 이 배포판의 주소({{ip}})와 대조했습니다",
+      "listenOn": "Windows 수신",
+      "forwardsTo": "전달 대상",
+      "copyRepair": "이 규칙을 고치는 명령 복사",
+      "portProxyAdmin": "규칙 변경은 관리자 권한 netsh가 필요해 콘솔에 준비할 수 없습니다 — 명령을 복사해 직접 실행하세요.",
+      "proxyVerdict": {
+        "live": "살아 있음",
+        "stale": "아무 데도 안 감",
+        "elsewhere": "이 배포판 아님",
+        "unknown": "알 수 없음"
+      }
     },
     "paths": {
       "title": "중요 경로",
@@ -343,9 +358,18 @@
       "prepareDashboard": "대시보드 명령 준비",
       "prepareDashboardHint": "콘솔에 입력만 됩니다 — Enter를 눌러야 실행됩니다"
     },
+    "openclaw": {
+      "title": "OpenClaw",
+      "executable": "실행 파일",
+      "data": "데이터",
+      "processes": "실행 중인 프로세스",
+      "notInstalled": "이 배포판에서 OpenClaw를 찾지 못했습니다",
+      "notInstalledHint": "openclaw 명령과 ~/.openclaw 디렉터리를 확인합니다. WSLPad는 아무것도 설치하지 않습니다."
+    },
     "environment": {
       "title": "환경 변수",
       "value": "값",
+      "copyValue": "값 복사",
       "length": "길이",
       "pathLike": "PATH 계열",
       "fromWindows": "Windows에서 전달됨",

@@ -437,6 +437,7 @@ export function makeDashboard(): DashboardSnapshot {
       }
     ],
     windowsPorts: [],
+    portProxy: null,
     firewall: null,
     clock: null,
     dns: null,

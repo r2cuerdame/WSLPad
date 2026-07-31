@@ -183,6 +183,8 @@
       "filterPlaceholder": "Filtrar la configuración",
       "hideDefaults": "Ocultar los valores predeterminados sin definir",
       "vmStarted": "VM iniciada",
+      "platform": "Compilación de WSL",
+      "inboxBuild": "El WSL incluido con Windows: no tiene --version, así que los veredictos que dependen de la compilación quedan como desconocidos",
       "restartPending": "Reinicio pendiente",
       "restartPendingHint": "Algunos valores solo se aplican después de wsl --shutdown",
       "restartBannerBody": "La VM en ejecución se inició antes de la última vez que se guardaron estos archivos, así que algunos valores todavía no están en vigor.",
@@ -256,7 +258,20 @@
       "dnsVerdictTunneling": "El túnel de DNS está activado, así que las consultas las responde el resolutor de Windows en lugar de enviarse a los servidores que se listan aquí.",
       "portsHint": "Las mismas reglas deciden hasta dónde llega cada puerto a la escucha.",
       "seePorts": "Ver los puertos",
-      "unavailable": "No hay información de red para esta distribución"
+      "unavailable": "No hay información de red para esta distribución",
+      "portProxy": "Reenvío de puertos",
+      "noPortProxy": "No hay reglas de reenvío en esta máquina",
+      "portProxyAgainst": "Comparado con la dirección que esta distribución tiene ahora: {{ip}}",
+      "listenOn": "Windows escucha en",
+      "forwardsTo": "Reenvía a",
+      "copyRepair": "Copiar el comando que corrige esta regla",
+      "portProxyAdmin": "Cambiar una regla requiere netsh con permisos de administrador, que WSLPad no puede preparar en la Consola: copia el comando y ejecútalo tú.",
+      "proxyVerdict": {
+        "live": "Activa",
+        "stale": "No lleva a ninguna parte",
+        "elsewhere": "No es esta distribución",
+        "unknown": "Desconocido"
+      }
     },
     "paths": {
       "title": "Rutas importantes",
@@ -343,9 +358,18 @@
       "prepareDashboard": "Preparar comando del panel",
       "prepareDashboardHint": "Se prepara en la Consola: nada se ejecuta hasta que pulses Enter"
     },
+    "openclaw": {
+      "title": "OpenClaw",
+      "executable": "Ejecutable",
+      "data": "Datos",
+      "processes": "Procesos en ejecución",
+      "notInstalled": "No se encontró OpenClaw en esta distribución",
+      "notInstalledHint": "WSLPad busca el comando openclaw y un directorio ~/.openclaw. Nunca instala nada."
+    },
     "environment": {
       "title": "Variables de entorno",
       "value": "Valor",
+      "copyValue": "Copiar el valor",
       "length": "Longitud",
       "pathLike": "Tipo PATH",
       "fromWindows": "Desde Windows",

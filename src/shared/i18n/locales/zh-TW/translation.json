@@ -183,6 +183,8 @@
       "filterPlaceholder": "篩選設定",
       "hideDefaults": "隱藏未設定的預設值",
       "vmStarted": "虛擬機器啟動時間",
+      "platform": "WSL 組建",
+      "inboxBuild": "系統內建的 WSL —— 沒有 --version，因此依版本而定的判定維持未知",
       "restartPending": "等待重新啟動",
       "restartPendingHint": "部分值要在 wsl --shutdown 之後才會生效",
       "restartBannerBody": "執行中的虛擬機器是在這些檔案最後一次儲存之前啟動的，因此有些值還沒生效。",
@@ -256,7 +258,20 @@
       "dnsVerdictTunneling": "DNS 通道已開啟，查詢由 Windows 的解析器回答，不會送到這裡列出的伺服器。",
       "portsHint": "同樣的規則也決定每個監聽的連接埠能傳多遠。",
       "seePorts": "查看連接埠",
-      "unavailable": "沒有此發行版的網路資訊"
+      "unavailable": "沒有此發行版的網路資訊",
+      "portProxy": "連接埠轉送",
+      "noPortProxy": "這台機器上沒有轉送規則",
+      "portProxyAgainst": "已與此發行版目前的位址（{{ip}}）比對",
+      "listenOn": "Windows 接聽",
+      "forwardsTo": "轉送到",
+      "copyRepair": "複製修正此規則的指令",
+      "portProxyAdmin": "修改規則需要系統管理員權限的 netsh，無法準備到主控台 —— 請複製指令自行執行。",
+      "proxyVerdict": {
+        "live": "有效",
+        "stale": "轉送到空處",
+        "elsewhere": "不是此發行版",
+        "unknown": "未知"
+      }
     },
     "paths": {
       "title": "重要路徑",
@@ -343,9 +358,18 @@
       "prepareDashboard": "準備儀表板指令",
       "prepareDashboardHint": "只會填入主控台 — 按 Enter 才會執行"
     },
+    "openclaw": {
+      "title": "OpenClaw",
+      "executable": "執行檔",
+      "data": "資料",
+      "processes": "執行中的處理程序",
+      "notInstalled": "在此發行版中沒有找到 OpenClaw",
+      "notInstalledHint": "WSLPad 會尋找 openclaw 指令與 ~/.openclaw 目錄，但從不安裝任何東西。"
+    },
     "environment": {
       "title": "環境變數",
       "value": "值",
+      "copyValue": "複製值",
       "length": "長度",
       "pathLike": "PATH 類",
       "fromWindows": "來自 Windows",

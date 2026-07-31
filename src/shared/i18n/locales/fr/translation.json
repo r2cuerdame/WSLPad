@@ -183,6 +183,8 @@
       "filterPlaceholder": "Filtrer les paramètres",
       "hideDefaults": "Masquer les valeurs par défaut non définies",
       "vmStarted": "Démarrage de la VM",
+      "platform": "Build de WSL",
+      "inboxBuild": "Le WSL fourni avec Windows : il n'a pas de --version, les verdicts liés au build restent inconnus",
       "restartPending": "Redémarrage en attente",
       "restartPendingHint": "Certaines valeurs ne s'appliquent qu'après wsl --shutdown",
       "restartBannerBody": "La VM en cours a démarré avant le dernier enregistrement de ces fichiers : certaines valeurs ne sont donc pas encore en vigueur.",
@@ -256,7 +258,20 @@
       "dnsVerdictTunneling": "Le tunnel DNS est actif : les résolutions sont traitées par le résolveur Windows au lieu d'être envoyées aux serveurs listés ici.",
       "portsHint": "Ce sont les mêmes règles qui décident jusqu'où porte chaque port en écoute.",
       "seePorts": "Voir les ports",
-      "unavailable": "Aucune information réseau pour cette distribution"
+      "unavailable": "Aucune information réseau pour cette distribution",
+      "portProxy": "Redirection de ports",
+      "noPortProxy": "Aucune règle de redirection sur cette machine",
+      "portProxyAgainst": "Comparé à l'adresse actuelle de cette distribution : {{ip}}",
+      "listenOn": "Windows écoute sur",
+      "forwardsTo": "Redirige vers",
+      "copyRepair": "Copier la commande qui corrige cette règle",
+      "portProxyAdmin": "Modifier une règle demande netsh en invite élevée, que WSLPad ne peut pas préparer dans la Console — copiez la commande et exécutez-la vous-même.",
+      "proxyVerdict": {
+        "live": "Active",
+        "stale": "Ne mène nulle part",
+        "elsewhere": "Pas cette distribution",
+        "unknown": "Inconnu"
+      }
     },
     "paths": {
       "title": "Chemins importants",
@@ -343,9 +358,18 @@
       "prepareDashboard": "Préparer la commande du tableau de bord",
       "prepareDashboardHint": "Préparé dans la Console — rien ne s'exécute avant votre Entrée"
     },
+    "openclaw": {
+      "title": "OpenClaw",
+      "executable": "Exécutable",
+      "data": "Données",
+      "processes": "Processus en cours",
+      "notInstalled": "OpenClaw est introuvable dans cette distribution",
+      "notInstalledHint": "WSLPad cherche la commande openclaw et un dossier ~/.openclaw. Il n'installe jamais rien."
+    },
     "environment": {
       "title": "Variables d'environnement",
       "value": "Valeur",
+      "copyValue": "Copier la valeur",
       "length": "Longueur",
       "pathLike": "De type PATH",
       "fromWindows": "Depuis Windows",

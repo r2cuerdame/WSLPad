@@ -127,6 +127,7 @@ function wslConfig(over: Partial<WslConfigInfo> = {}): WslConfigInfo {
     vmStartedAt: '2026-07-30T09:00:00.000Z',
     networkingModeDeclared: 'mirrored',
     networkingModeEffective: 'mirrored',
+    platform: null,
     settings: [
       setting('memory', 'wsl2', 'wslconfig', '8GB'),
       setting('networkingMode', 'wsl2', 'wslconfig', 'mirrored'),

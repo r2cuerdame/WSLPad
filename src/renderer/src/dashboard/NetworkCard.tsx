@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { DnsInfo, FirewallInfo } from '@shared/types'
+import type { DnsInfo, FirewallInfo, PortProxyInfo, PortProxyRule } from '@shared/types'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import { PlugIcon } from '../components/Icons'
@@ -61,6 +61,8 @@ export function networkNeedsAttention(firewall: FirewallInfo | null, dns: DnsInf
 export interface NetworkCardProps {
   firewall: FirewallInfo | null
   dns: DnsInfo | null
+  /** Windows forwarding rules; null until the table has been read. */
+  portProxy?: PortProxyInfo | null
   /** Jumps to the Ports section, where the same rules decide reachability. */
   onShowPorts: () => void
 }
@@ -70,9 +72,18 @@ export interface NetworkCardProps {
  * Windows firewall on one side, the resolver configuration on the other. Both
  * are read-only — WSLPad never creates a rule and never rewrites resolv.conf.
  */
+/** Only 'live' is healthy; a rule that forwards nowhere is an error, not a note. */
+const PROXY_TONE: Record<PortProxyRule['verdict'], string> = {
+  live: 'badge badge-ok',
+  stale: 'badge badge-err',
+  elsewhere: 'badge badge-dim',
+  unknown: 'badge badge-dim'
+}
+
 export default function NetworkCard({
   firewall,
   dns,
+  portProxy = null,
   onShowPorts
 }: NetworkCardProps): React.JSX.Element {
   const { t } = useTranslation()
@@ -250,6 +261,85 @@ export default function NetworkCard({
           <Kv k={t('dashboard.network.windowsDns', { defaultValue: 'Windows adapter DNS' })} mono>
             {list(dns.windowsAdapterDns)}
           </Kv>
+        </>
+      )}
+
+      {/* Port forwarding rules people add once and never revisit. Under NAT the
+          distro's address is reassigned on every WSL restart, so a rule that
+          was right last week now forwards into nothing — silently. Nothing on
+          Windows puts the rule and the current address side by side (#53). */}
+      {portProxy === null ? null : (
+        <>
+          <div className="kv-row">
+            <span className="kv-key">{t('dashboard.network.portProxy')}</span>
+            <span className="kv-val">
+              {portProxy.error !== null ? (
+                <span className="dim">{portProxy.error}</span>
+              ) : portProxy.rules.length === 0 ? (
+                <span className="dim">{t('dashboard.network.noPortProxy')}</span>
+              ) : (
+                <span className="dim">
+                  {t('dashboard.network.portProxyAgainst', {
+                    ip: portProxy.distroIp ?? t('common.unknown')
+                  })}
+                </span>
+              )}
+            </span>
+          </div>
+          {portProxy.rules.length === 0 ? null : (
+            <div className="dash-table-wrap">
+              <table className="dash-table">
+                <thead>
+                  <tr>
+                    <th scope="col">{t('dashboard.network.listenOn')}</th>
+                    <th scope="col">{t('dashboard.network.forwardsTo')}</th>
+                    <th scope="col">{t('dashboard.wslconfig.status')}</th>
+                    <th scope="col">
+                      <span className="sr-only">{t('common.details')}</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {portProxy.rules.map((rule) => {
+                    const id = `${rule.listenAddress}:${rule.listenPort}`
+                    const to = `${rule.connectAddress}:${rule.connectPort}`
+                    return (
+                      <tr key={`${id}->${to}`}>
+                        <td className="mono">{id}</td>
+                        <td className="mono">{to}</td>
+                        <td>
+                          <span className={PROXY_TONE[rule.verdict]}>
+                            {t(`dashboard.network.proxyVerdict.${rule.verdict}`)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="row-actions">
+                            {/* Editing a rule needs an elevated shell, which
+                                cannot be prepared in the Console — so the fix
+                                is copyable text and says so. */}
+                            {rule.verdict === 'stale' && portProxy.distroIp !== null ? (
+                              <CopyButton
+                                text={
+                                  `netsh interface portproxy set v4tov4 ` +
+                                  `listenaddress=${rule.listenAddress} listenport=${rule.listenPort} ` +
+                                  `connectaddress=${portProxy.distroIp} connectport=${rule.connectPort}`
+                                }
+                                toastKey="common.copied"
+                                labelKey="dashboard.network.copyRepair"
+                              />
+                            ) : null}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {portProxy.rules.some((r) => r.verdict === 'stale') ? (
+            <div className="dim">{t('dashboard.network.portProxyAdmin')}</div>
+          ) : null}
         </>
       )}
 

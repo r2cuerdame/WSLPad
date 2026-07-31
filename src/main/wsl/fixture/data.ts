@@ -21,6 +21,7 @@ import type {
   SystemInfo,
   ToolInfo,
   WindowsPortInfo,
+  PortProxyInfo,
   WslConfigInfo
 } from '@shared/types'
 import { CONFIG_FILE_SPECS, IMPORTANT_PATH_SPECS, TOOL_SPECS } from '@shared/constants'
@@ -244,6 +245,17 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
       // WSL 1 has no utility VM, so the [wsl2] network settings cannot apply.
       networkingModeDeclared: null,
       networkingModeEffective: null,
+      platform: {
+              wsl: '2.6.3.0',
+              kernel: '6.6.87.2-1',
+              wslg: '1.0.71',
+              msrdc: '1.2.6353',
+              direct3d: '1.611.1-81528511',
+              dxcore: '10.0.26100.1-240331-1435.ge-release',
+              windows: '10.0.26200.7840',
+              storeBuild: true
+            },
+      
       settings: []
     }
   }
@@ -256,6 +268,17 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
     vmStartedAt: FIXTURE_VM_STARTED_AT,
     networkingModeDeclared: 'mirrored',
     networkingModeEffective: 'nat',
+      platform: {
+            wsl: '2.6.3.0',
+            kernel: '6.6.87.2-1',
+            wslg: '1.0.71',
+            msrdc: '1.2.6353',
+            direct3d: '1.611.1-81528511',
+            dxcore: '10.0.26100.1-240331-1435.ge-release',
+            windows: '10.0.26200.7840',
+            storeBuild: true
+          },
+    
     settings: [
       {
         key: 'memory',
@@ -1107,5 +1130,42 @@ export function fixtureHermes(distro: FixtureDistroName): HermesInfo | null {
     activeSessions: 2,
     scheduledJobs: 1,
     dashboardPort: null
+  }
+}
+
+/**
+ * A machine whose owner forwarded 8080 to the distro once and never touched the
+ * rule again: WSL has since restarted and taken a new address, so the rule now
+ * forwards into nothing. The second rule points at Windows itself and still
+ * works — the two must never be reported the same way.
+ */
+export function fixturePortProxy(): PortProxyInfo {
+  const distroIp = fixtureSystemInfo(FIXTURE_UBUNTU).ip
+  return {
+    rules: [
+      {
+        listenAddress: '0.0.0.0',
+        listenPort: 8080,
+        connectAddress: '172.20.128.7',
+        connectPort: 8080,
+        verdict: 'stale'
+      },
+      {
+        listenAddress: '0.0.0.0',
+        listenPort: 5173,
+        connectAddress: distroIp ?? '172.20.144.2',
+        connectPort: 5173,
+        verdict: 'live'
+      },
+      {
+        listenAddress: '127.0.0.1',
+        listenPort: 9000,
+        connectAddress: '127.0.0.1',
+        connectPort: 9001,
+        verdict: 'elsewhere'
+      }
+    ],
+    distroIp,
+    error: null
   }
 }

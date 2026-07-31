@@ -183,6 +183,8 @@
       "filterPlaceholder": "筛选设置",
       "hideDefaults": "隐藏未设置的默认项",
       "vmStarted": "虚拟机启动时间",
+      "platform": "WSL 版本",
+      "inboxBuild": "系统自带的 WSL —— 没有 --version，因此依赖版本的判定保持未知",
       "restartPending": "等待重启",
       "restartPendingHint": "部分值只有在 wsl --shutdown 之后才会生效",
       "restartBannerBody": "正在运行的虚拟机是在这些文件最后一次保存之前启动的，因此有些值还没有生效。",
@@ -256,7 +258,20 @@
       "dnsVerdictTunneling": "DNS 隧道已开启，查询由 Windows 的解析器回答，不会发到这里列出的服务器。",
       "portsHint": "同样的规则也决定每个监听端口能传多远。",
       "seePorts": "查看端口",
-      "unavailable": "没有此发行版的网络信息"
+      "unavailable": "没有此发行版的网络信息",
+      "portProxy": "端口转发",
+      "noPortProxy": "这台机器上没有转发规则",
+      "portProxyAgainst": "已与该发行版当前的地址（{{ip}}）比对",
+      "listenOn": "Windows 监听",
+      "forwardsTo": "转发到",
+      "copyRepair": "复制修正此规则的命令",
+      "portProxyAdmin": "修改规则需要管理员权限的 netsh，无法准备到控制台 —— 请复制命令自行执行。",
+      "proxyVerdict": {
+        "live": "有效",
+        "stale": "转发到空处",
+        "elsewhere": "不是此发行版",
+        "unknown": "未知"
+      }
     },
     "paths": {
       "title": "重要路径",
@@ -343,9 +358,18 @@
       "prepareDashboard": "准备仪表板命令",
       "prepareDashboardHint": "只会填入控制台 — 按 Enter 才会执行"
     },
+    "openclaw": {
+      "title": "OpenClaw",
+      "executable": "可执行文件",
+      "data": "数据",
+      "processes": "运行中的进程",
+      "notInstalled": "在此发行版中没有找到 OpenClaw",
+      "notInstalledHint": "WSLPad 会查找 openclaw 命令和 ~/.openclaw 目录，但从不安装任何东西。"
+    },
     "environment": {
       "title": "环境变量",
       "value": "值",
+      "copyValue": "复制值",
       "length": "长度",
       "pathLike": "PATH 类",
       "fromWindows": "来自 Windows",

@@ -126,6 +126,55 @@ export interface WslSettingInfo {
   note: string | null
 }
 
+/**
+ * What `wsl --version` reports about the platform itself. Every "unsupported
+ * on this build" verdict below is a judgement about these numbers, so they are
+ * shown rather than kept as an internal comparison. A distribution-inbox WSL
+ * has no `--version` at all: `storeBuild` is false and the rest stay null.
+ */
+export interface WslPlatformInfo {
+  /** The WSL app version — the one every feature gate is really about. */
+  wsl: string | null
+  kernel: string | null
+  wslg: string | null
+  msrdc: string | null
+  direct3d: string | null
+  dxcore: string | null
+  /** Windows build as WSL sees it, e.g. 10.0.26200.7840. */
+  windows: string | null
+  /** `wsl --version` answered at all — i.e. the Microsoft Store build. */
+  storeBuild: boolean
+}
+
+/**
+ * One `netsh interface portproxy` rule. Under NAT the distro's IP is reassigned
+ * on every WSL restart, so a forwarding rule people add to reach a dev server
+ * from another machine quietly starts pointing at an address nothing answers
+ * on — with no error anywhere. Nothing on Windows puts the rule and the current
+ * address side by side, which is the whole point of this record.
+ */
+export interface PortProxyRule {
+  listenAddress: string
+  listenPort: number
+  connectAddress: string
+  connectPort: number
+  /**
+   * 'live' — connectAddress is the distro's current IP.
+   * 'stale' — it is not, so the rule forwards into nowhere.
+   * 'elsewhere' — it points at something that is not this distro at all.
+   * 'unknown' — the distro's IP could not be read, so nothing is claimed.
+   */
+  verdict: 'live' | 'stale' | 'elsewhere' | 'unknown'
+}
+
+export interface PortProxyInfo {
+  rules: PortProxyRule[]
+  /** The distro address the rules were judged against; null when unknown. */
+  distroIp: string | null
+  /** Why the table could not be read; null when it was. */
+  error: string | null
+}
+
 export interface WslConfigInfo {
   /** null when %UserProfile% could not be resolved. */
   wslconfigPath: string | null
@@ -139,6 +188,8 @@ export interface WslConfigInfo {
   networkingModeDeclared: string | null
   /** Differs from the declared mode when WSL silently fell back (e.g. to nat). */
   networkingModeEffective: string | null
+  /** null until `wsl --version` has been attempted for this session. */
+  platform: WslPlatformInfo | null
   settings: WslSettingInfo[]
 }
 
@@ -447,6 +498,8 @@ export interface DashboardSnapshot {
   windowsPorts: WindowsPortInfo[]
   /** null until the Windows firewall has been read — never assumed permissive. */
   firewall: FirewallInfo | null
+  /** null until the Windows forwarding table has been read. */
+  portProxy: PortProxyInfo | null
   /** null until both clocks have been sampled in the same cycle. */
   clock: ClockInfo | null
   /** null until the resolver configuration has been read. */

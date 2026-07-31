@@ -262,6 +262,7 @@ export function makeDashboard(over: Partial<DashboardSnapshot> = {}): DashboardS
     services: [svc()],
     ports: [port()],
     windowsPorts: [],
+    portProxy: null,
     firewall: null,
     clock: null,
     dns: null,

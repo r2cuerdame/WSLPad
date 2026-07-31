@@ -26,6 +26,7 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['configuration', 'Configuration files'],
   ['tools', 'Installed tools'],
   ['hermes', 'Hermes'],
+  ['openclaw', 'OpenClaw'],
   ['environment', 'Environment'],
   ['processes', 'Processes'],
   ['services', 'Services'],
@@ -231,6 +232,7 @@ function makeSnapshot(): WslPadSnapshot {
         }
       ],
       windowsPorts: [],
+      portProxy: null,
       firewall: {
         enabled: true,
         defaultInbound: 'Block',

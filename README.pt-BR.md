@@ -145,7 +145,10 @@ recuperável".
 seu tamanho lógico, quanto está de fato alocado, se ele é esparso, o tamanho e o
 uso do sistema de arquivos dentro da distribuição e quanto é recuperável.
 
-**Configurações do WSL** — cada chave do `.wslconfig` e do `/etc/wsl.conf` com o
+**Configurações do WSL** — primeiro o build do WSL, o kernel, WSLg, MSRDC,
+Direct3D, DXCore e a versão do Windows que o `wsl --version` informa, porque cada
+veredicto de "não suportado neste build" é uma afirmação sobre esses números.
+Depois, cada chave do `.wslconfig` e do `/etc/wsl.conf` com o
 valor declarado, o valor de fato em vigor, quem o definiu (você, no seu arquivo,
 o padrão do WSL ou um valor calculado pelo WSL a partir do seu hardware) e um
 veredito: aplicado, requer reinício, não definido, chave desconhecida (erro de
@@ -174,6 +177,11 @@ distribuição.
 
 **Hermes** — executável, diretório de dados, virtualenv, configuração, estado do gateway, **a quais mensageiros ele está de fato conectado**, os perfis que você chamaria de agentes (com o atual marcado), sessões ativas, tarefas agendadas, estado e endereço do painel, número de servidores MCP, portas, serviços de usuário e caminhos de log. Mensageiros e perfis vêm da CLI somente leitura do próprio Hermes; quando não dá para perguntar, a linha diz *desconhecido* em vez de "nenhum configurado". O painel web não está rodando? O comando para iniciá-lo fica preparado no Console.
 
+**OpenClaw** — uma seção própria ao lado do Hermes: executável, diretório de
+dados, versão, método de instalação, de que lado da fronteira do sistema de
+arquivos ele vive e se está rodando. Detectado na mesma passagem de catálogo que
+qualquer outra ferramenta — o WSLPad nunca inicia o OpenClaw para perguntar.
+
 ![Hermes](docs/screenshots/hermes.png)
 
 **Variáveis de ambiente** — cada variável com seu comprimento e seus marcadores
@@ -198,7 +206,7 @@ desconhecido. Filtre por faixa de portas e por nome de processo — a busca por 
 regras) e a resolução de nomes: se o `/etc/resolv.conf` é o link simbólico
 gerado pelo WSL ou foi editado à mão, o `generateResolvConf` em vigor, o
 tunelamento de DNS, os servidores de nomes em uso e o que o adaptador do Windows
-entrega.
+entrega. E as regras de **encaminhamento de portas** do Windows: sob NAT a distribuição recebe um endereço novo a cada reinício do WSL, então uma regra `netsh portproxy` adicionada uma vez passa a encaminhar para lugar nenhum, em silêncio. O WSLPad coloca cada regra ao lado do endereço atual e diz quais estão mortas.
 
 **Avisos** — distribuição parada, systemd desligado, pouco espaço em disco,
 unidades em estado failed, conflitos de porta, falhas de consultas em segundo
@@ -280,7 +288,7 @@ não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronizaç�
 nuvem, nem chat de IA, nem correção automática. Identidade:
 **Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
 
-## Limitações atuais (v0.1.8)
+## Limitações atuais (v0.1.9)
 
 - Somente Windows x64; o instalador não é assinado (aviso do SmartScreen)
 - Os números da imagem de disco dependem do registro do Windows e do `fsutil`;

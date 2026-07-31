@@ -145,7 +145,10 @@ used / cache / free / swap split — so "vmmem is eating 7 GB" resolves into
 logical size, how much is really allocated, whether it is sparse, the
 filesystem size and usage inside the distro, and how much is reclaimable.
 
-**WSL settings** — every key from `.wslconfig` and `/etc/wsl.conf` with its
+**WSL settings** — the WSL app, kernel, WSLg, MSRDC, Direct3D, DXCore and
+Windows build `wsl --version` reports, because every "unsupported on this
+build" verdict below is a claim about exactly those numbers. Then every key
+from `.wslconfig` and `/etc/wsl.conf` with its
 declared value, the value actually in force, its provenance (you set it, it is
 the WSL default, or it was computed from your hardware), and a verdict:
 applied, restart needed, not set, unknown key (typo), wrong section, or
@@ -180,6 +183,11 @@ dashboard? The command to start it is prepared in the Console.
 
 ![Hermes](docs/screenshots/hermes.png)
 
+**OpenClaw** — its own section beside Hermes: executable, data directory,
+version, install method, which side of the filesystem boundary it lives on, and
+whether it is running. Detected by the same catalog pass as every other tool —
+WSLPad never starts OpenClaw to ask it about itself.
+
 **Environment** — every variable with its length and flags (PATH-like, came
 from Windows). Secret-looking names are masked; reveal is a deliberate click.
 
@@ -199,7 +207,7 @@ both the WSL process and the Windows one holding the same port.
 default inbound and outbound action, loopback exemption, rule count) and name
 resolution: whether `/etc/resolv.conf` is the generated symlink or hand-edited,
 the effective `generateResolvConf`, DNS tunnelling, the nameservers in force,
-and what the Windows adapter hands out.
+and what the Windows adapter hands out. Plus the Windows **port forwarding** rules: under NAT the distro is handed a new address on every WSL restart, so a `netsh portproxy` rule added once quietly starts forwarding into nothing. WSLPad puts each rule next to the address the distro has right now and says which ones are dead.
 
 **Warnings** — stopped distro, systemd off, low disk, failed units, port
 conflicts, background query failures, MCP problems.
@@ -279,7 +287,7 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.1.8)
+## Current limitations (v0.1.9)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is
