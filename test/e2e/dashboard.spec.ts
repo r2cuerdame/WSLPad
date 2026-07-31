@@ -1,3 +1,7 @@
+// The layout checks below run inside the renderer through page.evaluate, and
+// this project's test tsconfig is Node-only (lib: ES2023). Pulling DOM types in
+// for this file alone keeps them out of everything else.
+/// <reference lib="dom" />
 import { expect, test } from '@playwright/test'
 import { closeApp, launchWslPad, type LaunchedApp } from './_helpers'
 
@@ -151,7 +155,7 @@ test.describe('the detail panel ends where its content ends (issue #69)', () => 
       const bars = await page.evaluate(() => {
         const body = document.querySelector('.dashboard-detail .dash-card-body')
         if (!(body instanceof HTMLElement)) return -1
-        return [body, ...body.querySelectorAll('*')].filter(
+        return [body, ...Array.from(body.querySelectorAll('*'))].filter(
           (el) =>
             el instanceof HTMLElement &&
             el.scrollHeight - el.clientHeight > 2 &&
