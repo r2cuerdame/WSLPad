@@ -306,7 +306,7 @@ Docker Desktop でもなく、IDE でもありません。Git の UI もデバ�
 クラウド同期も AI チャットも自動修復もありません。正体は **Dashboard + Explorer
 + Console + 読み取り専用の MCP** — それだけです。
 
-## 現在の制限 (v0.3.0)
+## 現在の制限 (v0.3.1)
 
 - Windows x64 のみ。インストーラーは署名されていません（SmartScreen の警告）
 - ディスクイメージの数値には Windows のレジストリと `fsutil` が必要です。どちらか

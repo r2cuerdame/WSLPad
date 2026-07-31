@@ -109,9 +109,15 @@
 
 /* --- detail panel --- */
 
+/* The panel ends where its content ends, and only grows to the full height when
+   the content needs it. Stretching it always left a section like Configuration
+   sitting in 236px of dead white space with a scrollbar that scrolled into
+   nothing (user report, CapturePack 2026-08-01). */
 .dashboard-detail {
   position: relative;
   container-type: inline-size;
+  align-self: start;
+  max-height: 100%;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -154,7 +160,7 @@
 }
 
 .dashboard-detail-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   overflow: hidden;
@@ -163,7 +169,7 @@
 /* The detail owns the title, so the card shell inside it is flattened and
    stretched — its body becomes the single scroll container. */
 .dashboard-detail-body > .dash-card {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   border: none;
@@ -178,7 +184,7 @@
 }
 
 .dashboard-detail .dash-card-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
   padding: 0 20px 18px;
@@ -186,10 +192,13 @@
 
 /* One scrollbar per section. When the body already holds a scrolling list or
    table, the body must not scroll as well — two bars side by side is what made
-   this look unfinished (user feedback). */
-.dashboard-detail .dash-card-body:has(.dash-scroll),
-.dashboard-detail .dash-card-body:has(.vlist),
-.dashboard-detail .dash-card-body:has(.dash-table-wrap) {
+   this look unfinished (user feedback).
+   Direct children only: a wrap nested inside a block that cannot shrink leaves
+   the body overflowing with nothing to scroll it, and the overflow is simply
+   clipped — 273px of the Network section was unreachable that way. */
+.dashboard-detail .dash-card-body:has(> .dash-scroll),
+.dashboard-detail .dash-card-body:has(> .vlist),
+.dashboard-detail .dash-card-body:has(> .dash-table-wrap) {
   overflow: hidden;
 }
 
@@ -203,13 +212,13 @@
 .dashboard-detail .dash-card-body > div:not([class]) {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
 .dashboard-detail .vlist,
 .dashboard-detail .dash-scroll {
-  flex: 1;
+  flex: 1 1 auto;
   flex-shrink: 1;
   height: auto;
   min-height: 180px;

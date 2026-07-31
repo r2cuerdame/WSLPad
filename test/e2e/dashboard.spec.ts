@@ -87,3 +87,78 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
   })
 
 })
+
+test.describe('the detail panel ends where its content ends (issue #69)', () => {
+  let launched: LaunchedApp
+
+  test.beforeEach(async () => {
+    launched = await launchWslPad()
+    await launched.page.getByTestId('dashboard-nav').waitFor({ timeout: 15000 })
+    await launched.page.setViewportSize({ width: 1600, height: 1100 })
+  })
+
+  test.afterEach(async () => {
+    await closeApp(launched).catch(() => {})
+  })
+
+  /** Space below the last row that belongs to nobody — the reported defect. */
+  const deadTail = (page: LaunchedApp['page']): Promise<number> =>
+    page.evaluate(() => {
+      const body = document.querySelector('.dashboard-detail .dash-card-body')
+      const last = body?.lastElementChild
+      if (!(body instanceof HTMLElement) || !(last instanceof HTMLElement)) return -1
+      return Math.round(body.getBoundingClientRect().bottom - last.getBoundingClientRect().bottom)
+    })
+
+  test('a short section leaves no dead space under its content', async () => {
+    const { page } = launched
+    // Configuration and Important paths were the worst: 236px and 291px of
+    // white space with a scrollbar that scrolled into nothing.
+    for (const id of ['configuration', 'paths', 'warnings', 'services']) {
+      await page.getByTestId(`dashboard-nav-${id}`).click()
+      await page.waitForTimeout(150)
+      // 18px is the body's own bottom padding; anything beyond it is the bug.
+      expect(await deadTail(page), `section ${id}`).toBeLessThanOrEqual(24)
+    }
+  })
+
+  test('a section that overflows still fills the panel and scrolls', async () => {
+    const { page } = launched
+    await page.setViewportSize({ width: 1280, height: 820 })
+    await page.getByTestId('dashboard-nav-disk').click()
+    await page.waitForTimeout(200)
+
+    const state = await page.evaluate(() => {
+      const panel = document.querySelector('.dashboard-detail')
+      const body = document.querySelector('.dashboard-detail .dash-card-body')
+      if (!(panel instanceof HTMLElement) || !(body instanceof HTMLElement)) return null
+      const split = panel.parentElement as HTMLElement
+      return {
+        fills: panel.getBoundingClientRect().height >= split.getBoundingClientRect().height - 2,
+        scrolls: body.scrollHeight - body.clientHeight > 0,
+        reachable: getComputedStyle(body).overflowY !== 'hidden'
+      }
+    })
+    expect(state).toEqual({ fills: true, scrolls: true, reachable: true })
+  })
+
+  test('no section ever shows two scrollbars at once', async () => {
+    const { page } = launched
+    await page.setViewportSize({ width: 1280, height: 820 })
+    for (const id of ['tools', 'ports', 'services', 'disk', 'wslconfig', 'docker']) {
+      await page.getByTestId(`dashboard-nav-${id}`).click()
+      await page.waitForTimeout(150)
+      const bars = await page.evaluate(() => {
+        const body = document.querySelector('.dashboard-detail .dash-card-body')
+        if (!(body instanceof HTMLElement)) return -1
+        return [body, ...body.querySelectorAll('*')].filter(
+          (el) =>
+            el instanceof HTMLElement &&
+            el.scrollHeight - el.clientHeight > 2 &&
+            ['auto', 'scroll'].includes(getComputedStyle(el).overflowY)
+        ).length
+      })
+      expect(bars, `section ${id}`).toBeLessThanOrEqual(1)
+    }
+  })
+})
