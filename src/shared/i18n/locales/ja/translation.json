@@ -377,7 +377,11 @@
         "containers": "コンテナ",
         "volumes": "ローカルボリューム",
         "buildCache": "ビルドキャッシュ"
-      }
+      },
+      "endpoint": "エンドポイント",
+      "remote": "リモート",
+      "notProbedDaemon": "ここで動いている Docker デーモンはありません。WSLPad は確かめるために接続しません — ソケット起動の構成では接続そのものがデーモンを起動し、再起動設定のコンテナまで立ち上がるからです。",
+      "notProbedRemote": "アクティブなコンテキストは {{endpoint}} を指しています。WSLPad はポーリングでリモートエンジンに接続しないため、以下は読み取っていません。"
     },
     "hermes": {
       "title": "Hermes",

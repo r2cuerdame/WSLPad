@@ -377,7 +377,11 @@
         "containers": "Contêineres",
         "volumes": "Volumes locais",
         "buildCache": "Cache de build"
-      }
+      },
+      "endpoint": "Endpoint",
+      "remote": "Remoto",
+      "notProbedDaemon": "Nenhum daemon do Docker está rodando aqui. O WSLPad não se conecta para descobrir — em uma configuração ativada por socket, a própria conexão iniciaria o daemon e, com ele, todo contêiner configurado para reiniciar.",
+      "notProbedRemote": "O contexto ativo aponta para {{endpoint}}. O WSLPad não procura um engine remoto em uma sondagem, então nada abaixo foi lido dele."
     },
     "hermes": {
       "title": "Hermes",

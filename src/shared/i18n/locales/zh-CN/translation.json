@@ -377,7 +377,11 @@
         "containers": "容器",
         "volumes": "本地卷",
         "buildCache": "构建缓存"
-      }
+      },
+      "endpoint": "端点",
+      "remote": "远程",
+      "notProbedDaemon": "这里没有正在运行的 Docker 守护进程。WSLPad 不会为了确认而去连接 —— 在 socket 激活的配置下，连接本身就会启动守护进程，连带拉起所有设置了重启的容器。",
+      "notProbedRemote": "当前上下文指向 {{endpoint}}。WSLPad 不会在轮询中连接远程引擎，因此下面的内容没有读取。"
     },
     "hermes": {
       "title": "Hermes",

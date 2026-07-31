@@ -377,7 +377,11 @@
         "containers": "容器",
         "volumes": "本機磁碟區",
         "buildCache": "建置快取"
-      }
+      },
+      "endpoint": "端點",
+      "remote": "遠端",
+      "notProbedDaemon": "這裡沒有正在執行的 Docker 守護行程。WSLPad 不會為了確認而去連線 —— 在 socket 啟動的組態下，連線本身就會啟動守護行程，連帶拉起所有設定重新啟動的容器。",
+      "notProbedRemote": "目前的內容指向 {{endpoint}}。WSLPad 不會在輪詢中連線遠端引擎，因此下面的內容沒有讀取。"
     },
     "hermes": {
       "title": "Hermes",

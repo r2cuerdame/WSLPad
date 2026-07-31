@@ -45,10 +45,36 @@ const BEGIN = (name: string): string => `WSLPAD_${name}_BEGIN`
 const END = (name: string): string => `WSLPAD_${name}_END`
 
 /**
- * One batched script. Every docker invocation is time-boxed inside the distro
- * as well as by the Hidden Runner, because a daemon that is starting up can
- * hang a client for a long time — and `--format '{{json .}}'` keeps the output
- * locale-independent, which the human-readable tables are not.
+ * One batched script, in two halves.
+ *
+ * The first half only ever reads files: the CLI path, the active context and
+ * its endpoint, and whether a daemon is *already* up. Not one command in it
+ * touches a socket. The second half — the five commands that actually talk to
+ * a daemon — runs only when that first half says it is safe, because both ways
+ * of getting it wrong break the product's central promise:
+ *
+ * - **Connecting starts things.** On a systemd distribution with the
+ *   socket-activated arrangement (`docker.socket` enabled, `docker.service`
+ *   stopped — exactly what people set up so Docker does *not* start with the
+ *   distro), the first connect to /var/run/docker.sock makes systemd start
+ *   dockerd, and every container with `restart: always` comes up with it.
+ *   A 60-second poll would turn "stopped on purpose" into "permanently
+ *   running", and WSLPad would then report the state it created. So the daemon
+ *   is only contacted when it can be seen to be running already, by means that
+ *   cannot activate anything: a live dockerd process, an active docker.service
+ *   (`systemctl is-active` queries, it does not start), or Docker Desktop's
+ *   mount, whose engine WSLPad does not manage.
+ * - **The context may not be local.** The CLI targets whatever the active
+ *   context or DOCKER_HOST names. If that is `ssh://prod` or a `tcp://` host,
+ *   these five commands would reach out to someone's production engine every
+ *   minute — authenticating into its auth log, and walking its image store
+ *   with `docker system df`. The endpoint is read first, from the context
+ *   store on disk, and anything that is not a local socket is reported and
+ *   left alone.
+ *
+ * `--format '{{json .}}'` keeps the output locale-independent, which the
+ * human-readable tables are not, and every call is time-boxed inside the
+ * distribution as well as by the Hidden Runner.
  */
 export const DOCKER_SCRIPT = `p=$(command -v docker 2>/dev/null) || p=
 [ -n "$p" ] || exit 0
@@ -57,12 +83,33 @@ printf '%s\\n' "$p"
 readlink -f "$p" 2>/dev/null || printf '%s\\n' "$p"
 printf '%s\\n' "WSLPAD_CLI_END"
 if command -v timeout >/dev/null 2>&1; then t="timeout 6"; else t=""; fi
-printf '%s\\n' "WSLPAD_VERSION_BEGIN"
-$t docker version --format '{{json .}}' 2>&1
-printf '\\n%s\\n' "WSLPAD_VERSION_END"
 printf '%s\\n' "WSLPAD_CONTEXT_BEGIN"
 $t docker context show 2>/dev/null
 printf '%s\\n' "WSLPAD_CONTEXT_END"
+endpoint=$($t docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null)
+[ -n "$endpoint" ] || endpoint="$DOCKER_HOST"
+printf '%s\\n' "WSLPAD_ENDPOINT_BEGIN"
+printf '%s\\n' "$endpoint"
+printf '%s\\n' "WSLPAD_ENDPOINT_END"
+islocal=0
+case "$endpoint" in
+  unix://*|npipe://*|"") islocal=1 ;;
+esac
+live=""
+[ -d /mnt/wsl/docker-desktop ] && live="desktop"
+if [ -z "$live" ] && command -v pgrep >/dev/null 2>&1; then
+  pgrep -x dockerd >/dev/null 2>&1 && live="dockerd"
+fi
+if [ -z "$live" ] && command -v systemctl >/dev/null 2>&1; then
+  [ "$(systemctl is-active docker.service 2>/dev/null)" = "active" ] && live="service"
+fi
+printf '%s\\n' "WSLPAD_LIVE_BEGIN"
+printf '%s\\n' "$islocal|$live"
+printf '%s\\n' "WSLPAD_LIVE_END"
+if [ "$islocal" = "1" ] && [ -n "$live" ]; then
+printf '%s\\n' "WSLPAD_VERSION_BEGIN"
+$t docker version --format '{{json .}}' 2>&1
+printf '\\n%s\\n' "WSLPAD_VERSION_END"
 printf '%s\\n' "WSLPAD_INFO_BEGIN"
 $t docker info --format '{{.DockerRootDir}}|{{.Name}}|{{.ServerVersion}}' 2>/dev/null
 printf '%s\\n' "WSLPAD_INFO_END"
@@ -75,6 +122,7 @@ printf '%s\\n' "WSLPAD_CONTAINERS_END"
 printf '%s\\n' "WSLPAD_DF_BEGIN"
 $t docker system df --format '{{json .}}' 2>/dev/null
 printf '%s\\n' "WSLPAD_DF_END"
+fi
 :
 `
 
@@ -236,6 +284,9 @@ function emptyDocker(): DockerInfo {
     cliPath: null,
     dockerDesktop: false,
     daemonRunning: false,
+    endpoint: null,
+    localEndpoint: true,
+    notProbed: null,
     serverVersion: null,
     clientVersion: null,
     context: null,
@@ -263,6 +314,30 @@ export function parseDockerOutput(stdout: string): DockerInfo {
   // The shim can be found either as the command itself or behind a symlink.
   info.dockerDesktop = cliLines.some((line) => line.startsWith(DESKTOP_MOUNT))
 
+  const firstLine = (name: string): string =>
+    section(stdout, name).split('\n')[0]?.trim() ?? ''
+
+  const endpoint = firstLine('ENDPOINT')
+  info.endpoint = endpoint === '' ? null : endpoint
+
+  const [localFlag, liveKind] = firstLine('LIVE').split('|')
+  info.localEndpoint = localFlag !== '0'
+
+  const context = firstLine('CONTEXT')
+  info.context = context === '' ? null : context
+
+  if (!info.localEndpoint) {
+    // A poll must never reach someone's remote engine. Everything above came
+    // off the context store on disk; nothing was contacted.
+    info.notProbed = 'remote-endpoint'
+    return info
+  }
+  if ((liveKind ?? '').trim() === '') {
+    // Nothing was running to ask, and asking would have started it.
+    info.notProbed = 'daemon-not-running'
+    return info
+  }
+
   const versionBlock = section(stdout, 'VERSION')
   const version = jsonLines(versionBlock)[0]
   if (version !== undefined) {
@@ -289,9 +364,6 @@ export function parseDockerOutput(stdout: string): DockerInfo {
     info.error = reason === '' ? null : reason.slice(0, MAX_ERROR_CHARS)
   }
 
-  const context = section(stdout, 'CONTEXT').split('\n')[0]?.trim() ?? ''
-  info.context = context === '' ? null : context
-
   const infoLine = section(stdout, 'INFO').split('\n')[0] ?? ''
   const parts = infoLine.split('|')
   if (parts.length >= 3) {
@@ -309,9 +381,8 @@ export function parseDockerOutput(stdout: string): DockerInfo {
    * its own distribution, so the data is on that distribution's disk however
    * the root dir reads from inside the engine.
    */
-  info.storageDistro = info.dockerDesktop
-    ? DESKTOP_STORAGE_DISTRO
-    : info.engineHost === DESKTOP_STORAGE_DISTRO
+  info.storageDistro =
+    info.localEndpoint && (info.dockerDesktop || info.engineHost === DESKTOP_STORAGE_DISTRO)
       ? DESKTOP_STORAGE_DISTRO
       : null
 

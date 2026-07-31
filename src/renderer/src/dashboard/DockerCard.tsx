@@ -136,7 +136,7 @@ export default function DockerCard({ docker }: DockerCardProps): React.JSX.Eleme
   // A daemon that did not answer told us nothing. Showing 0 images / 0
   // containers would be a fabricated fact — the rule everywhere else in this
   // app is that unreadable is unknown, never zero.
-  const known = docker.daemonRunning
+  const known = docker.daemonRunning && docker.notProbed === null
   const counts: Record<DockerView, number | null> = {
     disk: known ? docker.diskUsage.length : null,
     containers: known ? docker.containers.length : null,
@@ -169,7 +169,21 @@ export default function DockerCard({ docker }: DockerCardProps): React.JSX.Eleme
         ) : undefined
       }
     >
-      {!docker.daemonRunning ? (
+      {/* Saying "not running" would be a claim WSLPad did not verify. It
+          deliberately did not ask, and says which reason applies. */}
+      {docker.notProbed === 'daemon-not-running' ? (
+        <div className="notice-warn" role="status">
+          <WarningIcon size={14} />
+          <span>{t('dashboard.docker.notProbedDaemon')}</span>
+        </div>
+      ) : docker.notProbed === 'remote-endpoint' ? (
+        <div className="notice-warn" role="status">
+          <WarningIcon size={14} />
+          <span>
+            {t('dashboard.docker.notProbedRemote', { endpoint: docker.endpoint ?? '' })}
+          </span>
+        </div>
+      ) : !docker.daemonRunning ? (
         <div className="notice-warn" role="status">
           <WarningIcon size={14} />
           <span>{docker.error ?? t('dashboard.docker.daemonDown')}</span>
@@ -188,6 +202,8 @@ export default function DockerCard({ docker }: DockerCardProps): React.JSX.Eleme
       <Kv k={t('dashboard.docker.engine')}>
         {docker.daemonRunning ? (
           <span className="badge badge-ok">{t('common.running')}</span>
+        ) : docker.notProbed !== null ? (
+          <span className="badge badge-dim">{t('common.unknown')}</span>
         ) : (
           <span className="badge badge-err">{t('common.stopped')}</span>
         )}
@@ -214,6 +230,16 @@ export default function DockerCard({ docker }: DockerCardProps): React.JSX.Eleme
           </>
         )}
       </Kv>
+      {docker.endpoint === null ? null : (
+        <Kv k={t('dashboard.docker.endpoint')}>
+          <span className="mono truncate" title={docker.endpoint}>
+            {docker.endpoint}
+          </span>
+          {docker.localEndpoint ? null : (
+            <span className="badge badge-warn">{t('dashboard.docker.remote')}</span>
+          )}
+        </Kv>
+      )}
       <Kv k={t('dashboard.docker.rootDir')}>
         <span className="mono">{docker.rootDir ?? '—'}</span>
         {docker.engineHost === null ? null : (

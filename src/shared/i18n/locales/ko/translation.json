@@ -377,7 +377,11 @@
         "containers": "컨테이너",
         "volumes": "로컬 볼륨",
         "buildCache": "빌드 캐시"
-      }
+      },
+      "endpoint": "엔드포인트",
+      "remote": "원격",
+      "notProbedDaemon": "여기서 실행 중인 Docker 데몬이 없습니다. WSLPad는 확인하려고 접속하지 않습니다 — 소켓 활성화 구성에서는 접속 자체가 데몬을 띄우고, 재시작 설정된 컨테이너까지 함께 올라오기 때문입니다.",
+      "notProbedRemote": "활성 컨텍스트가 {{endpoint}}를 가리킵니다. WSLPad는 폴링으로 원격 엔진에 접속하지 않으므로 아래 내용은 읽지 않았습니다."
     },
     "hermes": {
       "title": "Hermes",

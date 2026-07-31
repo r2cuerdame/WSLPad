@@ -238,6 +238,20 @@ export interface DockerInfo {
   dockerDesktop: boolean
   /** The daemon answered. false means installed but not reachable. */
   daemonRunning: boolean
+  /**
+   * Endpoint the CLI's active context points at, e.g. unix:///var/run/docker.sock
+   * or ssh://user@host. null when it could not be read.
+   */
+  endpoint: string | null
+  /** The endpoint is a local socket, so querying it stays on this machine. */
+  localEndpoint: boolean
+  /**
+   * Why the daemon was not contacted, when it was not. WSLPad refuses to open
+   * the socket unless a daemon is already up, because on a socket-activated
+   * systemd distribution the connection itself would start one — and it will
+   * not reach out to a remote engine on a poll.
+   */
+  notProbed: 'daemon-not-running' | 'remote-endpoint' | null
   serverVersion: string | null
   clientVersion: string | null
   context: string | null

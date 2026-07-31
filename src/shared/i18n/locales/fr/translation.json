@@ -377,7 +377,11 @@
         "containers": "Conteneurs",
         "volumes": "Volumes locaux",
         "buildCache": "Cache de build"
-      }
+      },
+      "endpoint": "Point de terminaison",
+      "remote": "Distant",
+      "notProbedDaemon": "Aucun démon Docker ne tourne ici. WSLPad ne se connecte pas pour le vérifier : dans une configuration activée par socket, la connexion elle-même démarrerait le démon, et avec lui tous les conteneurs configurés pour redémarrer.",
+      "notProbedRemote": "Le contexte actif pointe vers {{endpoint}}. WSLPad ne contacte pas un moteur distant lors d'un sondage : rien de ce qui suit n'en a été lu."
     },
     "hermes": {
       "title": "Hermes",

@@ -41,12 +41,18 @@ const REAL_OUTPUT = [
   '/usr/bin/docker',
   '/mnt/wsl/docker-desktop/cli-tools/usr/bin/docker',
   'WSLPAD_CLI_END',
-  'WSLPAD_VERSION_BEGIN',
-  '{"Client":{"Version":"29.2.1"},"Server":{"Version":"29.2.1"}}',
-  'WSLPAD_VERSION_END',
   'WSLPAD_CONTEXT_BEGIN',
   'default',
   'WSLPAD_CONTEXT_END',
+  'WSLPAD_ENDPOINT_BEGIN',
+  'unix:///var/run/docker.sock',
+  'WSLPAD_ENDPOINT_END',
+  'WSLPAD_LIVE_BEGIN',
+  '1|desktop',
+  'WSLPAD_LIVE_END',
+  'WSLPAD_VERSION_BEGIN',
+  '{"Client":{"Version":"29.2.1"},"Server":{"Version":"29.2.1"}}',
+  'WSLPAD_VERSION_END',
   'WSLPAD_INFO_BEGIN',
   '/var/lib/docker|docker-desktop|29.2.1',
   'WSLPAD_INFO_END',
@@ -186,6 +192,12 @@ describe('parseDockerOutput', () => {
       'WSLPAD_CLI_BEGIN',
       '/usr/bin/docker',
       'WSLPAD_CLI_END',
+      'WSLPAD_ENDPOINT_BEGIN',
+      'unix:///var/run/docker.sock',
+      'WSLPAD_ENDPOINT_END',
+      'WSLPAD_LIVE_BEGIN',
+      '1|dockerd',
+      'WSLPAD_LIVE_END',
       'WSLPAD_VERSION_BEGIN',
       'Cannot connect to the Docker daemon at unix:///var/run/docker.sock.',
       'WSLPAD_VERSION_END'
@@ -256,7 +268,16 @@ describe('marker robustness', () => {
       '{"Names":"real-one","ID":"bbb","Image":"i","State":"running","Status":"Up","Ports":"","CreatedAt":""}',
       'WSLPAD_CONTAINERS_END'
     ].join('\n')
-    const info = parseDockerOutput('WSLPAD_CLI_BEGIN\n/usr/bin/docker\nWSLPAD_CLI_END\n' + hostile)
+    const gate = [
+      'WSLPAD_CLI_BEGIN',
+      '/usr/bin/docker',
+      'WSLPAD_CLI_END',
+      'WSLPAD_LIVE_BEGIN',
+      '1|dockerd',
+      'WSLPAD_LIVE_END',
+      ''
+    ].join('\n')
+    const info = parseDockerOutput(gate + hostile)
     expect(info.containers.map((c) => c.name)).toEqual(['WSLPAD_CONTAINERS_END', 'real-one'])
   })
 
@@ -265,6 +286,9 @@ describe('marker robustness', () => {
       'WSLPAD_CLI_BEGIN',
       '/usr/bin/docker',
       'WSLPAD_CLI_END',
+      'WSLPAD_LIVE_BEGIN',
+      '1|dockerd',
+      'WSLPAD_LIVE_END',
       'WSLPAD_IMAGES_BEGIN',
       '{"Repository":"WSLPAD_DF_BEGIN","Tag":"x","Size":"1MB","ID":"a","CreatedAt":"","Containers":"0"}',
       'WSLPAD_IMAGES_END',
@@ -294,6 +318,12 @@ describe('marker robustness', () => {
         'WSLPAD_CLI_BEGIN',
         '/usr/bin/docker',
         'WSLPAD_CLI_END',
+        'WSLPAD_ENDPOINT_BEGIN',
+        'unix:///var/run/docker.sock',
+        'WSLPAD_ENDPOINT_END',
+        'WSLPAD_LIVE_BEGIN',
+        '1|dockerd',
+        'WSLPAD_LIVE_END',
         'WSLPAD_VERSION_BEGIN',
         long,
         'WSLPAD_VERSION_END'
@@ -301,5 +331,91 @@ describe('marker robustness', () => {
     )
     expect(info.error).not.toBeNull()
     expect((info.error ?? '').length).toBeLessThanOrEqual(400)
+  })
+})
+
+describe('the daemon is never woken and never reached remotely', () => {
+  const cli = ['WSLPAD_CLI_BEGIN', '/usr/bin/docker', 'WSLPAD_CLI_END']
+
+  it('does not contact the socket when nothing is running to contact', () => {
+    // On a socket-activated systemd distribution the connection itself starts
+    // dockerd — and every restart:always container with it. A 60 s poll would
+    // turn "stopped on purpose" into "permanently running".
+    const out = [
+      ...cli,
+      'WSLPAD_CONTEXT_BEGIN',
+      'default',
+      'WSLPAD_CONTEXT_END',
+      'WSLPAD_ENDPOINT_BEGIN',
+      'unix:///var/run/docker.sock',
+      'WSLPAD_ENDPOINT_END',
+      'WSLPAD_LIVE_BEGIN',
+      '1|',
+      'WSLPAD_LIVE_END'
+    ].join('\n')
+    const info = parseDockerOutput(out)
+
+    expect(info.cliInstalled).toBe(true)
+    expect(info.daemonRunning).toBe(false)
+    expect(info.notProbed).toBe('daemon-not-running')
+    // Nothing is claimed about a machine that was never asked.
+    expect(info.images).toEqual([])
+    expect(info.diskUsage).toEqual([])
+    expect(info.storageDistro).toBeNull()
+  })
+
+  it('leaves a remote engine alone rather than polling someone else\u2019s host', () => {
+    const out = [
+      ...cli,
+      'WSLPAD_CONTEXT_BEGIN',
+      'prod',
+      'WSLPAD_CONTEXT_END',
+      'WSLPAD_ENDPOINT_BEGIN',
+      'ssh://deploy@prod.example.com',
+      'WSLPAD_ENDPOINT_END',
+      'WSLPAD_LIVE_BEGIN',
+      '0|dockerd',
+      'WSLPAD_LIVE_END'
+    ].join('\n')
+    const info = parseDockerOutput(out)
+
+    expect(info.localEndpoint).toBe(false)
+    expect(info.notProbed).toBe('remote-endpoint')
+    expect(info.context).toBe('prod')
+    expect(info.endpoint).toBe('ssh://deploy@prod.example.com')
+    expect(info.daemonRunning).toBe(false)
+  })
+
+  it('does not blame the docker-desktop distribution for a remote engine', () => {
+    const out = [
+      'WSLPAD_CLI_BEGIN',
+      '/usr/bin/docker',
+      '/mnt/wsl/docker-desktop/cli-tools/usr/bin/docker',
+      'WSLPAD_CLI_END',
+      'WSLPAD_ENDPOINT_BEGIN',
+      'tcp://10.0.0.5:2375',
+      'WSLPAD_ENDPOINT_END',
+      'WSLPAD_LIVE_BEGIN',
+      '0|desktop',
+      'WSLPAD_LIVE_END'
+    ].join('\n')
+    const info = parseDockerOutput(out)
+
+    // The shim is Desktop's, but the bytes are not on this machine at all.
+    expect(info.dockerDesktop).toBe(true)
+    expect(info.storageDistro).toBeNull()
+  })
+
+  it('gates the daemon calls in the script itself, before any of them run', () => {
+    const lines = DOCKER_SCRIPT.split('\n')
+    const gate = lines.findIndex((l) => l.includes('islocal') && l.includes('$live'))
+    const firstDaemonCall = lines.findIndex((l) => l.includes('docker version'))
+    expect(gate).toBeGreaterThan(0)
+    expect(firstDaemonCall).toBeGreaterThan(gate)
+    // is-active queries; it never starts a unit.
+    expect(DOCKER_SCRIPT).toContain('systemctl is-active docker.service')
+    expect(DOCKER_SCRIPT).not.toMatch(/systemctl\s+(start|restart|enable)/)
+    // The endpoint is read off the context store on disk, not from a daemon.
+    expect(DOCKER_SCRIPT).toContain('docker context inspect')
   })
 })

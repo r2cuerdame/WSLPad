@@ -377,7 +377,11 @@
         "containers": "Contenedores",
         "volumes": "Volúmenes locales",
         "buildCache": "Caché de compilación"
-      }
+      },
+      "endpoint": "Endpoint",
+      "remote": "Remoto",
+      "notProbedDaemon": "Aquí no hay ningún demonio de Docker en ejecución. WSLPad no se conecta para averiguarlo: en una configuración activada por socket, la propia conexión arrancaría el demonio y con él todos los contenedores configurados para reiniciarse.",
+      "notProbedRemote": "El contexto activo apunta a {{endpoint}}. WSLPad no contacta un motor remoto en cada sondeo, así que nada de lo de abajo se leyó de él."
     },
     "hermes": {
       "title": "Hermes",

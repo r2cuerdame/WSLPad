@@ -182,8 +182,13 @@ images and containers, and the `docker system df` breakdown — including the
 **build cache**, which no listing shows and which is routinely the largest
 thing on the machine. Under Docker Desktop it also names the distribution whose
 virtual disk actually holds that space, because it is not the one you are
-looking at. Read-only: nothing is pulled, started, stopped or pruned — the
-prune commands are prepared in the Console.
+looking at. Read-only, and carefully so: WSLPad only contacts the daemon when it can
+see one is already running, because on a socket-activated systemd setup the
+connection *itself* would start it — and every container set to restart with
+it. If the active context points at a remote engine, WSLPad leaves it alone
+rather than reaching out to someone's production host every minute. Nothing is
+pulled, started, stopped or pruned; the prune commands are prepared in the
+Console.
 
 ![Docker](docs/screenshots/docker.png)
 

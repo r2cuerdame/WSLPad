@@ -377,7 +377,11 @@
         "containers": "Containers",
         "volumes": "Local volumes",
         "buildCache": "Build cache"
-      }
+      },
+      "endpoint": "Endpoint",
+      "remote": "Remote",
+      "notProbedDaemon": "No Docker daemon is running here. WSLPad does not connect to find out — on a socket-activated setup the connection itself would start the daemon, and every container set to restart with it.",
+      "notProbedRemote": "The active context points at {{endpoint}}. WSLPad does not reach out to a remote engine on a poll, so nothing below was read from it."
     },
     "hermes": {
       "title": "Hermes",
