@@ -72,4 +72,18 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     expect(clip).not.toContain('super-secret-fixture-value')
     expect(clip).not.toContain('hunter2')
   })
+  test('the whole-snapshot exports live only on Overview, not on every section', async () => {
+    const { page } = launched
+    // Both act on the entire snapshot; in a section's title row they read as
+    // that section's own action and crowded out its filters.
+    await expect(page.getByRole('button', { name: 'Copy for LLM' })).toBeVisible()
+
+    await page.getByTestId('dashboard-nav-ports').click()
+    await expect(page.getByRole('button', { name: 'Copy for LLM' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Export JSON' })).toHaveCount(0)
+
+    await page.getByTestId('dashboard-nav-overview').click()
+    await expect(page.getByRole('button', { name: 'Copy for LLM' })).toBeVisible()
+  })
+
 })

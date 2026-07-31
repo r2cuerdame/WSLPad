@@ -66,6 +66,8 @@ at-a-glance status badge):
 | `GetDiskImage` | ext4.vhdx location, size on the Windows disk, reclaimable space |
 | `GetWslSettings` | Declared vs effective .wslconfig and wsl.conf, with verdicts |
 | `GetFirewall` | Hyper-V firewall state for the WSL virtual machine |
+| `GetPortProxy` | Windows `netsh portproxy` rules, each judged against the distro's current address |
+| `GetDocker` | Docker engine/client, context, images, containers and the `docker system df` breakdown including the build cache |
 | `GetDns` | resolv.conf, generateResolvConf, DNS tunnelling, nameservers |
 | `GetClock` | Windows time, distro time and the skew between them |
 | `GetWarnings` | Current warnings (stopped distro, failed units, …) |

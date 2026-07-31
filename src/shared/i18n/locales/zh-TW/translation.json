@@ -335,6 +335,50 @@
         "util": "公用程式"
       }
     },
+    "docker": {
+      "title": "Docker",
+      "unavailable": "沒有此發行版的 Docker 資訊",
+      "notInstalled": "在此發行版中沒有找到 docker 指令",
+      "daemonDown": "docker 指令在，但守護行程沒有回應",
+      "storageElsewhere": "Docker 把映像、容器與建置快取放在 {{distro}} 發行版裡，所以這些空間在那個發行版的虛擬磁碟上，而不是「磁碟映像」裡顯示的那一塊。",
+      "desktop": "Docker Desktop",
+      "engine": "引擎",
+      "client": "用戶端",
+      "context": "內容",
+      "rootDir": "資料根目錄",
+      "onHost": "位於 {{host}} 內",
+      "reclaimable": "可回收",
+      "reclaimableHint": "prune 能拿回來的空間",
+      "reclaimableShort": "可回收",
+      "kind": "類型",
+      "count": "總數",
+      "active": "使用中",
+      "size": "大小",
+      "hiddenFromLists": "從不列出",
+      "containers": "容器",
+      "runningOfTotal": "{{total}} 個中有 {{running}} 個正在執行",
+      "image": "映像",
+      "images": "映像",
+      "repository": "儲存庫",
+      "tag": "標籤",
+      "created": "建立時間",
+      "usedBy": "容器",
+      "prepareBuilderPrune": "準備清理建置快取指令",
+      "prepareSystemPrune": "準備系統清理指令",
+      "pruneHint": "只會填入主控台 — 按 Enter 才會刪除",
+      "view": {
+        "disk": "磁碟佔用",
+        "containers": "容器",
+        "images": "映像"
+      },
+      "reclaimablePartial": "至少這麼多 —— 有些列沒能讀到",
+      "type": {
+        "images": "映像",
+        "containers": "容器",
+        "volumes": "本機磁碟區",
+        "buildCache": "建置快取"
+      }
+    },
     "hermes": {
       "title": "Hermes",
       "executable": "執行檔",

@@ -28,7 +28,7 @@ WSLPad는 그 모든 것을 Dashboard(대시보드)와 Explorer(탐색기), 그�
 
 ### Dashboard — 읽기 전용 상태를 섹션 단위로
 
-왼쪽에서 섹션을 고르면 오른쪽에서 읽습니다. 개요부터 경고까지 열네 개입니다. 표는
+왼쪽에서 섹션을 고르면 오른쪽에서 읽습니다. 개요부터 경고까지 열여섯 개입니다. 표는
 비좁은 카드 대신 창 전체를 쓰고, 목록에는 실시간 배지가 붙습니다. 전체 목록은
 [아래](#실제로-볼-수-있는-것)에 있습니다. 그중 네 섹션은 WSL 자신이 답해 주지 않는
 질문에 답하기 때문에 따로 짚어 둘 만합니다.
@@ -69,6 +69,9 @@ Dashboard는 아무것도 실행하지 않습니다. *kill*, *restart service*, 
 버튼은 명령을 Console(콘솔) 입력란에 **준비**해 둘 뿐입니다 — 확인하고, 고치고,
 Enter를 누르는 것은 사용자입니다.
 
+*LLM용 복사*와 *JSON 내보내기*는 지금 보고 있는 섹션이 아니라 스냅샷 **전체**를
+대상으로 하므로, 각 섹션 제목줄이 아니라 개요에 있습니다.
+
 ![탐색기](docs/screenshots/explorer.png)
 
 ### Explorer — 왼쪽은 Windows, 오른쪽은 WSL
@@ -105,7 +108,7 @@ WSLPad 내부 조회는 별도의 숨은 러너가 실행합니다.
 ## MCP 서버 (읽기 전용)
 
 WSLPad가 트레이에 떠 있는 동안 `http://127.0.0.1:4923/mcp`에서 MCP를 제공합니다
-(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 29개의 `Get*` —
+(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 31개의 `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPathMapping`, … 쓰기/실행/종료 도구는 의도적으로 두지 않았고, 비밀 값과 개인
 키는 MCP 경계를 넘지 않습니다. Claude Desktop(stdio 브리지), Codex, Hermes는 클릭
@@ -162,6 +165,15 @@ npm-global / pipx / uv / Windows interop / …), 설정 경로, 실행 중인 �
 배포판에 설치된 것이 아니라 `/mnt/c` 아래의 **Windows** 실행 파일로 연결되지는
 않는지.
 
+**Docker** — 자체 섹션: 엔진·클라이언트 버전, 컨텍스트, 데이터 루트, 이미지와
+컨테이너, 그리고 `docker system df` 분해 — 어떤 목록에도 안 나오면서 보통 이
+기계에서 가장 큰 **빌드 캐시**까지. Docker Desktop이면 그 용량이 실제로 어느
+배포판의 가상 디스크에 있는지도 말해 줍니다. 지금 보고 있는 배포판이 아니거든요.
+읽기 전용입니다 — 받지도, 켜거나 끄지도, 정리하지도 않고 prune 명령은 콘솔에
+준비만 합니다.
+
+![Docker](docs/screenshots/docker.png)
+
 **Hermes** — 실행 파일, 데이터 디렉터리, 가상 환경, 설정, 게이트웨이 상태,
 **실제로 어떤 메신저에 연결돼 있는지**, 흔히 에이전트라 부르는 프로필 목록(현재
 프로필 표시), 활성 세션, 예약 작업, 대시보드 상태와 주소, MCP 서버 수, 포트, 사용자
@@ -206,7 +218,7 @@ Linux 권한, 심볼릭 링크 대상. Windows 쪽에서는 드라이브마다 �
 sudo 암호 대기 중, 연결 끊김, 배포판 중지됨, 시작하지 못함 — 마지막 상태는 이유와
 함께).
 
-**MCP로** — 위의 모든 것을 29개의 읽기 전용 `Get*` 도구로.
+**MCP로** — 위의 모든 것을 31개의 읽기 전용 `Get*` 도구로.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings(설정) & 언어

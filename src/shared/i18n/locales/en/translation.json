@@ -335,6 +335,50 @@
         "util": "Utilities"
       }
     },
+    "docker": {
+      "title": "Docker",
+      "unavailable": "No Docker information for this distribution",
+      "notInstalled": "The docker command was not found in this distribution",
+      "daemonDown": "The docker command is here, but the daemon did not answer",
+      "storageElsewhere": "Docker keeps its images, containers and build cache in the {{distro}} distribution, so this space is on that distribution’s virtual disk — not on the one shown in Disk image.",
+      "desktop": "Docker Desktop",
+      "engine": "Engine",
+      "client": "Client",
+      "context": "Context",
+      "rootDir": "Data root",
+      "onHost": "inside {{host}}",
+      "reclaimable": "Reclaimable",
+      "reclaimableHint": "what a prune would give back",
+      "reclaimableShort": "Reclaimable",
+      "kind": "Kind",
+      "count": "Total",
+      "active": "In use",
+      "size": "Size",
+      "hiddenFromLists": "never listed",
+      "containers": "Containers",
+      "runningOfTotal": "{{running}} running of {{total}}",
+      "image": "Image",
+      "images": "Images",
+      "repository": "Repository",
+      "tag": "Tag",
+      "created": "Created",
+      "usedBy": "Containers",
+      "prepareBuilderPrune": "Prepare builder prune",
+      "prepareSystemPrune": "Prepare system prune",
+      "pruneHint": "Prepared in the Console — nothing is deleted until you press Enter",
+      "view": {
+        "disk": "Disk usage",
+        "containers": "Containers",
+        "images": "Images"
+      },
+      "reclaimablePartial": "at least this much — some rows could not be read",
+      "type": {
+        "images": "Images",
+        "containers": "Containers",
+        "volumes": "Local volumes",
+        "buildCache": "Build cache"
+      }
+    },
     "hermes": {
       "title": "Hermes",
       "executable": "Executable",

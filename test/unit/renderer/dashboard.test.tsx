@@ -25,6 +25,7 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['paths', 'Important paths'],
   ['configuration', 'Configuration files'],
   ['tools', 'Installed tools'],
+  ['docker', 'Docker'],
   ['hermes', 'Hermes'],
   ['openclaw', 'OpenClaw'],
   ['environment', 'Environment'],
@@ -145,6 +146,7 @@ function makeSnapshot(): WslPadSnapshot {
           shadowedByWindows: false
         }
       ],
+      docker: null,
       hermes: {
         installed: true,
         executablePath: '/home/dev/.local/bin/hermes',

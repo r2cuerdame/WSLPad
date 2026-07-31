@@ -335,6 +335,50 @@
         "util": "实用工具"
       }
     },
+    "docker": {
+      "title": "Docker",
+      "unavailable": "没有此发行版的 Docker 信息",
+      "notInstalled": "在此发行版中没有找到 docker 命令",
+      "daemonDown": "docker 命令在，但守护进程没有响应",
+      "storageElsewhere": "Docker 把镜像、容器和构建缓存放在 {{distro}} 发行版里，所以这些空间在那个发行版的虚拟磁盘上，而不是「磁盘映像」里显示的那块。",
+      "desktop": "Docker Desktop",
+      "engine": "引擎",
+      "client": "客户端",
+      "context": "上下文",
+      "rootDir": "数据根目录",
+      "onHost": "位于 {{host}} 内",
+      "reclaimable": "可回收",
+      "reclaimableHint": "prune 能拿回来的空间",
+      "reclaimableShort": "可回收",
+      "kind": "类型",
+      "count": "总数",
+      "active": "使用中",
+      "size": "大小",
+      "hiddenFromLists": "从不列出",
+      "containers": "容器",
+      "runningOfTotal": "{{total}} 个中有 {{running}} 个在运行",
+      "image": "镜像",
+      "images": "镜像",
+      "repository": "仓库",
+      "tag": "标签",
+      "created": "创建时间",
+      "usedBy": "容器",
+      "prepareBuilderPrune": "准备清理构建缓存命令",
+      "prepareSystemPrune": "准备系统清理命令",
+      "pruneHint": "只会填入控制台 — 按 Enter 才会删除",
+      "view": {
+        "disk": "磁盘占用",
+        "containers": "容器",
+        "images": "镜像"
+      },
+      "reclaimablePartial": "至少这么多 —— 有些行没能读到",
+      "type": {
+        "images": "镜像",
+        "containers": "容器",
+        "volumes": "本地卷",
+        "buildCache": "构建缓存"
+      }
+    },
     "hermes": {
       "title": "Hermes",
       "executable": "可执行文件",

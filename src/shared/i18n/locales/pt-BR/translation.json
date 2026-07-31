@@ -335,6 +335,50 @@
         "util": "Utilitários"
       }
     },
+    "docker": {
+      "title": "Docker",
+      "unavailable": "Nenhuma informação do Docker para esta distribuição",
+      "notInstalled": "O comando docker não foi encontrado nesta distribuição",
+      "daemonDown": "O comando docker está aqui, mas o daemon não respondeu",
+      "storageElsewhere": "O Docker guarda imagens, contêineres e cache de build na distribuição {{distro}}, então esse espaço está no disco virtual dela — não no que aparece em Imagem de disco.",
+      "desktop": "Docker Desktop",
+      "engine": "Engine",
+      "client": "Cliente",
+      "context": "Contexto",
+      "rootDir": "Raiz de dados",
+      "onHost": "dentro de {{host}}",
+      "reclaimable": "Recuperável",
+      "reclaimableHint": "o que um prune devolveria",
+      "reclaimableShort": "Recuperável",
+      "kind": "Tipo",
+      "count": "Total",
+      "active": "Em uso",
+      "size": "Tamanho",
+      "hiddenFromLists": "nunca listado",
+      "containers": "Contêineres",
+      "runningOfTotal": "{{running}} em execução de {{total}}",
+      "image": "Imagem",
+      "images": "Imagens",
+      "repository": "Repositório",
+      "tag": "Tag",
+      "created": "Criada",
+      "usedBy": "Contêineres",
+      "prepareBuilderPrune": "Preparar prune do builder",
+      "prepareSystemPrune": "Preparar prune do sistema",
+      "pruneHint": "Preparado no Console — nada é apagado até você pressionar Enter",
+      "view": {
+        "disk": "Uso de disco",
+        "containers": "Contêineres",
+        "images": "Imagens"
+      },
+      "reclaimablePartial": "pelo menos isso — algumas linhas não puderam ser lidas",
+      "type": {
+        "images": "Imagens",
+        "containers": "Contêineres",
+        "volumes": "Volumes locais",
+        "buildCache": "Cache de build"
+      }
+    },
     "hermes": {
       "title": "Hermes",
       "executable": "Executável",

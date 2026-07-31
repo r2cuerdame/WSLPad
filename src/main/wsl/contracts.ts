@@ -6,6 +6,7 @@ import type {
   DistroDetails,
   DistroSummary,
   DnsInfo,
+  DockerInfo,
   EnvironmentVariableInfo,
   FileEntry,
   FileStat,
@@ -123,6 +124,11 @@ export interface WslProvider {
   getConfigFiles(distro: string): Promise<ConfigurationFileInfo[]>
   getTools(distro: string): Promise<ToolInfo[]>
   getHermes(distro: string): Promise<HermesInfo | null>
+  /**
+   * Docker as this distribution sees it. Optional so a provider without it
+   * leaves the section null (unknown) rather than implying Docker is absent.
+   */
+  getDocker?(distro: string): Promise<DockerInfo | null>
 }
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,10 @@
 import { PROBE_TIMEOUT_MS } from '@shared/constants'
-import type { DistroDetails, DistroSummary } from '@shared/types'
+import type { DistroDetails, DistroSummary, DockerInfo } from '@shared/types'
 import { WslNotAvailableError, type DistroRunner, type WslProvider } from './contracts'
 import { collectClock } from './clock'
 import { collectConfigFiles } from './config-files'
 import { createDnsCollector } from './dns'
+import { detectDocker } from './docker'
 import { detectHermes, detectHermesCli, detectTools } from './detectors'
 import type { HermesCliDetail } from './detectors/hermes'
 import { listDistros } from './distros'
@@ -24,6 +25,15 @@ import { createWslConfigCollector } from './wsl-config'
 
 /** How long one `hermes status` answer is reused (its own CLI takes seconds). */
 const HERMES_CLI_TTL_MS = 60_000
+
+/**
+ * How long one Docker answer is reused. `docker system df` walks the whole
+ * image store and is the most expensive query in the app; images and the build
+ * cache change when the user builds something, not by the minute. The slow
+ * tier keeps ticking while the window is hidden in the tray, so without this
+ * the machine would pay for a full store walk every minute, forever.
+ */
+const DOCKER_TTL_MS = 120_000
 
 /**
  * Real WslProvider wiring all hidden-runner collectors (goal.md §9). The
@@ -57,6 +67,18 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     const fresh = await detectHermesCli(runner, distro)
     if (fresh === null) return cached?.detail ?? null
     hermesCliCache.set(distro, { at: Date.now(), detail: fresh })
+    return fresh
+  }
+
+  // Same shape as the Hermes CLI cache, and the same rule: a failed refresh
+  // keeps the previous answer rather than publishing "no Docker".
+  const dockerCache = new Map<string, { at: number; info: DockerInfo }>()
+  const dockerInfo = async (distro: string): Promise<DockerInfo | null> => {
+    const cached = dockerCache.get(distro)
+    if (cached && Date.now() - cached.at < DOCKER_TTL_MS) return cached.info
+    const fresh = await detectDocker(runner, distro)
+    if (fresh === null) return cached?.info ?? null
+    dockerCache.set(distro, { at: Date.now(), info: fresh })
     return fresh
   }
 
@@ -186,6 +208,10 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
 
     getTools(distro) {
       return detectTools(runner, distro)
+    },
+
+    getDocker(distro) {
+      return dockerInfo(distro)
     },
 
     async getHermes(distro) {

@@ -29,6 +29,8 @@ const GOAL_TOOLS = [
   'GetDiskImage',
   'GetWslSettings',
   'GetFirewall',
+  'GetPortProxy',
+  'GetDocker',
   'GetDns',
   'GetClock',
   'GetWarnings',

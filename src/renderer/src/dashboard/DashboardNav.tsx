@@ -2,7 +2,6 @@ import { useCallback, useId, useRef, type KeyboardEvent, type ReactNode } from '
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIcon,
-  BoltIcon,
   ClawIcon,
   ExternalIcon,
   FileIcon,
@@ -18,6 +17,7 @@ import {
   WarningIcon,
   type IconProps
 } from '../components/Icons'
+import { DockerMark, HermesMark } from '../components/Marks'
 
 export type DashboardSectionId =
   | 'overview'
@@ -28,6 +28,7 @@ export type DashboardSectionId =
   | 'paths'
   | 'configuration'
   | 'tools'
+  | 'docker'
   | 'hermes'
   | 'openclaw'
   | 'environment'
@@ -54,7 +55,8 @@ export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   { id: 'paths', titleKey: 'dashboard.paths.title', Icon: FolderIcon },
   { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },
-  { id: 'hermes', titleKey: 'dashboard.hermes.title', Icon: BoltIcon },
+  { id: 'docker', titleKey: 'dashboard.docker.title', Icon: DockerMark },
+  { id: 'hermes', titleKey: 'dashboard.hermes.title', Icon: HermesMark },
   { id: 'openclaw', titleKey: 'dashboard.openclaw.title', Icon: ClawIcon },
   { id: 'environment', titleKey: 'dashboard.environment.title', Icon: ListIcon },
   { id: 'processes', titleKey: 'dashboard.processes.title', Icon: ActivityIcon },

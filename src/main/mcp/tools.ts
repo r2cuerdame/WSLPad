@@ -39,6 +39,8 @@ export const MCP_TOOL_NAMES = [
   'GetDiskImage',
   'GetWslSettings',
   'GetFirewall',
+  'GetPortProxy',
+  'GetDocker',
   'GetDns',
   'GetClock',
   'GetWarnings',
@@ -451,6 +453,56 @@ export function createMcpServer(deps: McpDeps): McpServer {
               `enabled=${dash.firewall.enabled ?? 'unknown'}, ` +
                 `inbound=${dash.firewall.defaultInbound ?? 'unknown'}`,
               { firewall: dash.firewall }
+            )
+      )
+    )
+  )
+
+  server.registerTool(
+    'GetPortProxy',
+    {
+      description:
+        'Get the Windows port forwarding rules (netsh interface portproxy), each ' +
+        'judged against the address this distribution has right now. Under NAT the ' +
+        'address is reassigned on every WSL restart, so a rule added once starts ' +
+        'forwarding into nothing with no error anywhere.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) =>
+        dash.portProxy === null
+          ? ok('Port forwarding rules are not available', { portProxy: null })
+          : ok(
+              `${dash.portProxy.rules.length} rule(s), ` +
+                `${dash.portProxy.rules.filter((r) => r.verdict === 'stale').length} forwarding nowhere`,
+              { portProxy: dash.portProxy }
+            )
+      )
+    )
+  )
+
+  server.registerTool(
+    'GetDocker',
+    {
+      description:
+        'Get Docker as this distribution sees it: engine and client versions, ' +
+        'context, data root, images, containers and the `docker system df` ' +
+        'breakdown including the build cache, which no listing shows. Under Docker ' +
+        'Desktop it also names the distribution whose virtual disk actually holds ' +
+        'that space, which is not the one being inspected.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) =>
+        dash.docker === null
+          ? ok('Docker information is not available', { docker: null })
+          : ok(
+              dash.docker.cliInstalled
+                ? `docker ${dash.docker.serverVersion ?? 'unknown'}, ` +
+                  `${dash.docker.containers.length} container(s), ` +
+                  `${dash.docker.images.length} image(s)`
+                : 'docker is not installed in this distribution',
+              { docker: dash.docker }
             )
       )
     )

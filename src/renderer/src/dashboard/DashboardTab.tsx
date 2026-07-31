@@ -18,6 +18,7 @@ import PathsCard from './PathsCard'
 import ConfigCard from './ConfigCard'
 import ToolsCard, { effectiveAppendWindowsPath } from './ToolsCard'
 import HermesCard from './HermesCard'
+import DockerCard from './DockerCard'
 import OpenClawCard, { findOpenClaw } from './OpenClawCard'
 import EnvironmentCard from './EnvironmentCard'
 import ProcessesCard from './ProcessesCard'
@@ -131,10 +132,21 @@ export default function DashboardTab(): React.JSX.Element {
 
   const gatewayRunning = dash.hermes?.gatewayStatus === 'running'
   const openclawRunning = (findOpenClaw(dash.tools)?.runningProcesses ?? 0) > 0
+  const dockerRunning = dash.docker?.daemonRunning === true
+  const dockerContainers = dash.docker?.containers.filter((c) => c.state === 'running').length ?? 0
   const badges: Partial<Record<DashboardSectionId, ReactNode>> = {
     wslconfig: settingIssues > 0 ? count(settingIssues, 'err') : undefined,
     network: networkIssue ? dot('err', t('common.warning')) : undefined,
     tools: count(installedTools),
+    docker:
+      dash.docker === null || !dash.docker.cliInstalled
+        ? undefined
+        : dockerContainers > 0
+          ? count(dockerContainers)
+          : dot(
+              dockerRunning ? 'ok' : 'unknown',
+              dockerRunning ? t('common.running') : t('common.stopped')
+            ),
     hermes: dot(
       gatewayRunning ? 'ok' : 'unknown',
       gatewayRunning ? t('common.running') : t('common.notDetected')
@@ -201,6 +213,8 @@ export default function DashboardTab(): React.JSX.Element {
         )
       case 'openclaw':
         return <OpenClawCard openclaw={findOpenClaw(dash.tools)} />
+      case 'docker':
+        return <DockerCard docker={dash.docker} />
       case 'hermes':
         return <HermesCard hermes={dash.hermes} />
       case 'environment':
@@ -236,7 +250,11 @@ export default function DashboardTab(): React.JSX.Element {
             {subtitle ? <span className="dim dashboard-detail-subtitle">{subtitle}</span> : null}
             <span className="dashboard-detail-spacer" />
             <div className="dashboard-detail-actions" ref={setActionsSlot} />
-            <CopyForLlm />
+            {/* Both exports act on the whole snapshot, not on the section being
+                read. Sitting in every section's title row they looked like that
+                section's own action, and competed with its filters for the
+                line — so they live where "the whole machine" already lives. */}
+            {section === 'overview' ? <CopyForLlm /> : null}
           </header>
           <CardActionsSlot.Provider value={actionsSlot}>
             <div className="dashboard-detail-body">{detail()}</div>

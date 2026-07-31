@@ -14,6 +14,7 @@ import type {
   DnsInfo,
   EnvironmentVariableInfo,
   FirewallInfo,
+  DockerInfo,
   PortProxyInfo,
   HermesInfo,
   ImportantPathInfo,
@@ -40,6 +41,7 @@ import {
   fixtureDns,
   fixtureEnvRaw,
   fixtureFirewall,
+  fixtureDocker,
   fixturePortProxy,
   fixtureHermes,
   fixtureImportantPaths,
@@ -122,6 +124,10 @@ export class FixtureWslProvider implements WslProvider {
   /** Host-wide too: the firewall belongs to Windows, not to a distro. */
   async getFirewall(): Promise<FirewallInfo> {
     return fixtureFirewall()
+  }
+
+  async getDocker(distro: string): Promise<DockerInfo | null> {
+    return fixtureDocker(this.known(distro))
   }
 
   /** Host-wide: portproxy rules live in Windows, judged against the distro IP. */

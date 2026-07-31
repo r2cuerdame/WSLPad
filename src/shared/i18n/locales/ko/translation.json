@@ -335,6 +335,50 @@
         "util": "유틸리티"
       }
     },
+    "docker": {
+      "title": "Docker",
+      "unavailable": "이 배포판의 Docker 정보가 없습니다",
+      "notInstalled": "이 배포판에서 docker 명령을 찾지 못했습니다",
+      "daemonDown": "docker 명령은 있지만 데몬이 응답하지 않았습니다",
+      "storageElsewhere": "Docker는 이미지·컨테이너·빌드 캐시를 {{distro}} 배포판에 보관합니다. 즉 이 용량은 그 배포판의 가상 디스크에 있으며, 디스크 이미지 섹션이 보여주는 디스크가 아닙니다.",
+      "desktop": "Docker Desktop",
+      "engine": "엔진",
+      "client": "클라이언트",
+      "context": "컨텍스트",
+      "rootDir": "데이터 루트",
+      "onHost": "{{host}} 내부",
+      "reclaimable": "회수 가능",
+      "reclaimableHint": "prune으로 되찾을 수 있는 용량",
+      "reclaimableShort": "회수 가능",
+      "kind": "종류",
+      "count": "전체",
+      "active": "사용 중",
+      "size": "크기",
+      "hiddenFromLists": "목록에 안 나옴",
+      "containers": "컨테이너",
+      "runningOfTotal": "{{total}}개 중 {{running}}개 실행 중",
+      "image": "이미지",
+      "images": "이미지",
+      "repository": "리포지터리",
+      "tag": "태그",
+      "created": "생성",
+      "usedBy": "컨테이너",
+      "prepareBuilderPrune": "빌드 캐시 정리 명령 준비",
+      "prepareSystemPrune": "시스템 정리 명령 준비",
+      "pruneHint": "콘솔에 입력만 됩니다 — Enter를 눌러야 삭제됩니다",
+      "view": {
+        "disk": "디스크 사용량",
+        "containers": "컨테이너",
+        "images": "이미지"
+      },
+      "reclaimablePartial": "최소 이만큼 — 일부 항목을 읽지 못했습니다",
+      "type": {
+        "images": "이미지",
+        "containers": "컨테이너",
+        "volumes": "로컬 볼륨",
+        "buildCache": "빌드 캐시"
+      }
+    },
     "hermes": {
       "title": "Hermes",
       "executable": "실행 파일",

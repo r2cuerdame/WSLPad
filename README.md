@@ -29,7 +29,7 @@ and an MCP surface — without ever changing your system behind your back.
 
 ### Dashboard — read-only state, section by section
 
-Pick a section on the left, read it on the right — fourteen of them, from the
+Pick a section on the left, read it on the right — sixteen of them, from the
 overview to warnings. Tables get the full window instead of a cramped card, and
 the list carries live badges. The full inventory is
 [below](#what-you-can-actually-see); four sections deserve calling out because
@@ -73,6 +73,10 @@ The Dashboard never executes anything. Buttons like *kill*, *restart service*
 or *sudoedit* only **prepare** the command in the Console input — you review,
 edit and press Enter.
 
+*Copy for LLM* and *Export JSON* take the **whole** snapshot, not the section
+you happen to be reading, so they sit on Overview rather than in every
+section's title row.
+
 ![Explorer](docs/screenshots/explorer.png)
 
 ### Explorer — Windows on the left, WSL on the right
@@ -113,7 +117,7 @@ answer.
 ## MCP server (read-only)
 
 While WSLPad sits in the tray it serves MCP at `http://127.0.0.1:4923/mcp`
-(Streamable HTTP, localhost-only, Bearer-token auth) with 29 `Get*` tools —
+(Streamable HTTP, localhost-only, Bearer-token auth) with 31 `Get*` tools —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPathMapping`, … There are deliberately no write/run/kill tools; secrets
 and private keys never cross the MCP boundary. One-click registration for
@@ -173,6 +177,16 @@ filesystem boundary it lives on, and — importantly — whether the command
 actually resolves to a **Windows** binary under `/mnt/c` instead of one
 installed in the distro.
 
+**Docker** — its own section: engine and client versions, context, data root,
+images and containers, and the `docker system df` breakdown — including the
+**build cache**, which no listing shows and which is routinely the largest
+thing on the machine. Under Docker Desktop it also names the distribution whose
+virtual disk actually holds that space, because it is not the one you are
+looking at. Read-only: nothing is pulled, started, stopped or pruned — the
+prune commands are prepared in the Console.
+
+![Docker](docs/screenshots/docker.png)
+
 **Hermes** — executable, data dir, virtualenv, config, gateway state, **which
 messengers it is actually connected to**, the profiles you'd call agents (with
 the current one marked), active sessions, scheduled jobs, dashboard state and
@@ -220,7 +234,7 @@ free and total space.
 running, waiting for input, waiting for a sudo password, disconnected,
 distribution stopped, or could not start — the last one with the reason).
 
-**Over MCP** — all of the above through 29 read-only `Get*` tools.
+**Over MCP** — all of the above through 31 read-only `Get*` tools.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings & languages

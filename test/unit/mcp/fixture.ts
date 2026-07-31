@@ -351,6 +351,7 @@ export function makeDashboard(): DashboardSnapshot {
         shadowedByWindows: false
       }
     ],
+    docker: null,
     hermes: {
       installed: true,
       executablePath: '/home/user/.local/bin/hermes',

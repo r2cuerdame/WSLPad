@@ -123,7 +123,8 @@ describe('createPortProxyCollector', () => {
 
     const info = await collector.collect('172.20.144.2')
 
-    expect(calls[0][0]).toBe('netsh.exe')
+    // Absolute path, so a netsh.exe next to the app cannot be picked up first.
+    expect(calls[0][0]).toMatch(/System32.netsh\.exe$/i)
     expect(calls[0][1]).toEqual(['interface', 'portproxy', 'show', 'v4tov4'])
     expect(info.distroIp).toBe('172.20.144.2')
     expect(info.rules.map((r) => r.verdict)).toEqual(['stale', 'live'])
@@ -152,5 +153,28 @@ describe('createPortProxyCollector', () => {
     expect(info.rules).toEqual([])
     expect(info.error).toContain(UNREADABLE)
     expect(info.error).toContain('netsh is not on PATH')
+  })
+})
+
+describe('a failed read keeps the last good table', () => {
+  it('does not report an empty table for a minute after one netsh failure', async () => {
+    let fail = false
+    const run = vi.fn(async () => {
+      if (fail) throw new Error('netsh vanished')
+      return KOREAN_TABLE
+    })
+    let time = 0
+    const collector = createPortProxyCollector({ run, ttlMs: 10, now: () => time })
+
+    const first = await collector.collect('172.20.144.2')
+    expect(first.rules).toHaveLength(2)
+
+    fail = true
+    time = 100
+    const second = await collector.collect('172.20.144.2')
+    // Still the rules last read: reporting none would say "you have no
+    // forwarding rules", which is a different fact entirely.
+    expect(second.rules).toHaveLength(2)
+    expect(second.error).toContain(UNREADABLE)
   })
 })

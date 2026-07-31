@@ -175,6 +175,85 @@ export interface PortProxyInfo {
   error: string | null
 }
 
+/**
+ * One image `docker image ls` reports. Sizes arrive as human strings ("377MB")
+ * and are parsed to bytes so the UI formats them like every other size in the
+ * app; the raw string is kept so an unparseable unit is still shown verbatim.
+ */
+export interface DockerImageInfo {
+  repository: string
+  tag: string
+  id: string
+  sizeBytes: number | null
+  sizeText: string
+  /** ISO 8601; null when the timestamp could not be parsed. */
+  createdAt: string | null
+  /** Containers using this image, as docker counts them; null when unknown. */
+  containers: number | null
+}
+
+export interface DockerContainerInfo {
+  id: string
+  name: string
+  image: string
+  /** docker's own state word: running, exited, created, paused, … */
+  state: string
+  /** Human status line, e.g. "Up 45 seconds". */
+  status: string
+  /** Published ports verbatim, e.g. "0.0.0.0:8080->8080/tcp". */
+  ports: string
+  createdAt: string | null
+}
+
+/**
+ * One row of `docker system df`: images, containers, local volumes or build
+ * cache. Reclaimable is the number that matters — it is the space a prune
+ * would give back, and on a busy machine the build cache dwarfs everything.
+ */
+export interface DockerDiskUsage {
+  /** docker's own type word, kept verbatim: Images, Containers, … */
+  type: string
+  totalCount: number | null
+  activeCount: number | null
+  sizeBytes: number | null
+  sizeText: string
+  reclaimableBytes: number | null
+  reclaimableText: string
+}
+
+/**
+ * Docker as this distribution sees it (goal.md §6.6.2). Under Docker Desktop
+ * the CLI is a shim into the `docker-desktop` distribution, so the images and
+ * the build cache are stored in *that* distribution's virtual disk — not in
+ * the one whose Explorer and Disk image sections the user is looking at. That
+ * mismatch is the single most confusing thing about disk usage on WSL, so the
+ * section states it rather than leaving the numbers to be misread.
+ */
+export interface DockerInfo {
+  /** The docker CLI is present on PATH inside this distribution. */
+  cliInstalled: boolean
+  /** Resolved path of the docker command; null when it is not installed. */
+  cliPath: string | null
+  /** The CLI is Docker Desktop's shim reached through /mnt/wsl. */
+  dockerDesktop: boolean
+  /** The daemon answered. false means installed but not reachable. */
+  daemonRunning: boolean
+  serverVersion: string | null
+  clientVersion: string | null
+  context: string | null
+  /** Engine's data root, e.g. /var/lib/docker — inside the engine's own VM. */
+  rootDir: string | null
+  /** Engine host name; 'docker-desktop' when the data lives in that distro. */
+  engineHost: string | null
+  /** Distribution whose virtual disk actually holds the data; null if unknown. */
+  storageDistro: string | null
+  images: DockerImageInfo[]
+  containers: DockerContainerInfo[]
+  diskUsage: DockerDiskUsage[]
+  /** Why docker could not be queried; null when it answered. */
+  error: string | null
+}
+
 export interface WslConfigInfo {
   /** null when %UserProfile% could not be resolved. */
   wslconfigPath: string | null
@@ -490,6 +569,8 @@ export interface DashboardSnapshot {
   configuration: ConfigurationFileInfo[]
   tools: ToolInfo[]
   hermes: HermesInfo | null
+  /** null until Docker has been queried in this distribution. */
+  docker: DockerInfo | null
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
   services: ServiceInfo[]

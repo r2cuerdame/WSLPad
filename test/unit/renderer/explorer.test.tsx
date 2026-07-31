@@ -78,6 +78,7 @@ function makeSnapshot(): WslPadSnapshot {
       paths: [],
       configuration: [],
       tools: [],
+      docker: null,
       hermes: null,
       environment: [],
       processes: [],

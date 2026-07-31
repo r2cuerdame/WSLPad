@@ -31,7 +31,7 @@ Ihrem Rücken etwas an Ihrem System zu ändern.
 
 ### Dashboard — Zustand nur lesend, Bereich für Bereich
 
-Links einen Bereich wählen, rechts lesen — vierzehn davon, von der Übersicht
+Links einen Bereich wählen, rechts lesen — sechzehn davon, von der Übersicht
 bis zu den Warnungen. Tabellen bekommen das ganze Fenster statt einer beengten
 Karte, und die Liste trägt Live-Badges. Die vollständige Aufstellung steht
 [weiter unten](#was-sie-wirklich-sehen); vier Bereiche verdienen eine eigene
@@ -114,7 +114,7 @@ Sie erholt sich außerdem von selbst. WSL ist oft noch beschäftigt, wenn WSLPad
 
 Solange WSLPad im Tray sitzt, stellt es MCP unter `http://127.0.0.1:4923/mcp`
 bereit (Streamable HTTP, nur localhost, Authentifizierung per Bearer-Token) mit
-29 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
+31 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
 `GetTextFile`, `GetPathMapping`, … Tools zum Schreiben, Ausführen oder Beenden
 gibt es bewusst nicht; Secrets und private Schlüssel überschreiten die
 MCP-Grenze nie. Registrierung per Klick für Claude Desktop (stdio-Bridge),
@@ -180,6 +180,17 @@ zum Windows-Dateisystem es liegt und — wichtig — ob der Befehl tatsächlich 
 ein **Windows**-Programm unter `/mnt/c` auflöst statt auf eines, das in der
 Distribution installiert ist.
 
+**Docker** — ein eigener Abschnitt: Engine- und Client-Version, Kontext,
+Datenverzeichnis, Images und Container sowie die Aufschlüsselung von
+`docker system df` — einschließlich des **Build-Cache**, den keine Liste zeigt
+und der regelmäßig das Größte auf der Maschine ist. Unter Docker Desktop nennt
+er außerdem die Distribution, auf deren virtueller Festplatte dieser Platz
+wirklich liegt, denn es ist nicht die betrachtete. Nur lesend: nichts wird
+geholt, gestartet, gestoppt oder bereinigt — die Prune-Befehle werden in der
+Konsole vorbereitet.
+
+![Docker](docs/screenshots/docker.png)
+
 **Hermes** — Programmdatei, Datenverzeichnis, virtuelle Umgebung, Konfiguration, Status des Gateways, **mit welchen Messengern es tatsächlich verbunden ist**, die Profile, die man Agenten nennen würde (das aktuelle markiert), aktive Sitzungen, geplante Aufgaben, Status und Adresse des Dashboards, Anzahl der MCP-Server, Ports, Benutzerdienste und Pfade der Protokolle. Messenger und Profile stammen aus Hermes' eigener, nur lesender CLI; lässt sie sich nicht befragen, steht dort *unbekannt* und nicht „nichts konfiguriert". Das Web-Dashboard läuft nicht? Der Befehl zum Starten wird in der Konsole vorbereitet.
 
 **OpenClaw** — ein eigener Abschnitt neben Hermes: Programmdatei,
@@ -222,7 +233,7 @@ Windows-Seite: freier und gesamter Speicherplatz.
 
 **Console** — die Distribution, das aktuelle Verzeichnis und der Zustand der Shell (bereit, wird ausgeführt, wartet auf Eingabe, wartet auf ein sudo-Passwort, getrennt, Distribution gestoppt oder Start fehlgeschlagen — Letzteres mit dem Grund).
 
-**Über MCP** — alles davon über 29 `Get*`-Tools mit Nur-Lese-Zugriff.
+**Über MCP** — alles davon über 31 `Get*`-Tools mit Nur-Lese-Zugriff.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings & Sprachen

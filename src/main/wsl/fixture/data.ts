@@ -21,6 +21,7 @@ import type {
   SystemInfo,
   ToolInfo,
   WindowsPortInfo,
+  DockerInfo,
   PortProxyInfo,
   WslConfigInfo
 } from '@shared/types'
@@ -1166,6 +1167,123 @@ export function fixturePortProxy(): PortProxyInfo {
       }
     ],
     distroIp,
+    error: null
+  }
+}
+
+/**
+ * The Docker story this app exists to tell: one small image on screen, tens of
+ * gigabytes of build cache off it, and all of it on the docker-desktop
+ * distribution's disk rather than on the one being inspected.
+ */
+export function fixtureDocker(distro: FixtureDistroName): DockerInfo | null {
+  if (distro !== FIXTURE_UBUNTU) {
+    return {
+      cliInstalled: false,
+      cliPath: null,
+      dockerDesktop: false,
+      daemonRunning: false,
+      serverVersion: null,
+      clientVersion: null,
+      context: null,
+      rootDir: null,
+      engineHost: null,
+      storageDistro: null,
+      images: [],
+      containers: [],
+      diskUsage: [],
+      error: null
+    }
+  }
+  return {
+    cliInstalled: true,
+    cliPath: '/usr/bin/docker',
+    dockerDesktop: true,
+    daemonRunning: true,
+    serverVersion: '29.2.1',
+    clientVersion: '29.2.1',
+    context: 'default',
+    rootDir: '/var/lib/docker',
+    engineHost: 'docker-desktop',
+    storageDistro: 'docker-desktop',
+    images: [
+      {
+        repository: 'searxng/searxng',
+        tag: 'latest',
+        id: '8d1655e92c35',
+        sizeBytes: 377000000,
+        sizeText: '377MB',
+        createdAt: '2026-02-20T12:05:22.000Z',
+        containers: 1
+      },
+      {
+        repository: 'postgres',
+        tag: '16-alpine',
+        id: '3f2b1a90d7c4',
+        sizeBytes: 274000000,
+        sizeText: '274MB',
+        createdAt: '2026-05-02T09:14:00.000Z',
+        containers: 0
+      }
+    ],
+    containers: [
+      {
+        id: '19acd474130a',
+        name: 'searxng',
+        image: 'searxng/searxng:latest',
+        state: 'running',
+        status: 'Up 45 seconds',
+        ports: '0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp',
+        createdAt: '2026-02-21T07:07:53.000Z'
+      },
+      {
+        id: 'b71c0e2f5a83',
+        name: 'pg-dev',
+        image: 'postgres:16-alpine',
+        state: 'exited',
+        status: 'Exited (0) 3 weeks ago',
+        ports: '',
+        createdAt: '2026-05-02T09:20:00.000Z'
+      }
+    ],
+    diskUsage: [
+      {
+        type: 'Images',
+        totalCount: 2,
+        activeCount: 1,
+        sizeBytes: 17250000000,
+        sizeText: '17.25GB',
+        reclaimableBytes: 17250000000,
+        reclaimableText: '17.25GB (100%)'
+      },
+      {
+        type: 'Containers',
+        totalCount: 2,
+        activeCount: 1,
+        sizeBytes: 520200,
+        sizeText: '520.2kB',
+        reclaimableBytes: 0,
+        reclaimableText: '0B (0%)'
+      },
+      {
+        type: 'Local Volumes',
+        totalCount: 18,
+        activeCount: 1,
+        sizeBytes: 515800000,
+        sizeText: '515.8MB',
+        reclaimableBytes: 515800000,
+        reclaimableText: '515.8MB (100%)'
+      },
+      {
+        type: 'Build Cache',
+        totalCount: 437,
+        activeCount: 0,
+        sizeBytes: 21160000000,
+        sizeText: '21.16GB',
+        reclaimableBytes: 21160000000,
+        reclaimableText: '21.16GB'
+      }
+    ],
     error: null
   }
 }

@@ -335,6 +335,50 @@
         "util": "Dienstprogramme"
       }
     },
+    "docker": {
+      "title": "Docker",
+      "unavailable": "Keine Docker-Informationen für diese Distribution",
+      "notInstalled": "Der Befehl docker wurde in dieser Distribution nicht gefunden",
+      "daemonDown": "Der Befehl docker ist da, aber der Daemon hat nicht geantwortet",
+      "storageElsewhere": "Docker hält Images, Container und Build-Cache in der Distribution {{distro}}. Dieser Platz liegt also auf deren virtueller Festplatte — nicht auf der, die unter Datenträgerabbild steht.",
+      "desktop": "Docker Desktop",
+      "engine": "Engine",
+      "client": "Client",
+      "context": "Kontext",
+      "rootDir": "Datenverzeichnis",
+      "onHost": "in {{host}}",
+      "reclaimable": "Freigebbar",
+      "reclaimableHint": "was ein Prune zurückgäbe",
+      "reclaimableShort": "Freigebbar",
+      "kind": "Art",
+      "count": "Gesamt",
+      "active": "In Benutzung",
+      "size": "Größe",
+      "hiddenFromLists": "nie gelistet",
+      "containers": "Container",
+      "runningOfTotal": "{{running}} von {{total}} laufen",
+      "image": "Image",
+      "images": "Images",
+      "repository": "Repository",
+      "tag": "Tag",
+      "created": "Erstellt",
+      "usedBy": "Container",
+      "prepareBuilderPrune": "Builder-Prune vorbereiten",
+      "prepareSystemPrune": "System-Prune vorbereiten",
+      "pruneHint": "Wird nur in die Konsole geschrieben — nichts wird ohne Enter gelöscht",
+      "view": {
+        "disk": "Speicherbelegung",
+        "containers": "Container",
+        "images": "Images"
+      },
+      "reclaimablePartial": "mindestens so viel — einige Zeilen waren nicht lesbar",
+      "type": {
+        "images": "Images",
+        "containers": "Container",
+        "volumes": "Lokale Volumes",
+        "buildCache": "Build-Cache"
+      }
+    },
     "hermes": {
       "title": "Hermes",
       "executable": "Programmdatei",

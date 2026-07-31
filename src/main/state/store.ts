@@ -13,6 +13,7 @@ import type {
   DistroDetails,
   DistroSummary,
   DnsInfo,
+  DockerInfo,
   EnvironmentVariableInfo,
   ExplorerContext,
   FirewallInfo,
@@ -51,6 +52,7 @@ interface DashboardSections {
   configuration: ConfigurationFileInfo[]
   tools: ToolInfo[]
   hermes: HermesInfo | null
+  docker: DockerInfo | null
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
   services: ServiceInfo[]
@@ -120,6 +122,7 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     configuration: [],
     tools: [],
     hermes: null,
+    docker: null,
     environment: [],
     processes: [],
     services: [],
@@ -364,7 +367,8 @@ export class SnapshotStore {
             }
           ),
           this.collectDiskImage(distro, s),
-          this.collectWslSettings(distro, s)
+          this.collectWslSettings(distro, s),
+          this.collectDocker(distro, s)
         ])
       }
       this.recomputeWarnings()
@@ -464,6 +468,22 @@ export class SnapshotStore {
       () => read.call(this.provider),
       (v) => {
         s.firewall = v
+      }
+    )
+  }
+
+  /**
+   * Docker, slow tier: `docker system df` walks the whole image store and can
+   * take seconds, and none of these numbers move by the second.
+   */
+  private async collectDocker(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getDocker
+    if (read === undefined) return
+    await this.collect(
+      'docker',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.docker = v
       }
     )
   }

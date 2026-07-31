@@ -335,6 +335,50 @@
         "util": "ユーティリティ"
       }
     },
+    "docker": {
+      "title": "Docker",
+      "unavailable": "このディストリビューションの Docker 情報はありません",
+      "notInstalled": "このディストリビューションに docker コマンドが見つかりません",
+      "daemonDown": "docker コマンドはありますが、デーモンが応答しませんでした",
+      "storageElsewhere": "Docker はイメージ・コンテナ・ビルドキャッシュを {{distro}} ディストリビューションに置きます。つまりこの容量はそのディストリビューションの仮想ディスク上にあり、ディスクイメージのセクションが示すディスクではありません。",
+      "desktop": "Docker Desktop",
+      "engine": "エンジン",
+      "client": "クライアント",
+      "context": "コンテキスト",
+      "rootDir": "データルート",
+      "onHost": "{{host}} の中",
+      "reclaimable": "回収可能",
+      "reclaimableHint": "prune で戻る容量",
+      "reclaimableShort": "回収可能",
+      "kind": "種類",
+      "count": "合計",
+      "active": "使用中",
+      "size": "サイズ",
+      "hiddenFromLists": "一覧に出ない",
+      "containers": "コンテナ",
+      "runningOfTotal": "{{total}} 個中 {{running}} 個が実行中",
+      "image": "イメージ",
+      "images": "イメージ",
+      "repository": "リポジトリ",
+      "tag": "タグ",
+      "created": "作成",
+      "usedBy": "コンテナ",
+      "prepareBuilderPrune": "ビルドキャッシュ削除コマンドを準備",
+      "prepareSystemPrune": "システム削除コマンドを準備",
+      "pruneHint": "コンソールに入力されるだけです — Enter を押すまで削除されません",
+      "view": {
+        "disk": "ディスク使用量",
+        "containers": "コンテナ",
+        "images": "イメージ"
+      },
+      "reclaimablePartial": "少なくともこの量 — 一部の行を読めませんでした",
+      "type": {
+        "images": "イメージ",
+        "containers": "コンテナ",
+        "volumes": "ローカルボリューム",
+        "buildCache": "ビルドキャッシュ"
+      }
+    },
     "hermes": {
       "title": "Hermes",
       "executable": "実行ファイル",

@@ -31,7 +31,7 @@ MCP — sem nunca alterar o seu sistema pelas suas costas.
 
 ### Dashboard — estado somente leitura, seção por seção
 
-Escolha uma seção à esquerda e leia à direita — são catorze, da visão geral aos
+Escolha uma seção à esquerda e leia à direita — são dezesseis, da visão geral aos
 avisos. As tabelas ocupam a janela inteira, em vez de um cartão apertado, e a
 lista carrega indicadores ao vivo. O inventário completo está
 [abaixo](#o-que-você-realmente-vê); quatro seções merecem destaque porque
@@ -111,7 +111,7 @@ Ele também se recupera sozinho. O WSL costuma continuar ocupado quando o WSLPad
 
 Enquanto o WSLPad fica na bandeja, ele serve MCP em
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, apenas localhost, autenticação
-por token Bearer) com 29 ferramentas `Get*` — `GetDashboardSnapshot`,
+por token Bearer) com 31 ferramentas `Get*` — `GetDashboardSnapshot`,
 `GetInstalledTools`, `GetPorts`, `GetTextFile`, `GetPathMapping`, … Não existem,
 de propósito, ferramentas de escrita/execução/kill; segredos e chaves privadas
 nunca cruzam a fronteira do MCP. Registro em um clique para Claude Desktop
@@ -175,6 +175,16 @@ sistema de arquivos ela fica e — o mais importante — se o comando na verdade
 acaba em um binário do **Windows** sob `/mnt/c` em vez de um instalado na
 distribuição.
 
+**Docker** — uma seção própria: versões do engine e do cliente, contexto, raiz
+de dados, imagens e contêineres, e o detalhamento do `docker system df` —
+inclusive o **cache de build**, que nenhuma listagem mostra e que costuma ser a
+maior coisa da máquina. Com o Docker Desktop ele ainda nomeia a distribuição
+cujo disco virtual realmente guarda esse espaço, porque não é a que você está
+olhando. Somente leitura: nada é baixado, iniciado, parado ou limpo — os
+comandos de prune ficam preparados no Console.
+
+![Docker](docs/screenshots/docker.png)
+
 **Hermes** — executável, diretório de dados, virtualenv, configuração, estado do gateway, **a quais mensageiros ele está de fato conectado**, os perfis que você chamaria de agentes (com o atual marcado), sessões ativas, tarefas agendadas, estado e endereço do painel, número de servidores MCP, portas, serviços de usuário e caminhos de log. Mensageiros e perfis vêm da CLI somente leitura do próprio Hermes; quando não dá para perguntar, a linha diz *desconhecido* em vez de "nenhum configurado". O painel web não está rodando? O comando para iniciá-lo fica preparado no Console.
 
 **OpenClaw** — uma seção própria ao lado do Hermes: executável, diretório de
@@ -218,7 +228,7 @@ Por unidade, no lado do Windows: espaço livre e total.
 
 **Console** — a distribuição, o diretório atual e o estado do shell (pronto, em execução, aguardando entrada, aguardando a senha do sudo, desconectado, distribuição parada ou não foi possível iniciar — este último com o motivo).
 
-**Pelo MCP** — tudo isso acima por meio de 29 ferramentas `Get*` somente leitura.
+**Pelo MCP** — tudo isso acima por meio de 31 ferramentas `Get*` somente leitura.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings e idiomas

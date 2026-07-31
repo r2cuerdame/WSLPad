@@ -17,7 +17,12 @@ import { runHostCommand, type HostCommandRunner } from './windows-ports'
  * shell, so the corrective command is offered as copyable text, never run.
  */
 
-const NETSH = 'netsh.exe'
+/**
+ * Absolute path: a bare image name is resolved against the process working
+ * directory before System32, so a netsh.exe dropped next to the app would win.
+ * SystemRoot is used when set, with the conventional path as the fallback.
+ */
+const NETSH = `${process.env.SystemRoot ?? 'C:\\Windows'}\\System32\\netsh.exe`
 const NETSH_ARGS = ['interface', 'portproxy', 'show', 'v4tov4']
 const PORTPROXY_TIMEOUT_MS = 6000
 
@@ -78,7 +83,10 @@ function isLocalAddress(ip: string): boolean {
  * rule reported as dead when it is merely unverifiable would send the user to
  * fix something that works.
  */
-export function judgeRules(rules: readonly PortProxyRule[], distroIp: string | null): PortProxyRule[] {
+export function judgeRules(
+  rules: readonly PortProxyRule[],
+  distroIp: string | null
+): PortProxyRule[] {
   return rules.map((rule) => {
     if (distroIp === null) return { ...rule, verdict: 'unknown' as const }
     if (rule.connectAddress === distroIp) return { ...rule, verdict: 'live' as const }
@@ -125,7 +133,15 @@ export function createPortProxyCollector(
           cached = { at: now(), rules: parsePortProxy(out), error: null }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err)
-          cached = { at: now(), rules: [], error: `${UNREADABLE}: ${message}` }
+          // Keep the rules that were read last time: a transient netsh failure
+          // must not turn into "there are no forwarding rules" for a whole
+          // minute. The error rides alongside so the reader knows the table is
+          // not fresh.
+          cached = {
+            at: now(),
+            rules: cached?.rules ?? [],
+            error: `${UNREADABLE}: ${message}`.slice(0, 400)
+          }
         }
       }
       // The verdicts are recomputed every call: the rules change rarely, the

@@ -32,7 +32,7 @@ votre système dans votre dos.
 ### Dashboard — l'état en lecture seule, section par section
 
 Le Dashboard (tableau de bord) : choisissez une section à gauche, lisez-la à
-droite — quatorze en tout, de la vue d'ensemble aux avertissements. Les tableaux
+droite — seize en tout, de la vue d'ensemble aux avertissements. Les tableaux
 prennent toute la fenêtre au lieu d'une carte à l'étroit, et la liste porte des
 badges en direct. L'inventaire complet est
 [plus bas](#ce-que-vous-voyez-vraiment) ; quatre sections méritent d'être
@@ -115,7 +115,7 @@ Elle se répare aussi toute seule. WSL est souvent encore occupé quand WSLPad d
 
 Tant que WSLPad reste dans la zone de notification, il sert MCP sur
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, localhost uniquement,
-authentification par jeton Bearer) avec 29 outils `Get*` —
+authentification par jeton Bearer) avec 31 outils `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPathMapping`, … Il n'y a délibérément aucun outil d'écriture, d'exécution
 ou de kill ; les secrets et les clés privées ne franchissent jamais la
@@ -181,6 +181,16 @@ de quel côté de la frontière du système de fichiers il vit, et — c'est
 important — si la commande se résout en réalité vers un binaire **Windows** sous
 `/mnt/c` au lieu d'une version installée dans la distribution.
 
+**Docker** — sa propre section : versions du moteur et du client, contexte,
+racine des données, images et conteneurs, et le détail de `docker system df`,
+y compris le **cache de build**, qu'aucune liste n'affiche et qui est souvent
+ce qu'il y a de plus gros sur la machine. Avec Docker Desktop, elle nomme aussi
+la distribution dont le disque virtuel contient réellement cet espace — ce n'est
+pas celle que vous regardez. En lecture seule : rien n'est tiré, démarré, arrêté
+ni nettoyé ; les commandes de prune sont préparées dans la Console.
+
+![Docker](docs/screenshots/docker.png)
+
 **Hermes** — exécutable, dossier de données, environnement virtuel, configuration, état du gateway, **à quelles messageries il est réellement connecté**, les profils que vous appelleriez des agents (le courant est signalé), sessions actives, tâches planifiées, état et adresse du dashboard, nombre de serveurs MCP, ports, services utilisateur et chemins des journaux. Les messageries et les profils viennent de la CLI en lecture seule de Hermes lui-même ; quand elle ne peut pas être interrogée, la ligne indique *inconnu* et non « aucune configurée ». Le dashboard web n'est pas lancé ? La commande pour le démarrer est préparée dans la Console.
 
 **OpenClaw** — sa propre section à côté de Hermes : exécutable, dossier de
@@ -223,7 +233,7 @@ lecteur côté Windows : espace libre et espace total.
 
 **Console** — la distribution, le dossier courant, et l'état du shell (prêt, en cours d'exécution, en attente d'une saisie, en attente d'un mot de passe sudo, déconnecté, distribution arrêtée, ou démarrage impossible — ce dernier avec la raison).
 
-**Via MCP** — tout ce qui précède à travers 29 outils `Get*` en lecture seule.
+**Via MCP** — tout ce qui précède à travers 31 outils `Get*` en lecture seule.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings et langues
