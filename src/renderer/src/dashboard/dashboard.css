@@ -302,8 +302,17 @@
   white-space: nowrap;
 }
 
+/* Pinned to the containing block's origin, not left at its static position.
+   An offset-less absolutely positioned box lands wherever it happens to sit in
+   flow, and contributes its margin box to the scrollable overflow of its
+   containing block — skipping every overflow:hidden ancestor in between, which
+   is why the card body honestly measured 794/794 while the panel around it
+   reported 1105. The category labels in the tools table sat up to 1105px down,
+   and put a second scrollbar on the window edge (issue #70). */
 .sr-only {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   padding: 0;

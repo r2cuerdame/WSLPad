@@ -166,3 +166,57 @@ test.describe('the detail panel ends where its content ends (issue #69)', () => 
     }
   })
 })
+
+test.describe('nothing scrolls outside the section it belongs to (issue #70)', () => {
+  let launched: LaunchedApp
+
+  test.beforeEach(async () => {
+    launched = await launchWslPad()
+    await launched.page.getByTestId('dashboard-nav').waitFor({ timeout: 15000 })
+    await launched.page.setViewportSize({ width: 1740, height: 1180 })
+  })
+
+  test.afterEach(async () => {
+    await closeApp(launched).catch(() => {})
+  })
+
+  test('the tab body never grows a scrollbar of its own', async () => {
+    const { page } = launched
+    // A screen-reader label left at its static position used to inflate the
+    // panel by 261px and put a second bar on the window edge.
+    for (const id of ['tools', 'paths', 'ports', 'network', 'configuration', 'disk']) {
+      await page.getByTestId(`dashboard-nav-${id}`).click()
+      await page.waitForTimeout(150)
+      const outer = await page.evaluate(() => {
+        const tab = document.querySelector('main.tab-content')
+        const panel = document.querySelector('.dashboard-detail')
+        return {
+          tab: tab instanceof HTMLElement ? tab.scrollHeight - tab.clientHeight : -1,
+          panel: panel instanceof HTMLElement ? panel.scrollHeight - panel.clientHeight : -1
+        }
+      })
+      expect(outer, `section ${id}`).toEqual({ tab: 0, panel: 0 })
+    }
+  })
+
+  test('a visually hidden label never sits away from its containing block', async () => {
+    const { page } = launched
+    await page.getByTestId('dashboard-nav-tools').click()
+    await page.waitForTimeout(200)
+    const worst = await page.evaluate(() => {
+      const panel = document.querySelector('.dashboard-detail')
+      if (!(panel instanceof HTMLElement)) return -1
+      // Distance from its OWN containing block, which is what it contributes
+      // overflow to. offsetParent is that block for an absolutely positioned
+      // box; a label inside a sticky header legitimately sits where the header
+      // is, and only its offset from there can inflate anything.
+      return Array.from(panel.querySelectorAll('.sr-only')).reduce((max, el) => {
+        const host = (el as HTMLElement).offsetParent
+        if (!(host instanceof HTMLElement)) return max
+        const drop = el.getBoundingClientRect().top - host.getBoundingClientRect().top
+        return Math.max(max, Math.round(drop))
+      }, 0)
+    })
+    expect(worst).toBeLessThanOrEqual(2)
+  })
+})
