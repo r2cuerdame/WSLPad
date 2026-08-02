@@ -431,6 +431,7 @@
       "homeMismatch": "正在執行的閘道用的是 {{gateway}}{{asUser}}，而這份狀態描述的是 {{status}}。這裡的訊息平台、工作階段、排程工作都是 {{status}} 的。",
       "homeAsUser": "（以 {{user}} 身分）",
       "askGatewayHome": "去問閘道自己的目錄",
+      "noPassword": "不需要密碼",
       "agents": "代理程式（設定檔）",
       "sessions": "作用中工作階段",
       "jobs": "排程工作",

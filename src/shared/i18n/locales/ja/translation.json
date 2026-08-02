@@ -431,6 +431,7 @@
       "homeMismatch": "動作中のゲートウェイは {{gateway}} を{{asUser}}使っていますが、このステータスは {{status}} の話です。ここのメッセンジャー・セッション・予約ジョブはすべて {{status}} のものです。",
       "homeAsUser": "{{user}} 権限で",
       "askGatewayHome": "ゲートウェイ自身のホームに尋ねる",
+      "noPassword": "パスワード不要",
       "agents": "エージェント（プロファイル）",
       "sessions": "アクティブセッション",
       "jobs": "予約ジョブ",

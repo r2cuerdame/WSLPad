@@ -202,8 +202,10 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
                           defaultValue: "Ask the gateway's own home"
                         })}
                       </span>
-                      <span className="badge badge-warn">
-                        {t('dashboard.disk.consumerNeedsRoot', { defaultValue: 'root' })}
+                      {/* The point of the line: it runs as root and still
+                          asks for nothing. */}
+                      <span className="badge badge-dim">
+                        {t('dashboard.hermes.noPassword', { defaultValue: 'no password needed' })}
                       </span>
                     </div>
                     <div className="mono dim truncate" title={home.statusCommand}>

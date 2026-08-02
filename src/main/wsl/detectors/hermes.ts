@@ -326,7 +326,7 @@ function normalizeHome(path: string | null): string | null {
  * could not read the unit would send someone chasing a difference that may not
  * exist.
  */
-export function parseHermesHome(block: string): HermesHomeInfo | null {
+export function parseHermesHome(block: string, distro?: string): HermesHomeInfo | null {
   const field = (key: string): string | null => {
     const m = new RegExp(`^${key}=(.*)$`, 'm').exec(block)
     const v = m?.[1]?.trim()
@@ -340,16 +340,24 @@ export function parseHermesHome(block: string): HermesHomeInfo | null {
   if (statusHome === null && gatewayHome === null && gatewayUnit === null) return null
 
   // The command that would ask the gateway's own home, prepared never run.
+  //
+  // `wsl.exe -u root`, not `sudo`. WSL's own launcher picks the user, so it
+  // never asks for a password — which matters because on a distro set up by
+  // automation, or imported, or with --set-default-user, nobody knows the sudo
+  // password and `sudo` simply answers "a password is required". The same line
+  // works pasted into PowerShell and typed into the Console below, where
+  // interop makes wsl.exe reachable from inside the distro.
   const statusCommand =
     gatewayHome !== null && statusHome !== null && gatewayHome !== statusHome
-      ? `sudo HERMES_HOME=${shellQuote(gatewayHome)} hermes status`
+      ? `wsl.exe${distro === undefined ? '' : ` -d ${shellQuote(distro)}`} -u root ` +
+        `env HERMES_HOME=${shellQuote(gatewayHome)} hermes status`
       : null
 
   return { statusHome, gatewayHome, gatewayUser, gatewayUnit, statusCommand }
 }
 
 
-export function parseHermesCliOutput(stdout: string): HermesCliDetail {
+export function parseHermesCliOutput(stdout: string, distro?: string): HermesCliDetail {
   const between = (begin: string, end: string): string => {
     const start = stdout.indexOf(begin)
     if (start < 0) return ''
@@ -362,7 +370,7 @@ export function parseHermesCliOutput(stdout: string): HermesCliDetail {
   return {
     platforms: parseHermesPlatforms(status),
     profiles: parseHermesProfiles(between('PROFILESBEGIN', 'PROFILESEND')),
-    home: parseHermesHome(between('HOMEBEGIN', 'HOMEEND')),
+    home: parseHermesHome(between('HOMEBEGIN', 'HOMEEND'), distro),
     activeSessions: parseCounter(sections.get('sessions') ?? [], /Active:\s*(\d+)/i),
     scheduledJobs: parseCounter(sections.get('scheduled jobs') ?? [], /Jobs:\s*(\d+)/i)
   }
@@ -386,7 +394,7 @@ export async function detectHermesCli(
     return null
   }
   if (result.timedOut || !result.stdout.includes('STATUSBEGIN')) return null
-  return parseHermesCliOutput(result.stdout)
+  return parseHermesCliOutput(result.stdout, distro)
 }
 
 /**

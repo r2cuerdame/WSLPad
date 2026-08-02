@@ -431,6 +431,7 @@
       "homeMismatch": "La pasarela en ejecución usa {{gateway}}{{asUser}}, pero este estado describe {{status}}. Todo lo de aquí — mensajeros, sesiones, tareas — es de {{status}}.",
       "homeAsUser": " como {{user}}",
       "askGatewayHome": "Preguntar al directorio de la pasarela",
+      "noPassword": "sin contraseña",
       "agents": "Agentes (perfiles)",
       "sessions": "Sesiones activas",
       "jobs": "Tareas programadas",

@@ -431,6 +431,7 @@
       "homeMismatch": "O gateway em execução usa {{gateway}}{{asUser}}, mas este status descreve {{status}}. Tudo aqui — mensageiros, sessões, tarefas — é sobre {{status}}.",
       "homeAsUser": " como {{user}}",
       "askGatewayHome": "Perguntar ao diretório do próprio gateway",
+      "noPassword": "sem senha",
       "agents": "Agentes (perfis)",
       "sessions": "Sessões ativas",
       "jobs": "Tarefas agendadas",

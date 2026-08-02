@@ -431,6 +431,7 @@
       "homeMismatch": "The running gateway uses {{gateway}}{{asUser}}, but this status describes {{status}}. Everything here — messengers, sessions, jobs — is about {{status}}.",
       "homeAsUser": " as {{user}}",
       "askGatewayHome": "Ask the gateway's own home",
+      "noPassword": "no password needed",
       "agents": "Agents (profiles)",
       "sessions": "Active sessions",
       "jobs": "Scheduled jobs",

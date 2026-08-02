@@ -50,14 +50,33 @@ describe('hermesHomeFromEnvironment', () => {
 
 describe('parseHermesHome', () => {
   it('reads the real machine: a root gateway against a user status', () => {
-    const home = parseHermesHome(block())
+    const home = parseHermesHome(block(), 'Ubuntu-24.04')
     expect(home).toEqual({
       statusHome: '/home/hermes/.hermes',
       gatewayHome: '/root/.hermes',
       gatewayUser: 'root',
       gatewayUnit: 'hermes-gateway.service',
-      statusCommand: "sudo HERMES_HOME='/root/.hermes' hermes status"
+      statusCommand:
+        "wsl.exe -d 'Ubuntu-24.04' -u root env HERMES_HOME='/root/.hermes' hermes status"
     })
+  })
+
+  it('offers wsl -u root rather than sudo, because the password is often unknown', () => {
+    // A distro set up by automation, imported, or with --set-default-user
+    // leaves nobody knowing the sudo password, and `sudo` answers "a password
+    // is required". WSL's own launcher picks the user and never asks.
+    const command = parseHermesHome(block(), 'Ubuntu-24.04')?.statusCommand ?? ''
+    expect(command).toContain('-u root')
+    expect(command).not.toContain('sudo')
+    // Read-only: it asks for status and nothing else.
+    expect(command).toContain('hermes status')
+    expect(command).not.toMatch(/\b(set|add|start|stop|restart|install)\b/)
+  })
+
+  it('names the distro so the line also works pasted into PowerShell', () => {
+    expect(parseHermesHome(block(), 'Ubuntu 24.04')?.statusCommand).toContain("-d 'Ubuntu 24.04'")
+    // Without a distro it still works in the Console, which is already inside one.
+    expect(parseHermesHome(block())?.statusCommand).toContain('wsl.exe -u root')
   })
 
   it('offers no command when both homes are the same', () => {

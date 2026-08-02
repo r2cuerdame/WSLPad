@@ -431,6 +431,7 @@
       "homeMismatch": "실행 중인 게이트웨이는 {{gateway}}를{{asUser}} 쓰는데, 이 상태는 {{status}}를 설명합니다. 여기 있는 메신저·세션·예약 작업은 전부 {{status}} 이야기입니다.",
       "homeAsUser": " {{user}} 권한으로",
       "askGatewayHome": "게이트웨이가 쓰는 집에 묻기",
+      "noPassword": "암호 필요 없음",
       "agents": "에이전트(프로필)",
       "sessions": "활성 세션",
       "jobs": "예약 작업",

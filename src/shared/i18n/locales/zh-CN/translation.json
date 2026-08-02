@@ -431,6 +431,7 @@
       "homeMismatch": "正在运行的网关用的是 {{gateway}}{{asUser}}，而这份状态描述的是 {{status}}。这里的消息平台、会话、定时任务都是 {{status}} 的。",
       "homeAsUser": "（以 {{user}} 身份）",
       "askGatewayHome": "去问网关自己的目录",
+      "noPassword": "无需密码",
       "agents": "智能体（配置档）",
       "sessions": "活动会话",
       "jobs": "计划任务",

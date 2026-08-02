@@ -65,7 +65,8 @@ describe('when the gateway and the status describe different Hermes homes', () =
     gatewayHome: '/root/.hermes',
     gatewayUser: 'root',
     gatewayUnit: 'hermes-gateway.service',
-    statusCommand: "sudo HERMES_HOME='/root/.hermes' hermes status"
+    statusCommand:
+      "wsl.exe -d 'Ubuntu-24.04' -u root env HERMES_HOME='/root/.hermes' hermes status"
   }
 
   it('refuses to say no messenger is connected', () => {
@@ -86,7 +87,10 @@ describe('when the gateway and the status describe different Hermes homes', () =
 
   it('offers the command that would ask the right one, and never runs it', () => {
     draw(hermes({ home: mismatch }))
-    expect(screen.getByText("sudo HERMES_HOME='/root/.hermes' hermes status")).toBeTruthy()
+    expect(
+      screen.getByText("wsl.exe -d 'Ubuntu-24.04' -u root env HERMES_HOME='/root/.hermes' hermes status")
+    ).toBeTruthy()
+    expect(screen.getByText(/no password needed/i)).toBeTruthy()
     expect(screen.getByLabelText(/Prepare in Console/i)).toBeTruthy()
   })
 })

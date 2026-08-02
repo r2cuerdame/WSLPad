@@ -431,6 +431,7 @@
       "homeMismatch": "Das laufende Gateway nutzt {{gateway}}{{asUser}}, dieser Status beschreibt aber {{status}}. Alles hier — Messenger, Sitzungen, Aufträge — betrifft {{status}}.",
       "homeAsUser": " als {{user}}",
       "askGatewayHome": "Das Verzeichnis des Gateways fragen",
+      "noPassword": "kein Passwort nötig",
       "agents": "Agenten (Profile)",
       "sessions": "Aktive Sitzungen",
       "jobs": "Geplante Aufgaben",

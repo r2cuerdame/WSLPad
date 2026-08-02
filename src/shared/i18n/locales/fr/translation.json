@@ -431,6 +431,7 @@
       "homeMismatch": "La passerelle en cours utilise {{gateway}}{{asUser}}, mais cet état décrit {{status}}. Tout ce qui est ici — messageries, sessions, tâches — concerne {{status}}.",
       "homeAsUser": " en tant que {{user}}",
       "askGatewayHome": "Interroger le dossier de la passerelle",
+      "noPassword": "sans mot de passe",
       "agents": "Agents (profils)",
       "sessions": "Sessions actives",
       "jobs": "Tâches planifiées",
