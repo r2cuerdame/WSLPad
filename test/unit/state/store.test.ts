@@ -45,6 +45,8 @@ function wslSettings(): WslConfigInfo {
     vmStartedAt: '2026-07-30T08:00:00.000Z',
     networkingModeDeclared: 'nat',
     networkingModeEffective: 'nat',
+    interop: null,
+    defaultUser: null,
       platform: {
             wsl: '2.6.3.0',
             kernel: '6.6.87.2-1',

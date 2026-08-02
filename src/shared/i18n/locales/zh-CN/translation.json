@@ -80,7 +80,8 @@
     "stateStopped": "已停止",
     "stateInstalling": "正在安装",
     "stateUnknown": "未知",
-    "wslVersion": "WSL {{version}}"
+    "wslVersion": "WSL {{version}}",
+    "stateNotAnswering": "正在运行 — 无响应"
   },
   "dashboard": {
     "overview": {
@@ -110,7 +111,9 @@
       "clockApprox": "两个时钟是先后读到的，所以这个差值只是近似值。",
       "clockFix": "把时钟重新对上",
       "clockPrepare": "准备 {{command}}",
-      "clockPrepareHint": "命令只会放进控制台，按 Enter 之前不会执行任何东西。"
+      "clockPrepareHint": "命令只会放进控制台，按 Enter 之前不会执行任何东西。",
+      "neverAnswered": "{{distro}} 显示为正在运行，但自 WSLPad 启动以来从未响应过。",
+      "lastAnswered": "{{distro}} 显示为正在运行，但最后一次响应是在 {{when}}。在它再次响应之前，实时数据已暂停。"
     },
     "resources": {
       "title": "资源",
@@ -254,7 +257,16 @@
       "empty": "没有读取到任何设置",
       "noMatches": "没有设置符合筛选条件",
       "noneConfigured": "这个文件里没有配置任何内容",
-      "unavailable": "没有此发行版的 WSL 设置信息"
+      "unavailable": "没有此发行版的 WSL 设置信息",
+      "interop": "Windows 互操作",
+      "interopNoNode": "未注册",
+      "interopLate": "延迟绑定：{{value}}",
+      "interopClash": "/etc/wsl.conf 声明互操作为 {{declared}}，但运行中的内核为 {{effective}}。该文件在发行版启动时读取，因此更改需要 wsl --shutdown。",
+      "startsAs": "启动用户",
+      "startsAsRoot": "在这里创建的文件归 root 所有",
+      "uid": "uid {{uid}}",
+      "userClash": "/etc/wsl.conf 要求使用 {{declared}}，但此发行版以 {{effective}} 启动。Windows 注册表中的 DefaultUid {{uid}} 优先。",
+      "userClashNoRegistry": "/etc/wsl.conf 要求使用 {{declared}}，但此发行版以 {{effective}} 启动。"
     },
     "network": {
       "title": "网络",

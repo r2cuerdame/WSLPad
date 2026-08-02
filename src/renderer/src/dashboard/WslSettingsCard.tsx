@@ -147,6 +147,33 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
   const effective = settings.networkingModeEffective
   const mismatch = declared !== null && effective !== null && declared !== effective
 
+  /**
+   * `[interop] enabled=` is read once, at distro start. Editing it later leaves
+   * the kernel's binfmt registration exactly as it was, and nothing in WSL says
+   * so — the file and the running system simply disagree (issue #74).
+   */
+  const interop = settings.interop
+  const binfmtWord = (v: 'enabled' | 'disabled' | null): string =>
+    v === null ? t('common.unknown') : v === 'enabled' ? t('common.enabled') : t('common.disabled')
+  const interopEffective = interop === null ? null : interop.binfmt
+  const interopClash =
+    interop !== null &&
+    interop.declared !== null &&
+    interopEffective !== null &&
+    interop.declared !== (interopEffective === 'enabled')
+
+  /**
+   * Windows keeps DefaultUid in the registry and it outranks [user] default=,
+   * so a distribution can keep starting as root long after the file says
+   * otherwise. Neither `wsl --status` nor whoami alone shows the conflict.
+   */
+  const user = settings.defaultUser
+  const userClash =
+    user !== null &&
+    user.declaredName !== null &&
+    user.effectiveName !== null &&
+    user.declaredName !== user.effectiveName
+
   const group = (scope: Scope): ReactNode => {
     const isWindows = scope === 'windows'
     const path = isWindows ? settings.wslconfigPath : settings.wslConfPath
@@ -324,6 +351,86 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
           </div>
         )
       ) : null}
+
+      {/* Interop: what the file asked for, and what the kernel is registered
+          for right now. Both of these read like the networking headline above,
+          so they get its shape — a value, a Mismatch chip, and the reason as a
+          dim line — rather than a third and fourth full-width banner. The -late
+          node is only named when it disagrees with the main one. */}
+      {interop === null ? null : (
+        <>
+          <div className="kv-row">
+            <span className="kv-key">{t('dashboard.wslconfig.interop')}</span>
+            <span className="kv-val">
+              {interopEffective === null ? (
+                <span className="badge badge-dim">{t('dashboard.wslconfig.interopNoNode')}</span>
+              ) : (
+                <span
+                  className={interopEffective === 'enabled' ? 'badge badge-ok' : 'badge badge-dim'}
+                >
+                  {binfmtWord(interopEffective)}
+                </span>
+              )}
+              {interop.binfmtLate !== null && interop.binfmtLate !== interop.binfmt ? (
+                <span className="badge badge-dim">
+                  {t('dashboard.wslconfig.interopLate', {
+                    value: binfmtWord(interop.binfmtLate)
+                  })}
+                </span>
+              ) : null}
+              {interopClash ? (
+                <span className="badge badge-err">{t('dashboard.wslconfig.mismatch')}</span>
+              ) : null}
+            </span>
+          </div>
+          {interopClash ? (
+            <div className="kv-row dim">
+              {t('dashboard.wslconfig.interopClash', {
+                declared: interop.declared === true ? t('common.enabled') : t('common.disabled'),
+                effective: binfmtWord(interopEffective)
+              })}
+            </div>
+          ) : null}
+        </>
+      )}
+
+      {/* Which user this distribution logs in as, and which of the two places
+          that answer lives in actually decided it. */}
+      {user === null || (user.effectiveName === null && user.effectiveUid === null) ? null : (
+        <>
+          <div className="kv-row">
+            <span className="kv-key">{t('dashboard.wslconfig.startsAs')}</span>
+            <span className="kv-val">
+              <span className="mono">{user.effectiveName ?? '—'}</span>
+              {user.effectiveUid === null ? null : (
+                <span className="dim mono">
+                  {t('dashboard.wslconfig.uid', { uid: user.effectiveUid })}
+                </span>
+              )}
+              {user.effectiveUid === 0 ? (
+                <span className="badge badge-warn">{t('dashboard.wslconfig.startsAsRoot')}</span>
+              ) : null}
+              {userClash ? (
+                <span className="badge badge-err">{t('dashboard.wslconfig.mismatch')}</span>
+              ) : null}
+            </span>
+          </div>
+          {userClash ? (
+            <div className="kv-row dim">
+              {user.registryUid === null
+                ? t('dashboard.wslconfig.userClashNoRegistry', {
+                    declared: user.declaredName,
+                    effective: user.effectiveName
+                  })
+                : t('dashboard.wslconfig.userClash', {
+                    declared: user.declaredName,
+                    effective: user.effectiveName,
+                    uid: user.registryUid
+                  })}
+            </div>
+          ) : null}
+        </>
+      )}
 
       {settings.restartPending ? (
         <div className="notice-warn" role="status">

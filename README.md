@@ -137,6 +137,10 @@ kernel, hostname, user, `$HOME`, login shell, uptime, whether systemd is on,
 the distro IP, the `\\wsl.localhost\…` path for Windows, and the clock skew
 between Windows and the distro — the invisible cause of sudden apt and TLS
 failures after the host sleeps.
+And whether the distro is still answering at all: `wsl --list` keeps saying
+Running for hours after a distribution stopped responding, so when the probe
+gets nothing back the badge says **Running — not answering** and names the last
+reply, because from then on every reading here is the last good one.
 
 **Resources** — live CPU %, memory used/total, swap, disk usage for `/`,
 `/home` and `/mnt/c`, load average, process count, and trend sparklines so a
@@ -159,6 +163,11 @@ the WSL default, or it was computed from your hardware), and a verdict:
 applied, restart needed, not set, unknown key (typo), wrong section, or
 unsupported on this build. Includes the networking mode actually running versus
 the one you asked for, and a banner when the VM predates your last edit.
+Then two answers WSL splits across two machines: whether the kernel really has
+the interop registration your `[interop] enabled=` asked for — that file is
+read once, when the distro starts, so a later edit changes nothing until `wsl --shutdown`
+— and which user the distro logs in as, where the Windows registry's
+`DefaultUid` quietly outranks `[user] default=` in `/etc/wsl.conf`.
 
 **Important paths** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
 `~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, the Windows user profile as
@@ -334,7 +343,7 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.4.1)
+## Current limitations (v0.5.0)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is

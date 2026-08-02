@@ -80,7 +80,8 @@
     "stateStopped": "Gestoppt",
     "stateInstalling": "Wird installiert",
     "stateUnknown": "Unbekannt",
-    "wslVersion": "WSL {{version}}"
+    "wslVersion": "WSL {{version}}",
+    "stateNotAnswering": "Läuft — antwortet nicht"
   },
   "dashboard": {
     "overview": {
@@ -110,7 +111,9 @@
       "clockApprox": "Die beiden Uhren werden einen Moment versetzt gelesen, diese Abweichung ist daher ungefähr.",
       "clockFix": "Die Uhr wieder in Gleichtakt bringen",
       "clockPrepare": "{{command}} vorbereiten",
-      "clockPrepareHint": "Der Befehl wird nur in der Konsole abgelegt – ausgeführt wird er erst, wenn Sie Enter drücken."
+      "clockPrepareHint": "Der Befehl wird nur in der Konsole abgelegt – ausgeführt wird er erst, wenn Sie Enter drücken.",
+      "neverAnswered": "{{distro}} wird als laufend geführt, hat seit dem Start von WSLPad aber kein einziges Mal geantwortet.",
+      "lastAnswered": "{{distro}} wird als laufend geführt, die letzte Antwort kam jedoch um {{when}}. Live-Daten pausieren, bis wieder eine Antwort kommt."
     },
     "resources": {
       "title": "Ressourcen",
@@ -254,7 +257,16 @@
       "empty": "Es wurden keine Einstellungen gelesen",
       "noMatches": "Keine Einstellung passt zum Filter",
       "noneConfigured": "In dieser Datei ist nichts konfiguriert",
-      "unavailable": "Keine WSL-Einstellungen für diese Distribution verfügbar"
+      "unavailable": "Keine WSL-Einstellungen für diese Distribution verfügbar",
+      "interop": "Windows-Interop",
+      "interopNoNode": "Nicht registriert",
+      "interopLate": "Späte Bindung: {{value}}",
+      "interopClash": "/etc/wsl.conf deklariert Interop als {{declared}}, im laufenden Kernel ist es aber {{effective}}. Diese Datei wird beim Start der Distribution gelesen, die Änderung braucht also wsl --shutdown.",
+      "startsAs": "Startet als",
+      "startsAsRoot": "Hier erstellte Dateien gehören root",
+      "uid": "uid {{uid}}",
+      "userClash": "/etc/wsl.conf verlangt {{declared}}, diese Distribution startet aber als {{effective}}. In der Windows-Registry steht DefaultUid {{uid}}, und dieser Wert gewinnt.",
+      "userClashNoRegistry": "/etc/wsl.conf verlangt {{declared}}, diese Distribution startet aber als {{effective}}."
     },
     "network": {
       "title": "Netzwerk",

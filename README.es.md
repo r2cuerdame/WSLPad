@@ -134,6 +134,11 @@ predeterminada, nombre descriptivo del SO, kernel, nombre de host, usuario,
 IP de la distribución, la ruta `\\wsl.localhost\…` para Windows y la diferencia
 de reloj entre Windows y la distribución: la causa invisible de que apt y TLS
 fallen de repente tras suspender el equipo.
+Y si la distribución sigue respondiendo: `wsl --list` sigue diciendo Running
+durante horas después de que una distribución deja de responder, así que cuando
+la sonda no obtiene nada la insignia dice **En ejecución — no responde** y
+señala la última respuesta, porque a partir de ahí cada valor aquí es el último
+bueno, no uno nuevo.
 
 **Recursos** — CPU % en vivo, memoria usada/total, swap, uso de disco de `/`,
 `/home` y `/mnt/c`, carga media, número de procesos y minigráficos de
@@ -159,6 +164,12 @@ un veredicto: aplicado, requiere reinicio, predeterminado, clave desconocida
 (errata), sección equivocada o no compatible con esta compilación. Incluye el
 modo de red que se está ejecutando frente al que pediste, y un aviso cuando la
 VM es anterior a tu última edición.
+Luego dos respuestas que WSL reparte entre dos máquinas: si el kernel tiene
+realmente el registro de interoperabilidad que pidió `[interop] enabled=` — ese
+archivo se lee una sola vez, al iniciar la distribución, y una edición
+posterior no cambia nada hasta `wsl --shutdown` — y con qué usuario inicia
+sesión la distribución, donde el `DefaultUid` del registro de Windows manda
+sobre `[user] default=` en `/etc/wsl.conf`.
 
 **Rutas importantes** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
 `~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, el perfil de usuario de Windows
@@ -331,7 +342,7 @@ no es un IDE, no trae interfaz de Git, depurador ni LSP, no sincroniza con la
 nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 **Dashboard + Explorer + Console + MCP de solo lectura**, nada más.
 
-## Limitaciones actuales (v0.4.1)
+## Limitaciones actuales (v0.5.0)
 
 - Solo Windows x64; el instalador no está firmado (aviso de SmartScreen)
 - Las cifras de la imagen de disco necesitan el registro de Windows y `fsutil`;

@@ -268,6 +268,38 @@ export interface DockerInfo {
   error: string | null
 }
 
+/**
+ * Whether Windows programs can actually be launched from this distribution
+ * (issue #74). Three causes produce one identical "Exec format error" —
+ * interop disabled in wsl.conf, the binfmt registration switched off at
+ * runtime, or appendWindowsPath off so nothing is on PATH — and WSLPad
+ * could see only the first. `binfmt` is the ASCII word the kernel writes.
+ */
+export interface InteropInfo {
+  /** enabled | disabled | null. null means the node is absent, not off. */
+  binfmt: 'enabled' | 'disabled' | null
+  /** The -late node, used for programs started after boot. */
+  binfmtLate: 'enabled' | 'disabled' | null
+  /** What /etc/wsl.conf declares under [interop] enabled=. */
+  declared: boolean | null
+}
+
+/**
+ * Which user this distribution actually logs in as (issue #75). Windows
+ * keeps DefaultUid in the Lxss registry key; /etc/wsl.conf declares a name
+ * under [user] default=. They can disagree, and no single tool reads both.
+ */
+export interface DefaultUserInfo {
+  /** uid the distribution really started as, from inside it. */
+  effectiveUid: number | null
+  /** Name that uid resolves to. */
+  effectiveName: string | null
+  /** DefaultUid from the Windows registry; null when it could not be read. */
+  registryUid: number | null
+  /** [user] default= as declared in /etc/wsl.conf. */
+  declaredName: string | null
+}
+
 export interface WslConfigInfo {
   /** null when %UserProfile% could not be resolved. */
   wslconfigPath: string | null
@@ -283,6 +315,10 @@ export interface WslConfigInfo {
   networkingModeEffective: string | null
   /** null until `wsl --version` has been attempted for this session. */
   platform: WslPlatformInfo | null
+  /** null until the binfmt nodes have been read. */
+  interop: InteropInfo | null
+  /** null until the default user has been reconciled. */
+  defaultUser: DefaultUserInfo | null
   settings: WslSettingInfo[]
 }
 
@@ -601,6 +637,22 @@ export interface DnsInfo {
 
 export type WarningSeverity = 'info' | 'warning' | 'error'
 
+/**
+ * Whether the selected distro is answering, as opposed to merely being listed
+ * as Running (issue #73). `wsl --list` reports the word; only a probe knows
+ * whether anything replies, and a distro that stopped answering after a lid
+ * close keeps the word for hours.
+ */
+export interface DistroLiveness {
+  distro: string
+  /** null when no probe has run yet — never a claim either way. */
+  answering: boolean | null
+  /** ISO of the last reply; null when it has never answered in this session. */
+  lastAliveAt: string | null
+  /** Consecutive failed probes; 0 while it is answering. */
+  failures: number
+}
+
 export interface WarningInfo {
   id: string
   severity: WarningSeverity
@@ -912,6 +964,8 @@ export interface WslPadSnapshot {
   explorer: ExplorerContext
   terminal: TerminalContext
   mcp: McpStatus
+  /** Whether the selected distro is answering, not just listed as Running. */
+  liveness: DistroLiveness | null
   warnings: WarningInfo[]
 }
 

@@ -80,7 +80,8 @@
     "stateStopped": "Stopped",
     "stateInstalling": "Installing",
     "stateUnknown": "Unknown",
-    "wslVersion": "WSL {{version}}"
+    "wslVersion": "WSL {{version}}",
+    "stateNotAnswering": "Running — not answering"
   },
   "dashboard": {
     "overview": {
@@ -110,7 +111,9 @@
       "clockApprox": "The two clocks are read a moment apart, so this difference is approximate.",
       "clockFix": "Put the clock back in step",
       "clockPrepare": "Prepare {{command}}",
-      "clockPrepareHint": "The command is only placed in the Console — nothing runs until you press Enter."
+      "clockPrepareHint": "The command is only placed in the Console — nothing runs until you press Enter.",
+      "neverAnswered": "{{distro}} is listed as running but has not answered once since WSLPad started.",
+      "lastAnswered": "{{distro}} is listed as running, but the last reply was at {{when}}. Live data is paused until it answers again."
     },
     "resources": {
       "title": "Resources",
@@ -254,7 +257,16 @@
       "empty": "No settings were read",
       "noMatches": "No setting matches the filter",
       "noneConfigured": "Nothing is configured in this file",
-      "unavailable": "No WSL settings information for this distribution"
+      "unavailable": "No WSL settings information for this distribution",
+      "interop": "Windows interop",
+      "interopNoNode": "Not registered",
+      "interopLate": "Late binding: {{value}}",
+      "interopClash": "/etc/wsl.conf declares interop {{declared}}, but the running kernel has it {{effective}}. That file is read when the distribution starts, so the change needs wsl --shutdown.",
+      "startsAs": "Starts as",
+      "startsAsRoot": "Files created here are root-owned",
+      "uid": "uid {{uid}}",
+      "userClash": "/etc/wsl.conf asks for {{declared}}, but this distribution starts as {{effective}}. The Windows registry keeps DefaultUid {{uid}}, and that value wins.",
+      "userClashNoRegistry": "/etc/wsl.conf asks for {{declared}}, but this distribution starts as {{effective}}."
     },
     "network": {
       "title": "Network",

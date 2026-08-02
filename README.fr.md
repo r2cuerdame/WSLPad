@@ -137,6 +137,11 @@ shell de connexion, durée de fonctionnement, activation ou non de systemd, IP d
 la distribution, le chemin `\\wsl.localhost\…` côté Windows, et l'écart
 d'horloge entre Windows et la distribution — la cause invisible des échecs
 soudains d'apt et de TLS après une mise en veille de l'hôte.
+Et si la distribution répond encore : `wsl --list` continue d’indiquer Running
+pendant des heures après qu’une distribution a cessé de répondre. Quand la
+sonde n’obtient plus rien, le badge affiche **En cours — ne répond pas** et
+donne la dernière réponse, car à partir de là chaque valeur ici est la dernière
+bonne, pas une fraîche.
 
 **Ressources** — CPU % en direct, mémoire utilisée/totale, swap, occupation
 disque de `/`, `/home` et `/mnt/c`, charge moyenne, nombre de processus, et des
@@ -162,6 +167,12 @@ et un verdict : appliqué, redémarrage nécessaire, par défaut, clé inconnue
 (faute de frappe), mauvaise section, ou non pris en charge sur cette version.
 Inclut le mode réseau réellement en cours face à celui que vous avez demandé, et
 un bandeau quand la VM a démarré avant votre dernière modification.
+Puis deux réponses que WSL répartit sur deux machines : si le noyau possède
+vraiment l’enregistrement d’interopérabilité demandé par `[interop] enabled=` —
+ce fichier est lu une seule fois, au démarrage de la distribution, une
+modification ultérieure ne change rien avant `wsl --shutdown` — et sous quel
+utilisateur la distribution ouvre la session, où le `DefaultUid` du registre
+Windows l’emporte discrètement sur `[user] default=` dans `/etc/wsl.conf`.
 
 **Chemins importants** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
 `~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, le profil utilisateur Windows vu
@@ -339,7 +350,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.4.1)
+## Limites actuelles (v0.5.0)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)

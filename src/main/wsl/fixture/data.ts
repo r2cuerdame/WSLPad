@@ -252,16 +252,23 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
       networkingModeDeclared: null,
       networkingModeEffective: null,
       platform: {
-              wsl: '2.6.3.0',
-              kernel: '6.6.87.2-1',
-              wslg: '1.0.71',
-              msrdc: '1.2.6353',
-              direct3d: '1.611.1-81528511',
-              dxcore: '10.0.26100.1-240331-1435.ge-release',
-              windows: '10.0.26200.7840',
-              storeBuild: true
-            },
-      
+        wsl: '2.6.3.0',
+        kernel: '6.6.87.2-1',
+        wslg: '1.0.71',
+        msrdc: '1.2.6353',
+        direct3d: '1.611.1-81528511',
+        dxcore: '10.0.26100.1-240331-1435.ge-release',
+        windows: '10.0.26200.7840',
+        storeBuild: true
+      },
+      // WSL 1 registers no binfmt node, and this fixture distro declares nothing.
+      interop: { binfmt: null, binfmtLate: null, declared: null },
+      defaultUser: {
+        effectiveUid: 1000,
+        effectiveName: 'dev',
+        registryUid: 1000,
+        declaredName: null
+      },
       settings: []
     }
   }
@@ -274,17 +281,27 @@ export function fixtureWslSettings(distro: FixtureDistroName): WslConfigInfo {
     vmStartedAt: FIXTURE_VM_STARTED_AT,
     networkingModeDeclared: 'mirrored',
     networkingModeEffective: 'nat',
-      platform: {
-            wsl: '2.6.3.0',
-            kernel: '6.6.87.2-1',
-            wslg: '1.0.71',
-            msrdc: '1.2.6353',
-            direct3d: '1.611.1-81528511',
-            dxcore: '10.0.26100.1-240331-1435.ge-release',
-            windows: '10.0.26200.7840',
-            storeBuild: true
-          },
-    
+    platform: {
+      wsl: '2.6.3.0',
+      kernel: '6.6.87.2-1',
+      wslg: '1.0.71',
+      msrdc: '1.2.6353',
+      direct3d: '1.611.1-81528511',
+      dxcore: '10.0.26100.1-240331-1435.ge-release',
+      windows: '10.0.26200.7840',
+      storeBuild: true
+    },
+    // Declared off, but the running kernel still has the node registered: the
+    // disagreement this card exists to show (issue #74).
+    interop: { binfmt: 'enabled', binfmtLate: 'enabled', declared: false },
+    // Windows starts uid 0 while wsl.conf asks for dev — the registry wins,
+    // and nothing else in WSL says so (issue #75).
+    defaultUser: {
+      effectiveUid: 0,
+      effectiveName: 'root',
+      registryUid: 0,
+      declaredName: 'dev'
+    },
     settings: [
       {
         key: 'memory',
@@ -1209,14 +1226,78 @@ export function fixtureServiceLog(unit: string, scope: ServiceScope): ServiceLog
 export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersInfo | null {
   if (distro !== FIXTURE_UBUNTU) return null
   const consumers = [
-    { id: 'logs', path: '/var/log', exists: true, bytes: 861_074_268, cleanup: null, needsRoot: false, containedIn: null },
-    { id: 'journal', path: '/var/log/journal', exists: true, bytes: 838_860_800, cleanup: 'sudo journalctl --vacuum-size=200M', needsRoot: true, containedIn: 'logs' },
-    { id: 'apt-cache', path: '/var/cache/apt', exists: true, bytes: 354_354_783, cleanup: 'sudo apt clean', needsRoot: true, containedIn: null },
-    { id: 'user-cache', path: '/home/dev/.cache', exists: true, bytes: 1_372_061, cleanup: null, needsRoot: false, containedIn: null },
-    { id: 'snap', path: '/var/lib/snapd', exists: true, bytes: 188_317, cleanup: null, needsRoot: false, containedIn: null },
-    { id: 'tmp', path: '/tmp', exists: true, bytes: 8_741, cleanup: null, needsRoot: false, containedIn: null },
-    { id: 'trash', path: '/home/dev/.local/share/Trash', exists: true, bytes: 0, cleanup: null, needsRoot: false, containedIn: null },
-    { id: 'docker', path: '/var/lib/docker', exists: false, bytes: null, cleanup: null, needsRoot: false, containedIn: null }
+    {
+      id: 'logs',
+      path: '/var/log',
+      exists: true,
+      bytes: 861_074_268,
+      cleanup: null,
+      needsRoot: false,
+      containedIn: null
+    },
+    {
+      id: 'journal',
+      path: '/var/log/journal',
+      exists: true,
+      bytes: 838_860_800,
+      cleanup: 'sudo journalctl --vacuum-size=200M',
+      needsRoot: true,
+      containedIn: 'logs'
+    },
+    {
+      id: 'apt-cache',
+      path: '/var/cache/apt',
+      exists: true,
+      bytes: 354_354_783,
+      cleanup: 'sudo apt clean',
+      needsRoot: true,
+      containedIn: null
+    },
+    {
+      id: 'user-cache',
+      path: '/home/dev/.cache',
+      exists: true,
+      bytes: 1_372_061,
+      cleanup: null,
+      needsRoot: false,
+      containedIn: null
+    },
+    {
+      id: 'snap',
+      path: '/var/lib/snapd',
+      exists: true,
+      bytes: 188_317,
+      cleanup: null,
+      needsRoot: false,
+      containedIn: null
+    },
+    {
+      id: 'tmp',
+      path: '/tmp',
+      exists: true,
+      bytes: 8_741,
+      cleanup: null,
+      needsRoot: false,
+      containedIn: null
+    },
+    {
+      id: 'trash',
+      path: '/home/dev/.local/share/Trash',
+      exists: true,
+      bytes: 0,
+      cleanup: null,
+      needsRoot: false,
+      containedIn: null
+    },
+    {
+      id: 'docker',
+      path: '/var/lib/docker',
+      exists: false,
+      bytes: null,
+      cleanup: null,
+      needsRoot: false,
+      containedIn: null
+    }
   ]
   return {
     consumers,

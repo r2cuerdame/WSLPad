@@ -175,12 +175,28 @@ export function createMcpServer(deps: McpDeps): McpServer {
   server.registerTool(
     'GetSelectedDistro',
     {
-      description: 'Get the distro currently selected in the WSLPad UI, or null when none.',
+      description:
+        'Get the distro currently selected in the WSLPad UI, or null when none. Also ' +
+        'returns liveness: whether the distro is still answering WSLPad probes. `wsl ' +
+        '--list` can keep reporting Running long after a distribution stopped ' +
+        'responding, and while it is not answering every other reading here is the ' +
+        'last good one, not a fresh one.',
       annotations: readOnly
     },
     guard(() => {
-      const selected = deps.getSnapshot().selectedDistro
-      return ok(`selected distro: ${selected ?? 'none'}`, { selectedDistro: selected })
+      const snap = deps.getSnapshot()
+      const selected = snap.selectedDistro
+      const state =
+        snap.liveness === null || snap.liveness.answering === null
+          ? 'liveness unknown'
+          : snap.liveness.answering
+            ? 'answering'
+            : `not answering (${snap.liveness.failures} failed probe(s), last reply ` +
+              `${snap.liveness.lastAliveAt ?? 'never'})`
+      return ok(`selected distro: ${selected ?? 'none'}; ${state}`, {
+        selectedDistro: selected,
+        liveness: snap.liveness
+      })
     })
   )
 
@@ -426,21 +442,33 @@ export function createMcpServer(deps: McpDeps): McpServer {
         'Get every .wslconfig and wsl.conf setting with its declared value, the value ' +
         'actually in force, and a verdict (applied, pending-restart, wrong-section, ' +
         'unknown-key, unsupported). Includes the effective networking mode, which can ' +
-        'differ from the declared one, and whether the running VM predates the files.',
+        'differ from the declared one, whether the running VM predates the files, ' +
+        'whether the kernel really has the interop binfmt registration the file asked ' +
+        'for, and which user the distribution starts as (the Windows registry ' +
+        'DefaultUid outranks [user] default=).',
       annotations: readOnly
     },
     guard(() =>
-      withDashboard((dash) =>
-        dash.wslSettings === null
-          ? ok('WSL settings are not available for this distribution', { wslSettings: null })
-          : ok(
-              `${dash.wslSettings.settings.length} setting(s); networking declared ` +
-                `${dash.wslSettings.networkingModeDeclared ?? 'unset'}, effective ` +
-                `${dash.wslSettings.networkingModeEffective ?? 'unknown'}` +
-                (dash.wslSettings.restartPending ? '; restart pending' : ''),
-              { wslSettings: dash.wslSettings }
-            )
-      )
+      withDashboard((dash) => {
+        const s = dash.wslSettings
+        if (s === null) {
+          return ok('WSL settings are not available for this distribution', { wslSettings: null })
+        }
+        const who = s.defaultUser
+        const startsAs =
+          who === null || (who.effectiveName === null && who.effectiveUid === null)
+            ? ''
+            : `; starts as ${who.effectiveName ?? `uid ${who.effectiveUid}`}`
+        return ok(
+          `${s.settings.length} setting(s); networking declared ` +
+            `${s.networkingModeDeclared ?? 'unset'}, effective ` +
+            `${s.networkingModeEffective ?? 'unknown'}` +
+            (s.interop?.binfmt == null ? '' : `; interop ${s.interop.binfmt}`) +
+            startsAs +
+            (s.restartPending ? '; restart pending' : ''),
+          { wslSettings: s }
+        )
+      })
     )
   )
 
@@ -507,8 +535,8 @@ export function createMcpServer(deps: McpDeps): McpServer {
           : ok(
               dash.docker.cliInstalled
                 ? `docker ${dash.docker.serverVersion ?? 'unknown'}, ` +
-                  `${dash.docker.containers.length} container(s), ` +
-                  `${dash.docker.images.length} image(s)`
+                    `${dash.docker.containers.length} container(s), ` +
+                    `${dash.docker.images.length} image(s)`
                 : 'docker is not installed in this distribution',
               { docker: dash.docker }
             )
@@ -836,7 +864,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
     {
       description:
         'What is filling the disk image, by name: package caches, the systemd journal, ' +
-        'build caches, the trash and Docker\'s store, each with the command that would ' +
+        "build caches, the trash and Docker's store, each with the command that would " +
         'clear it. Known caches only — deliberately not a full accounting, and it says so.',
       annotations: readOnly
     },
@@ -862,10 +890,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
         'line count, and never a start/stop/restart of the unit.',
       inputSchema: {
         unit: z.string().min(1).max(128).describe('Unit name, e.g. "docker.service"'),
-        scope: z
-          .enum(['system', 'user'])
-          .optional()
-          .describe('systemd scope; defaults to system')
+        scope: z.enum(['system', 'user']).optional().describe('systemd scope; defaults to system')
       },
       annotations: readOnly
     },
@@ -875,9 +900,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
         if (read === undefined) return fail('service logs are not available')
         const log = await read(distro, unit, scope ?? 'system')
         return ok(
-          log.error !== null
-            ? `${unit}: ${log.error}`
-            : `${log.lines.length} line(s) from ${unit}`,
+          log.error !== null ? `${unit}: ${log.error}` : `${log.lines.length} line(s) from ${unit}`,
           { log }
         )
       })

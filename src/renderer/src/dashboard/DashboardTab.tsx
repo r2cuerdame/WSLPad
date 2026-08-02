@@ -184,7 +184,14 @@ export default function DashboardTab(): React.JSX.Element {
   const detail = (): React.JSX.Element => {
     switch (section) {
       case 'overview':
-        return <OverviewCard distro={dash.distro} system={dash.system} clock={dash.clock} />
+        return (
+          <OverviewCard
+            distro={dash.distro}
+            liveness={snapshot.liveness}
+            system={dash.system}
+            clock={dash.clock}
+          />
+        )
       case 'resources':
         return <ResourceCard resources={dash.resources} memoryDetail={dash.memoryDetail} />
       case 'disk':

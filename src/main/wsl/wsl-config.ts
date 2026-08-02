@@ -11,6 +11,7 @@
 import { readFile, stat } from 'fs/promises'
 import { RUNNER_SLOW_TIMEOUT_MS, RUNNER_TIMEOUT_MS } from '@shared/constants'
 import type {
+  InteropInfo,
   SettingProvenance,
   SettingVerdict,
   WslConfigInfo,
@@ -18,6 +19,7 @@ import type {
   WslSettingInfo
 } from '@shared/types'
 import { WslNotAvailableError, type DistroRunner } from './contracts'
+import { findLxssEntry, readLxssEntries, type LxssEntry } from './disk'
 import { assertValidDistroName } from './escape'
 import { SECTION_MARKER, splitSections } from './system'
 
@@ -415,7 +417,15 @@ const PROBES = [
   'if [ -e /dev/kvm ]; then echo 1; else echo 0; fi',
   'hostname 2>/dev/null || true',
   'head -n 1 /etc/resolv.conf 2>/dev/null || true',
-  'head -n 1 /etc/hosts 2>/dev/null || true'
+  'head -n 1 /etc/hosts 2>/dev/null || true',
+  // The effective half of interop: the kernel writes the ASCII word enabled
+  // or disabled here, and three different causes produce one identical
+  // "Exec format error" with nothing to tell them apart.
+  'cat /proc/sys/fs/binfmt_misc/WSLInterop 2>/dev/null || true',
+  'cat /proc/sys/fs/binfmt_misc/WSLInterop-late 2>/dev/null || true',
+  // Who this distribution actually starts as. The Hidden Runner spawns
+  // without -u, so this is the default user, whatever the files declare.
+  'id -u 2>/dev/null || true'
 ]
 
 export function buildWslConfigScript(): string {
@@ -453,9 +463,7 @@ export function parseMounts(text: string): MountEntry[] {
  * machine with mounted drives as having none.
  */
 export function isDrvFsMount(entry: MountEntry): boolean {
-  return (
-    entry.source === 'drvfs' || entry.type === 'drvfs' || entry.options.includes('aname=drvfs')
-  )
+  return entry.source === 'drvfs' || entry.type === 'drvfs' || entry.options.includes('aname=drvfs')
 }
 
 /**
@@ -491,6 +499,11 @@ export interface WslObservations {
   hostname: string | null
   resolvConfHeader: string | null
   hostsHeader: string | null
+  /** The ASCII word the kernel writes: enabled or disabled. null = no node. */
+  interopBinfmt: InteropInfo['binfmt']
+  interopBinfmtLate: InteropInfo['binfmtLate']
+  /** uid this distribution actually started as; null when it could not be read. */
+  defaultUid: number | null
 }
 
 export function emptyObservations(): WslObservations {
@@ -513,7 +526,10 @@ export function emptyObservations(): WslObservations {
     kvm: null,
     hostname: null,
     resolvConfHeader: null,
-    hostsHeader: null
+    hostsHeader: null,
+    interopBinfmt: null,
+    interopBinfmtLate: null,
+    defaultUid: null
   }
 }
 
@@ -579,6 +595,20 @@ export function parseObservations(text: string): WslObservations {
   obs.hostname = firstLine(s[14])
   obs.resolvConfHeader = firstLine(s[15])
   obs.hostsHeader = firstLine(s[16])
+
+  // enabled / disabled are the two words the kernel itself writes into the
+  // binfmt node — ASCII, and the same in every locale. Anything else, or a
+  // missing node, stays null: no registration is a third state, not "off".
+  const binfmt = (raw: string | null): InteropInfo['binfmt'] => {
+    const word = raw?.trim().toLowerCase()
+    return word === 'enabled' || word === 'disabled' ? word : null
+  }
+  obs.interopBinfmt = binfmt(firstLine(s[17]))
+  obs.interopBinfmtLate = binfmt(firstLine(s[18]))
+
+  const uid = firstLine(s[19])
+  if (uid !== null && /^\d+$/.test(uid)) obs.defaultUid = Number.parseInt(uid, 10)
+
   return obs
 }
 
@@ -725,7 +755,8 @@ export function observeEffective(
       }
     }
     case 'automount.root': {
-      const root = obs.drvfsRoots === null ? null : observedAutomountRoot(driveMounts(obs.drvfsRoots))
+      const root =
+        obs.drvfsRoots === null ? null : observedAutomountRoot(driveMounts(obs.drvfsRoots))
       return root === null
         ? NONE
         : { value: root, evidence: 'Derived from the DrvFs mount points in /proc/mounts.' }
@@ -1120,6 +1151,8 @@ export interface WslConfigDeps {
   userProfile?: string | null
   /** Injected so restart-pending arithmetic is deterministic in tests. */
   now?: () => number
+  /** Lxss registry entries, for DefaultUid; null when the key is unreadable. */
+  readRegistry?: () => Promise<LxssEntry[] | null>
 }
 
 export interface WslConfigCollector {
@@ -1141,8 +1174,27 @@ function resolveWslconfigPath(profile: string | null): string | null {
   return `${profile.replace(/[\\/]+$/, '')}\\.wslconfig`
 }
 
+/** Last writer wins, matching how WSL itself reads a duplicated key. */
+function declaredEntry(entries: IniEntry[], section: string, key: string): string | null {
+  const lowerKey = key.toLowerCase()
+  let found: string | null = null
+  for (const e of entries) {
+    if (e.section === section && e.key.toLowerCase() === lowerKey) found = e.value
+  }
+  return found === null || found === '' ? null : found
+}
+
+/** The same lookup as a real boolean; an unrecognized word stays unknown. */
+function declaredFlag(entries: IniEntry[], section: string, key: string): boolean | null {
+  const raw = declaredEntry(entries, section, key)
+  if (raw === null) return null
+  const word = normalizeBool(raw)
+  return word === null ? null : word === 'true'
+}
+
 export function createWslConfigCollector(deps: WslConfigDeps = {}): WslConfigCollector {
   const readWindowsFile = deps.readWindowsFile ?? readWindowsConfig
+  const readRegistry = deps.readRegistry ?? readLxssEntries
   const now = deps.now ?? Date.now
   // wsl.exe cannot change under a running WSLPad, so one successful read lasts.
   let cachedVersion: string | null = null
@@ -1194,6 +1246,10 @@ export function createWslConfigCollector(deps: WslConfigDeps = {}): WslConfigCol
         // Windows-side answers still stand; the guest columns stay null.
       }
 
+      // Half of "which user does this start as" only exists on the Windows
+      // side, and it is the half that overrides /etc/wsl.conf.
+      const registryUid = findLxssEntry((await readRegistry()) ?? [], distro)?.defaultUid ?? null
+
       const version = await readVersion(runner)
       // /proc/uptime is the shared kernel's, so this is the utility VM start.
       // A distro launched later inside the same VM read its own wsl.conf at
@@ -1201,9 +1257,10 @@ export function createWslConfigCollector(deps: WslConfigDeps = {}): WslConfigCol
       const vmStartedAtMs =
         obs.uptimeSeconds === null ? null : now() - Math.round(obs.uptimeSeconds * 1000)
 
+      const wslConfEntries = parseIni(obs.wslConfText)
       const result = reconcileSettings({
         wslconfigEntries: windowsFile === null ? [] : parseIni(windowsFile.text),
-        wslConfEntries: parseIni(obs.wslConfText),
+        wslConfEntries,
         observations: obs,
         wslVersion: version,
         vmStartedAtMs,
@@ -1224,6 +1281,19 @@ export function createWslConfigCollector(deps: WslConfigDeps = {}): WslConfigCol
         // nothing — and every "unsupported on this build" verdict below is a
         // claim about exactly these numbers.
         platform: cachedPlatform,
+        // The effective half of two questions the app could only half answer:
+        // whether interop is really on, and who this distribution starts as.
+        interop: {
+          binfmt: obs.interopBinfmt,
+          binfmtLate: obs.interopBinfmtLate,
+          declared: declaredFlag(wslConfEntries, 'interop', 'enabled')
+        },
+        defaultUser: {
+          effectiveUid: obs.defaultUid,
+          effectiveName: obs.user,
+          registryUid,
+          declaredName: declaredEntry(wslConfEntries, 'user', 'default')
+        },
         settings: result.settings
       }
     }

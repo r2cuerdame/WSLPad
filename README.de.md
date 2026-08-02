@@ -135,6 +135,11 @@ Standard, Anzeigename des Betriebssystems, Kernel, Hostname, Benutzer,
 der `\\wsl.localhost\…`-Pfad für Windows und die Abweichung der Uhr zwischen
 Windows und der Distribution — die unsichtbare Ursache plötzlicher apt- und
 TLS-Fehler, nachdem der Host im Ruhezustand war.
+Und ob die Distribution überhaupt noch antwortet: `wsl --list` meldet
+stundenlang weiter Running, nachdem eine Distribution aufgehört hat zu
+reagieren. Bekommt die Sonde nichts zurück, sagt das Abzeichen **Läuft —
+antwortet nicht** und nennt die letzte Antwort — ab da ist jeder Wert hier der
+letzte gute, kein frischer.
 
 **Ressourcen** — CPU-Auslastung in Echtzeit, belegter/gesamter
 Arbeitsspeicher, Swap, Datenträgernutzung für `/`, `/home` und `/mnt/c`,
@@ -161,6 +166,12 @@ Urteil: übernommen, Neustart nötig, nicht gesetzt, unbekannter Schlüssel
 Einschließlich des tatsächlich laufenden Netzwerkmodus gegenüber dem
 angeforderten und eines Banners, wenn die VM älter ist als Ihre letzte
 Änderung.
+Dann zwei Antworten, die WSL auf zwei Maschinen verteilt: ob der Kernel
+wirklich die Interop-Registrierung hat, die `[interop] enabled=` verlangt hat —
+diese Datei wird einmal beim Start der Distribution gelesen, eine spätere
+Änderung bewirkt bis `wsl --shutdown` nichts — und als welcher Benutzer sich
+die Distribution anmeldet, wo `DefaultUid` in der Windows-Registry `[user] default=`
+in `/etc/wsl.conf` stillschweigend schlägt.
 
 **Wichtige Pfade** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
 `~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, das Windows-Benutzerprofil aus
@@ -335,7 +346,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.4.1)
+## Aktuelle Einschränkungen (v0.5.0)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;

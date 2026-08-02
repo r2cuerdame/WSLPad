@@ -286,6 +286,7 @@ export function makeSnapshot(over: Partial<WslPadSnapshot> = {}): WslPadSnapshot
     explorer: { distro: 'Ubuntu-24.04', currentPath: '/home/dev/.hermes', showHidden: false },
     terminal: { distro: 'Ubuntu-24.04', cwd: '/home/dev', status: 'ready' },
     mcp: mcpStatus(),
+    liveness: null,
     warnings: [],
     ...over
   }

@@ -132,6 +132,10 @@ login, tempo de atividade, se o systemd está ligado, o IP da distribuição, o
 caminho `\\wsl.localhost\…` para o Windows e a diferença de relógio entre o
 Windows e a distribuição — a causa invisível de falhas repentinas de apt e TLS
 depois que o host entra em suspensão.
+E se a distribuição ainda responde: o `wsl --list` continua dizendo Running por
+horas depois que uma distribuição parou de responder, então quando a sonda não
+recebe nada o selo passa a **Em execução — sem resposta** e informa a última
+resposta, porque dali em diante cada valor aqui é o último bom, não um novo.
 
 **Recursos** — CPU % ao vivo, memória usada/total, swap, uso de disco em `/`,
 `/home` e `/mnt/c`, carga média, número de processos e sparklines de tendência,
@@ -156,6 +160,12 @@ veredito: aplicado, requer reinício, não definido, chave desconhecida (erro de
 digitação), seção errada ou sem suporte nesta build. Inclui o modo de rede
 realmente em execução contra o que você pediu, e um aviso quando a VM é anterior
 à sua última edição.
+Depois duas respostas que o WSL divide entre duas máquinas: se o kernel
+realmente tem o registro de interoperabilidade que o `[interop] enabled=` pediu
+— esse arquivo é lido uma única vez, quando a distribuição inicia, e uma edição
+posterior não muda nada até o `wsl --shutdown` — e com qual usuário a
+distribuição inicia a sessão, onde o `DefaultUid` do registro do Windows vence
+o `[user] default=` do `/etc/wsl.conf`.
 
 **Caminhos importantes** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
 `~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, o perfil de usuário do Windows
@@ -327,7 +337,7 @@ não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronizaç�
 nuvem, nem chat de IA, nem correção automática. Identidade:
 **Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
 
-## Limitações atuais (v0.4.1)
+## Limitações atuais (v0.5.0)
 
 - Somente Windows x64; o instalador não é assinado (aviso do SmartScreen)
 - Os números da imagem de disco dependem do registro do Windows e do `fsutil`;

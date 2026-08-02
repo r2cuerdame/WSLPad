@@ -358,6 +358,17 @@ function reproFacts(dash: DashboardSnapshot): string[] {
       )
     }
     if (wsl.vmStartedAt !== null) facts.push(`- Utility VM started at: ${wsl.vmStartedAt}`)
+    // Whether a Windows .exe can be invoked from the shell at all, and whose
+    // files anything written here will belong to: both change what a fix that
+    // works when pasted looks like.
+    if (wsl.interop?.binfmt != null) {
+      facts.push(`- Windows interop: ${wsl.interop.binfmt} (kernel binfmt registration)`)
+    }
+    const who = wsl.defaultUser
+    if (who != null && (who.effectiveName !== null || who.effectiveUid !== null)) {
+      const uid = who.effectiveUid === null ? '' : ` (uid ${who.effectiveUid})`
+      facts.push(`- Starts as: ${who.effectiveName ?? 'unknown'}${uid}`)
+    }
   }
   const skew = dash.clock?.skewSeconds ?? null
   if (skew !== null) facts.push(`- Clock skew (distro − Windows): ${skew}s`)
@@ -626,6 +637,39 @@ function agentGotchas(lines: string[], dash: DashboardSnapshot): void {
     notes.push(
       `- Networking mode ${wsl.networkingModeDeclared} was declared but ` +
         `${wsl.networkingModeEffective} is in effect.`
+    )
+  }
+  // Both files are read when the distribution starts, so an edit made since
+  // then is invisible to everything except a comparison like this one.
+  const interop = wsl?.interop ?? null
+  if (
+    interop !== null &&
+    interop.declared !== null &&
+    interop.binfmt !== null &&
+    interop.declared !== (interop.binfmt === 'enabled')
+  ) {
+    notes.push(
+      `- /etc/wsl.conf declares interop enabled=${interop.declared}, but the running kernel ` +
+        `has the binfmt registration ${interop.binfmt}; \`wsl --shutdown\` applies the file.`
+    )
+  }
+  const who = wsl?.defaultUser ?? null
+  if (who !== null && who.effectiveUid === 0) {
+    notes.push(
+      '- This distribution starts as root — every file created without sudo is root-owned, ' +
+        'and `sudo` is a no-op here.'
+    )
+  }
+  if (
+    who !== null &&
+    who.declaredName !== null &&
+    who.effectiveName !== null &&
+    who.declaredName !== who.effectiveName
+  ) {
+    const uid = who.registryUid === null ? '' : ` (registry DefaultUid ${who.registryUid})`
+    notes.push(
+      `- /etc/wsl.conf asks for user ${who.declaredName}, but the distribution starts as ` +
+        `${who.effectiveName}${uid} — the Windows registry value wins.`
     )
   }
   if (dash.dns?.generateResolvConf === false) {

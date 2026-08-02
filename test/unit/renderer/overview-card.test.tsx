@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WslPadApi } from '@shared/ipc'
-import type { ClockInfo, DistroDetails, SystemInfo } from '@shared/types'
+import type { ClockInfo, DistroDetails, DistroLiveness, SystemInfo } from '@shared/types'
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
 import { AppStoreProvider, useApp } from '@renderer/store'
@@ -80,11 +80,12 @@ async function flush(): Promise<void> {
 
 async function renderCard(
   clockInfo: ClockInfo | null,
-  systemInfo: SystemInfo = system()
+  systemInfo: SystemInfo = system(),
+  liveness: DistroLiveness | null = null
 ): Promise<void> {
   render(
     <AppStoreProvider>
-      <OverviewCard distro={DISTRO} system={systemInfo} clock={clockInfo} />
+      <OverviewCard liveness={liveness} distro={DISTRO} system={systemInfo} clock={clockInfo} />
       <PreparedProbe />
     </AppStoreProvider>
   )
@@ -196,5 +197,49 @@ describe('OverviewCard clock', () => {
     await renderCard(clock(), system({ systemdEnabled: false }))
     expect(screen.queryByRole('button', { name: `Prepare ${TIMESYNCD}` })).toBeNull()
     expect(screen.getByRole('button', { name: `Prepare ${HWCLOCK}` })).toBeTruthy()
+  })
+})
+
+/**
+ * Issue #73: `wsl --list` keeps saying Running for a distribution that stopped
+ * answering — after a lid close, a hung mount, an OOM kill of the init. The
+ * probe knows within one cycle, and the badge has to say so.
+ */
+describe('OverviewCard liveness', () => {
+  const alive: DistroLiveness = {
+    distro: 'Ubuntu-24.04',
+    answering: true,
+    lastAliveAt: '2026-07-30T11:59:00.000Z',
+    failures: 0
+  }
+
+  it('keeps the plain Running badge while the probe is being answered', async () => {
+    await renderCard(null, system(), alive)
+    expect(screen.getByText('Running')).toBeTruthy()
+    expect(screen.queryByText(/not answering/i)).toBeNull()
+  })
+
+  it('contradicts the list when the probe has stopped getting answers', async () => {
+    await renderCard(null, system(), { ...alive, answering: false, failures: 3 })
+    expect(screen.getByText('Running — not answering')).toBeTruthy()
+    // And says when it last worked, so the user can place the failure in time.
+    expect(screen.getByText(/the last reply was at/i)).toBeTruthy()
+  })
+
+  it('says plainly that it never answered rather than inventing a time', async () => {
+    await renderCard(null, system(), {
+      ...alive,
+      answering: false,
+      lastAliveAt: null,
+      failures: 1
+    })
+    expect(screen.getByText(/has not answered once since WSLPad started/i)).toBeTruthy()
+    expect(screen.queryByText(/the last reply was at/i)).toBeNull()
+  })
+
+  it('trusts the list while liveness is still unknown', async () => {
+    await renderCard(null, system(), { ...alive, answering: null, lastAliveAt: null })
+    expect(screen.getByText('Running')).toBeTruthy()
+    expect(screen.queryByText(/not answering/i)).toBeNull()
   })
 })

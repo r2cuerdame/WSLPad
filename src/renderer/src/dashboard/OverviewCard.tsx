@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ClockInfo, DistroDetails, LocaleCode, SystemInfo } from '@shared/types'
+import type { ClockInfo, DistroLiveness, DistroDetails, LocaleCode, SystemInfo } from '@shared/types'
 import { CLOCK_SKEW_WARN_SECONDS } from '@shared/constants'
 import { formatDuration, formatNumber } from '@shared/format'
 import { useApp } from '../store'
@@ -30,6 +30,8 @@ const TIMESYNCD_COMMAND = 'sudo systemctl restart systemd-timesyncd'
 
 export interface OverviewCardProps {
   distro: DistroDetails
+  /** What the probe knows, as opposed to the word `wsl --list` prints. */
+  liveness: DistroLiveness | null
   system: SystemInfo
   /** null until both clocks have been sampled; never assumed to agree. */
   clock: ClockInfo | null
@@ -37,6 +39,7 @@ export interface OverviewCardProps {
 
 export default function OverviewCard({
   distro,
+  liveness,
   system,
   clock
 }: OverviewCardProps): React.JSX.Element {
@@ -44,6 +47,9 @@ export default function OverviewCard({
   const { prepareCommand, pushToast } = useApp()
   const locale = i18n.language as LocaleCode
   const v = (x: string | null): string => x ?? '—'
+  // Only a real disagreement counts. Liveness that was never established says
+  // nothing, and the word from the list stands.
+  const notAnswering = liveness?.answering === false
 
   // Seconds are the point of these two rows, so the shared short-time format
   // (hours and minutes only) would hide exactly what is being compared.
@@ -88,8 +94,21 @@ export default function OverviewCard({
     <Card titleKey="dashboard.overview.title">
       <div className="overview-head">
         <span className="overview-name">{distro.name}</span>
-        <span className={distro.state === 'Running' ? 'badge badge-ok' : 'badge badge-dim'}>
-          {t(`wsl.state${distro.state}`)}
+        {/* The word from `wsl --list` survives a lid close for hours; the probe
+            stops getting answers within one cycle. When the two disagree, the
+            probe is the one holding evidence (issue #73). */}
+        <span
+          className={
+            notAnswering
+              ? 'badge badge-warn'
+              : distro.state === 'Running'
+                ? 'badge badge-ok'
+                : 'badge badge-dim'
+          }
+        >
+          {notAnswering
+            ? t('wsl.stateNotAnswering', { defaultValue: 'Running — not answering' })
+            : t(`wsl.state${distro.state}`)}
         </span>
         <span className="badge badge-dim">
           {t('wsl.wslVersion', { version: distro.wslVersion })}
@@ -98,6 +117,22 @@ export default function OverviewCard({
           <span className="badge badge-accent">{t('topbar.defaultBadge')}</span>
         ) : null}
       </div>
+      {notAnswering ? (
+        <div className="notice-warn">
+          {liveness?.lastAliveAt == null
+            ? t('dashboard.overview.neverAnswered', {
+                defaultValue:
+                  '{{distro}} is listed as running but has not answered once since WSLPad started.',
+                distro: distro.name
+              })
+            : t('dashboard.overview.lastAnswered', {
+                defaultValue:
+                  '{{distro}} is listed as running, but the last reply was at {{when}}. Live data is paused until it answers again.',
+                distro: distro.name,
+                when: time(liveness.lastAliveAt)
+              })}
+        </div>
+      ) : null}
       <Kv k={t('dashboard.overview.os')}>{v(distro.osName)}</Kv>
       <Kv k={t('dashboard.overview.kernel')} mono>
         {v(system.kernel)}

@@ -276,6 +276,7 @@ function makeSnapshot(): WslPadSnapshot {
       tokenSet: true,
       error: null
     },
+    liveness: null,
     warnings: []
   }
 }

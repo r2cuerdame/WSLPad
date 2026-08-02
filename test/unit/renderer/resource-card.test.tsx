@@ -116,6 +116,7 @@ function snapshotAt(seconds: number, distro = 'Ubuntu-24.04'): WslPadSnapshot {
       tokenSet: false,
       error: null
     },
+    liveness: null,
     warnings: []
   }
 }

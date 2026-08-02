@@ -477,6 +477,7 @@ export function makeSnapshot(overrides: Partial<WslPadSnapshot> = {}): WslPadSna
     dashboard: makeDashboard(),
     explorer: { distro: 'Ubuntu-24.04', currentPath: '/home/user', showHidden: false },
     terminal: { distro: 'Ubuntu-24.04', cwd: '/home/user', status: 'ready' },
+    liveness: null,
     mcp: {
       running: true,
       transport: 'http',

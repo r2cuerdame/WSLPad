@@ -15,6 +15,7 @@ import type {
   DnsInfo,
   DockerInfo,
   DiskConsumersInfo,
+  DistroLiveness,
   TerminalProfilesInfo,
   ZoneIdentifierInfo,
   EnvironmentVariableInfo,
@@ -77,6 +78,8 @@ interface DashboardSections {
  */
 interface ProbeState {
   failures: number
+  /** epoch ms of the last reply; null while it has never answered. */
+  lastAliveAt: number | null
   /** epoch ms; while now < until the distro is treated as unresponsive */
   until: number
   /** epoch ms; while now < trustedUntil a recent success is reused */
@@ -84,7 +87,7 @@ interface ProbeState {
 }
 
 function freshProbe(): ProbeState {
-  return { failures: 0, until: 0, trustedUntil: 0 }
+  return { failures: 0, until: 0, trustedUntil: 0, lastAliveAt: null }
 }
 
 function emptySystem(): SystemInfo {
@@ -624,7 +627,8 @@ export class SnapshotStore {
 
     if (alive) {
       const recovered = this.probe.failures > 0
-      this.probe = { failures: 0, until: 0, trustedUntil: Date.now() + PROBE_TRUST_MS }
+      const now = Date.now()
+      this.probe = { failures: 0, until: 0, trustedUntil: now + PROBE_TRUST_MS, lastAliveAt: now }
       if (recovered) this.recomputeWarnings()
       return true
     }
@@ -634,7 +638,13 @@ export class SnapshotStore {
       PROBE_BACKOFF_BASE_MS * 2 ** (failures - 1),
       PROBE_BACKOFF_MAX_MS
     )
-    this.probe = { failures, until: Date.now() + backoff, trustedUntil: 0 }
+    // The last reply is kept: how long ago it stopped answering is the fact.
+    this.probe = {
+      failures,
+      until: Date.now() + backoff,
+      trustedUntil: 0,
+      lastAliveAt: this.probe.lastAliveAt
+    }
     // Derived from state, so the warning appears once and stays — a wedged
     // distro must not append a new warning on every poll.
     this.recomputeWarnings()
@@ -737,6 +747,25 @@ export class SnapshotStore {
     this.warnings = warnings
   }
 
+  /**
+   * What the probe knows, which is not what `wsl --list` says. The word
+   * "Running" survives a lid close for hours; the probe stops getting answers
+   * within one cycle. Never probed at all stays null rather than claiming
+   * either way (issue #73).
+   */
+  private liveness(): DistroLiveness | null {
+    const distro = this.selected
+    if (distro === null) return null
+    const { failures, lastAliveAt } = this.probe
+    const answering = lastAliveAt === null && failures === 0 ? null : failures === 0
+    return {
+      distro,
+      answering,
+      lastAliveAt: lastAliveAt === null ? null : new Date(lastAliveAt).toISOString(),
+      failures
+    }
+  }
+
   private build(): WslPadSnapshot {
     const dashboard: DashboardSnapshot | null = this.sections
       ? { ...this.sections, warnings: this.warnings }
@@ -750,6 +779,7 @@ export class SnapshotStore {
       explorer: this.explorer,
       terminal: this.terminal,
       mcp: this.mcp,
+      liveness: this.liveness(),
       warnings: this.warnings
     }
   }

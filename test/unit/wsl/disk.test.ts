@@ -32,6 +32,7 @@ const REG_OUTPUT = [
   '    State    REG_DWORD    0x1',
   '    DistributionName    REG_SZ    Ubuntu-24.04',
   '    Version    REG_DWORD    0x2',
+  '    DefaultUid    REG_DWORD    0x3e8',
   '    BasePath    REG_SZ    C:\\Users\\dev\\AppData\\Local\\wsl\\Ubuntu-24.04',
   '    Flags    REG_DWORD    0xf',
   '    ShortcutPath    REG_SZ    C:\\Users\\dev\\Start Menu\\Ubuntu-24.04.lnk',
@@ -103,13 +104,32 @@ describe('parseLxssRegistry', () => {
       distro: 'docker-desktop',
       basePath: 'C:\\Users\\dev\\AppData\\Local\\Docker\\wsl\\main',
       vhdFileName: 'docker_data.vhdx',
-      version: 2
+      version: 2,
+      defaultUid: null
     })
     // The root key carries no DistributionName and must not become an entry.
     expect(entries).toHaveLength(3)
     expect(entries[1].basePath).toBe(UBUNTU_BASE)
     expect(entries[1].vhdFileName).toBeNull()
     expect(entries[2].version).toBe(1)
+  })
+
+  it('reads DefaultUid as a number, and leaves it null where the value is absent', () => {
+    const entries = parseLxssRegistry(REG_OUTPUT)
+    // 0x3e8 is the uid every first-run WSL user gets.
+    expect(entries[1].defaultUid).toBe(1000)
+    // Absent is unknown, not root: a missing value must never read as uid 0.
+    expect(entries[0].defaultUid).toBeNull()
+    expect(entries[2].defaultUid).toBeNull()
+  })
+
+  it('reads DefaultUid 0 as root rather than as absent', () => {
+    const text = [
+      'HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{1}',
+      '    DistributionName    REG_SZ    Rooted',
+      '    DefaultUid    REG_DWORD    0x0'
+    ].join('\r\n')
+    expect(parseLxssRegistry(text)[0].defaultUid).toBe(0)
   })
 
   it('keeps values whose data contains spaces', () => {
@@ -125,7 +145,8 @@ describe('parseLxssRegistry', () => {
         distro: 'My Distro 2',
         basePath: 'C:\\Program Files\\WSL\\My Distro 2',
         vhdFileName: null,
-        version: null
+        version: null,
+        defaultUid: null
       }
     ])
   })

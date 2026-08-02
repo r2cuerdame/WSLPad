@@ -123,6 +123,8 @@ function settingsWith(appendWindowsPath: string | null): WslConfigInfo {
     vmStartedAt: null,
     networkingModeDeclared: null,
     networkingModeEffective: null,
+    interop: null,
+    defaultUser: null,
     platform: null,
     settings: [row]
   }

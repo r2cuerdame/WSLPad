@@ -80,7 +80,8 @@
     "stateStopped": "停止",
     "stateInstalling": "インストール中",
     "stateUnknown": "不明",
-    "wslVersion": "WSL {{version}}"
+    "wslVersion": "WSL {{version}}",
+    "stateNotAnswering": "実行中 — 応答なし"
   },
   "dashboard": {
     "overview": {
@@ -110,7 +111,9 @@
       "clockApprox": "2 つの時計を読む時点が少しずれるため、この差はおおよその値です。",
       "clockFix": "時計を合わせ直す",
       "clockPrepare": "{{command}} を準備",
-      "clockPrepareHint": "コマンドはコンソールに置かれるだけで、Enter を押すまで何も実行されません。"
+      "clockPrepareHint": "コマンドはコンソールに置かれるだけで、Enter を押すまで何も実行されません。",
+      "neverAnswered": "{{distro}} は実行中と表示されていますが、WSLPad の起動後に一度も応答していません。",
+      "lastAnswered": "{{distro}} は実行中と表示されていますが、最後の応答は {{when}} でした。再び応答するまでライブ情報は停止します。"
     },
     "resources": {
       "title": "リソース",
@@ -254,7 +257,16 @@
       "empty": "読み取れた設定はありません",
       "noMatches": "絞り込み条件に一致する設定はありません",
       "noneConfigured": "このファイルには何も設定されていません",
-      "unavailable": "このディストリビューションの WSL 設定情報はありません"
+      "unavailable": "このディストリビューションの WSL 設定情報はありません",
+      "interop": "Windows 相互運用",
+      "interopNoNode": "未登録",
+      "interopLate": "遅延バインディング: {{value}}",
+      "interopClash": "/etc/wsl.conf は相互運用を {{declared}} と宣言していますが、実行中のカーネルは {{effective}} です。このファイルはディストリビューションの起動時に読み込まれるため、変更には wsl --shutdown が必要です。",
+      "startsAs": "開始ユーザー",
+      "startsAsRoot": "ここで作ったファイルは root 所有",
+      "uid": "uid {{uid}}",
+      "userClash": "/etc/wsl.conf は {{declared}} を要求していますが、このディストリビューションは {{effective}} で開始します。Windows レジストリの DefaultUid {{uid}} が優先されます。",
+      "userClashNoRegistry": "/etc/wsl.conf は {{declared}} を要求していますが、このディストリビューションは {{effective}} で開始します。"
     },
     "network": {
       "title": "ネットワーク",

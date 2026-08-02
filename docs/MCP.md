@@ -50,7 +50,7 @@ at-a-glance status badge):
 | Tool | Returns |
 | --- | --- |
 | `GetDistros` | Registered WSL distributions with state/version/default |
-| `GetSelectedDistro` | The distro WSLPad currently targets |
+| `GetSelectedDistro` | The distro WSLPad currently targets, and whether it is still answering probes |
 | `GetDashboardSnapshot` | The full dashboard snapshot (cached, masked) |
 | `GetSystemInfo` | Kernel, hostname, user, HOME, shell, systemd, IP |
 | `GetResourceUsage` | CPU, memory, swap, disks, load, process count |
@@ -66,7 +66,7 @@ at-a-glance status badge):
 | `GetService` | One systemd unit by name (`{ name }`) |
 | `GetPorts` | Listening ports, each marked with whether Windows also binds it |
 | `GetDiskImage` | ext4.vhdx location, size on the Windows disk, reclaimable space |
-| `GetWslSettings` | Declared vs effective .wslconfig and wsl.conf, with verdicts |
+| `GetWslSettings` | Declared vs effective .wslconfig and wsl.conf, with verdicts, plus real interop state and the login user |
 | `GetFirewall` | Hyper-V firewall state for the WSL virtual machine |
 | `GetPortProxy` | Windows `netsh portproxy` rules, each judged against the distro's current address |
 | `GetDocker` | Docker engine/client, context, images, containers and the `docker system df` breakdown including the build cache |

@@ -42,6 +42,20 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     await expect(detail).toContainText('Windows')
   })
 
+  // Both facts are collected on two different machines and only mean something
+  // side by side: the file says one thing, the running system does another.
+  test('reports interop and the login user as the running system has them', async () => {
+    const { page } = launched
+    await page.getByTestId('dashboard-nav-wslconfig').click()
+    const detail = page.getByTestId('dashboard-detail')
+
+    await expect(detail).toContainText('Windows interop', { timeout: 15000 })
+    await expect(detail).toContainText('declares interop Disabled, but the running kernel')
+    await expect(detail).toContainText('Starts as')
+    await expect(detail).toContainText('uid 0')
+    await expect(detail).toContainText('DefaultUid 0, and that value wins')
+  })
+
   test('masks secret environment values', async () => {
     const { page } = launched
     await page.getByTestId('dashboard-nav-environment').click()

@@ -80,7 +80,8 @@
     "stateStopped": "중지됨",
     "stateInstalling": "설치 중",
     "stateUnknown": "알 수 없음",
-    "wslVersion": "WSL {{version}}"
+    "wslVersion": "WSL {{version}}",
+    "stateNotAnswering": "실행 중 — 응답 없음"
   },
   "dashboard": {
     "overview": {
@@ -110,7 +111,9 @@
       "clockApprox": "두 시계를 읽는 시점이 조금 어긋나므로 이 차이는 대략적인 값입니다.",
       "clockFix": "시계를 다시 맞추기",
       "clockPrepare": "{{command}} 준비",
-      "clockPrepareHint": "명령은 콘솔에 넣어 둘 뿐이며, Enter를 누르기 전에는 아무것도 실행되지 않습니다."
+      "clockPrepareHint": "명령은 콘솔에 넣어 둘 뿐이며, Enter를 누르기 전에는 아무것도 실행되지 않습니다.",
+      "neverAnswered": "{{distro}}은(는) 실행 중으로 표시되지만 WSLPad 시작 이후 한 번도 응답하지 않았습니다.",
+      "lastAnswered": "{{distro}}은(는) 실행 중으로 표시되지만 마지막 응답은 {{when}}이었습니다. 다시 응답할 때까지 실시간 정보는 멈춰 있습니다."
     },
     "resources": {
       "title": "리소스",
@@ -254,7 +257,16 @@
       "empty": "읽어 온 설정이 없습니다",
       "noMatches": "필터와 일치하는 설정이 없습니다",
       "noneConfigured": "이 파일에는 설정된 항목이 없습니다",
-      "unavailable": "이 배포판의 WSL 설정 정보가 없습니다"
+      "unavailable": "이 배포판의 WSL 설정 정보가 없습니다",
+      "interop": "Windows 상호 운용",
+      "interopNoNode": "등록되지 않음",
+      "interopLate": "지연 바인딩: {{value}}",
+      "interopClash": "/etc/wsl.conf는 상호 운용을 {{declared}}(으)로 선언했지만 실행 중인 커널은 {{effective}} 상태입니다. 이 파일은 배포판이 시작할 때 읽으므로 변경하려면 wsl --shutdown이 필요합니다.",
+      "startsAs": "시작 사용자",
+      "startsAsRoot": "여기서 만든 파일은 root 소유",
+      "uid": "uid {{uid}}",
+      "userClash": "/etc/wsl.conf는 {{declared}}을(를) 요청했지만 이 배포판은 {{effective}}(으)로 시작합니다. Windows 레지스트리의 DefaultUid {{uid}}이(가) 우선합니다.",
+      "userClashNoRegistry": "/etc/wsl.conf는 {{declared}}을(를) 요청했지만 이 배포판은 {{effective}}(으)로 시작합니다."
     },
     "network": {
       "title": "네트워크",

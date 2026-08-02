@@ -80,7 +80,8 @@
     "stateStopped": "Arrêtée",
     "stateInstalling": "Installation en cours",
     "stateUnknown": "Inconnu",
-    "wslVersion": "WSL {{version}}"
+    "wslVersion": "WSL {{version}}",
+    "stateNotAnswering": "En cours — ne répond pas"
   },
   "dashboard": {
     "overview": {
@@ -110,7 +111,9 @@
       "clockApprox": "Les deux horloges sont lues à un instant d'intervalle : cet écart est donc approximatif.",
       "clockFix": "Remettre l'horloge à l'heure",
       "clockPrepare": "Préparer {{command}}",
-      "clockPrepareHint": "La commande est seulement placée dans la console : rien ne s'exécute tant que vous n'appuyez pas sur Entrée."
+      "clockPrepareHint": "La commande est seulement placée dans la console : rien ne s'exécute tant que vous n'appuyez pas sur Entrée.",
+      "neverAnswered": "{{distro}} est indiquée comme en cours d’exécution mais n’a pas répondu une seule fois depuis le démarrage de WSLPad.",
+      "lastAnswered": "{{distro}} est indiquée comme en cours d’exécution, mais la dernière réponse date de {{when}}. Les données en direct sont suspendues jusqu’à la prochaine réponse."
     },
     "resources": {
       "title": "Ressources",
@@ -254,7 +257,16 @@
       "empty": "Aucun paramètre n'a été lu",
       "noMatches": "Aucun paramètre ne correspond au filtre",
       "noneConfigured": "Rien n'est configuré dans ce fichier",
-      "unavailable": "Aucune information de paramètres WSL pour cette distribution"
+      "unavailable": "Aucune information de paramètres WSL pour cette distribution",
+      "interop": "Interopérabilité Windows",
+      "interopNoNode": "Non enregistrée",
+      "interopLate": "Liaison tardive : {{value}}",
+      "interopClash": "/etc/wsl.conf déclare l’interopérabilité {{declared}}, mais le noyau en cours l’a {{effective}}. Ce fichier est lu au démarrage de la distribution : le changement demande wsl --shutdown.",
+      "startsAs": "Démarre en tant que",
+      "startsAsRoot": "Les fichiers créés ici appartiennent à root",
+      "uid": "uid {{uid}}",
+      "userClash": "/etc/wsl.conf demande {{declared}}, mais cette distribution démarre en tant que {{effective}}. Le registre Windows conserve DefaultUid {{uid}}, et c’est cette valeur qui l’emporte.",
+      "userClashNoRegistry": "/etc/wsl.conf demande {{declared}}, mais cette distribution démarre en tant que {{effective}}."
     },
     "network": {
       "title": "Réseau",

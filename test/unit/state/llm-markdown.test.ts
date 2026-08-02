@@ -128,6 +128,8 @@ function wslConfig(over: Partial<WslConfigInfo> = {}): WslConfigInfo {
     networkingModeDeclared: 'mirrored',
     networkingModeEffective: 'mirrored',
     platform: null,
+    interop: null,
+    defaultUser: null,
     settings: [
       setting('memory', 'wsl2', 'wslconfig', '8GB'),
       setting('networkingMode', 'wsl2', 'wslconfig', 'mirrored'),

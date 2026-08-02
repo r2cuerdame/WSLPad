@@ -91,6 +91,8 @@ function info(over: Partial<WslConfigInfo> = {}): WslConfigInfo {
     networkingModeDeclared: null,
     networkingModeEffective: 'nat',
     platform: null,
+    interop: null,
+    defaultUser: null,
     settings: SETTINGS,
     ...over
   }
@@ -212,6 +214,110 @@ describe('WslSettingsCard networking headline', () => {
     const row = screen.getByText('Networking mode').closest('.kv-row') as HTMLElement
     expect(row.textContent).toContain('nat')
     expect(within(row).getByText('Applied')).toBeTruthy()
+  })
+})
+
+describe('WslSettingsCard interop', () => {
+  it('reports what the kernel is registered for, not what the file asked for', async () => {
+    await renderCard(
+      info({ interop: { binfmt: 'enabled', binfmtLate: 'enabled', declared: false } })
+    )
+    const row = screen.getByText('Windows interop').closest('.kv-row') as HTMLElement
+    expect(within(row).getByText('Enabled')).toBeTruthy()
+    // And the disagreement is spelled out, with the reason it persists.
+    expect(screen.getByText(/declares interop Disabled, but the running kernel/i)).toBeTruthy()
+    expect(screen.getByText(/wsl --shutdown/)).toBeTruthy()
+  })
+
+  it('says nothing about a clash when the file and the kernel agree', async () => {
+    await renderCard(
+      info({ interop: { binfmt: 'enabled', binfmtLate: 'enabled', declared: true } })
+    )
+    expect(screen.queryByText(/running kernel has it/i)).toBeNull()
+  })
+
+  it('calls an absent binfmt node unregistered rather than disabled', async () => {
+    await renderCard(info({ interop: { binfmt: null, binfmtLate: null, declared: null } }))
+    const row = screen.getByText('Windows interop').closest('.kv-row') as HTMLElement
+    expect(within(row).getByText('Not registered')).toBeTruthy()
+    expect(within(row).queryByText('Disabled')).toBeNull()
+    expect(screen.queryByText(/running kernel has it/i)).toBeNull()
+  })
+
+  it('names the late node only when it disagrees with the main one', async () => {
+    await renderCard(
+      info({ interop: { binfmt: 'enabled', binfmtLate: 'disabled', declared: true } })
+    )
+    expect(screen.getByText('Late binding: Disabled')).toBeTruthy()
+
+    cleanup()
+    await renderCard(
+      info({ interop: { binfmt: 'enabled', binfmtLate: 'enabled', declared: true } })
+    )
+    expect(screen.queryByText(/Late binding/)).toBeNull()
+  })
+
+  it('shows nothing at all when interop was never collected', async () => {
+    await renderCard(info({ interop: null }))
+    expect(screen.queryByText('Windows interop')).toBeNull()
+  })
+})
+
+describe('WslSettingsCard default user', () => {
+  const rooted = {
+    effectiveUid: 0,
+    effectiveName: 'root',
+    registryUid: 0,
+    declaredName: 'dev'
+  }
+
+  it('names the user this distribution really starts as', async () => {
+    await renderCard(info({ defaultUser: rooted }))
+    const row = screen.getByText('Starts as').closest('.kv-row') as HTMLElement
+    expect(row.textContent).toContain('root')
+    expect(row.textContent).toContain('uid 0')
+  })
+
+  it('says which of the two places decided it', async () => {
+    await renderCard(info({ defaultUser: rooted }))
+    expect(screen.getByText(/asks for dev, but this distribution starts as root/i)).toBeTruthy()
+    expect(screen.getByText(/DefaultUid 0, and that value wins/i)).toBeTruthy()
+  })
+
+  it('drops the registry claim it could not read', async () => {
+    await renderCard(info({ defaultUser: { ...rooted, registryUid: null } }))
+    expect(screen.getByText(/asks for dev, but this distribution starts as root/i)).toBeTruthy()
+    expect(screen.queryByText(/DefaultUid/)).toBeNull()
+  })
+
+  it('stays quiet when the file and the running distribution agree', async () => {
+    await renderCard(
+      info({
+        defaultUser: {
+          effectiveUid: 1000,
+          effectiveName: 'dev',
+          registryUid: 1000,
+          declaredName: 'dev'
+        }
+      })
+    )
+    expect(screen.queryByText(/asks for/i)).toBeNull()
+    const row = screen.getByText('Starts as').closest('.kv-row') as HTMLElement
+    expect(within(row).queryByText(/root-owned/)).toBeNull()
+  })
+
+  it('shows nothing when neither half of the answer could be read', async () => {
+    await renderCard(
+      info({
+        defaultUser: {
+          effectiveUid: null,
+          effectiveName: null,
+          registryUid: 1000,
+          declaredName: 'dev'
+        }
+      })
+    )
+    expect(screen.queryByText('Starts as')).toBeNull()
   })
 })
 

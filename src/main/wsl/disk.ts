@@ -30,6 +30,8 @@ export interface LxssEntry {
   vhdFileName: string | null
   /** 1 for the WSL 1 layout (files straight on NTFS, no image at all). */
   version: number | null
+  /** uid Windows starts this distribution as; null when the value is absent. */
+  defaultUid: number | null
 }
 
 /** `\\?\C:\dir` → `C:\dir`, `\\?\UNC\srv\s` → `\\srv\s`. */
@@ -60,7 +62,8 @@ export function parseLxssRegistry(text: string): LxssEntry[] {
       distro: name,
       basePath: current.basePath ?? null,
       vhdFileName: current.vhdFileName ?? null,
-      version: current.version ?? null
+      version: current.version ?? null,
+      defaultUid: current.defaultUid ?? null
     })
   }
 
@@ -86,6 +89,9 @@ export function parseLxssRegistry(text: string): LxssEntry[] {
         break
       case 'Version':
         current.version = parseRegDword(value)
+        break
+      case 'DefaultUid':
+        current.defaultUid = parseRegDword(value)
         break
       default:
         break
@@ -182,6 +188,22 @@ interface LocatedImage {
   error: string | null
 }
 
+/**
+ * One read of the Lxss key, shared. The settings collector needs DefaultUid
+ * from the same place the image lookup needs BasePath, and a second parser for
+ * the same output would be a second thing to keep true.
+ */
+export async function readLxssEntries(
+  run: HostCommandRunner = runHostCommand
+): Promise<LxssEntry[] | null> {
+  try {
+    return parseLxssRegistry(await run('reg.exe', ['query', LXSS_KEY, '/s'], REG_TIMEOUT_MS))
+  } catch {
+    // No key, no reg.exe, no permission — all of them mean "unknown".
+    return null
+  }
+}
+
 export interface DiskCollector {
   /** Satisfies WslProvider.getDiskImage once bound to a runner. */
   collect(runner: DistroRunner, distro: string): Promise<DiskImageInfo>
@@ -190,13 +212,7 @@ export interface DiskCollector {
 export function createDiskCollector(access: Partial<DiskHostAccess> = {}): DiskCollector {
   const { run, fileSize, listImages } = { ...defaultAccess, ...access }
 
-  const readRegistry = async (): Promise<LxssEntry[] | null> => {
-    try {
-      return parseLxssRegistry(await run('reg.exe', ['query', LXSS_KEY, '/s'], REG_TIMEOUT_MS))
-    } catch {
-      return null
-    }
-  }
+  const readRegistry = (): Promise<LxssEntry[] | null> => readLxssEntries(run)
 
   const readAllocated = async (path: string, size: number): Promise<number | null> => {
     // The subcommand is queryAllocRanges and it refuses to run without both
