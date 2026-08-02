@@ -170,7 +170,8 @@ function makeSnapshot(): WslPadSnapshot {
         profiles: [{ name: 'default', model: null, gatewayState: 'running', isCurrent: true }],
         activeSessions: 0,
         scheduledJobs: 0,
-        dashboardPort: null
+        dashboardPort: null,
+        home: null
       },
       environment: [
         {

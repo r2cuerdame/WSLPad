@@ -167,6 +167,7 @@ export function hermes(over: Partial<HermesInfo> = {}): HermesInfo {
     activeSessions: null,
     scheduledJobs: null,
     dashboardPort: null,
+    home: null,
     ...over
   }
 }

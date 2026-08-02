@@ -392,6 +392,29 @@ export interface HermesProfileInfo {
   isCurrent: boolean
 }
 
+/**
+ * The gateway that is actually running and the home the CLI just described are
+ * not always the same (issue #71). Hermes' gateway is often a systemd *system*
+ * unit running as root out of /root/.hermes, while `hermes status` run as the
+ * ordinary user reads ~/.hermes — so the status can report no messengers while
+ * Discord is connected in the home nobody asked.
+ *
+ * Every field is null when it could not be read. A mismatch is only ever
+ * claimed when both homes are known and they differ.
+ */
+export interface HermesHomeInfo {
+  /** The home `hermes status` described — $HERMES_HOME, else ~/.hermes. */
+  statusHome: string | null
+  /** HERMES_HOME declared by the running gateway unit. */
+  gatewayHome: string | null
+  /** The user that unit runs as, e.g. "root". */
+  gatewayUser: string | null
+  /** The unit the two above were read from. */
+  gatewayUnit: string | null
+  /** Prepared for the Console, never run: how to ask the gateway's own home. */
+  statusCommand: string | null
+}
+
 export interface HermesInfo {
   installed: boolean
   executablePath: string | null
@@ -416,6 +439,11 @@ export interface HermesInfo {
   scheduledJobs: number | null
   /** Port the web dashboard is listening on, when one was found. */
   dashboardPort: number | null
+  /**
+   * Which Hermes home the answers above describe, and which one the running
+   * gateway uses. null until the question has been asked at all.
+   */
+  home: HermesHomeInfo | null
 }
 
 export interface EnvironmentVariableInfo {

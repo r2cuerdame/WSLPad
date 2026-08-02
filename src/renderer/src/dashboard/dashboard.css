@@ -1196,3 +1196,16 @@
   overflow: auto;
   white-space: pre;
 }
+
+/* A chart needs a frame. Bare, the trend line floated between the meter and
+   the number and read as a stray mark rather than as a chart (user report,
+   CapturePack 2026-08-02). The drawing area keeps its exact size — the box
+   grows around it — so the row height does not depend on whether a line has
+   been drawn yet. */
+.sparkline {
+  box-sizing: content-box;
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken, rgb(127 127 127 / 6%));
+}

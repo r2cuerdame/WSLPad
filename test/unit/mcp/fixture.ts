@@ -380,7 +380,8 @@ export function makeDashboard(): DashboardSnapshot {
       profiles: [{ name: 'default', model: null, gatewayState: 'running', isCurrent: true }],
       activeSessions: 1,
       scheduledJobs: 0,
-      dashboardPort: null
+      dashboardPort: null,
+      home: null
     },
     environment: [
       {

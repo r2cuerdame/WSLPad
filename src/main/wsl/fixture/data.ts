@@ -1135,7 +1135,8 @@ export function fixtureHermes(distro: FixtureDistroName): HermesInfo | null {
     ],
     activeSessions: 2,
     scheduledJobs: 1,
-    dashboardPort: null
+    dashboardPort: null,
+    home: null
   }
 }
 

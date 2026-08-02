@@ -951,7 +951,8 @@ describe('detectHermes', () => {
       profiles: [],
       activeSessions: null,
       scheduledJobs: null,
-      dashboardPort: null
+      dashboardPort: null,
+      home: null
     })
   })
 

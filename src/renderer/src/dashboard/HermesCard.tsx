@@ -1,10 +1,11 @@
 import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { HermesInfo } from '@shared/types'
+import { hermesHomesDiffer } from '@shared/hermes-home'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
-import { ExternalIcon, FolderIcon } from '../components/Icons'
+import { ExternalIcon, FolderIcon, TerminalIcon } from '../components/Icons'
 
 const shQuote = (v: string): string => `'${v.replace(/'/g, "'\\''")}'`
 
@@ -91,6 +92,14 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
     )
 
   const connected = hermes?.platforms.filter((p) => p.configured) ?? []
+  const home = hermes?.home ?? null
+  const homesDiffer = hermesHomesDiffer(home)
+
+  /** Same rule as everywhere: the text lands in the Console, nothing runs. */
+  const prepareText = (command: string): void => {
+    prepareCommand(command)
+    pushToast('info', t('toast.commandPrepared'))
+  }
   const dashboardUrl =
     hermes?.dashboardPort === null || hermes?.dashboardPort === undefined
       ? null
@@ -146,6 +155,12 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
           <Kv k={t('dashboard.hermes.messengers')}>
             {hermes.platforms.length === 0 ? (
               <span className="dim">{t('common.unknown')}</span>
+            ) : connected.length === 0 && homesDiffer ? (
+              // The status describes a home the running gateway does not use,
+              // so "none connected" would be a claim about the wrong Hermes.
+              <span className="badge badge-warn">
+                {t('dashboard.hermes.otherHome', { defaultValue: 'asked the wrong home' })}
+              </span>
             ) : connected.length === 0 ? (
               <span className="badge badge-dim">{t('dashboard.hermes.noMessenger')}</span>
             ) : (
@@ -158,6 +173,65 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
               </span>
             )}
           </Kv>
+          {/* The whole point of the section: the gateway that is running and
+              the home just described are two different Hermes installations,
+              and nothing else on the machine says so. */}
+          {homesDiffer && home !== null ? (
+            <div className="notice-warn">
+              <div>
+                {t('dashboard.hermes.homeMismatch', {
+                  defaultValue:
+                    'The running gateway uses {{gateway}}{{asUser}}, but this status describes {{status}}. Anything below — messengers, sessions, jobs — is about {{status}}.',
+                  gateway: home.gatewayHome ?? '',
+                  status: home.statusHome ?? '',
+                  asUser:
+                    home.gatewayUser === null
+                      ? ''
+                      : t('dashboard.hermes.homeAsUser', {
+                          defaultValue: ' as {{user}}',
+                          user: home.gatewayUser
+                        })
+                })}
+              </div>
+              {home.statusCommand === null ? null : (
+                <div className="path-row">
+                  <div className="row-main">
+                    <div className="path-line">
+                      <span className="path-label">
+                        {t('dashboard.hermes.askGatewayHome', {
+                          defaultValue: "Ask the gateway's own home"
+                        })}
+                      </span>
+                      <span className="badge badge-warn">
+                        {t('dashboard.disk.consumerNeedsRoot', { defaultValue: 'root' })}
+                      </span>
+                    </div>
+                    <div className="mono dim truncate" title={home.statusCommand}>
+                      {home.statusCommand}
+                    </div>
+                  </div>
+                  <span className="row-actions">
+                    <CopyButton
+                      text={home.statusCommand}
+                      toastKey="toast.copiedCommand"
+                      labelKey="dashboard.processes.copyCommand"
+                      size={13}
+                    />
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={t('dashboard.disk.prepare', { defaultValue: 'Prepare in Console' })}
+                      title={t('dashboard.disk.prepare', { defaultValue: 'Prepare in Console' })}
+                      onClick={() => prepareText(home.statusCommand as string)}
+                    >
+                      <TerminalIcon size={13} />
+                    </button>
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : null}
+
           {hermes.platforms.length > 0 && connected.length === 0 ? (
             <Kv k={t('dashboard.hermes.supportedMessengers')}>
               <span className="dim truncate" title={hermes.platforms.map((p) => p.name).join(', ')}>

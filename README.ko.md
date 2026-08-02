@@ -313,7 +313,7 @@ WSLPad는 배포판 관리자나 마켓플레이스가 *아니고*, Docker Deskt
 없습니다. 정체성은 **Dashboard + Explorer + Console + 읽기 전용 MCP** — 그게
 전부입니다.
 
-## 현재 제한 사항 (v0.3.2)
+## 현재 제한 사항 (v0.4.0)
 
 - Windows x64 전용이며, 설치 프로그램은 서명되어 있지 않습니다(SmartScreen 경고)
 - 디스크 이미지 수치에는 Windows 레지스트리와 `fsutil`이 필요합니다. 둘 중 하나라도

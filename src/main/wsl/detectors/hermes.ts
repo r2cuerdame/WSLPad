@@ -1,12 +1,13 @@
 import { MAX_TEXT_FILE_BYTES, RUNNER_SLOW_TIMEOUT_MS } from '@shared/constants'
 import type {
+  HermesHomeInfo,
   HermesInfo,
   HermesPlatformInfo,
   HermesProcessInfo,
   HermesProfileInfo
 } from '@shared/types'
 import type { DistroRunner, RunResult } from '../contracts'
-import { assertValidDistroName } from '../escape'
+import { assertValidDistroName, shellQuote } from '../escape'
 
 /**
  * Hermes card data (goal.md §6.6). One batched Hidden-Runner script emits a
@@ -173,7 +174,8 @@ export function parseHermesOutput(stdout: string): HermesInfo {
     profiles: [],
     activeSessions: null,
     scheduledJobs: null,
-    dashboardPort: ports.includes(HERMES_DASHBOARD_PORT) ? HERMES_DASHBOARD_PORT : null
+    dashboardPort: ports.includes(HERMES_DASHBOARD_PORT) ? HERMES_DASHBOARD_PORT : null,
+    home: null
   }
 }
 
@@ -183,7 +185,7 @@ export const HERMES_DASHBOARD_PORT = 9119
 /** The part of HermesInfo that only Hermes itself can answer. */
 export type HermesCliDetail = Pick<
   HermesInfo,
-  'platforms' | 'profiles' | 'activeSessions' | 'scheduledJobs'
+  'platforms' | 'profiles' | 'activeSessions' | 'scheduledJobs' | 'home'
 >
 
 /**
@@ -202,6 +204,17 @@ printf '\\n%s\\n' STATUSEND
 printf '%s\\n' PROFILESBEGIN
 $t hermes profile list 2>/dev/null
 printf '\\n%s\\n' PROFILESEND
+printf '%s\\n' HOMEBEGIN
+printf 'STATUS_HOME=%s\\n' "\${HERMES_HOME:-$HOME/.hermes}"
+for u in hermes-gateway hermes-agent hermes; do
+  ls=$(systemctl show "$u.service" -p LoadState --value 2>/dev/null)
+  [ "$ls" = "loaded" ] || continue
+  printf 'GATEWAY_UNIT=%s\\n' "$u.service"
+  printf 'GATEWAY_USER=%s\\n' "$(systemctl show "$u.service" -p User --value 2>/dev/null)"
+  printf 'GATEWAY_ENV=%s\\n' "$(systemctl show "$u.service" -p Environment --value 2>/dev/null)"
+  break
+done
+printf '%s\\n' HOMEEND
 :
 `
 
@@ -284,6 +297,58 @@ export function parseHermesProfiles(text: string): HermesProfileInfo[] {
   return profiles
 }
 
+/**
+ * `systemctl show -p Environment --value` prints the unit's environment as one
+ * line of `KEY=value` pairs, quoted where a value contains spaces. Only
+ * HERMES_HOME is wanted, and PATH — which is enormous and full of `=` — must
+ * not be mistaken for it.
+ */
+export function hermesHomeFromEnvironment(line: string): string | null {
+  // systemd quotes the whole assignment when a value contains a space —
+  // `"HERMES_HOME=/root/my hermes"` — not just the value, so the quoted form
+  // has to be matched from the opening quote or the value is cut at the space.
+  const quoted = /(?:^|\s)"HERMES_HOME=([^"]*)"/.exec(line)
+  if (quoted !== null) return quoted[1] === '' ? null : quoted[1]
+  const bare = /(?:^|\s)HERMES_HOME=(\S+)/.exec(line)
+  return bare === null || bare[1] === '' ? null : bare[1]
+}
+
+/** Trailing slashes and a trailing `/.` must not make two equal homes differ. */
+function normalizeHome(path: string | null): string | null {
+  if (path === null) return null
+  const trimmed = path.replace(/\/+\.?$/, '')
+  return trimmed === '' ? '/' : trimmed
+}
+
+/**
+ * A mismatch is only claimed when both homes are known and differ. Everything
+ * unknown stays null: reporting "the gateway uses a different home" when we
+ * could not read the unit would send someone chasing a difference that may not
+ * exist.
+ */
+export function parseHermesHome(block: string): HermesHomeInfo | null {
+  const field = (key: string): string | null => {
+    const m = new RegExp(`^${key}=(.*)$`, 'm').exec(block)
+    const v = m?.[1]?.trim()
+    return v === undefined || v === '' ? null : v
+  }
+  const statusHome = normalizeHome(field('STATUS_HOME'))
+  const gatewayUnit = field('GATEWAY_UNIT')
+  const gatewayUser = field('GATEWAY_USER')
+  const env = field('GATEWAY_ENV')
+  const gatewayHome = normalizeHome(env === null ? null : hermesHomeFromEnvironment(env))
+  if (statusHome === null && gatewayHome === null && gatewayUnit === null) return null
+
+  // The command that would ask the gateway's own home, prepared never run.
+  const statusCommand =
+    gatewayHome !== null && statusHome !== null && gatewayHome !== statusHome
+      ? `sudo HERMES_HOME=${shellQuote(gatewayHome)} hermes status`
+      : null
+
+  return { statusHome, gatewayHome, gatewayUser, gatewayUnit, statusCommand }
+}
+
+
 export function parseHermesCliOutput(stdout: string): HermesCliDetail {
   const between = (begin: string, end: string): string => {
     const start = stdout.indexOf(begin)
@@ -297,6 +362,7 @@ export function parseHermesCliOutput(stdout: string): HermesCliDetail {
   return {
     platforms: parseHermesPlatforms(status),
     profiles: parseHermesProfiles(between('PROFILESBEGIN', 'PROFILESEND')),
+    home: parseHermesHome(between('HOMEBEGIN', 'HOMEEND')),
     activeSessions: parseCounter(sections.get('sessions') ?? [], /Active:\s*(\d+)/i),
     scheduledJobs: parseCounter(sections.get('scheduled jobs') ?? [], /Jobs:\s*(\d+)/i)
   }
