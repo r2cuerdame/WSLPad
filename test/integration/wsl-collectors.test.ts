@@ -20,6 +20,14 @@ const runner = new WslRunner()
 let distro: string | null = null
 
 beforeAll(async () => {
+  // Fixture-mode CI validates the deterministic backends and has no real WSL
+  // distribution to smoke-test. Some hosted Windows images still print a WSL
+  // setup/update message that resembles a distro list entry, so do not let
+  // that message turn this explicitly live suite into false failures.
+  if (process.env.WSLPAD_FIXTURE_MODE === '1') {
+    distro = null
+    return
+  }
   try {
     const distros = await listDistros(runner)
     distro = distros.find((d) => d.state === 'Running')?.name ?? distros[0]?.name ?? null

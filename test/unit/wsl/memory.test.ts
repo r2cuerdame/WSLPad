@@ -182,7 +182,9 @@ describe('createMemoryCollector', () => {
   })
 
   afterAll(() => {
-    rmSync(dir, { recursive: true, force: true })
+    // Windows Defender/indexing can briefly retain a handle after writeFile.
+    // Let Node retry the recursive removal instead of making cleanup flaky.
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   })
 
   const hostRunner = (text = TASKLIST): HostCommandRunner => vi.fn(async () => text)
