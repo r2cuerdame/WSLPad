@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
+import packageJson from '../../../package.json'
 import { MASKED_VALUE, MAX_TEXT_FILE_BYTES } from '@shared/constants'
 import type {
   DashboardSnapshot,
@@ -15,7 +16,7 @@ import { assertValidLinuxPath } from '../wsl/escape'
 import { isSecretName, maskTextFileContent } from './masking'
 import type { McpDeps } from './server'
 
-const SERVER_VERSION = '0.1.0'
+const SERVER_VERSION = packageJson.version
 const MAX_TREE_ENTRIES = 500
 const DEFAULT_TREE_DEPTH = 2
 const FORBIDDEN_READ_PREFIXES = ['/proc', '/sys', '/dev'] as const

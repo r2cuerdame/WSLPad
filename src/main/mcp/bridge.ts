@@ -7,8 +7,9 @@ import {
   ListToolsRequestSchema,
   type CallToolResult
 } from '@modelcontextprotocol/sdk/types.js'
+import packageJson from '../../../package.json'
 
-const BRIDGE_VERSION = '0.1.0'
+const BRIDGE_VERSION = packageJson.version
 
 /**
  * `--mcp-stdio` bridge (goal.md §11.1): exposes the local HTTP MCP endpoint
