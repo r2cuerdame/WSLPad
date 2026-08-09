@@ -54,6 +54,7 @@
   },
   "tray": {
     "open": "Ouvrir WSLPad",
+    "settings": "Paramètres",
     "refresh": "Actualiser",
     "pauseMonitoring": "Suspendre la surveillance",
     "resumeMonitoring": "Reprendre la surveillance",

@@ -54,6 +54,7 @@
   },
   "tray": {
     "open": "Open WSLPad",
+    "settings": "Settings",
     "refresh": "Refresh",
     "pauseMonitoring": "Pause monitoring",
     "resumeMonitoring": "Resume monitoring",

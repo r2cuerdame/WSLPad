@@ -7,6 +7,7 @@ import { resourcePath } from './resources'
 
 export interface TrayHost {
   showMainWindow(): void
+  openSettings(): void
   toggleMainWindow(): void
   refreshAll(): void
   isMonitoringPaused(): boolean
@@ -48,6 +49,7 @@ export class AppTray {
     this.lastFirstLabel = t('tray.open')
     const menu = Menu.buildFromTemplate([
       { label: t('tray.open'), click: () => this.host.showMainWindow() },
+      { label: t('tray.settings'), click: () => this.host.openSettings() },
       { label: t('tray.refresh'), click: () => this.host.refreshAll() },
       {
         label: this.host.isMonitoringPaused() ? t('tray.resumeMonitoring') : t('tray.pauseMonitoring'),

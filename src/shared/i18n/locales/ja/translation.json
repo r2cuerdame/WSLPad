@@ -54,6 +54,7 @@
   },
   "tray": {
     "open": "WSLPad を開く",
+    "settings": "設定",
     "refresh": "更新",
     "pauseMonitoring": "監視を一時停止",
     "resumeMonitoring": "監視を再開",

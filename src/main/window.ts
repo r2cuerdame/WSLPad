@@ -7,6 +7,28 @@ export interface MainWindowHost {
   showOnReady?: boolean
 }
 
+/**
+ * Renderer navigation events sent while a BrowserWindow is still loading are
+ * dropped. Defer exactly until the current document is ready, while keeping
+ * the ordinary already-loaded path synchronous.
+ */
+export function sendWhenRendererReady(
+  win: BrowserWindow,
+  channel: string,
+  payload: unknown
+): void {
+  const send = (): void => {
+    if (!win.isDestroyed()) win.webContents.send(channel, payload)
+  }
+
+  if (win.webContents.isLoading()) {
+    win.webContents.once('did-finish-load', send)
+    return
+  }
+
+  send()
+}
+
 export function createMainWindow(host: MainWindowHost): BrowserWindow {
   const win = new BrowserWindow({
     width: 1180,

@@ -6,7 +6,7 @@ import { IpcChannels } from '@shared/ipc'
 import { updateLabel } from '@shared/update-label'
 import type { LocaleCode, Settings, SettingsPatch, UpdateStatus } from '@shared/types'
 import { AppTray } from './tray'
-import { createMainWindow } from './window'
+import { createMainWindow, sendWhenRendererReady } from './window'
 import { registerIpcHandlers, removeIpcHandlers } from './ipc/handlers'
 import { createBackends, type Backends } from './wsl/factory'
 import { SnapshotStore } from './state/store'
@@ -163,6 +163,7 @@ export class WslPadApp {
     this.tray = new AppTray(
       {
         showMainWindow: () => this.showMainWindow(),
+        openSettings: () => this.openSettings(),
         toggleMainWindow: () => this.toggleMainWindow(),
         refreshAll: () => {
           void this.store.refreshFast()
@@ -260,6 +261,14 @@ export class WslPadApp {
     if (this.window.isMinimized()) this.window.restore()
     this.window.show()
     this.window.focus()
+  }
+
+  openSettings(): void {
+    this.showMainWindow()
+    const target = this.window
+    if (target && !target.isDestroyed()) {
+      sendWhenRendererReady(target, IpcChannels.evNavigateSettings, undefined)
+    }
   }
 
   toggleMainWindow(): void {

@@ -57,6 +57,7 @@ const status = (over: Partial<UpdateStatus>): UpdateStatus => ({ ...IDLE, ...ove
 function makeHost(update: UpdateStatus = IDLE) {
   return {
     showMainWindow: vi.fn(),
+    openSettings: vi.fn(),
     toggleMainWindow: vi.fn(),
     refreshAll: vi.fn(),
     isMonitoringPaused: () => false,
@@ -152,6 +153,17 @@ describe('project links', () => {
       expect(parsed.host).toBe('github.com')
       expect(parsed.pathname).toContain('r2cuerdame')
     }
+  })
+})
+
+describe('tray settings entry', () => {
+  it('opens the settings screen in the main window', () => {
+    const host = makeHost()
+    new AppTray(host, i18n)
+
+    itemIn(lastMenu(), 'tray.settings').click?.({ checked: false })
+
+    expect(host.openSettings).toHaveBeenCalledOnce()
   })
 })
 

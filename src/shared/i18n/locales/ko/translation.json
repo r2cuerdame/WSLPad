@@ -54,6 +54,7 @@
   },
   "tray": {
     "open": "WSLPad 열기",
+    "settings": "설정",
     "refresh": "새로고침",
     "pauseMonitoring": "모니터링 일시 중지",
     "resumeMonitoring": "모니터링 재개",

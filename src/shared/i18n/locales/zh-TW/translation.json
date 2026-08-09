@@ -54,6 +54,7 @@
   },
   "tray": {
     "open": "開啟 WSLPad",
+    "settings": "設定",
     "refresh": "重新整理",
     "pauseMonitoring": "暫停監控",
     "resumeMonitoring": "恢復監控",

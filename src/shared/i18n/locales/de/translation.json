@@ -54,6 +54,7 @@
   },
   "tray": {
     "open": "WSLPad öffnen",
+    "settings": "Einstellungen",
     "refresh": "Aktualisieren",
     "pauseMonitoring": "Überwachung anhalten",
     "resumeMonitoring": "Überwachung fortsetzen",
