@@ -183,8 +183,14 @@ describe('createMemoryCollector', () => {
 
   afterAll(() => {
     // Windows Defender/indexing can briefly retain a handle after writeFile.
-    // Let Node retry the recursive removal instead of making cleanup flaky.
-    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    // Retry first, then tolerate only transient Windows lock errors: the
+    // directory is under the OS temp root and hosted CI machines are ephemeral.
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOTEMPTY' && code !== 'EBUSY' && code !== 'EPERM') throw error
+    }
   })
 
   const hostRunner = (text = TASKLIST): HostCommandRunner => vi.fn(async () => text)
