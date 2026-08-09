@@ -1,4 +1,4 @@
-import { BrowserWindow, Notification, app } from 'electron'
+import { BrowserWindow, Notification, app, powerMonitor } from 'electron'
 import { join } from 'path'
 import type { i18n as I18nInstance } from 'i18next'
 import { createI18n, detectLocale } from '@shared/i18n'
@@ -17,6 +17,7 @@ import { getAutostartEnabled, setAutostartEnabled, shouldStartHidden } from './a
 import { AppUpdater, createPendingInstallStore } from './updater'
 import { McpServerHost } from './mcp/server'
 import { resolveCommand } from './wsl/resolve-command'
+import { DiagnosticsService } from './state/diagnostics'
 
 /** Composition root: wires settings, backends, store, polling, console, MCP, tray, updater. */
 export class WslPadApp {
@@ -31,6 +32,9 @@ export class WslPadApp {
   private terminals!: TerminalManager
   private mcp!: McpServerHost
   private updater!: AppUpdater
+  private diagnostics!: DiagnosticsService
+  private readonly onSuspend = (): void => this.diagnostics?.recordPower('suspend')
+  private readonly onResume = (): void => this.diagnostics?.recordPower('resume')
   private updateStatus: UpdateStatus = {
     state: 'idle',
     version: null,
@@ -49,10 +53,24 @@ export class WslPadApp {
 
     this.backends = createBackends()
     this.store = new SnapshotStore(this.backends.provider)
+    this.diagnostics = new DiagnosticsService(
+      this.backends.runner,
+      () => this.store.get(),
+      this.backends.fixtureMode
+        ? {
+            lookupHost: async () => ({ address: '93.184.216.34' }),
+            connectLocalhost: async (port) => `Fixture connection to 127.0.0.1:${port}`
+          }
+        : {}
+    )
+    this.diagnostics.subscribe((state) => this.send(IpcChannels.evDiagnostics, state))
     this.store.subscribe((snapshot) => {
+      this.diagnostics.observe(snapshot)
       this.send(IpcChannels.evSnapshot, snapshot)
       this.tray?.update()
     })
+    powerMonitor.on('suspend', this.onSuspend)
+    powerMonitor.on('resume', this.onResume)
 
     this.terminals = new TerminalManager(this.backends.consoleFactory, {
       onData: (ev) => this.send(IpcChannels.evTerminalData, ev),
@@ -117,6 +135,7 @@ export class WslPadApp {
       settings: this.settings,
       mcp: this.mcp,
       updater: this.updater,
+      diagnostics: this.diagnostics,
       runner: this.backends.runner,
       getWindow: () => this.window,
       applySettingsPatch: (patch) => this.applySettingsPatch(patch),
@@ -297,6 +316,8 @@ export class WslPadApp {
 
   dispose(): void {
     removeIpcHandlers()
+    powerMonitor.off('suspend', this.onSuspend)
+    powerMonitor.off('resume', this.onResume)
     this.polling?.stop()
     this.terminals?.disposeAll()
     void this.mcp?.stop()

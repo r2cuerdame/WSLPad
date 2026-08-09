@@ -934,6 +934,14 @@
     "pathConversionFailed": "Esta ruta no se puede convertir",
     "consoleHint": "Puedes ejecutar el siguiente comando en la consola:"
   },
+  "diagnostics": {
+    "title": "Diagnóstico",
+    "intro": "Esta cronología de sesión registra cambios importantes de WSL. Las pruebas de red solo se ejecutan cuando las solicita y nunca forman parte del sondeo en segundo plano.",
+    "port": "Puerto localhost de Windows", "portOptional": "Puerto (opcional)", "runCheck": "Comprobar red", "checking": "Comprobando…", "export": "Exportar diagnóstico", "invalidPort": "Introduzca un puerto entre 1 y 65535 o déjelo vacío.", "lastCheck": "Última comprobación de red", "noCheck": "No se ha ejecutado ninguna comprobación de red en esta sesión.", "timeline": "Cronología de incidentes", "noIncidents": "No se observaron incidentes en esta sesión.", "checkComplete": "Comprobación terminada — {{failed}} fallos", "exported": "Diagnóstico exportado a {{path}}",
+    "probe": { "distro": "Respuesta de la distribución", "wslDns": "DNS desde WSL", "windowsDns": "DNS desde Windows", "defaultRoute": "Ruta predeterminada WSL", "windowsLocalhost": "Puerto localhost de Windows" },
+    "status": { "pass": "Correcto", "fail": "Fallo", "unknown": "Desconocido" },
+    "incident": { "monitoringStarted": "Supervisión de sesión iniciada", "distroSelected": "Distribución {{distro}} seleccionada", "distroState": "Distribución {{distro}}: {{from}} → {{to}}", "unresponsive": "La distribución {{distro}} dejó de responder", "recovered": "La distribución {{distro}} vuelve a responder", "networkMode": "Modo de red efectivo cambiado: {{from}} → {{to}}", "dnsChanged": "La configuración DNS cambió", "consoleFailed": "Error de consola: {{status}}", "consoleRecovered": "La consola se recuperó", "suspend": "Windows está entrando en suspensión", "resume": "Windows se reanudó tras la suspensión", "networkCheck": "Comprobación terminada: {{failed}} fallos, {{unknown}} desconocidos" }
+  },
   "warnings": {
     "distroStopped": "La distribución {{distro}} está detenida",
     "systemdDisabled": "systemd no está habilitado",

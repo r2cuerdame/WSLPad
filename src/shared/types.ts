@@ -653,6 +653,63 @@ export interface DistroLiveness {
   failures: number
 }
 
+export type IncidentSeverity = 'info' | 'warning' | 'recovery'
+
+export type IncidentKind =
+  | 'monitoring-started'
+  | 'power-suspend'
+  | 'power-resume'
+  | 'distro-selected'
+  | 'distro-state'
+  | 'distro-unresponsive'
+  | 'distro-recovered'
+  | 'network-mode'
+  | 'dns-changed'
+  | 'console-failed'
+  | 'console-recovered'
+  | 'network-check'
+
+/**
+ * A meaningful state transition observed during this app session. The
+ * resolved English message keeps JSON exports useful while messageKey/params
+ * let the renderer localize it. Nothing here is persisted to disk.
+ */
+export interface IncidentEvent {
+  id: string
+  at: string
+  kind: IncidentKind
+  severity: IncidentSeverity
+  distro: string | null
+  messageKey: string
+  params?: Record<string, string | number>
+  message: string
+  detail: string | null
+}
+
+export type NetworkProbeStatus = 'pass' | 'fail' | 'unknown'
+
+export interface NetworkProbeResult {
+  id: 'distro' | 'wsl-dns' | 'windows-dns' | 'default-route' | 'windows-localhost'
+  status: NetworkProbeStatus
+  durationMs: number
+  detail: string
+}
+
+/** One user-triggered, bounded network check. It is never run by polling. */
+export interface NetworkCheckResult {
+  distro: string
+  targetPort: number | null
+  startedAt: string
+  completedAt: string
+  probes: NetworkProbeResult[]
+}
+
+/** Session-only diagnostics state, separate from the MCP/dashboard snapshot. */
+export interface DiagnosticsState {
+  incidents: IncidentEvent[]
+  lastNetworkCheck: NetworkCheckResult | null
+}
+
 export interface WarningInfo {
   id: string
   severity: WarningSeverity

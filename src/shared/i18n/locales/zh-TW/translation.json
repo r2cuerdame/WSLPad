@@ -934,6 +934,14 @@
     "pathConversionFailed": "此路徑無法轉換",
     "consoleHint": "可在主控台使用以下命令："
   },
+  "diagnostics": {
+    "title": "診斷",
+    "intro": "記錄本次工作階段中重要的 WSL 變化。網路檢查只會在您要求時執行，不屬於背景輪詢。",
+    "port": "Windows localhost 連接埠", "portOptional": "連接埠（選填）", "runCheck": "執行網路檢查", "checking": "檢查中…", "export": "匯出診斷", "invalidPort": "請輸入 1 到 65535 之間的連接埠，或留空。", "lastCheck": "上次網路檢查", "noCheck": "本次工作階段尚未執行網路檢查。", "timeline": "事件時間軸", "noIncidents": "本次工作階段未觀察到事件。", "checkComplete": "網路檢查完成 — {{failed}} 項失敗", "exported": "診斷套件已匯出至 {{path}}",
+    "probe": { "distro": "發行版回應", "wslDns": "WSL DNS", "windowsDns": "Windows DNS", "defaultRoute": "WSL 預設路由", "windowsLocalhost": "Windows localhost 連接埠" },
+    "status": { "pass": "通過", "fail": "失敗", "unknown": "未知" },
+    "incident": { "monitoringStarted": "工作階段監控已開始", "distroSelected": "已選擇發行版 {{distro}}", "distroState": "發行版 {{distro}}：{{from}} → {{to}}", "unresponsive": "發行版 {{distro}} 停止回應", "recovered": "發行版 {{distro}} 已恢復回應", "networkMode": "有效網路模式已變更：{{from}} → {{to}}", "dnsChanged": "DNS 設定已變更", "consoleFailed": "主控台失敗：{{status}}", "consoleRecovered": "主控台已復原", "suspend": "Windows 正在進入睡眠", "resume": "Windows 已從睡眠中恢復", "networkCheck": "網路檢查完成：{{failed}} 項失敗，{{unknown}} 項未知" }
+  },
   "warnings": {
     "distroStopped": "發行版 {{distro}} 已停止",
     "systemdDisabled": "systemd 未啟用",

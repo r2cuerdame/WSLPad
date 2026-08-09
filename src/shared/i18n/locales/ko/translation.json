@@ -934,6 +934,44 @@
     "pathConversionFailed": "이 경로는 변환할 수 없습니다",
     "consoleHint": "콘솔에서 다음 명령을 사용할 수 있습니다:"
   },
+  "diagnostics": {
+    "title": "진단",
+    "intro": "이 세션에서 의미 있는 WSL 변화를 기록합니다. 네트워크 검사는 사용자가 요청할 때만 실행되며 백그라운드 폴링에는 포함되지 않습니다.",
+    "port": "Windows localhost 포트",
+    "portOptional": "포트(선택 사항)",
+    "runCheck": "네트워크 검사",
+    "checking": "검사 중…",
+    "export": "진단 내보내기",
+    "invalidPort": "1~65535 사이의 포트를 입력하거나 비워 두세요.",
+    "lastCheck": "최근 네트워크 검사",
+    "noCheck": "이 세션에서 실행한 네트워크 검사가 없습니다.",
+    "timeline": "사건 타임라인",
+    "noIncidents": "이 세션에서 감지된 사건이 없습니다.",
+    "checkComplete": "네트워크 검사 완료 — {{failed}}개 실패",
+    "exported": "진단 번들을 {{path}}에 내보냈습니다",
+    "probe": {
+      "distro": "배포판 응답",
+      "wslDns": "WSL DNS",
+      "windowsDns": "Windows DNS",
+      "defaultRoute": "WSL 기본 경로",
+      "windowsLocalhost": "Windows localhost 포트"
+    },
+    "status": { "pass": "통과", "fail": "실패", "unknown": "알 수 없음" },
+    "incident": {
+      "monitoringStarted": "세션 모니터링 시작",
+      "distroSelected": "{{distro}} 배포판 선택",
+      "distroState": "{{distro}} 배포판: {{from}} → {{to}}",
+      "unresponsive": "{{distro}} 배포판이 응답을 멈췄습니다",
+      "recovered": "{{distro}} 배포판이 다시 응답합니다",
+      "networkMode": "실제 네트워크 모드 변경: {{from}} → {{to}}",
+      "dnsChanged": "DNS 구성이 변경되었습니다",
+      "consoleFailed": "콘솔 실패: {{status}}",
+      "consoleRecovered": "콘솔이 복구되었습니다",
+      "suspend": "Windows가 절전 모드로 전환됩니다",
+      "resume": "Windows가 절전 모드에서 복귀했습니다",
+      "networkCheck": "네트워크 검사 완료: {{failed}}개 실패, {{unknown}}개 알 수 없음"
+    }
+  },
   "warnings": {
     "distroStopped": "배포판 {{distro}}이(가) 중지되어 있습니다",
     "systemdDisabled": "systemd가 활성화되어 있지 않습니다",

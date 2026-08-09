@@ -934,6 +934,14 @@
     "pathConversionFailed": "Este caminho não pode ser convertido",
     "consoleHint": "Você pode executar o seguinte comando no console:"
   },
+  "diagnostics": {
+    "title": "Diagnóstico",
+    "intro": "Esta linha do tempo da sessão registra mudanças importantes do WSL. As verificações de rede só são executadas quando solicitadas e nunca fazem parte da sondagem em segundo plano.",
+    "port": "Porta localhost do Windows", "portOptional": "Porta (opcional)", "runCheck": "Verificar rede", "checking": "Verificando…", "export": "Exportar diagnóstico", "invalidPort": "Digite uma porta entre 1 e 65535 ou deixe em branco.", "lastCheck": "Última verificação de rede", "noCheck": "Nenhuma verificação de rede foi executada nesta sessão.", "timeline": "Linha do tempo de incidentes", "noIncidents": "Nenhum incidente observado nesta sessão.", "checkComplete": "Verificação concluída — {{failed}} falhas", "exported": "Diagnóstico exportado para {{path}}",
+    "probe": { "distro": "Resposta da distribuição", "wslDns": "DNS pelo WSL", "windowsDns": "DNS pelo Windows", "defaultRoute": "Rota padrão do WSL", "windowsLocalhost": "Porta localhost do Windows" },
+    "status": { "pass": "Aprovado", "fail": "Falha", "unknown": "Desconhecido" },
+    "incident": { "monitoringStarted": "Monitoramento da sessão iniciado", "distroSelected": "Distribuição {{distro}} selecionada", "distroState": "Distribuição {{distro}}: {{from}} → {{to}}", "unresponsive": "A distribuição {{distro}} parou de responder", "recovered": "A distribuição {{distro}} voltou a responder", "networkMode": "Modo de rede efetivo alterado: {{from}} → {{to}}", "dnsChanged": "A configuração de DNS mudou", "consoleFailed": "Falha no console: {{status}}", "consoleRecovered": "O console se recuperou", "suspend": "O Windows está entrando em suspensão", "resume": "O Windows retomou após a suspensão", "networkCheck": "Verificação concluída: {{failed}} falhas, {{unknown}} desconhecidos" }
+  },
   "warnings": {
     "distroStopped": "A distribuição {{distro}} está parada",
     "systemdDisabled": "O systemd não está habilitado",

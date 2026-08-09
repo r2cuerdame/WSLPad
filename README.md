@@ -30,10 +30,10 @@ and an MCP surface — without ever changing your system behind your back.
 
 ### Dashboard — read-only state, section by section
 
-Pick a section on the left, read it on the right — sixteen of them, from the
+Pick a section on the left, read it on the right — seventeen of them, from the
 overview to warnings. Tables get the full window instead of a cramped card, and
 the list carries live badges. The full inventory is
-[below](#what-you-can-actually-see); four sections deserve calling out because
+[below](#what-you-can-actually-see); five sections deserve calling out because
 they answer questions WSL itself leaves unanswered:
 
 **Disk image** — your distro's `ext4.vhdx` grows and never shrinks, and `df`
@@ -69,6 +69,15 @@ there is a port range and a process-name filter — "who holds 5173" is a
 question, not a scrolling exercise.
 
 ![Ports](docs/screenshots/ports.png)
+
+**Diagnostics** — a session-only incident timeline connects sleep and resume,
+distro responsiveness, DNS and network-mode changes, Console recovery, and
+explicit network checks. The check compares WSL and Windows DNS, the WSL
+default route, and an optional Windows localhost port. Nothing probes the
+network in the background; diagnostic export previews the privacy-sensitive
+fields before saving.
+
+![Diagnostics](docs/screenshots/diagnostics.png)
 
 The Dashboard never executes anything. Buttons like *kill*, *restart service*
 or *sudoedit* only **prepare** the command in the Console input — you review,
@@ -238,6 +247,11 @@ resolution: whether `/etc/resolv.conf` is the generated symlink or hand-edited,
 the effective `generateResolvConf`, DNS tunnelling, the nameservers in force,
 and what the Windows adapter hands out. Plus the Windows **port forwarding** rules: under NAT the distro is handed a new address on every WSL restart, so a `netsh portproxy` rule added once quietly starts forwarding into nothing. WSLPad puts each rule next to the address the distro has right now and says which ones are dead.
 
+**Diagnostics** — a session-only timeline of sleep/resume, distro, DNS,
+network-mode and Console transitions; the latest user-triggered WSL/Windows
+network check; and a diagnostic JSON bundle whose local paths, host details and
+network addresses are disclosed before export. The timeline is not persisted.
+
 **Warnings** — stopped distro, systemd off, low disk, failed units, port
 conflicts, background query failures, MCP problems.
 
@@ -343,7 +357,7 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.5.0)
+## Current limitations (v0.6.0)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is

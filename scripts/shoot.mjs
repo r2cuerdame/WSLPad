@@ -22,6 +22,7 @@ const SHOTS = [
   { name: 'disk', section: 'disk' },
   { name: 'wslconfig', section: 'wslconfig' },
   { name: 'network', section: 'network' },
+  { name: 'diagnostics', section: 'diagnostics', diagnostics: true },
   { name: 'tools', section: 'tools' },
   { name: 'docker', section: 'docker' },
   { name: 'hermes', section: 'hermes' },
@@ -69,6 +70,11 @@ for (const shot of shots) {
   } else {
     await page.getByRole('tab', { name: 'Dashboard' }).click()
     await page.getByTestId(`dashboard-nav-${shot.section}`).click()
+    if (shot.diagnostics) {
+      await page.getByPlaceholder('Port (optional)').fill('5173')
+      await page.getByRole('button', { name: 'Run network check' }).click()
+      await page.getByText('Network check completed: 0 failed, 3 unknown').waitFor()
+    }
   }
   await page.waitForTimeout(900)
   await page.screenshot({ path: join(OUT, `${shot.name}.png`) })

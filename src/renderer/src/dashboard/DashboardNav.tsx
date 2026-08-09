@@ -8,6 +8,7 @@ import {
   GaugeIcon,
   GearIcon,
   InfoIcon,
+  HistoryIcon,
   ListIcon,
   PackageIcon,
   PlugIcon,
@@ -24,6 +25,7 @@ export type DashboardSectionId =
   | 'disk'
   | 'wslconfig'
   | 'network'
+  | 'diagnostics'
   | 'paths'
   | 'configuration'
   | 'tools'
@@ -51,6 +53,7 @@ export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   // Traffic leaving the machine: the arrow icon, not the plug the Ports
   // section already owns, so the two are never confused in the list.
   { id: 'network', titleKey: 'dashboard.network.title', Icon: ExternalIcon },
+  { id: 'diagnostics', titleKey: 'diagnostics.title', Icon: HistoryIcon },
   { id: 'paths', titleKey: 'dashboard.paths.title', Icon: FolderIcon },
   { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },

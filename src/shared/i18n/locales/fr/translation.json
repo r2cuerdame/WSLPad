@@ -934,6 +934,14 @@
     "pathConversionFailed": "Ce chemin ne peut pas être converti",
     "consoleHint": "Vous pouvez exécuter la commande suivante dans la console :"
   },
+  "diagnostics": {
+    "title": "Diagnostic",
+    "intro": "Cette chronologie de session enregistre les changements WSL importants. Les tests réseau ne s’exécutent qu’à votre demande et ne font jamais partie de la surveillance en arrière-plan.",
+    "port": "Port localhost Windows", "portOptional": "Port (facultatif)", "runCheck": "Tester le réseau", "checking": "Test en cours…", "export": "Exporter le diagnostic", "invalidPort": "Saisissez un port entre 1 et 65535 ou laissez vide.", "lastCheck": "Dernier test réseau", "noCheck": "Aucun test réseau n’a été exécuté pendant cette session.", "timeline": "Chronologie des incidents", "noIncidents": "Aucun incident observé pendant cette session.", "checkComplete": "Test réseau terminé — {{failed}} échecs", "exported": "Diagnostic exporté vers {{path}}",
+    "probe": { "distro": "Réponse de la distribution", "wslDns": "DNS depuis WSL", "windowsDns": "DNS depuis Windows", "defaultRoute": "Route WSL par défaut", "windowsLocalhost": "Port localhost Windows" },
+    "status": { "pass": "Réussi", "fail": "Échec", "unknown": "Inconnu" },
+    "incident": { "monitoringStarted": "Surveillance de session démarrée", "distroSelected": "Distribution {{distro}} sélectionnée", "distroState": "Distribution {{distro}} : {{from}} → {{to}}", "unresponsive": "La distribution {{distro}} ne répond plus", "recovered": "La distribution {{distro}} répond à nouveau", "networkMode": "Mode réseau effectif modifié : {{from}} → {{to}}", "dnsChanged": "La configuration DNS a changé", "consoleFailed": "Échec de la console : {{status}}", "consoleRecovered": "La console a récupéré", "suspend": "Windows entre en veille", "resume": "Windows a repris après la veille", "networkCheck": "Test réseau terminé : {{failed}} échecs, {{unknown}} inconnus" }
+  },
   "warnings": {
     "distroStopped": "La distribution {{distro}} est arrêtée",
     "systemdDisabled": "systemd n'est pas activé",

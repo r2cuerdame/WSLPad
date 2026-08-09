@@ -42,6 +42,21 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     await expect(detail).toContainText('Windows')
   })
 
+  test('runs session-only diagnostics only after an explicit click', async () => {
+    const { page } = launched
+    await page.getByTestId('dashboard-nav-diagnostics').click()
+    const detail = page.getByTestId('dashboard-detail')
+    await expect(detail).toContainText('Session monitoring started', { timeout: 15000 })
+    await expect(detail).toContainText('No network check has run in this session.')
+
+    await page.getByPlaceholder('Port (optional)').fill('5173')
+    await page.getByRole('button', { name: 'Run network check' }).click()
+    await expect(detail).toContainText('Distribution response')
+    await expect(detail).toContainText('Fixture connection to 127.0.0.1:5173')
+    await expect(detail.getByText('Pass', { exact: true })).toHaveCount(2)
+    await expect(detail).toContainText('Network check completed: 0 failed, 3 unknown')
+  })
+
   // Both facts are collected on two different machines and only mean something
   // side by side: the file says one thing, the running system does another.
   test('reports interop and the login user as the running system has them', async () => {
@@ -163,7 +178,7 @@ test.describe('the detail panel ends where its content ends (issue #69)', () => 
   test('no section ever shows two scrollbars at once', async () => {
     const { page } = launched
     await page.setViewportSize({ width: 1280, height: 820 })
-    for (const id of ['tools', 'ports', 'services', 'disk', 'wslconfig', 'docker']) {
+    for (const id of ['tools', 'ports', 'services', 'disk', 'wslconfig', 'docker', 'diagnostics']) {
       await page.getByTestId(`dashboard-nav-${id}`).click()
       await page.waitForTimeout(150)
       const bars = await page.evaluate(() => {

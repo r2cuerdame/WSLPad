@@ -934,6 +934,27 @@
     "pathConversionFailed": "このパスは変換できません",
     "consoleHint": "コンソールで次のコマンドを使用できます:"
   },
+  "diagnostics": {
+    "title": "診断",
+    "intro": "このセッションで重要な WSL の変化を記録します。ネットワーク検査は要求したときだけ実行され、バックグラウンド監視には含まれません。",
+    "port": "Windows localhost ポート",
+    "portOptional": "ポート（任意）",
+    "runCheck": "ネットワーク検査",
+    "checking": "検査中…",
+    "export": "診断をエクスポート",
+    "invalidPort": "1～65535 のポートを入力するか、空欄にしてください。",
+    "lastCheck": "前回のネットワーク検査",
+    "noCheck": "このセッションではまだネットワーク検査を実行していません。",
+    "timeline": "インシデント履歴",
+    "noIncidents": "このセッションでインシデントは検出されていません。",
+    "checkComplete": "ネットワーク検査完了 — {{failed}} 件失敗",
+    "exported": "診断バンドルを {{path}} にエクスポートしました",
+    "probe": { "distro": "ディストリビューション応答", "wslDns": "WSL の DNS", "windowsDns": "Windows の DNS", "defaultRoute": "WSL デフォルトルート", "windowsLocalhost": "Windows localhost ポート" },
+    "status": { "pass": "合格", "fail": "失敗", "unknown": "不明" },
+    "incident": {
+      "monitoringStarted": "セッション監視を開始しました", "distroSelected": "ディストリビューション {{distro}} を選択", "distroState": "ディストリビューション {{distro}}: {{from}} → {{to}}", "unresponsive": "ディストリビューション {{distro}} が応答しなくなりました", "recovered": "ディストリビューション {{distro}} が再び応答しています", "networkMode": "有効なネットワークモードが変更されました: {{from}} → {{to}}", "dnsChanged": "DNS 構成が変更されました", "consoleFailed": "コンソール失敗: {{status}}", "consoleRecovered": "コンソールが復旧しました", "suspend": "Windows がスリープに移行します", "resume": "Windows がスリープから復帰しました", "networkCheck": "ネットワーク検査完了: {{failed}} 件失敗、{{unknown}} 件不明"
+    }
+  },
   "warnings": {
     "distroStopped": "ディストリビューション {{distro}} は停止しています",
     "systemdDisabled": "systemd が有効になっていません",

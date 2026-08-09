@@ -142,6 +142,13 @@ export const ListIcon = icon(
 
 export const ActivityIcon = icon(<path d="M1.6 8h2.9l2-5.2 3 10.4 2-5.2h2.9" />)
 
+export const HistoryIcon = icon(
+  <>
+    <path d="M3.2 4.1A5.7 5.7 0 1 1 2.3 10" />
+    <path d="M3.2 1.8v2.8H.5M8 4.5V8l2.4 1.5" />
+  </>
+)
+
 export const ServerIcon = icon(
   <>
     <rect x="2.2" y="2.6" width="11.6" height="4.6" rx="1.2" />

@@ -8,6 +8,8 @@ import type {
   McpClientKind,
   McpRegisterResult,
   McpStatus,
+  DiagnosticsState,
+  NetworkCheckResult,
   Settings,
   SettingsPatch,
   TerminalDataEvent,
@@ -38,6 +40,9 @@ export const IpcChannels = {
   serviceLog: 'wslpad:service:log',
   llmCopyMarkdown: 'wslpad:llm:copy-markdown',
   llmExportJson: 'wslpad:llm:export-json',
+  diagnosticsGet: 'wslpad:diagnostics:get',
+  diagnosticsNetworkCheck: 'wslpad:diagnostics:network-check',
+  diagnosticsExport: 'wslpad:diagnostics:export',
 
   // explorer
   explorerList: 'wslpad:explorer:list',
@@ -122,6 +127,7 @@ export const IpcChannels = {
   evSettings: 'wslpad:ev:settings',
   evUpdate: 'wslpad:ev:update',
   evMcp: 'wslpad:ev:mcp',
+  evDiagnostics: 'wslpad:ev:diagnostics',
   evNavigateSettings: 'wslpad:ev:navigate-settings'
 } as const
 
@@ -159,6 +165,15 @@ export interface WslPadApi {
   serviceLog(unit: string, scope: ServiceScope, lines?: number): Promise<ServiceLog>
   copyLlmMarkdown(preset?: LlmPreset): Promise<string>
   exportLlmJson(): Promise<string | null>
+
+  diagnostics: {
+    get(): Promise<DiagnosticsState>
+    /** Port is optional; when present Windows localhost is tested too. */
+    runNetworkCheck(port?: number): Promise<NetworkCheckResult>
+    /** Privacy-previewed JSON bundle containing the masked snapshot and session diagnostics. */
+    exportBundle(): Promise<string | null>
+    onChange(cb: (state: DiagnosticsState) => void): () => void
+  }
 
   explorer: {
     list(path: string, opts?: ExplorerListOptions): Promise<FileEntry[]>

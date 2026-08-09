@@ -934,6 +934,14 @@
     "pathConversionFailed": "Dieser Pfad kann nicht konvertiert werden",
     "consoleHint": "Sie können den folgenden Befehl in der Konsole ausführen:"
   },
+  "diagnostics": {
+    "title": "Diagnose",
+    "intro": "Diese sitzungsbezogene Zeitleiste zeichnet wichtige WSL-Änderungen auf. Netzwerkprüfungen laufen nur auf Anforderung und nie als Teil der Hintergrundabfrage.",
+    "port": "Windows-Localhost-Port", "portOptional": "Port (optional)", "runCheck": "Netzwerk prüfen", "checking": "Prüfung läuft…", "export": "Diagnose exportieren", "invalidPort": "Geben Sie einen Port von 1 bis 65535 ein oder lassen Sie das Feld leer.", "lastCheck": "Letzte Netzwerkprüfung", "noCheck": "In dieser Sitzung wurde noch keine Netzwerkprüfung ausgeführt.", "timeline": "Vorfallszeitleiste", "noIncidents": "In dieser Sitzung wurden keine Vorfälle beobachtet.", "checkComplete": "Netzwerkprüfung abgeschlossen — {{failed}} fehlgeschlagen", "exported": "Diagnosepaket nach {{path}} exportiert",
+    "probe": { "distro": "Antwort der Distribution", "wslDns": "DNS aus WSL", "windowsDns": "DNS aus Windows", "defaultRoute": "WSL-Standardroute", "windowsLocalhost": "Windows-Localhost-Port" },
+    "status": { "pass": "Bestanden", "fail": "Fehler", "unknown": "Unbekannt" },
+    "incident": { "monitoringStarted": "Sitzungsüberwachung gestartet", "distroSelected": "Distribution {{distro}} ausgewählt", "distroState": "Distribution {{distro}}: {{from}} → {{to}}", "unresponsive": "Distribution {{distro}} antwortet nicht mehr", "recovered": "Distribution {{distro}} antwortet wieder", "networkMode": "Effektiver Netzwerkmodus geändert: {{from}} → {{to}}", "dnsChanged": "DNS-Konfiguration geändert", "consoleFailed": "Konsole fehlgeschlagen: {{status}}", "consoleRecovered": "Konsole wiederhergestellt", "suspend": "Windows wechselt in den Ruhezustand", "resume": "Windows wurde aus dem Ruhezustand fortgesetzt", "networkCheck": "Netzwerkprüfung abgeschlossen: {{failed}} fehlgeschlagen, {{unknown}} unbekannt" }
+  },
   "warnings": {
     "distroStopped": "Distribution {{distro}} ist gestoppt",
     "systemdDisabled": "systemd ist nicht aktiviert",

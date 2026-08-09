@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannels, type WslPadApi } from '@shared/ipc'
 import type {
+  DiagnosticsState,
   FileOpProgress,
   McpStatus,
   Settings,
@@ -26,6 +27,13 @@ const api: WslPadApi = {
   serviceLog: (unit, scope, lines) => ipcRenderer.invoke(IpcChannels.serviceLog, unit, scope, lines),
   copyLlmMarkdown: (preset) => ipcRenderer.invoke(IpcChannels.llmCopyMarkdown, preset),
   exportLlmJson: () => ipcRenderer.invoke(IpcChannels.llmExportJson),
+
+  diagnostics: {
+    get: () => ipcRenderer.invoke(IpcChannels.diagnosticsGet),
+    runNetworkCheck: (port) => ipcRenderer.invoke(IpcChannels.diagnosticsNetworkCheck, port),
+    exportBundle: () => ipcRenderer.invoke(IpcChannels.diagnosticsExport),
+    onChange: (cb) => subscribe<DiagnosticsState>(IpcChannels.evDiagnostics, cb)
+  },
 
   explorer: {
     list: (path, opts) => ipcRenderer.invoke(IpcChannels.explorerList, path, opts),

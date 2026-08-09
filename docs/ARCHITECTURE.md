@@ -22,6 +22,9 @@ talks through a typed, allowlisted IPC bridge.
 │        ├──────────► IPC events → renderer                                 │
 │        └──────────► McpServerHost (read-only Get* tools, 127.0.0.1)       │
 │                                                                           │
+│  DiagnosticsService ── session-only incidents + on-demand network check   │
+│        └──────────► IPC events / privacy-previewed diagnostic bundle      │
+│                                                                           │
 │  TerminalManager ── one PTY session per distro, OSC-marker state machine  │
 │  AppUpdater ── electron-updater (GitHub Releases), disabled in dev        │
 │  AppTray ── resident tray icon + localized menu                           │
@@ -29,7 +32,7 @@ talks through a typed, allowlisted IPC bridge.
          │ contextIsolation preload (window.wslpad, explicit channel list)
 ┌────────────────────────────── renderer (React) ───────────────────────────┐
 │  TopBar (distro switch · MCP badge · refresh · pause · settings gear)     │
-│  Tab 1 Dashboard — master/detail: 12-section list | selected section      │
+│  Tab 1 Dashboard — master/detail: 17-section list | selected section      │
 │  Tab 2 Explorer  — dual pane:  Windows files | WSL files (+ splitter)     │
 │  ConsolePanel (xterm.js, always visible, resizable/collapsible)           │
 │  SettingsDrawer (modal drawer — never a third tab)                        │
@@ -37,9 +40,10 @@ talks through a typed, allowlisted IPC bridge.
 ```
 
 ### Dashboard: master–detail
-The 12 read-only sections (overview, resources, paths, configuration, tools,
-Hermes, environment, processes, services, ports, warnings, MCP) are listed on
-the left; the right side renders only the selected one, so wide tables
+The 17 sections (overview, resources, disk, WSL settings, network,
+diagnostics, paths, configuration, tools, Docker, Hermes, OpenClaw,
+environment, processes, services, ports and warnings) are listed on the left;
+the right side renders only the selected one, so wide tables
 (processes, environment) get the whole window instead of a card cell. The list
 is a `listbox`, never a `tablist` — the app has exactly two `tab` roles.
 
@@ -74,6 +78,13 @@ the last good section and surface as warnings — the store never throws into
 the UI. Polling is tiered (3 s / 15 s / 60 s by default, user-adjustable within
 bounds) and fully stops when monitoring is paused.
 
+Diagnostics deliberately sits beside, rather than inside, that stable snapshot
+contract. `DiagnosticsService` derives meaningful transitions from snapshots,
+keeps at most 100 incidents in memory for the current app session, and runs
+network probes only after an explicit renderer request. Its export combines the
+already secret-masked snapshot with the incident list and latest check after a
+privacy preview; diagnostics are not exposed through MCP.
+
 ### Read-only by construction
 - Dashboard buttons only *prepare* commands into the Console input; nothing is
   executed until the user presses Enter in the Console.
@@ -105,7 +116,8 @@ place (`src/main/wsl/factory.ts`); fixture data cannot leak into real mode.
 | --- | --- |
 | Shared contracts (types, IPC, schemas, i18n, masking) | `src/shared/` |
 | Hidden runner + parsers + detectors | `src/main/wsl/` |
-| Snapshot store, polling, warnings, LLM export | `src/main/state/` |
+| Snapshot store, polling, warnings, diagnostics, LLM export | `src/main/state/` |
+| On-demand WSL/Windows network probes | `src/main/wsl/network-check.ts` |
 | Linux explorer backend (listing/ops/trash/transfer/editor) | `src/main/explorer/` |
 | Windows filesystem backend (drives, node fs, recycle bin) | `src/main/explorer/windows.ts` |
 | Console PTY sessions + cwd sync | `src/main/terminal/` |

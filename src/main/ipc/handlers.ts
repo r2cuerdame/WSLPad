@@ -1,6 +1,7 @@
 import { BrowserWindow, app, clipboard, dialog, ipcMain, shell } from 'electron'
 import { writeFile } from 'fs/promises'
 import { join } from 'path'
+import { release } from 'os'
 import { z } from 'zod'
 import { IpcChannels } from '@shared/ipc'
 import {
@@ -21,6 +22,8 @@ import type { McpServerHost } from '../mcp/server'
 import { buildMcpConfigJson, registerClient, testMcpConnection } from '../mcp/register-clients'
 import type { AppUpdater } from '../updater'
 import { resourcePath } from '../resources'
+import type { DiagnosticsService } from '../state/diagnostics'
+import { diagnosticBundleToJson } from '../state/diagnostic-bundle'
 
 export interface IpcDeps {
   store: SnapshotStore
@@ -31,6 +34,7 @@ export interface IpcDeps {
   settings: SettingsStore
   mcp: McpServerHost
   updater: AppUpdater
+  diagnostics: DiagnosticsService
   runner: DistroRunner | null
   getWindow(): BrowserWindow | null
   applySettingsPatch(patch: SettingsPatch): Promise<void>
@@ -43,6 +47,7 @@ const boolSchema = z.boolean()
 const stringSchema = z.string().min(1).max(65536)
 const clientKindSchema = z.enum(['claude-desktop', 'codex', 'hermes'])
 const llmPresetSchema = z.enum(['default', 'bug-report', 'agent-context'])
+const diagnosticPortSchema = z.number().int().min(1).max(65535)
 const listOptsSchema = z.object({ showHidden: z.boolean().optional() }).optional()
 const pathsSchema = z.array(linuxPathSchema).min(1).max(1000)
 /**
@@ -156,6 +161,41 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     })
     if (result.canceled || !result.filePath) return null
     await writeFile(result.filePath, snapshotToJson(deps.store.get()), 'utf8')
+    return result.filePath
+  })
+
+  // --- session diagnostics ------------------------------------------------
+  handle(IpcChannels.diagnosticsGet, () => deps.diagnostics.get())
+  handle(IpcChannels.diagnosticsNetworkCheck, (port) =>
+    deps.diagnostics.runNetworkCheck(port === undefined ? null : diagnosticPortSchema.parse(port))
+  )
+  handle(IpcChannels.diagnosticsExport, async () => {
+    const win = deps.getWindow()
+    const parent = win ?? new BrowserWindow({ show: false })
+    const preview = await dialog.showMessageBox(parent, {
+      type: 'info',
+      title: 'Export diagnostic bundle',
+      message: 'Review what this diagnostic file contains',
+      detail:
+        'Secrets are masked. The file still contains distribution names, local paths, host versions, IP and DNS addresses, the current snapshot, and this session\'s incident timeline.',
+      buttons: ['Export', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true
+    })
+    if (preview.response !== 0) return null
+    const result = await dialog.showSaveDialog(parent, {
+      defaultPath: join(app.getPath('documents'), 'wslpad-diagnostic.json'),
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    })
+    if (result.canceled || !result.filePath) return null
+    const json = diagnosticBundleToJson(deps.store.get(), deps.diagnostics.get(), {
+      appVersion: app.getVersion(),
+      platform: process.platform,
+      arch: process.arch,
+      osRelease: release()
+    })
+    await writeFile(result.filePath, json, 'utf8')
     return result.filePath
   })
 

@@ -811,6 +811,123 @@
   border-bottom: none;
 }
 
+/* --- session diagnostics ------------------------------------------------ */
+
+.diagnostics-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diagnostics-intro {
+  margin: 0 0 12px;
+  max-width: 820px;
+  line-height: 1.5;
+}
+
+.diag-validation {
+  color: var(--err);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.diag-section + .diag-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.diag-heading {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.diag-probes {
+  display: grid;
+  gap: 4px;
+}
+
+.diag-probe {
+  display: grid;
+  grid-template-columns: 16px minmax(120px, 170px) auto minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  font-size: 12px;
+}
+
+.diag-probe-name {
+  font-weight: 550;
+}
+
+.diag-probe-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diag-duration,
+.diag-incident time {
+  font-variant-numeric: tabular-nums;
+}
+
+.diag-pass,
+.diag-recovery {
+  color: var(--ok);
+}
+
+.diag-fail {
+  color: var(--err);
+}
+
+.diag-unknown,
+.diag-info {
+  color: var(--text-faint);
+}
+
+.diag-status {
+  justify-self: start;
+}
+
+.diag-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.diag-incident {
+  display: grid;
+  grid-template-columns: 72px 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+}
+
+.diag-incident time {
+  color: var(--text-faint);
+}
+
+.diag-incident-text {
+  min-width: 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .diag-probe {
+    grid-template-columns: 16px minmax(100px, 1fr) auto;
+  }
+  .diag-probe-detail {
+    grid-column: 2 / -1;
+  }
+  .diag-duration {
+    display: none;
+  }
+}
+
 .tool-name {
   display: inline-flex;
   align-items: center;

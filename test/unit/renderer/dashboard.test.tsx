@@ -22,6 +22,7 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['disk', 'Disk image'],
   ['wslconfig', 'WSL settings'],
   ['network', 'Network'],
+  ['diagnostics', 'Diagnostics'],
   ['paths', 'Important paths'],
   ['configuration', 'Configuration files'],
   ['tools', 'Installed tools'],
@@ -291,6 +292,12 @@ function makeApi(snapshot: WslPadSnapshot) {
     revealEnv: vi.fn(async () => 'raw-secret-value'),
     copyLlmMarkdown: vi.fn(async () => '# snapshot'),
     exportLlmJson: vi.fn(async () => 'C:\\out\\snapshot.json'),
+    diagnostics: {
+      get: vi.fn(async () => ({ incidents: [], lastNetworkCheck: null })),
+      runNetworkCheck: vi.fn(),
+      exportBundle: vi.fn(async () => 'C:\\out\\diagnostic.json'),
+      onChange: vi.fn(() => () => undefined)
+    },
     convertPath: vi.fn(async () => ''),
     openInWindowsExplorer: vi.fn(async () => undefined),
     openExternal: vi.fn(async () => undefined),
@@ -471,6 +478,14 @@ describe('DashboardTab master–detail', () => {
     // The only action is navigation — nothing in this section mutates anything.
     fireEvent.click(within(detail).getByRole('button', { name: 'See the ports' }))
     expect(navItem('ports').getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('opens session diagnostics without running a network check automatically', async () => {
+    await renderDashboard()
+    fireEvent.click(navItem('diagnostics'))
+    const detail = screen.getByTestId('dashboard-detail')
+    expect(within(detail).getByText('No network check has run in this session.')).toBeTruthy()
+    expect(api.diagnostics.runNetworkCheck).not.toHaveBeenCalled()
   })
 
   it('has no MCP section — every MCP action lives in Settings', async () => {

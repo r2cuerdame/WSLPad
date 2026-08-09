@@ -934,6 +934,44 @@
     "pathConversionFailed": "This path cannot be converted",
     "consoleHint": "You can run the following command in the Console:"
   },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "intro": "This session-only timeline records meaningful WSL changes. Network checks run only when you ask and are never part of background polling.",
+    "port": "Windows localhost port",
+    "portOptional": "Port (optional)",
+    "runCheck": "Run network check",
+    "checking": "Checking…",
+    "export": "Export diagnostics",
+    "invalidPort": "Enter a port from 1 to 65535, or leave it empty.",
+    "lastCheck": "Last network check",
+    "noCheck": "No network check has run in this session.",
+    "timeline": "Incident timeline",
+    "noIncidents": "No incidents observed in this session.",
+    "checkComplete": "Network check complete — {{failed}} failed",
+    "exported": "Diagnostic bundle exported to {{path}}",
+    "probe": {
+      "distro": "Distribution response",
+      "wslDns": "DNS from WSL",
+      "windowsDns": "DNS from Windows",
+      "defaultRoute": "WSL default route",
+      "windowsLocalhost": "Windows localhost port"
+    },
+    "status": { "pass": "Pass", "fail": "Fail", "unknown": "Unknown" },
+    "incident": {
+      "monitoringStarted": "Session monitoring started",
+      "distroSelected": "Selected distribution {{distro}}",
+      "distroState": "Distribution {{distro}}: {{from}} → {{to}}",
+      "unresponsive": "Distribution {{distro}} stopped answering",
+      "recovered": "Distribution {{distro}} is answering again",
+      "networkMode": "Effective networking mode changed: {{from}} → {{to}}",
+      "dnsChanged": "DNS configuration changed",
+      "consoleFailed": "Console failed: {{status}}",
+      "consoleRecovered": "Console recovered",
+      "suspend": "Windows is suspending",
+      "resume": "Windows resumed from sleep",
+      "networkCheck": "Network check completed: {{failed}} failed, {{unknown}} unknown"
+    }
+  },
   "warnings": {
     "distroStopped": "Distribution {{distro}} is stopped",
     "systemdDisabled": "systemd is not enabled",

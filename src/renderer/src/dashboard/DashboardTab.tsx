@@ -14,6 +14,7 @@ import ResourceCard from './ResourceCard'
 import DiskCard from './DiskCard'
 import WslSettingsCard, { settingNeedsAttention } from './WslSettingsCard'
 import NetworkCard, { networkNeedsAttention } from './NetworkCard'
+import DiagnosticsCard from './DiagnosticsCard'
 import PathsCard from './PathsCard'
 import ConfigCard from './ConfigCard'
 import ToolsCard, { effectiveAppendWindowsPath } from './ToolsCard'
@@ -207,6 +208,8 @@ export default function DashboardTab(): React.JSX.Element {
             onShowPorts={() => selectSection('ports')}
           />
         )
+      case 'diagnostics':
+        return <DiagnosticsCard />
       case 'paths':
         return <PathsCard paths={dash.paths} />
       case 'configuration':
