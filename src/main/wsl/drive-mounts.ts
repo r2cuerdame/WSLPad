@@ -15,12 +15,16 @@ import type { DistroRunner } from './contracts'
 import { SECTION_MARKER, splitSections } from './system'
 import { isDrvFsMount, normalizeBool, parseIni, parseMounts, type MountEntry } from './wsl-config'
 
+/**
+ * Markers go BETWEEN probes, never before the first one: splitSections keys off
+ * the marker, so a leading one inserts an empty section 0 and shifts every
+ * reading one place. Here that empty first section reads as "/proc/mounts could
+ * not be read" and the whole block degrades to unknown.
+ */
 export const DRIVE_MOUNTS_SCRIPT = [
-  `printf '%s\\n' ${SECTION_MARKER}`,
   'cat /proc/mounts 2>/dev/null || true',
-  `printf '%s\\n' ${SECTION_MARKER}`,
   'cat /etc/wsl.conf 2>/dev/null || true'
-].join('\n')
+].join(`\nprintf '\\n${SECTION_MARKER}\\n'\n`)
 
 /**
  * DrvFs options are not one comma-separated list. On current WSL 2 the drive

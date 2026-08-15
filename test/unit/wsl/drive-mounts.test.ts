@@ -8,6 +8,7 @@ import {
 } from '../../../src/main/wsl/drive-mounts'
 import { parseMounts } from '../../../src/main/wsl/wsl-config'
 import type { DistroRunner } from '../../../src/main/wsl/contracts'
+import { SECTION_MARKER } from '../../../src/main/wsl/system'
 import { joinSections, ok } from './collectors/helpers'
 
 /**
@@ -155,5 +156,22 @@ describe('collectDriveMounts', () => {
       }
     }
     expect(await collectDriveMounts(dead, 'Ubuntu')).toBeNull()
+  })
+})
+
+/** Same alignment regression as inotify: a leading marker shifts every section. */
+describe('DRIVE_MOUNTS_SCRIPT section alignment', () => {
+  it('puts the marker between the two probes, never before the first', () => {
+    expect(DRIVE_MOUNTS_SCRIPT.startsWith('cat /proc/mounts')).toBe(true)
+    expect(DRIVE_MOUNTS_SCRIPT.indexOf(SECTION_MARKER)).toBeGreaterThan(0)
+    expect(DRIVE_MOUNTS_SCRIPT.split(SECTION_MARKER)).toHaveLength(2)
+  })
+
+  it('reads a real round trip back into the right fields', () => {
+    const stdout = [MOUNTS, '', SECTION_MARKER, '', WSLCONF].join('\n')
+    const info = parseDriveMounts(stdout)
+    // A shifted section 0 would make this null — "no mounts could be read".
+    expect(info?.drives.map((d) => d.point)).toEqual(['/mnt/c', '/mnt/d'])
+    expect(info?.declaredOptions).toBe('metadata,umask=22')
   })
 })

@@ -7,6 +7,7 @@ import {
 } from '../../../src/main/wsl/inotify'
 import { RECOMMENDED_WATCHES, watchesAreLow } from '../../../src/shared/inotify'
 import type { DistroRunner } from '../../../src/main/wsl/contracts'
+import { SECTION_MARKER } from '../../../src/main/wsl/system'
 import { joinSections, ok } from './collectors/helpers'
 
 /** The command every InotifyInfo carries; irrelevant to the judgements below. */
@@ -124,5 +125,30 @@ describe('collectInotify', () => {
       }
     }
     expect(await collectInotify(dead, 'Ubuntu')).toBeNull()
+  })
+})
+
+/**
+ * Regression: the first draft put a marker BEFORE the first probe. splitSections
+ * keys off the marker, so that inserts an empty section 0 and shifts every
+ * reading one place — max_user_watches came back null while max_user_instances
+ * held the watches number. Both probes look plausible in isolation, which is why
+ * only running it against a real machine caught it. This asserts the script's
+ * own shape through the real splitter rather than a hand-built fixture.
+ */
+describe('INOTIFY_SCRIPT section alignment', () => {
+  it('puts markers between probes, never before the first', () => {
+    expect(INOTIFY_SCRIPT.startsWith('cat /proc/sys/fs/inotify/max_user_watches')).toBe(true)
+    expect(INOTIFY_SCRIPT.indexOf(SECTION_MARKER)).toBeGreaterThan(0)
+    // Two probes means exactly one separator.
+    expect(INOTIFY_SCRIPT.split(SECTION_MARKER)).toHaveLength(2)
+  })
+
+  it('reads a real round trip back into the right fields', () => {
+    // What the distro emits when the script runs: probe, marker, probe.
+    const stdout = ['1048576', '', SECTION_MARKER, '', '8192'].join('\n')
+    const info = parseInotify(stdout, 'Ubuntu')
+    expect(info.maxUserWatches).toBe(1048576)
+    expect(info.maxUserInstances).toBe(8192)
   })
 })

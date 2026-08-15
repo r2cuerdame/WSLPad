@@ -179,3 +179,28 @@ describe('addExclusionCommand', () => {
     expect(addExclusionCommand("C:\\it's")).toContain("'C:\\it''s'")
   })
 })
+
+/**
+ * Regression: the first draft joined the script with '; '. PowerShell treats a
+ * newline as a statement separator, but a semicolon spliced into a wrapped
+ * method call or a hash literal is a parse error — so the whole read failed,
+ * exit code 1 and empty stdout, and Defender silently stayed unknown forever.
+ * The collector degraded honestly, which is exactly why nothing looked wrong.
+ */
+describe('DEFENDER_SCRIPT syntax', () => {
+  it('separates statements with newlines, not semicolons', () => {
+    expect(DEFENDER_SCRIPT).toContain('\n')
+    // The continuation line of IsInRole( must still be attached to its call.
+    expect(DEFENDER_SCRIPT).toContain('IsInRole(\n')
+    expect(DEFENDER_SCRIPT).not.toContain('IsInRole(;')
+    // The hash literal must not be cut open right after its brace.
+    expect(DEFENDER_SCRIPT).not.toContain('@{;')
+  })
+
+  it('leaves every bracket balanced', () => {
+    const count = (ch: string): number => [...DEFENDER_SCRIPT].filter((c) => c === ch).length
+    expect(count('(')).toBe(count(')'))
+    expect(count('{')).toBe(count('}'))
+    expect(count('[')).toBe(count(']'))
+  })
+})

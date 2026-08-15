@@ -26,6 +26,12 @@ const TIMEOUT_MS = 12000
  * localized Windows. Get-MpComputerStatus answers without elevation; the
  * exclusion list only comes back when the token really is elevated.
  */
+/**
+ * Joined with newlines, not `; ` — PowerShell takes a newline as a statement
+ * separator, and a semicolon spliced into the middle of a wrapped method call
+ * or a hash literal is a parse error, not a statement break. The first draft
+ * did exactly that and the whole read failed silently.
+ */
 export const DEFENDER_SCRIPT = [
   '$ErrorActionPreference = "Stop"',
   '$id = [Security.Principal.WindowsIdentity]::GetCurrent()',
@@ -41,7 +47,7 @@ export const DEFENDER_SCRIPT = [
   '  realtime = $(if ($status) { [bool]$status.RealTimeProtectionEnabled } else { $null })',
   '  paths = $(if ($null -ne $paths) { @($paths | Where-Object { $_ }) } else { $null })',
   '} | ConvertTo-Json -Compress'
-].join('; ')
+].join('\n')
 
 interface RawDefender {
   available?: unknown

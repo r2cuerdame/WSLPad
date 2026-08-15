@@ -20,12 +20,16 @@ import { SECTION_MARKER, splitSections } from './system'
 /** Where the raise lands: a file of its own, so re-running it is idempotent. */
 export const SYSCTL_DROPIN = '/etc/sysctl.d/99-inotify-watches.conf'
 
+/**
+ * Markers go BETWEEN probes, never before the first one: splitSections keys
+ * off the marker, so a leading one inserts an empty section 0 and shifts every
+ * reading one place — which reads as "the first value is unknown and the
+ * second holds the first one's number". Same join as every other collector.
+ */
 export const INOTIFY_SCRIPT = [
-  `printf '%s\\n' ${SECTION_MARKER}`,
   'cat /proc/sys/fs/inotify/max_user_watches 2>/dev/null || true',
-  `printf '%s\\n' ${SECTION_MARKER}`,
   'cat /proc/sys/fs/inotify/max_user_instances 2>/dev/null || true'
-].join('\n')
+].join(`\nprintf '\\n${SECTION_MARKER}\\n'\n`)
 
 function count(section: string | undefined): number | null {
   const first = section?.split('\n').find((l) => l.trim() !== '')
