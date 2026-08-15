@@ -156,7 +156,15 @@
       "trendRising": "{{label}}: rising — now {{current}}, between {{low}} and {{high}}",
       "trendSteady": "{{label}}: steady — now {{current}}, between {{low}} and {{high}}",
       "trendFalling": "{{label}}: falling — now {{current}}, between {{low}} and {{high}}",
-      "trendHint": "Kept in memory for this session only; nothing is written to disk."
+      "trendHint": "Kept in memory for this session only; nothing is written to disk.",
+      "watchesTitle": "File watchers",
+      "watchesMax": "Watches per user",
+      "instancesMax": "Instances per user",
+      "watchesLow": "Low",
+      "watchesWarning": "Running out of watches returns ENOSPC, which vite, webpack, tsc --watch and VS Code all print as \"no space left on device\" — naming a disk that is not full. {{recommended}} is the usual recommendation for a large tree.",
+      "watchesRaise": "Raise the ceiling",
+      "watchesPrepare": "Prepare the sysctl command",
+      "watchesPrepareHint": "Placed in the Console only — nothing runs until you press Enter. It goes through wsl -u root rather than sudo, so no password is needed."
     },
     "disk": {
       "title": "Disk image",
@@ -206,7 +214,16 @@
       "suggestionsHint": "WSLPad never runs these. The command is only placed in the Console input for you to review and run.",
       "compactLabel": "Compact the image (elevated Windows PowerShell)",
       "setSparseLabel": "Let the image shrink by itself (sparse mode)",
-      "unavailable": "No disk image information for this distribution"
+      "unavailable": "No disk image information for this distribution",
+      "defenderTitle": "Microsoft Defender",
+      "defenderRealtime": "Real-time protection",
+      "defenderExcluded": "This image excluded",
+      "defenderCovered": "Excluded",
+      "defenderNotCovered": "Not excluded",
+      "defenderNeedsAdmin": "The exclusion list can only be read by an elevated process, and WSLPad is not one. This is unknown, not \"none configured\".",
+      "defenderScanning": "Real-time protection reads every block WSL touches inside this image. It is the most common reason a WSL filesystem feels slow with nothing visibly wrong.",
+      "defenderExclude": "Exclusion command",
+      "defenderElevatedHint": "Copy and run this in an elevated PowerShell. WSLPad cannot run it: the Console is a shell inside the distribution, and this needs Windows administrator rights."
     },
     "wslconfig": {
       "title": "WSL settings",
@@ -327,7 +344,15 @@
         "unknown": "Unknown"
       },
       "sideHintWindowsMount": "Reached through /mnt, so every file operation crosses the Windows filesystem boundary and is far slower than the Linux disk.",
-      "sideHintUnc": "Reached from Windows over \\\\wsl.localhost, which is slower than opening the same path inside the distribution."
+      "sideHintUnc": "Reached from Windows over \\\\wsl.localhost, which is slower than opening the same path inside the distribution.",
+      "drivesTitle": "Windows drives",
+      "drivesNone": "No Windows drive is mounted",
+      "drivesDisabled": "Automount is off in /etc/wsl.conf",
+      "drivesDeclared": "Declared options",
+      "driveMetadata": "metadata",
+      "driveNoMetadata": "no metadata",
+      "metadataWarning": "Without the metadata option, chmod and chown on {{drives}} report success and store nothing — the mode is rebuilt from umask on every read, so the change is gone before the next ls.",
+      "metadataDeclaredNotInForce": "/etc/wsl.conf asks for metadata, but the mount above does not have it. Drives are mounted when the distribution starts, so the change needs wsl --shutdown."
     },
     "config": {
       "title": "Configuration files",
@@ -956,7 +981,11 @@
       "defaultRoute": "WSL default route",
       "windowsLocalhost": "Windows localhost port"
     },
-    "status": { "pass": "Pass", "fail": "Fail", "unknown": "Unknown" },
+    "status": {
+      "pass": "Pass",
+      "fail": "Fail",
+      "unknown": "Unknown"
+    },
     "incident": {
       "monitoringStarted": "Session monitoring started",
       "distroSelected": "Selected distribution {{distro}}",

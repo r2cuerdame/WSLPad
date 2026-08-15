@@ -1,5 +1,11 @@
 import { useTranslation } from 'react-i18next'
-import type { DiskUsage, LocaleCode, MemoryReconciliation, ResourceInfo } from '@shared/types'
+import type {
+  DiskUsage,
+  LocaleCode,
+  InotifyInfo,
+  MemoryReconciliation,
+  ResourceInfo
+} from '@shared/types'
 import { formatBytes, formatNumber, formatPercent } from '@shared/format'
 import { useApp } from '../store'
 import Card from '../components/Card'
@@ -19,15 +25,20 @@ function Bar({ percent }: { percent: number | null }): React.JSX.Element | null 
   )
 }
 
+import InotifyBlock from './InotifyBlock'
+
 export interface ResourceCardProps {
   resources: ResourceInfo
   /** Windows-vs-Linux memory view; null until both sides have been sampled. */
   memoryDetail?: MemoryReconciliation | null
+  /** The kernel watch ceiling — a resource limit like the ones above it. */
+  inotify?: InotifyInfo | null
 }
 
 export default function ResourceCard({
   resources,
-  memoryDetail = null
+  memoryDetail = null,
+  inotify = null
 }: ResourceCardProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const { snapshot, prepareCommand, pushToast } = useApp()
@@ -258,6 +269,7 @@ export default function ResourceCard({
         <span className="res-label">{t('dashboard.resources.processes')}</span>
         <span className="res-value">{formatNumber(locale, resources.processCount)}</span>
       </div>
+      <InotifyBlock inotify={inotify} />
     </Card>
   )
 }

@@ -127,7 +127,7 @@ answer.
 ## MCP server (read-only)
 
 While WSLPad sits in the tray it serves MCP at `http://127.0.0.1:4923/mcp`
-(Streamable HTTP, localhost-only, Bearer-token auth) with 37 `Get*` tools —
+(Streamable HTTP, localhost-only, Bearer-token auth) with 40 `Get*` tools —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPortOwner`, `GetCommandResolution`, … There are deliberately no write/run/kill tools; secrets
 and private keys never cross the MCP boundary. One-click registration for
@@ -183,6 +183,11 @@ read once, when the distro starts, so a later edit changes nothing until `wsl --
 seen from Linux — each with existence, both Linux and Windows spellings, and
 which side of the filesystem boundary it is on (native ext4 or across the slow
 Windows mount).
+And how the Windows drives underneath them are actually mounted. One option
+carries almost all of the surprise: without `metadata`, `chmod` and `chown`
+under `/mnt/c` report success and store nothing — the mode is rebuilt from
+umask on every read, so the change is gone before the next `ls`. Scripts stay
+non-executable and no error is printed anywhere.
 
 **Configuration files** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: where
@@ -290,7 +295,7 @@ marked as such. Every file a build touches there crosses the Windows boundary,
 which is the most common reason "WSL is slow", and the prompt looks identical.
 
 
-**Over MCP** — all of the above through 37 read-only `Get*` tools.
+**Over MCP** — all of the above through 40 read-only `Get*` tools.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings & languages
@@ -357,7 +362,7 @@ WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.6.0)
+## Current limitations (v0.7.0)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { closeApp, launchWslPad, type LaunchedApp } from './_helpers'
+import { MCP_TOOL_NAMES } from '../../src/main/mcp/tools'
 
 interface JsonRpcResponse {
   result?: any
@@ -117,7 +118,10 @@ test.describe('mcp server (goal.md §18.3: 12)', () => {
       params: {}
     })
     const tools: Array<{ name: string }> = list.json?.result?.tools ?? []
-    expect(tools.length).toBe(37)
+    // Derived from the roster rather than copied: a hand-kept number here goes
+    // stale every time a tool is added, and says nothing when it does.
+    expect(tools.length).toBe(MCP_TOOL_NAMES.length)
+    expect([...tools.map((t) => t.name)].sort()).toEqual([...MCP_TOOL_NAMES].sort())
     for (const tool of tools) {
       expect(tool.name).toMatch(/^Get/)
       // camel-case boundary match so GetInstalledTools ('Install…ed') stays legal

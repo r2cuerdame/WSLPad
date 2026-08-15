@@ -222,7 +222,9 @@ export default function HermesCard({ hermes }: HermesCardProps): React.JSX.Eleme
                     <button
                       type="button"
                       className="icon-btn"
-                      aria-label={t('dashboard.disk.prepare', { defaultValue: 'Prepare in Console' })}
+                      aria-label={t('dashboard.disk.prepare', {
+                        defaultValue: 'Prepare in Console'
+                      })}
                       title={t('dashboard.disk.prepare', { defaultValue: 'Prepare in Console' })}
                       onClick={() => prepareText(home.statusCommand as string)}
                     >

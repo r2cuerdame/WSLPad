@@ -117,7 +117,7 @@ WSLPad 내부 조회는 별도의 숨은 러너가 실행합니다.
 ## MCP 서버 (읽기 전용)
 
 WSLPad가 트레이에 떠 있는 동안 `http://127.0.0.1:4923/mcp`에서 MCP를 제공합니다
-(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 37개의 `Get*` —
+(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 40개의 `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPortOwner`, `GetCommandResolution`, … 쓰기/실행/종료 도구는 의도적으로 두지 않았고, 비밀 값과 개인
 키는 MCP 경계를 넘지 않습니다. Claude Desktop(stdio 브리지), Codex, Hermes는 클릭
@@ -170,6 +170,11 @@ interop 등록이 커널에 실제로 있는지 — 이 파일은 배포판이 �
 `~/.cache`, `~/.ssh`, `~/.hermes`, Linux에서 본 Windows 사용자 프로필 — 각각의 존재
 여부, Linux·Windows 양쪽 표기, 그리고 파일 시스템 경계의 어느 쪽에 있는지(네이티브
 ext4인 Linux 디스크인지, 느린 Windows 드라이브 마운트 건너편인지).
+그리고 그 아래 Windows 드라이브가 실제로 어떻게 마운트됐는지도 함께 봅니다.
+놀라움의 대부분은 옵션 하나에서 옵니다. `metadata`가 없으면 `/mnt/c`에서
+`chmod`와 `chown`이 성공했다고 말하고 아무것도 저장하지 않습니다 — 권한은 읽을
+때마다 umask로 다시 만들어지므로 다음 `ls` 전에 이미 사라집니다. 스크립트는
+실행 권한 없이 남고, 어디에서도 에러가 나오지 않습니다.
 
 **구성 파일** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`, `~/.bashrc`,
 `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: 각 파일이 어디에 있는지,
@@ -270,7 +275,7 @@ Docker 저장소, 각각 정리 명령까지. 이 앱을 만든 기계에서는 
 원인인데, 프롬프트는 똑같이 생겼습니다.
 
 
-**MCP로** — 위의 모든 것을 37개의 읽기 전용 `Get*` 도구로.
+**MCP로** — 위의 모든 것을 40개의 읽기 전용 `Get*` 도구로.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings(설정) & 언어
@@ -335,7 +340,7 @@ WSLPad는 배포판 관리자나 마켓플레이스가 *아니고*, Docker Deskt
 없습니다. 정체성은 **Dashboard + Explorer + Console + 읽기 전용 MCP** — 그게
 전부입니다.
 
-## 현재 제한 사항 (v0.6.0)
+## 현재 제한 사항 (v0.7.0)
 
 - Windows x64 전용이며, 설치 프로그램은 서명되어 있지 않습니다(SmartScreen 경고)
 - 디스크 이미지 수치에는 Windows 레지스트리와 `fsutil`이 필요합니다. 둘 중 하나라도

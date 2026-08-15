@@ -176,6 +176,12 @@ sobre `[user] default=` en `/etc/wsl.conf`.
 visto desde Linux: cada una con si existe, con su forma en Linux y en Windows,
 y de qué lado de la frontera del sistema de archivos está (el ext4 nativo del
 disco de Linux o el lento montaje de la unidad de Windows).
+Y cómo están montadas de verdad las unidades de Windows que hay debajo. Casi
+toda la sorpresa está en una opción: sin `metadata`, `chmod` y `chown` en
+`/mnt/c` informan de éxito y no guardan nada: el modo se reconstruye desde
+umask en cada lectura, así que el cambio desaparece antes del siguiente `ls`.
+Los scripts siguen sin ser ejecutables y no se imprime ningún error en ninguna
+parte.
 
 **Archivos de configuración** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: dónde
@@ -270,7 +276,7 @@ queda marcada. Cada archivo que toca una compilación ahí cruza la frontera de
 Windows: la razón más común de que "WSL vaya lento", y el prompt es idéntico.
 
 
-**Por MCP** — todo lo anterior a través de 37 herramientas `Get*` de solo
+**Por MCP** — todo lo anterior a través de 40 herramientas `Get*` de solo
 lectura. [docs/MCP.md](docs/MCP.md)
 
 ## Settings e idiomas
@@ -342,7 +348,7 @@ no es un IDE, no trae interfaz de Git, depurador ni LSP, no sincroniza con la
 nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 **Dashboard + Explorer + Console + MCP de solo lectura**, nada más.
 
-## Limitaciones actuales (v0.6.0)
+## Limitaciones actuales (v0.7.0)
 
 - Solo Windows x64; el instalador no está firmado (aviso de SmartScreen)
 - Las cifras de la imagen de disco necesitan el registro de Windows y `fsutil`;

@@ -44,6 +44,9 @@ const GOAL_TOOLS = [
   'GetZoneIdentifiers',
   'GetTerminalProfiles',
   'GetDiskConsumers',
+  'GetDriveMounts',
+  'GetDefender',
+  'GetInotifyLimits',
   'GetServiceLog',
   'GetExplorerContext',
   'GetConsoleContext'

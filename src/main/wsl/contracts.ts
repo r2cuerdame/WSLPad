@@ -29,7 +29,10 @@ import type {
   WindowsPortInfo,
   TerminalProfilesInfo,
   WslConfigInfo,
-  ZoneIdentifierInfo
+  ZoneIdentifierInfo,
+  DriveMountsInfo,
+  DefenderInfo,
+  InotifyInfo
 } from '@shared/types'
 
 // ---------------------------------------------------------------------------
@@ -143,11 +146,22 @@ export interface WslProvider {
   getZoneIdentifiers?(distro: string): Promise<ZoneIdentifierInfo | null>
   /** Known caches and stores inside the distro, measured. Optional like the rest. */
   getDiskConsumers?(distro: string): Promise<DiskConsumersInfo | null>
+  /** Windows drives as really mounted. Optional; absent leaves it unknown. */
+  getDriveMounts?(distro: string): Promise<DriveMountsInfo | null>
+  /** Defender status and, only when elevated, its exclusion list. Host-wide. */
+  getDefender?(): Promise<DefenderInfo | null>
+  /** Kernel file-watch limits. Optional like the rest. */
+  getInotify?(distro: string): Promise<InotifyInfo | null>
   /**
    * The tail of a unit journal, read on demand rather than polled — nobody
    * needs a log they are not looking at. Optional: without it the UI says so.
    */
-  getServiceLog?(distro: string, unit: string, scope: ServiceScope, lines?: number): Promise<ServiceLog>
+  getServiceLog?(
+    distro: string,
+    unit: string,
+    scope: ServiceScope,
+    lines?: number
+  ): Promise<ServiceLog>
   /** Host-wide: Windows Terminal profiles live in Windows, not in a distro. */
   getTerminalProfiles?(): Promise<TerminalProfilesInfo>
 }

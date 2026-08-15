@@ -156,7 +156,15 @@
       "trendRising": "{{label}}: steigend — aktuell {{current}}, zwischen {{low}} und {{high}}",
       "trendSteady": "{{label}}: gleichbleibend — aktuell {{current}}, zwischen {{low}} und {{high}}",
       "trendFalling": "{{label}}: fallend — aktuell {{current}}, zwischen {{low}} und {{high}}",
-      "trendHint": "Wird nur für diese Sitzung im Arbeitsspeicher gehalten; auf die Festplatte wird nichts geschrieben."
+      "trendHint": "Wird nur für diese Sitzung im Arbeitsspeicher gehalten; auf die Festplatte wird nichts geschrieben.",
+      "watchesTitle": "Datei-Watches",
+      "watchesMax": "Watches pro Benutzer",
+      "instancesMax": "Instanzen pro Benutzer",
+      "watchesLow": "Niedrig",
+      "watchesWarning": "Gehen die Watches aus, liefert der Kernel ENOSPC, und vite, webpack, tsc --watch und VS Code drucken das alle als „no space left on device\" — mit Verweis auf eine Platte, die gar nicht voll ist. Für einen großen Baum sind {{recommended}} die übliche Empfehlung.",
+      "watchesRaise": "Obergrenze anheben",
+      "watchesPrepare": "sysctl-Befehl vorbereiten",
+      "watchesPrepareHint": "Wird nur in die Konsole gelegt — es läuft nichts, bis Sie Enter drücken. Er geht über wsl -u root statt über sudo und braucht daher kein Passwort."
     },
     "disk": {
       "title": "Datenträgerabbild",
@@ -206,7 +214,16 @@
       "suggestionsHint": "WSLPad führt diese Befehle nie aus. Der Befehl wird nur in die Eingabe der Konsole gelegt, damit Sie ihn prüfen und selbst ausführen.",
       "compactLabel": "Abbild komprimieren (Windows PowerShell mit Administratorrechten)",
       "setSparseLabel": "Das Abbild von selbst schrumpfen lassen (Sparse-Modus)",
-      "unavailable": "Keine Informationen zum Datenträgerabbild für diese Distribution"
+      "unavailable": "Keine Informationen zum Datenträgerabbild für diese Distribution",
+      "defenderTitle": "Microsoft Defender",
+      "defenderRealtime": "Echtzeitschutz",
+      "defenderExcluded": "Dieses Image ausgeschlossen",
+      "defenderCovered": "Ausgeschlossen",
+      "defenderNotCovered": "Nicht ausgeschlossen",
+      "defenderNeedsAdmin": "Die Ausschlussliste kann nur ein Prozess mit erhöhten Rechten lesen, und WSLPad ist keiner. Das ist unbekannt, nicht „nichts konfiguriert\".",
+      "defenderScanning": "Der Echtzeitschutz liest jeden Block, den WSL in diesem Image anfasst. Das ist der häufigste Grund, warum sich ein WSL-Dateisystem ohne sichtbaren Fehler langsam anfühlt.",
+      "defenderExclude": "Ausschluss-Befehl",
+      "defenderElevatedHint": "In einer PowerShell mit erhöhten Rechten ausführen. WSLPad kann das nicht: die Konsole ist eine Shell in der Distribution, und dies braucht Windows-Administratorrechte."
     },
     "wslconfig": {
       "title": "WSL-Einstellungen",
@@ -327,7 +344,15 @@
         "unknown": "Unbekannt"
       },
       "sideHintWindowsMount": "Wird über /mnt erreicht, jeder Dateizugriff überquert also die Grenze zum Windows-Dateisystem und ist deutlich langsamer als auf dem Linux-Datenträger.",
-      "sideHintUnc": "Wird von Windows aus über \\\\wsl.localhost erreicht, was langsamer ist, als denselben Pfad in der Distribution zu öffnen."
+      "sideHintUnc": "Wird von Windows aus über \\\\wsl.localhost erreicht, was langsamer ist, als denselben Pfad in der Distribution zu öffnen.",
+      "drivesTitle": "Windows-Laufwerke",
+      "drivesNone": "Kein Windows-Laufwerk ist eingehängt",
+      "drivesDisabled": "Automount ist in /etc/wsl.conf abgeschaltet",
+      "drivesDeclared": "Deklarierte Optionen",
+      "driveMetadata": "metadata",
+      "driveNoMetadata": "kein metadata",
+      "metadataWarning": "Ohne die Option metadata melden chmod und chown auf {{drives}} Erfolg und speichern nichts — der Modus wird bei jedem Lesen aus der umask neu gebildet, die Änderung ist also vor dem nächsten ls wieder weg.",
+      "metadataDeclaredNotInForce": "/etc/wsl.conf verlangt metadata, die Einhängung oben hat es aber nicht. Laufwerke werden beim Start der Distribution eingehängt, die Änderung braucht also wsl --shutdown."
     },
     "config": {
       "title": "Konfiguration",
@@ -937,10 +962,44 @@
   "diagnostics": {
     "title": "Diagnose",
     "intro": "Diese sitzungsbezogene Zeitleiste zeichnet wichtige WSL-Änderungen auf. Netzwerkprüfungen laufen nur auf Anforderung und nie als Teil der Hintergrundabfrage.",
-    "port": "Windows-Localhost-Port", "portOptional": "Port (optional)", "runCheck": "Netzwerk prüfen", "checking": "Prüfung läuft…", "export": "Diagnose exportieren", "invalidPort": "Geben Sie einen Port von 1 bis 65535 ein oder lassen Sie das Feld leer.", "lastCheck": "Letzte Netzwerkprüfung", "noCheck": "In dieser Sitzung wurde noch keine Netzwerkprüfung ausgeführt.", "timeline": "Vorfallszeitleiste", "noIncidents": "In dieser Sitzung wurden keine Vorfälle beobachtet.", "checkComplete": "Netzwerkprüfung abgeschlossen — {{failed}} fehlgeschlagen", "exported": "Diagnosepaket nach {{path}} exportiert",
-    "probe": { "distro": "Antwort der Distribution", "wslDns": "DNS aus WSL", "windowsDns": "DNS aus Windows", "defaultRoute": "WSL-Standardroute", "windowsLocalhost": "Windows-Localhost-Port" },
-    "status": { "pass": "Bestanden", "fail": "Fehler", "unknown": "Unbekannt" },
-    "incident": { "monitoringStarted": "Sitzungsüberwachung gestartet", "distroSelected": "Distribution {{distro}} ausgewählt", "distroState": "Distribution {{distro}}: {{from}} → {{to}}", "unresponsive": "Distribution {{distro}} antwortet nicht mehr", "recovered": "Distribution {{distro}} antwortet wieder", "networkMode": "Effektiver Netzwerkmodus geändert: {{from}} → {{to}}", "dnsChanged": "DNS-Konfiguration geändert", "consoleFailed": "Konsole fehlgeschlagen: {{status}}", "consoleRecovered": "Konsole wiederhergestellt", "suspend": "Windows wechselt in den Ruhezustand", "resume": "Windows wurde aus dem Ruhezustand fortgesetzt", "networkCheck": "Netzwerkprüfung abgeschlossen: {{failed}} fehlgeschlagen, {{unknown}} unbekannt" }
+    "port": "Windows-Localhost-Port",
+    "portOptional": "Port (optional)",
+    "runCheck": "Netzwerk prüfen",
+    "checking": "Prüfung läuft…",
+    "export": "Diagnose exportieren",
+    "invalidPort": "Geben Sie einen Port von 1 bis 65535 ein oder lassen Sie das Feld leer.",
+    "lastCheck": "Letzte Netzwerkprüfung",
+    "noCheck": "In dieser Sitzung wurde noch keine Netzwerkprüfung ausgeführt.",
+    "timeline": "Vorfallszeitleiste",
+    "noIncidents": "In dieser Sitzung wurden keine Vorfälle beobachtet.",
+    "checkComplete": "Netzwerkprüfung abgeschlossen — {{failed}} fehlgeschlagen",
+    "exported": "Diagnosepaket nach {{path}} exportiert",
+    "probe": {
+      "distro": "Antwort der Distribution",
+      "wslDns": "DNS aus WSL",
+      "windowsDns": "DNS aus Windows",
+      "defaultRoute": "WSL-Standardroute",
+      "windowsLocalhost": "Windows-Localhost-Port"
+    },
+    "status": {
+      "pass": "Bestanden",
+      "fail": "Fehler",
+      "unknown": "Unbekannt"
+    },
+    "incident": {
+      "monitoringStarted": "Sitzungsüberwachung gestartet",
+      "distroSelected": "Distribution {{distro}} ausgewählt",
+      "distroState": "Distribution {{distro}}: {{from}} → {{to}}",
+      "unresponsive": "Distribution {{distro}} antwortet nicht mehr",
+      "recovered": "Distribution {{distro}} antwortet wieder",
+      "networkMode": "Effektiver Netzwerkmodus geändert: {{from}} → {{to}}",
+      "dnsChanged": "DNS-Konfiguration geändert",
+      "consoleFailed": "Konsole fehlgeschlagen: {{status}}",
+      "consoleRecovered": "Konsole wiederhergestellt",
+      "suspend": "Windows wechselt in den Ruhezustand",
+      "resume": "Windows wurde aus dem Ruhezustand fortgesetzt",
+      "networkCheck": "Netzwerkprüfung abgeschlossen: {{failed}} fehlgeschlagen, {{unknown}} unbekannt"
+    }
   },
   "warnings": {
     "distroStopped": "Distribution {{distro}} ist gestoppt",

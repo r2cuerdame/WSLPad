@@ -18,6 +18,9 @@ import type {
   DistroLiveness,
   TerminalProfilesInfo,
   ZoneIdentifierInfo,
+  DriveMountsInfo,
+  DefenderInfo,
+  InotifyInfo,
   EnvironmentVariableInfo,
   ExplorerContext,
   FirewallInfo,
@@ -59,6 +62,9 @@ interface DashboardSections {
   docker: DockerInfo | null
   zoneIdentifier: ZoneIdentifierInfo | null
   diskConsumers: DiskConsumersInfo | null
+  driveMounts: DriveMountsInfo | null
+  defender: DefenderInfo | null
+  inotify: InotifyInfo | null
   terminalProfiles: TerminalProfilesInfo | null
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
@@ -134,6 +140,9 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     docker: null,
     zoneIdentifier: null,
     diskConsumers: null,
+    driveMounts: null,
+    defender: null,
+    inotify: null,
     terminalProfiles: null,
     environment: [],
     processes: [],
@@ -383,6 +392,9 @@ export class SnapshotStore {
           this.collectDocker(distro, s),
           this.collectZoneIdentifiers(distro, s),
           this.collectDiskConsumers(distro, s),
+          this.collectDriveMounts(distro, s),
+          this.collectDefender(s),
+          this.collectInotify(distro, s),
           this.collectTerminalProfiles(s)
         ])
       }
@@ -546,6 +558,51 @@ export class SnapshotStore {
   }
 
   /**
+   * How the Windows drives are really mounted. Slow tier: a mount table only
+   * changes when the distribution restarts.
+   */
+  private async collectDriveMounts(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getDriveMounts
+    if (read === undefined) return
+    await this.collect(
+      'drive mounts',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.driveMounts = v
+      }
+    )
+  }
+
+  /**
+   * Defender, slow tier and host-wide: it is one PowerShell start-up, and the
+   * answer is the same for every distribution on the machine.
+   */
+  private async collectDefender(s: DashboardSections): Promise<void> {
+    const read = this.provider.getDefender
+    if (read === undefined) return
+    await this.collect(
+      'defender',
+      () => read.call(this.provider),
+      (v) => {
+        s.defender = v
+      }
+    )
+  }
+
+  /** Watch limits, slow tier: two sysctl values that only a root edit moves. */
+  private async collectInotify(distro: string, s: DashboardSections): Promise<void> {
+    const read = this.provider.getInotify
+    if (read === undefined) return
+    await this.collect(
+      'watch limits',
+      () => read.call(this.provider, distro),
+      (v) => {
+        s.inotify = v
+      }
+    )
+  }
+
+  /**
    * Windows port-forwarding rules, medium tier next to the firewall: both
    * answer "why does this port not reach me". The rules are judged against the
    * distro's current address, which is why the system section is read first.
@@ -634,10 +691,7 @@ export class SnapshotStore {
     }
 
     const failures = this.probe.failures + 1
-    const backoff = Math.min(
-      PROBE_BACKOFF_BASE_MS * 2 ** (failures - 1),
-      PROBE_BACKOFF_MAX_MS
-    )
+    const backoff = Math.min(PROBE_BACKOFF_BASE_MS * 2 ** (failures - 1), PROBE_BACKOFF_MAX_MS)
     // The last reply is kept: how long ago it stopped answering is the fact.
     this.probe = {
       failures,

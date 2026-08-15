@@ -71,6 +71,28 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     await expect(detail).toContainText('DefaultUid 0, and that value wins')
   })
 
+  // Three facts that only mean something as a comparison: what the mount really
+  // has, what Defender can and cannot be asked, and what the kernel will allow.
+  test('names the three silent causes of "WSL is broken"', async () => {
+    const { page } = launched
+    const detail = page.getByTestId('dashboard-detail')
+
+    await page.getByTestId('dashboard-nav-paths').click()
+    await expect(detail).toContainText('Windows drives', { timeout: 15000 })
+    await expect(detail).toContainText('no metadata')
+    await expect(detail).toContainText('report success and store nothing')
+
+    await page.getByTestId('dashboard-nav-disk').click()
+    await expect(detail).toContainText('Microsoft Defender', { timeout: 15000 })
+    // Unelevated: the list is unreadable, and that must not read as "none".
+    await expect(detail).toContainText('only be read by an elevated process')
+    await expect(detail).not.toContainText('Not excluded')
+
+    await page.getByTestId('dashboard-nav-resources').click()
+    await expect(detail).toContainText('File watchers', { timeout: 15000 })
+    await expect(detail).toContainText('no space left on device')
+  })
+
   test('masks secret environment values', async () => {
     const { page } = launched
     await page.getByTestId('dashboard-nav-environment').click()

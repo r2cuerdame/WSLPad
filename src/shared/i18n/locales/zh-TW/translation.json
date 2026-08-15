@@ -156,7 +156,15 @@
       "trendRising": "{{label}}：上升 — 目前 {{current}}，介於 {{low}} 與 {{high}} 之間",
       "trendSteady": "{{label}}：持平 — 目前 {{current}}，介於 {{low}} 與 {{high}} 之間",
       "trendFalling": "{{label}}：下降 — 目前 {{current}}，介於 {{low}} 與 {{high}} 之間",
-      "trendHint": "只在這次工作階段保存在記憶體中，不會寫入磁碟。"
+      "trendHint": "只在這次工作階段保存在記憶體中，不會寫入磁碟。",
+      "watchesTitle": "檔案監看 (watch)",
+      "watchesMax": "每使用者 watch 數",
+      "instancesMax": "每使用者 instance 數",
+      "watchesLow": "偏低",
+      "watchesWarning": "watch 用盡時核心會回傳 ENOSPC，而 vite、webpack、tsc --watch 與 VS Code 都會把它印成 \"no space left on device\" —— 指著一顆並沒有滿的磁碟。對於大型目錄樹，通常建議 {{recommended}}。",
+      "watchesRaise": "提高上限",
+      "watchesPrepare": "準備 sysctl 命令",
+      "watchesPrepareHint": "只會放進 Console —— 在你按下 Enter 之前什麼都不會執行。它走的是 wsl -u root 而不是 sudo，因此不需要密碼。"
     },
     "disk": {
       "title": "磁碟映像",
@@ -206,7 +214,16 @@
       "suggestionsHint": "WSLPad 不會執行這些命令，只會把它放進主控台的輸入欄，由你檢查後自行執行。",
       "compactLabel": "壓縮映像（系統管理員權限的 Windows PowerShell）",
       "setSparseLabel": "讓映像自己縮小（疏鬆模式）",
-      "unavailable": "沒有此發行版的磁碟映像資訊"
+      "unavailable": "沒有此發行版的磁碟映像資訊",
+      "defenderTitle": "Microsoft Defender",
+      "defenderRealtime": "即時保護",
+      "defenderExcluded": "此映像已排除",
+      "defenderCovered": "已排除",
+      "defenderNotCovered": "未排除",
+      "defenderNeedsAdmin": "排除清單只有系統管理員權限的處理程序才能讀取，而 WSLPad 不是。這是未知，而不是「沒有設定」。",
+      "defenderScanning": "即時保護會讀取 WSL 在此映像中碰到的每一個區塊。這是 WSL 檔案系統在看不出任何問題的情況下變慢的最常見原因。",
+      "defenderExclude": "排除命令",
+      "defenderElevatedHint": "請複製到系統管理員權限的 PowerShell 執行。WSLPad 無法執行 —— Console 是發行版內部的 shell，而這需要 Windows 系統管理員權限。"
     },
     "wslconfig": {
       "title": "WSL 設定",
@@ -327,7 +344,15 @@
         "unknown": "未知"
       },
       "sideHintWindowsMount": "要經過 /mnt 才能存取，因此每一次檔案操作都會跨過 Windows 檔案系統的界線，比 Linux 磁碟慢得多。",
-      "sideHintUnc": "從 Windows 經由 \\\\wsl.localhost 存取，比在發行版裡開啟同一個路徑要慢。"
+      "sideHintUnc": "從 Windows 經由 \\\\wsl.localhost 存取，比在發行版裡開啟同一個路徑要慢。",
+      "drivesTitle": "Windows 磁碟機",
+      "drivesNone": "沒有已掛載的 Windows 磁碟機",
+      "drivesDisabled": "/etc/wsl.conf 中已關閉自動掛載",
+      "drivesDeclared": "宣告的選項",
+      "driveMetadata": "metadata",
+      "driveNoMetadata": "無 metadata",
+      "metadataWarning": "沒有 metadata 選項時，在 {{drives}} 上執行 chmod 與 chown 會回報成功但什麼都不會儲存。權限每次讀取時都由 umask 重新產生，所以在下一次 ls 之前就已經消失了。",
+      "metadataDeclaredNotInForce": "/etc/wsl.conf 要求 metadata，但上面的掛載沒有。磁碟機在發行版啟動時掛載，因此需要 wsl --shutdown。"
     },
     "config": {
       "title": "組態",
@@ -937,10 +962,44 @@
   "diagnostics": {
     "title": "診斷",
     "intro": "記錄本次工作階段中重要的 WSL 變化。網路檢查只會在您要求時執行，不屬於背景輪詢。",
-    "port": "Windows localhost 連接埠", "portOptional": "連接埠（選填）", "runCheck": "執行網路檢查", "checking": "檢查中…", "export": "匯出診斷", "invalidPort": "請輸入 1 到 65535 之間的連接埠，或留空。", "lastCheck": "上次網路檢查", "noCheck": "本次工作階段尚未執行網路檢查。", "timeline": "事件時間軸", "noIncidents": "本次工作階段未觀察到事件。", "checkComplete": "網路檢查完成 — {{failed}} 項失敗", "exported": "診斷套件已匯出至 {{path}}",
-    "probe": { "distro": "發行版回應", "wslDns": "WSL DNS", "windowsDns": "Windows DNS", "defaultRoute": "WSL 預設路由", "windowsLocalhost": "Windows localhost 連接埠" },
-    "status": { "pass": "通過", "fail": "失敗", "unknown": "未知" },
-    "incident": { "monitoringStarted": "工作階段監控已開始", "distroSelected": "已選擇發行版 {{distro}}", "distroState": "發行版 {{distro}}：{{from}} → {{to}}", "unresponsive": "發行版 {{distro}} 停止回應", "recovered": "發行版 {{distro}} 已恢復回應", "networkMode": "有效網路模式已變更：{{from}} → {{to}}", "dnsChanged": "DNS 設定已變更", "consoleFailed": "主控台失敗：{{status}}", "consoleRecovered": "主控台已復原", "suspend": "Windows 正在進入睡眠", "resume": "Windows 已從睡眠中恢復", "networkCheck": "網路檢查完成：{{failed}} 項失敗，{{unknown}} 項未知" }
+    "port": "Windows localhost 連接埠",
+    "portOptional": "連接埠（選填）",
+    "runCheck": "執行網路檢查",
+    "checking": "檢查中…",
+    "export": "匯出診斷",
+    "invalidPort": "請輸入 1 到 65535 之間的連接埠，或留空。",
+    "lastCheck": "上次網路檢查",
+    "noCheck": "本次工作階段尚未執行網路檢查。",
+    "timeline": "事件時間軸",
+    "noIncidents": "本次工作階段未觀察到事件。",
+    "checkComplete": "網路檢查完成 — {{failed}} 項失敗",
+    "exported": "診斷套件已匯出至 {{path}}",
+    "probe": {
+      "distro": "發行版回應",
+      "wslDns": "WSL DNS",
+      "windowsDns": "Windows DNS",
+      "defaultRoute": "WSL 預設路由",
+      "windowsLocalhost": "Windows localhost 連接埠"
+    },
+    "status": {
+      "pass": "通過",
+      "fail": "失敗",
+      "unknown": "未知"
+    },
+    "incident": {
+      "monitoringStarted": "工作階段監控已開始",
+      "distroSelected": "已選擇發行版 {{distro}}",
+      "distroState": "發行版 {{distro}}：{{from}} → {{to}}",
+      "unresponsive": "發行版 {{distro}} 停止回應",
+      "recovered": "發行版 {{distro}} 已恢復回應",
+      "networkMode": "有效網路模式已變更：{{from}} → {{to}}",
+      "dnsChanged": "DNS 設定已變更",
+      "consoleFailed": "主控台失敗：{{status}}",
+      "consoleRecovered": "主控台已復原",
+      "suspend": "Windows 正在進入睡眠",
+      "resume": "Windows 已從睡眠中恢復",
+      "networkCheck": "網路檢查完成：{{failed}} 項失敗，{{unknown}} 項未知"
+    }
   },
   "warnings": {
     "distroStopped": "發行版 {{distro}} 已停止",

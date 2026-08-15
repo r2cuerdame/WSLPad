@@ -4,6 +4,8 @@ release*/
 dist/
 coverage/
 test-results/
+# Runtime worktrees created by the task loop — generated state, never source.
+.loop/
 playwright-report/
 *.log
 .vite/

@@ -115,7 +115,7 @@ Sie erholt sich außerdem von selbst. WSL ist oft noch beschäftigt, wenn WSLPad
 
 Solange WSLPad im Tray sitzt, stellt es MCP unter `http://127.0.0.1:4923/mcp`
 bereit (Streamable HTTP, nur localhost, Authentifizierung per Bearer-Token) mit
-37 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
+40 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
 `GetTextFile`, `GetPortOwner`, `GetCommandResolution`, … Tools zum Schreiben, Ausführen oder Beenden
 gibt es bewusst nicht; Secrets und private Schlüssel überschreiten die
 MCP-Grenze nie. Registrierung per Klick für Claude Desktop (stdio-Bridge),
@@ -178,6 +178,11 @@ in `/etc/wsl.conf` stillschweigend schlägt.
 Linux-Sicht — jeweils mit der Angabe, ob es existiert, in Linux- wie in
 Windows-Schreibweise und auf welcher Seite der Grenze zum Windows-Dateisystem
 es liegt (nativ auf ext4 oder jenseits der langsamen Windows-Einbindung).
+Und wie die Windows-Laufwerke darunter wirklich eingehängt sind. Fast die ganze
+Überraschung steckt in einer Option: ohne `metadata` melden `chmod` und `chown`
+unter `/mnt/c` Erfolg und speichern nichts — der Modus wird bei jedem Lesen aus
+der umask neu gebildet, die Änderung ist also vor dem nächsten `ls` wieder weg.
+Skripte bleiben nicht ausführbar, und nirgends erscheint ein Fehler.
 
 **Konfigurationsdateien** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: wo
@@ -274,7 +279,7 @@ der häufigste Grund für "WSL ist langsam", und die Eingabeaufforderung sieht
 exakt gleich aus.
 
 
-**Über MCP** — alles davon über 37 `Get*`-Tools mit Nur-Lese-Zugriff.
+**Über MCP** — alles davon über 40 `Get*`-Tools mit Nur-Lese-Zugriff.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings & Sprachen
@@ -346,7 +351,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.6.0)
+## Aktuelle Einschränkungen (v0.7.0)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;

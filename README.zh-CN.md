@@ -91,7 +91,7 @@ Console 会跟着切到同一个目录 —— 不会出现可见的 `cd`，也�
 ## MCP 服务器（只读）
 
 只要 WSLPad 还在托盘里，它就会在 `http://127.0.0.1:4923/mcp` 上提供 MCP 服务
-（Streamable HTTP，仅限本机，Bearer 令牌认证），带 37 个 `Get*` 工具 ——
+（Streamable HTTP，仅限本机，Bearer 令牌认证），带 40 个 `Get*` 工具 ——
 `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、`GetTextFile`、
 `GetPortOwner`, `GetCommandResolution`…… 这里刻意没有任何写入/执行/终止类的工具；密钥和私钥绝不会
 越过 MCP 边界。支持一键注册到 Claude Desktop（stdio 桥接）、Codex 和 Hermes，
@@ -139,6 +139,10 @@ DXCore 与 Windows 版本，因为下面每一条「此版本不支持」的判�
 `~/.cache`、`~/.ssh`、`~/.hermes`，以及从 Linux 这边看到的 Windows 用户配置
 目录 —— 每一项都带存在与否、Linux 和 Windows 两种写法，以及它在文件系统边界的
 哪一侧（原生 ext4 的 Linux 磁盘，还是要跨过缓慢的 Windows 驱动器挂载）。
+还有它们底下的 Windows 驱动器究竟是怎么挂载的。几乎所有的意外都来自一个选项：
+没有 `metadata` 时，在 `/mnt/c` 上执行 `chmod` 和 `chown`
+会报告成功但什么都不保存 —— 权限每次读取时都由 umask 重新生成，所以在下一次
+`ls` 之前就已经消失了。脚本仍然没有执行权限，而且任何地方都不会打印错误。
 
 **配置文件** —— `.wslconfig`、`/etc/wsl.conf`、`/etc/fstab`、`~/.bashrc`、
 `~/.profile`、`~/.zshrc`、`~/.config`、`/etc/environment`：每个文件在哪里，
@@ -212,7 +216,7 @@ WSL 回环例外、提到 WSL 的规则数），以及名称解析：`/etc/resol
 看起来一模一样。
 
 
-**通过 MCP** —— 以上全部内容，都可以通过 37 个只读 `Get*` 工具拿到。
+**通过 MCP** —— 以上全部内容，都可以通过 40 个只读 `Get*` 工具拿到。
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings（设置）与语言
@@ -272,7 +276,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 界面、调试器或 LSP，没有云同步，没有 AI 聊天，也不会自动帮你修东西。它的身份
 就是：**Dashboard + Explorer + Console + 只读 MCP** —— 别无其他。
 
-## 当前限制（v0.6.0）
+## 当前限制（v0.7.0）
 
 - 仅支持 Windows x64；安装程序未签名（会有 SmartScreen 警告）
 - 磁盘映像的数字需要读取 Windows 注册表和 `fsutil`；只要有一样读不到，这个

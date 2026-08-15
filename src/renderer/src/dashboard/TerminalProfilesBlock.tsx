@@ -63,9 +63,7 @@ export default function TerminalProfilesBlock({
       {title}
       <div className="path-row">
         <span
-          className={
-            mine === null ? 'dot dot-err' : mine.hidden ? 'dot dot-unknown' : 'dot dot-ok'
-          }
+          className={mine === null ? 'dot dot-err' : mine.hidden ? 'dot dot-unknown' : 'dot dot-ok'}
         />
         <div className="row-main">
           <div className="path-line">

@@ -65,8 +65,7 @@ export default function ProcessesCard({ processes }: ProcessesCardProps): React.
     })
   }, [processes, query, sortKey, desc])
 
-  const focusIndex =
-    focusPid === null ? undefined : sorted.findIndex((p) => p.pid === focusPid)
+  const focusIndex = focusPid === null ? undefined : sorted.findIndex((p) => p.pid === focusPid)
 
   // Kill is never executed here — the command is only prepared in the Console
   // input for the user to review (goal.md §6.8).

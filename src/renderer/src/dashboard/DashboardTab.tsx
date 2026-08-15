@@ -194,9 +194,22 @@ export default function DashboardTab(): React.JSX.Element {
           />
         )
       case 'resources':
-        return <ResourceCard resources={dash.resources} memoryDetail={dash.memoryDetail} />
+        return (
+          <ResourceCard
+            resources={dash.resources}
+            memoryDetail={dash.memoryDetail}
+            inotify={dash.inotify}
+          />
+        )
       case 'disk':
-        return <DiskCard disk={dash.disk} zone={dash.zoneIdentifier} consumers={dash.diskConsumers} />
+        return (
+          <DiskCard
+            disk={dash.disk}
+            zone={dash.zoneIdentifier}
+            consumers={dash.diskConsumers}
+            defender={dash.defender}
+          />
+        )
       case 'wslconfig':
         return <WslSettingsCard settings={dash.wslSettings} />
       case 'network':
@@ -211,7 +224,7 @@ export default function DashboardTab(): React.JSX.Element {
       case 'diagnostics':
         return <DiagnosticsCard />
       case 'paths':
-        return <PathsCard paths={dash.paths} />
+        return <PathsCard paths={dash.paths} mounts={dash.driveMounts} />
       case 'configuration':
         return (
           <ConfigCard

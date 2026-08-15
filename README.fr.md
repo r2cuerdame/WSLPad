@@ -116,7 +116,7 @@ Elle se répare aussi toute seule. WSL est souvent encore occupé quand WSLPad d
 
 Tant que WSLPad reste dans la zone de notification, il sert MCP sur
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, localhost uniquement,
-authentification par jeton Bearer) avec 37 outils `Get*` —
+authentification par jeton Bearer) avec 40 outils `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPortOwner`, `GetCommandResolution`, … Il n'y a délibérément aucun outil d'écriture, d'exécution
 ou de kill ; les secrets et les clés privées ne franchissent jamais la
@@ -179,6 +179,12 @@ Windows l’emporte discrètement sur `[user] default=` dans `/etc/wsl.conf`.
 depuis Linux — chacun avec son existence, ses deux écritures, Linux et Windows,
 et de quel côté de la frontière du système de fichiers il se trouve (ext4 natif,
 ou de l'autre côté du lent montage Windows).
+Et comment les lecteurs Windows en dessous sont réellement montés. Presque
+toute la surprise tient à une option : sans `metadata`, `chmod` et `chown` sous
+`/mnt/c` signalent une réussite et n’enregistrent rien — le mode est
+reconstruit depuis l’umask à chaque lecture, donc la modification a disparu
+avant le `ls` suivant. Les scripts restent non exécutables et aucune erreur
+n’est affichée.
 
 **Fichiers de configuration** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment` : où se
@@ -276,7 +282,7 @@ Windows : la raison la plus fréquente d'un « WSL lent », et l'invite est
 strictement identique.
 
 
-**Via MCP** — tout ce qui précède à travers 37 outils `Get*` en lecture seule.
+**Via MCP** — tout ce qui précède à travers 40 outils `Get*` en lecture seule.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings et langues
@@ -350,7 +356,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.6.0)
+## Limites actuelles (v0.7.0)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)

@@ -4,10 +4,12 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { McpStatus } from '@shared/types'
 import { McpServerHost } from '../../src/main/mcp/server'
+import { MCP_TOOL_NAMES } from '../../src/main/mcp/tools'
 import { makeDeps, makeSnapshot } from '../unit/mcp/fixture'
 
 const TOKEN = 'wslpad-test-token-1234567890'
-const TOOL_COUNT = 37
+/** Derived, not copied: a hand-kept number drifts every time a tool is added. */
+const TOOL_COUNT = MCP_TOOL_NAMES.length
 
 function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {

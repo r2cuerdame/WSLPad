@@ -23,6 +23,7 @@ const SHOTS = [
   { name: 'wslconfig', section: 'wslconfig' },
   { name: 'network', section: 'network' },
   { name: 'diagnostics', section: 'diagnostics', diagnostics: true },
+  { name: 'drives', section: 'paths' },
   { name: 'tools', section: 'tools' },
   { name: 'docker', section: 'docker' },
   { name: 'hermes', section: 'hermes' },

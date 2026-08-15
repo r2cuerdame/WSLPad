@@ -156,7 +156,15 @@
       "trendRising": "{{label}}：上升 — 当前 {{current}}，介于 {{low}} 和 {{high}} 之间",
       "trendSteady": "{{label}}：平稳 — 当前 {{current}}，介于 {{low}} 和 {{high}} 之间",
       "trendFalling": "{{label}}：下降 — 当前 {{current}}，介于 {{low}} 和 {{high}} 之间",
-      "trendHint": "仅在本次会话中保存在内存里，不会写入磁盘。"
+      "trendHint": "仅在本次会话中保存在内存里，不会写入磁盘。",
+      "watchesTitle": "文件监视 (watch)",
+      "watchesMax": "每用户 watch 数",
+      "instancesMax": "每用户 instance 数",
+      "watchesLow": "偏低",
+      "watchesWarning": "watch 用尽时内核返回 ENOSPC，而 vite、webpack、tsc --watch 和 VS Code 都会把它打印成 \"no space left on device\" —— 指着一块并没有满的磁盘。对于大型目录树，通常建议 {{recommended}}。",
+      "watchesRaise": "提高上限",
+      "watchesPrepare": "准备 sysctl 命令",
+      "watchesPrepareHint": "只会放进 Console —— 在你按下回车之前什么都不会执行。它走的是 wsl -u root 而不是 sudo，因此不需要密码。"
     },
     "disk": {
       "title": "磁盘映像",
@@ -206,7 +214,16 @@
       "suggestionsHint": "WSLPad 不会执行这些命令，只会把它放进控制台输入框，由你检查后自行运行。",
       "compactLabel": "压缩映像（管理员权限的 Windows PowerShell）",
       "setSparseLabel": "让映像自动收缩（稀疏模式）",
-      "unavailable": "没有此发行版的磁盘映像信息"
+      "unavailable": "没有此发行版的磁盘映像信息",
+      "defenderTitle": "Microsoft Defender",
+      "defenderRealtime": "实时保护",
+      "defenderExcluded": "此映像已排除",
+      "defenderCovered": "已排除",
+      "defenderNotCovered": "未排除",
+      "defenderNeedsAdmin": "排除列表只有管理员权限的进程才能读取，而 WSLPad 不是。这是未知，而不是「没有配置」。",
+      "defenderScanning": "实时保护会读取 WSL 在此映像中触及的每一个块。这是 WSL 文件系统在看不出任何问题的情况下变慢的最常见原因。",
+      "defenderExclude": "排除命令",
+      "defenderElevatedHint": "请复制到管理员权限的 PowerShell 中运行。WSLPad 无法执行它 —— Console 是发行版内部的 shell，而这需要 Windows 管理员权限。"
     },
     "wslconfig": {
       "title": "WSL 设置",
@@ -327,7 +344,15 @@
         "unknown": "未知"
       },
       "sideHintWindowsMount": "要经过 /mnt 才能访问，因此每一次文件操作都要跨过 Windows 文件系统的边界，比 Linux 磁盘慢得多。",
-      "sideHintUnc": "从 Windows 经 \\\\wsl.localhost 访问，比在发行版内部打开同一个路径要慢。"
+      "sideHintUnc": "从 Windows 经 \\\\wsl.localhost 访问，比在发行版内部打开同一个路径要慢。",
+      "drivesTitle": "Windows 驱动器",
+      "drivesNone": "没有已挂载的 Windows 驱动器",
+      "drivesDisabled": "/etc/wsl.conf 中已关闭自动挂载",
+      "drivesDeclared": "声明的选项",
+      "driveMetadata": "metadata",
+      "driveNoMetadata": "无 metadata",
+      "metadataWarning": "没有 metadata 选项时，在 {{drives}} 上执行 chmod 和 chown 会报告成功但什么都不保存。权限每次读取时都由 umask 重新生成，所以在下一次 ls 之前就已经消失了。",
+      "metadataDeclaredNotInForce": "/etc/wsl.conf 要求 metadata，但上面的挂载没有。驱动器在发行版启动时挂载，因此需要 wsl --shutdown。"
     },
     "config": {
       "title": "配置",
@@ -937,10 +962,44 @@
   "diagnostics": {
     "title": "诊断",
     "intro": "记录本次会话中重要的 WSL 变化。网络检查仅在您请求时运行，不属于后台轮询。",
-    "port": "Windows localhost 端口", "portOptional": "端口（可选）", "runCheck": "运行网络检查", "checking": "检查中…", "export": "导出诊断", "invalidPort": "请输入 1 到 65535 之间的端口，或留空。", "lastCheck": "上次网络检查", "noCheck": "本次会话尚未运行网络检查。", "timeline": "事件时间线", "noIncidents": "本次会话未观察到事件。", "checkComplete": "网络检查完成 — {{failed}} 项失败", "exported": "诊断包已导出到 {{path}}",
-    "probe": { "distro": "发行版响应", "wslDns": "WSL DNS", "windowsDns": "Windows DNS", "defaultRoute": "WSL 默认路由", "windowsLocalhost": "Windows localhost 端口" },
-    "status": { "pass": "通过", "fail": "失败", "unknown": "未知" },
-    "incident": { "monitoringStarted": "会话监控已开始", "distroSelected": "已选择发行版 {{distro}}", "distroState": "发行版 {{distro}}：{{from}} → {{to}}", "unresponsive": "发行版 {{distro}} 停止响应", "recovered": "发行版 {{distro}} 已恢复响应", "networkMode": "有效网络模式已更改：{{from}} → {{to}}", "dnsChanged": "DNS 配置已更改", "consoleFailed": "控制台失败：{{status}}", "consoleRecovered": "控制台已恢复", "suspend": "Windows 正在进入睡眠", "resume": "Windows 已从睡眠中恢复", "networkCheck": "网络检查完成：{{failed}} 项失败，{{unknown}} 项未知" }
+    "port": "Windows localhost 端口",
+    "portOptional": "端口（可选）",
+    "runCheck": "运行网络检查",
+    "checking": "检查中…",
+    "export": "导出诊断",
+    "invalidPort": "请输入 1 到 65535 之间的端口，或留空。",
+    "lastCheck": "上次网络检查",
+    "noCheck": "本次会话尚未运行网络检查。",
+    "timeline": "事件时间线",
+    "noIncidents": "本次会话未观察到事件。",
+    "checkComplete": "网络检查完成 — {{failed}} 项失败",
+    "exported": "诊断包已导出到 {{path}}",
+    "probe": {
+      "distro": "发行版响应",
+      "wslDns": "WSL DNS",
+      "windowsDns": "Windows DNS",
+      "defaultRoute": "WSL 默认路由",
+      "windowsLocalhost": "Windows localhost 端口"
+    },
+    "status": {
+      "pass": "通过",
+      "fail": "失败",
+      "unknown": "未知"
+    },
+    "incident": {
+      "monitoringStarted": "会话监控已开始",
+      "distroSelected": "已选择发行版 {{distro}}",
+      "distroState": "发行版 {{distro}}：{{from}} → {{to}}",
+      "unresponsive": "发行版 {{distro}} 停止响应",
+      "recovered": "发行版 {{distro}} 已恢复响应",
+      "networkMode": "有效网络模式已更改：{{from}} → {{to}}",
+      "dnsChanged": "DNS 配置已更改",
+      "consoleFailed": "控制台失败：{{status}}",
+      "consoleRecovered": "控制台已恢复",
+      "suspend": "Windows 正在进入睡眠",
+      "resume": "Windows 已从睡眠中恢复",
+      "networkCheck": "网络检查完成：{{failed}} 项失败，{{unknown}} 项未知"
+    }
   },
   "warnings": {
     "distroStopped": "发行版 {{distro}} 已停止",

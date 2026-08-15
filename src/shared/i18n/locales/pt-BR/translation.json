@@ -156,7 +156,15 @@
       "trendRising": "{{label}}: subindo — agora {{current}}, entre {{low}} e {{high}}",
       "trendSteady": "{{label}}: estável — agora {{current}}, entre {{low}} e {{high}}",
       "trendFalling": "{{label}}: caindo — agora {{current}}, entre {{low}} e {{high}}",
-      "trendHint": "Fica na memória apenas durante esta sessão; nada é gravado em disco."
+      "trendHint": "Fica na memória apenas durante esta sessão; nada é gravado em disco.",
+      "watchesTitle": "Observadores de arquivos",
+      "watchesMax": "Observadores por usuário",
+      "instancesMax": "Instâncias por usuário",
+      "watchesLow": "Baixo",
+      "watchesWarning": "Ao esgotar os observadores o kernel devolve ENOSPC, e vite, webpack, tsc --watch e VS Code imprimem isso como \"no space left on device\" — apontando para um disco que não está cheio. {{recommended}} é a recomendação usual para uma árvore grande.",
+      "watchesRaise": "Aumentar o limite",
+      "watchesPrepare": "Preparar o comando sysctl",
+      "watchesPrepareHint": "Apenas colocado no Console — nada roda até você apertar Enter. Ele passa por wsl -u root em vez de sudo, então nenhuma senha é necessária."
     },
     "disk": {
       "title": "Imagem de disco",
@@ -206,7 +214,16 @@
       "suggestionsHint": "O WSLPad nunca executa esses comandos. O comando é apenas colocado na entrada do console para você revisar e executar.",
       "compactLabel": "Compactar a imagem (PowerShell do Windows com privilégios elevados)",
       "setSparseLabel": "Deixar a imagem encolher sozinha (modo esparso)",
-      "unavailable": "Nenhuma informação de imagem de disco para esta distribuição"
+      "unavailable": "Nenhuma informação de imagem de disco para esta distribuição",
+      "defenderTitle": "Microsoft Defender",
+      "defenderRealtime": "Proteção em tempo real",
+      "defenderExcluded": "Esta imagem excluída",
+      "defenderCovered": "Excluída",
+      "defenderNotCovered": "Não excluída",
+      "defenderNeedsAdmin": "A lista de exclusões só pode ser lida por um processo elevado, e o WSLPad não é um. Isto é desconhecido, não \"nada configurado\".",
+      "defenderScanning": "A proteção em tempo real lê cada bloco que o WSL toca dentro desta imagem. É a causa mais comum de um sistema de arquivos WSL parecer lento sem nada visível.",
+      "defenderExclude": "Comando de exclusão",
+      "defenderElevatedHint": "Copie e execute em um PowerShell elevado. O WSLPad não pode: o Console é um shell dentro da distribuição, e isto precisa de direitos de administrador do Windows."
     },
     "wslconfig": {
       "title": "Configurações do WSL",
@@ -327,7 +344,15 @@
         "unknown": "Desconhecido"
       },
       "sideHintWindowsMount": "É alcançado por /mnt, então toda operação de arquivo cruza a fronteira do sistema de arquivos do Windows e fica bem mais lenta que no disco do Linux.",
-      "sideHintUnc": "É alcançado a partir do Windows por \\\\wsl.localhost, o que é mais lento que abrir o mesmo caminho dentro da distribuição."
+      "sideHintUnc": "É alcançado a partir do Windows por \\\\wsl.localhost, o que é mais lento que abrir o mesmo caminho dentro da distribuição.",
+      "drivesTitle": "Unidades do Windows",
+      "drivesNone": "Nenhuma unidade do Windows montada",
+      "drivesDisabled": "A montagem automática está desligada em /etc/wsl.conf",
+      "drivesDeclared": "Opções declaradas",
+      "driveMetadata": "metadata",
+      "driveNoMetadata": "sem metadata",
+      "metadataWarning": "Sem a opção metadata, chmod e chown em {{drives}} informam sucesso e não guardam nada — o modo é reconstruído a partir do umask a cada leitura, então a mudança some antes do próximo ls.",
+      "metadataDeclaredNotInForce": "O /etc/wsl.conf pede metadata, mas a montagem acima não tem. As unidades são montadas quando a distribuição inicia, então a mudança exige wsl --shutdown."
     },
     "config": {
       "title": "Configuração",
@@ -937,10 +962,44 @@
   "diagnostics": {
     "title": "Diagnóstico",
     "intro": "Esta linha do tempo da sessão registra mudanças importantes do WSL. As verificações de rede só são executadas quando solicitadas e nunca fazem parte da sondagem em segundo plano.",
-    "port": "Porta localhost do Windows", "portOptional": "Porta (opcional)", "runCheck": "Verificar rede", "checking": "Verificando…", "export": "Exportar diagnóstico", "invalidPort": "Digite uma porta entre 1 e 65535 ou deixe em branco.", "lastCheck": "Última verificação de rede", "noCheck": "Nenhuma verificação de rede foi executada nesta sessão.", "timeline": "Linha do tempo de incidentes", "noIncidents": "Nenhum incidente observado nesta sessão.", "checkComplete": "Verificação concluída — {{failed}} falhas", "exported": "Diagnóstico exportado para {{path}}",
-    "probe": { "distro": "Resposta da distribuição", "wslDns": "DNS pelo WSL", "windowsDns": "DNS pelo Windows", "defaultRoute": "Rota padrão do WSL", "windowsLocalhost": "Porta localhost do Windows" },
-    "status": { "pass": "Aprovado", "fail": "Falha", "unknown": "Desconhecido" },
-    "incident": { "monitoringStarted": "Monitoramento da sessão iniciado", "distroSelected": "Distribuição {{distro}} selecionada", "distroState": "Distribuição {{distro}}: {{from}} → {{to}}", "unresponsive": "A distribuição {{distro}} parou de responder", "recovered": "A distribuição {{distro}} voltou a responder", "networkMode": "Modo de rede efetivo alterado: {{from}} → {{to}}", "dnsChanged": "A configuração de DNS mudou", "consoleFailed": "Falha no console: {{status}}", "consoleRecovered": "O console se recuperou", "suspend": "O Windows está entrando em suspensão", "resume": "O Windows retomou após a suspensão", "networkCheck": "Verificação concluída: {{failed}} falhas, {{unknown}} desconhecidos" }
+    "port": "Porta localhost do Windows",
+    "portOptional": "Porta (opcional)",
+    "runCheck": "Verificar rede",
+    "checking": "Verificando…",
+    "export": "Exportar diagnóstico",
+    "invalidPort": "Digite uma porta entre 1 e 65535 ou deixe em branco.",
+    "lastCheck": "Última verificação de rede",
+    "noCheck": "Nenhuma verificação de rede foi executada nesta sessão.",
+    "timeline": "Linha do tempo de incidentes",
+    "noIncidents": "Nenhum incidente observado nesta sessão.",
+    "checkComplete": "Verificação concluída — {{failed}} falhas",
+    "exported": "Diagnóstico exportado para {{path}}",
+    "probe": {
+      "distro": "Resposta da distribuição",
+      "wslDns": "DNS pelo WSL",
+      "windowsDns": "DNS pelo Windows",
+      "defaultRoute": "Rota padrão do WSL",
+      "windowsLocalhost": "Porta localhost do Windows"
+    },
+    "status": {
+      "pass": "Aprovado",
+      "fail": "Falha",
+      "unknown": "Desconhecido"
+    },
+    "incident": {
+      "monitoringStarted": "Monitoramento da sessão iniciado",
+      "distroSelected": "Distribuição {{distro}} selecionada",
+      "distroState": "Distribuição {{distro}}: {{from}} → {{to}}",
+      "unresponsive": "A distribuição {{distro}} parou de responder",
+      "recovered": "A distribuição {{distro}} voltou a responder",
+      "networkMode": "Modo de rede efetivo alterado: {{from}} → {{to}}",
+      "dnsChanged": "A configuração de DNS mudou",
+      "consoleFailed": "Falha no console: {{status}}",
+      "consoleRecovered": "O console se recuperou",
+      "suspend": "O Windows está entrando em suspensão",
+      "resume": "O Windows retomou após a suspensão",
+      "networkCheck": "Verificação concluída: {{failed}} falhas, {{unknown}} desconhecidos"
+    }
   },
   "warnings": {
     "distroStopped": "A distribuição {{distro}} está parada",

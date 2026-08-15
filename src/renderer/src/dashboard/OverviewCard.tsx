@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ClockInfo, DistroLiveness, DistroDetails, LocaleCode, SystemInfo } from '@shared/types'
+import type {
+  ClockInfo,
+  DistroLiveness,
+  DistroDetails,
+  LocaleCode,
+  SystemInfo
+} from '@shared/types'
 import { CLOCK_SKEW_WARN_SECONDS } from '@shared/constants'
 import { formatDuration, formatNumber } from '@shared/format'
 import { useApp } from '../store'

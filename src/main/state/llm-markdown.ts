@@ -8,6 +8,8 @@ import type {
   WslPadSnapshot,
   WslSettingInfo
 } from '@shared/types'
+import { defenderCoverage } from '@shared/defender-coverage'
+import { watchesAreLow } from '@shared/inotify'
 import { maskTextFileContent } from '../mcp/masking'
 import { classifyPathSide } from '../wsl/contracts'
 
@@ -670,6 +672,32 @@ function agentGotchas(lines: string[], dash: DashboardSnapshot): void {
     notes.push(
       `- /etc/wsl.conf asks for user ${who.declaredName}, but the distribution starts as ` +
         `${who.effectiveName}${uid} — the Windows registry value wins.`
+    )
+  }
+  // A fix that chmods a script under /mnt/c looks like it worked and did not.
+  const bare = (dash.driveMounts?.drives ?? []).filter((d) => !d.metadata).map((d) => d.point)
+  if (bare.length > 0) {
+    notes.push(
+      `- ${bare.join(', ')} ${bare.length === 1 ? 'is' : 'are'} mounted without the metadata ` +
+        'option: chmod and chown there report success and store nothing. Work on the ' +
+        "distribution's own filesystem when a permission bit has to stick."
+    )
+  }
+  const defender = dash.defender
+  if (defender !== null && defender.realtimeEnabled === true) {
+    const coverage = defenderCoverage(defender, dash.disk)
+    if (coverage === 'not-covered') {
+      notes.push(
+        "- Defender real-time protection is scanning this distro's disk image; expect " +
+          'slow file I/O until the image folder is excluded.'
+      )
+    }
+  }
+  if (watchesAreLow(dash.inotify)) {
+    notes.push(
+      `- fs.inotify.max_user_watches is ${dash.inotify?.maxUserWatches ?? 'unknown'}. A file ` +
+        'watcher that runs out returns ENOSPC, which tools print as "no space left on ' +
+        'device" while the disk is not full.'
     )
   }
   if (dash.dns?.generateResolvConf === false) {

@@ -32,6 +32,9 @@ import { createWindowsPortCollector } from './windows-ports'
 import { createWslConfigCollector } from './wsl-config'
 import { createTerminalProfilesCollector } from './terminal-profiles'
 import { detectZoneIdentifiers } from './zone-identifier'
+import { collectDriveMounts } from './drive-mounts'
+import { collectDefender } from './defender'
+import { collectInotify } from './inotify'
 
 /** How long one `hermes status` answer is reused (its own CLI takes seconds). */
 const HERMES_CLI_TTL_MS = 60_000
@@ -266,6 +269,18 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
 
     getDiskConsumers(distro) {
       return consumersInfo(distro)
+    },
+
+    getDriveMounts(distro) {
+      return collectDriveMounts(runner, distro)
+    },
+
+    getDefender() {
+      return collectDefender()
+    },
+
+    getInotify(distro) {
+      return collectInotify(runner, distro)
     },
 
     getServiceLog(distro, unit, scope, lines) {

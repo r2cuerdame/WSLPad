@@ -179,9 +179,7 @@ export default function DockerCard({ docker }: DockerCardProps): React.JSX.Eleme
       ) : docker.notProbed === 'remote-endpoint' ? (
         <div className="notice-warn" role="status">
           <WarningIcon size={14} />
-          <span>
-            {t('dashboard.docker.notProbedRemote', { endpoint: docker.endpoint ?? '' })}
-          </span>
+          <span>{t('dashboard.docker.notProbedRemote', { endpoint: docker.endpoint ?? '' })}</span>
         </div>
       ) : !docker.daemonRunning ? (
         <div className="notice-warn" role="status">

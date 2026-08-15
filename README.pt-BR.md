@@ -112,7 +112,7 @@ Ele também se recupera sozinho. O WSL costuma continuar ocupado quando o WSLPad
 
 Enquanto o WSLPad fica na bandeja, ele serve MCP em
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, apenas localhost, autenticação
-por token Bearer) com 37 ferramentas `Get*` — `GetDashboardSnapshot`,
+por token Bearer) com 40 ferramentas `Get*` — `GetDashboardSnapshot`,
 `GetInstalledTools`, `GetPorts`, `GetTextFile`, `GetPortOwner`, `GetCommandResolution`, … Não existem,
 de propósito, ferramentas de escrita/execução/kill; segredos e chaves privadas
 nunca cruzam a fronteira do MCP. Registro em um clique para Claude Desktop
@@ -172,6 +172,11 @@ o `[user] default=` do `/etc/wsl.conf`.
 visto do Linux — cada um com sua existência, as grafias tanto do Linux quanto
 do Windows e de que lado da fronteira do sistema de arquivos ele está (no ext4
 nativo ou do outro lado da montagem lenta do Windows).
+E como as unidades do Windows por baixo estão realmente montadas. Quase toda a
+surpresa está em uma opção: sem `metadata`, `chmod` e `chown` em `/mnt/c`
+informam sucesso e não guardam nada — o modo é reconstruído a partir do umask a
+cada leitura, então a mudança some antes do próximo `ls`. Os scripts continuam
+sem permissão de execução, e nenhum erro é impresso em lugar nenhum.
 
 **Arquivos de configuração** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: onde
@@ -267,7 +272,7 @@ marcado. Cada arquivo que um build toca ali cruza a fronteira do Windows: o
 motivo mais comum de "o WSL está lento", e o prompt é idêntico.
 
 
-**Pelo MCP** — tudo isso acima por meio de 37 ferramentas `Get*` somente leitura.
+**Pelo MCP** — tudo isso acima por meio de 40 ferramentas `Get*` somente leitura.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings e idiomas
@@ -337,7 +342,7 @@ não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronizaç�
 nuvem, nem chat de IA, nem correção automática. Identidade:
 **Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
 
-## Limitações atuais (v0.6.0)
+## Limitações atuais (v0.7.0)
 
 - Somente Windows x64; o instalador não é assinado (aviso do SmartScreen)
 - Os números da imagem de disco dependem do registro do Windows e do `fsutil`;

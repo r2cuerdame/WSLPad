@@ -187,11 +187,7 @@ export default function ServicesCard({
         })}
       </div>
       {logFor === null ? null : (
-        <ServiceLogDialog
-          unit={logFor.unit}
-          scope={logFor.scope}
-          onClose={() => setLogFor(null)}
-        />
+        <ServiceLogDialog unit={logFor.unit} scope={logFor.scope} onClose={() => setLogFor(null)} />
       )}
     </Card>
   )

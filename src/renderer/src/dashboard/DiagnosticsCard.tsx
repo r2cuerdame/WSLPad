@@ -32,7 +32,10 @@ function incidentIcon(event: IncidentEvent): React.JSX.Element {
   return event.severity === 'warning' ? (
     <WarningIcon size={14} className="diag-fail" />
   ) : (
-    <CheckIcon size={14} className={event.severity === 'recovery' ? 'diag-recovery' : 'diag-info'} />
+    <CheckIcon
+      size={14}
+      className={event.severity === 'recovery' ? 'diag-recovery' : 'diag-info'}
+    />
   )
 }
 
@@ -60,7 +63,12 @@ export default function DiagnosticsCard(): React.JSX.Element {
     parsedPort !== null && (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535)
   const selected = snapshot?.selectedDistro ?? null
   const formatter = useMemo(
-    () => new Intl.DateTimeFormat(i18n.language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    () =>
+      new Intl.DateTimeFormat(i18n.language, {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }),
     [i18n.language]
   )
 
@@ -73,7 +81,10 @@ export default function DiagnosticsCard(): React.JSX.Element {
       const failed = result.probes.filter((probe) => probe.status === 'fail').length
       pushToast(
         failed > 0 ? 'error' : 'success',
-        t('diagnostics.checkComplete', { failed, defaultValue: 'Network check complete — {{failed}} failed' })
+        t('diagnostics.checkComplete', {
+          failed,
+          defaultValue: 'Network check complete — {{failed}} failed'
+        })
       )
     } catch {
       pushToast('error', t('common.error'))
@@ -85,7 +96,14 @@ export default function DiagnosticsCard(): React.JSX.Element {
   const exportBundle = async (): Promise<void> => {
     try {
       const path = await window.wslpad.diagnostics.exportBundle()
-      if (path) pushToast('success', t('diagnostics.exported', { path, defaultValue: 'Diagnostic bundle exported to {{path}}' }))
+      if (path)
+        pushToast(
+          'success',
+          t('diagnostics.exported', {
+            path,
+            defaultValue: 'Diagnostic bundle exported to {{path}}'
+          })
+        )
     } catch {
       pushToast('error', t('common.error'))
     }

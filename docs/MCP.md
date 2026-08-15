@@ -83,6 +83,9 @@ at-a-glance status badge):
 | `GetZoneIdentifiers` | Count and location of the `*:Zone.Identifier` files Windows leaves behind, plus the cleanup command |
 | `GetTerminalProfiles` | Windows Terminal profiles, which distro each opens, and the JSON to add a missing one |
 | `GetDiskConsumers` | What is filling the disk image by name — package caches, the systemd journal, build caches, the trash, Docker's store — each with the command that would clear it |
+| `GetDriveMounts` | How each Windows drive is really mounted, incl. whether metadata is in force |
+| `GetDefender` | Defender real-time state and whether this image is excluded (unknown unless elevated) |
+| `GetInotifyLimits` | The kernel file-watch ceiling behind ENOSPC from vite, webpack and VS Code |
 | `GetServiceLog` | The tail of one unit journal (`{ unit, scope? }`), ISO timestamps, bounded; explains an empty system journal the user may not read |
 | `GetExplorerContext` | Path currently open in the Explorer tab |
 | `GetConsoleContext` | Console distro/cwd/status |

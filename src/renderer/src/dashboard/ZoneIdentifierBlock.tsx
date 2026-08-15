@@ -71,7 +71,9 @@ export default function ZoneIdentifierBlock({
             <thead>
               <tr>
                 <th>{t('dashboard.disk.zoneDirectory', { defaultValue: 'Directory' })}</th>
-                <th className="num">{t('dashboard.disk.zoneCount', { defaultValue: 'Markers' })}</th>
+                <th className="num">
+                  {t('dashboard.disk.zoneCount', { defaultValue: 'Markers' })}
+                </th>
                 <th className="num">{t('dashboard.disk.zoneSize', { defaultValue: 'Size' })}</th>
               </tr>
             </thead>

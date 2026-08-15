@@ -156,7 +156,15 @@
       "trendRising": "{{label}}: subiendo — ahora {{current}}, entre {{low}} y {{high}}",
       "trendSteady": "{{label}}: estable — ahora {{current}}, entre {{low}} y {{high}}",
       "trendFalling": "{{label}}: bajando — ahora {{current}}, entre {{low}} y {{high}}",
-      "trendHint": "Se guarda en memoria solo durante esta sesión; no se escribe nada en disco."
+      "trendHint": "Se guarda en memoria solo durante esta sesión; no se escribe nada en disco.",
+      "watchesTitle": "Vigilancias de archivos",
+      "watchesMax": "Vigilancias por usuario",
+      "instancesMax": "Instancias por usuario",
+      "watchesLow": "Bajo",
+      "watchesWarning": "Al agotar las vigilancias el kernel devuelve ENOSPC, y vite, webpack, tsc --watch y VS Code lo imprimen como «no space left on device», señalando un disco que no está lleno. {{recommended}} es la recomendación habitual para un árbol grande.",
+      "watchesRaise": "Subir el límite",
+      "watchesPrepare": "Preparar el comando sysctl",
+      "watchesPrepareHint": "Solo se coloca en la Consola: nada se ejecuta hasta que pulses Enter. Va por wsl -u root en vez de sudo, así que no hace falta contraseña."
     },
     "disk": {
       "title": "Imagen de disco",
@@ -206,7 +214,16 @@
       "suggestionsHint": "WSLPad nunca los ejecuta. El comando solo se coloca en la entrada de la consola para que lo revises y lo ejecutes tú.",
       "compactLabel": "Compactar la imagen (PowerShell de Windows con privilegios elevados)",
       "setSparseLabel": "Dejar que la imagen se encoja sola (modo disperso)",
-      "unavailable": "No hay información de la imagen de disco para esta distribución"
+      "unavailable": "No hay información de la imagen de disco para esta distribución",
+      "defenderTitle": "Microsoft Defender",
+      "defenderRealtime": "Protección en tiempo real",
+      "defenderExcluded": "Esta imagen excluida",
+      "defenderCovered": "Excluida",
+      "defenderNotCovered": "No excluida",
+      "defenderNeedsAdmin": "La lista de exclusiones solo la puede leer un proceso con privilegios elevados, y WSLPad no lo es. Esto es desconocido, no «no hay nada configurado».",
+      "defenderScanning": "La protección en tiempo real lee cada bloque que WSL toca dentro de esta imagen. Es la causa más común de que un sistema de archivos WSL se sienta lento sin nada visible.",
+      "defenderExclude": "Comando de exclusión",
+      "defenderElevatedHint": "Cópialo y ejecútalo en una PowerShell con privilegios elevados. WSLPad no puede: la Consola es un shell dentro de la distribución, y esto necesita derechos de administrador de Windows."
     },
     "wslconfig": {
       "title": "Configuración de WSL",
@@ -327,7 +344,15 @@
         "unknown": "Desconocido"
       },
       "sideHintWindowsMount": "Se llega a través de /mnt, así que cada operación de archivo cruza la frontera del sistema de archivos de Windows y es mucho más lenta que en el disco de Linux.",
-      "sideHintUnc": "Se llega desde Windows por \\\\wsl.localhost, que es más lento que abrir la misma ruta dentro de la distribución."
+      "sideHintUnc": "Se llega desde Windows por \\\\wsl.localhost, que es más lento que abrir la misma ruta dentro de la distribución.",
+      "drivesTitle": "Unidades de Windows",
+      "drivesNone": "No hay ninguna unidad de Windows montada",
+      "drivesDisabled": "El montaje automático está desactivado en /etc/wsl.conf",
+      "drivesDeclared": "Opciones declaradas",
+      "driveMetadata": "metadata",
+      "driveNoMetadata": "sin metadata",
+      "metadataWarning": "Sin la opción metadata, chmod y chown en {{drives}} informan de éxito y no guardan nada: el modo se reconstruye desde umask en cada lectura, así que el cambio desaparece antes del siguiente ls.",
+      "metadataDeclaredNotInForce": "/etc/wsl.conf pide metadata, pero el montaje de arriba no lo tiene. Las unidades se montan al iniciar la distribución, así que el cambio requiere wsl --shutdown."
     },
     "config": {
       "title": "Configuración",
@@ -937,10 +962,44 @@
   "diagnostics": {
     "title": "Diagnóstico",
     "intro": "Esta cronología de sesión registra cambios importantes de WSL. Las pruebas de red solo se ejecutan cuando las solicita y nunca forman parte del sondeo en segundo plano.",
-    "port": "Puerto localhost de Windows", "portOptional": "Puerto (opcional)", "runCheck": "Comprobar red", "checking": "Comprobando…", "export": "Exportar diagnóstico", "invalidPort": "Introduzca un puerto entre 1 y 65535 o déjelo vacío.", "lastCheck": "Última comprobación de red", "noCheck": "No se ha ejecutado ninguna comprobación de red en esta sesión.", "timeline": "Cronología de incidentes", "noIncidents": "No se observaron incidentes en esta sesión.", "checkComplete": "Comprobación terminada — {{failed}} fallos", "exported": "Diagnóstico exportado a {{path}}",
-    "probe": { "distro": "Respuesta de la distribución", "wslDns": "DNS desde WSL", "windowsDns": "DNS desde Windows", "defaultRoute": "Ruta predeterminada WSL", "windowsLocalhost": "Puerto localhost de Windows" },
-    "status": { "pass": "Correcto", "fail": "Fallo", "unknown": "Desconocido" },
-    "incident": { "monitoringStarted": "Supervisión de sesión iniciada", "distroSelected": "Distribución {{distro}} seleccionada", "distroState": "Distribución {{distro}}: {{from}} → {{to}}", "unresponsive": "La distribución {{distro}} dejó de responder", "recovered": "La distribución {{distro}} vuelve a responder", "networkMode": "Modo de red efectivo cambiado: {{from}} → {{to}}", "dnsChanged": "La configuración DNS cambió", "consoleFailed": "Error de consola: {{status}}", "consoleRecovered": "La consola se recuperó", "suspend": "Windows está entrando en suspensión", "resume": "Windows se reanudó tras la suspensión", "networkCheck": "Comprobación terminada: {{failed}} fallos, {{unknown}} desconocidos" }
+    "port": "Puerto localhost de Windows",
+    "portOptional": "Puerto (opcional)",
+    "runCheck": "Comprobar red",
+    "checking": "Comprobando…",
+    "export": "Exportar diagnóstico",
+    "invalidPort": "Introduzca un puerto entre 1 y 65535 o déjelo vacío.",
+    "lastCheck": "Última comprobación de red",
+    "noCheck": "No se ha ejecutado ninguna comprobación de red en esta sesión.",
+    "timeline": "Cronología de incidentes",
+    "noIncidents": "No se observaron incidentes en esta sesión.",
+    "checkComplete": "Comprobación terminada — {{failed}} fallos",
+    "exported": "Diagnóstico exportado a {{path}}",
+    "probe": {
+      "distro": "Respuesta de la distribución",
+      "wslDns": "DNS desde WSL",
+      "windowsDns": "DNS desde Windows",
+      "defaultRoute": "Ruta predeterminada WSL",
+      "windowsLocalhost": "Puerto localhost de Windows"
+    },
+    "status": {
+      "pass": "Correcto",
+      "fail": "Fallo",
+      "unknown": "Desconocido"
+    },
+    "incident": {
+      "monitoringStarted": "Supervisión de sesión iniciada",
+      "distroSelected": "Distribución {{distro}} seleccionada",
+      "distroState": "Distribución {{distro}}: {{from}} → {{to}}",
+      "unresponsive": "La distribución {{distro}} dejó de responder",
+      "recovered": "La distribución {{distro}} vuelve a responder",
+      "networkMode": "Modo de red efectivo cambiado: {{from}} → {{to}}",
+      "dnsChanged": "La configuración DNS cambió",
+      "consoleFailed": "Error de consola: {{status}}",
+      "consoleRecovered": "La consola se recuperó",
+      "suspend": "Windows está entrando en suspensión",
+      "resume": "Windows se reanudó tras la suspensión",
+      "networkCheck": "Comprobación terminada: {{failed}} fallos, {{unknown}} desconocidos"
+    }
   },
   "warnings": {
     "distroStopped": "La distribución {{distro}} está detenida",

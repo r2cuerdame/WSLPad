@@ -156,7 +156,15 @@
       "trendRising": "{{label}}: 上昇 — 現在 {{current}}、{{low}} から {{high}} の範囲",
       "trendSteady": "{{label}}: 横ばい — 現在 {{current}}、{{low}} から {{high}} の範囲",
       "trendFalling": "{{label}}: 下降 — 現在 {{current}}、{{low}} から {{high}} の範囲",
-      "trendHint": "このセッションの間だけメモリに保持され、ディスクには何も書き込みません。"
+      "trendHint": "このセッションの間だけメモリに保持され、ディスクには何も書き込みません。",
+      "watchesTitle": "ファイル監視 (watch)",
+      "watchesMax": "ユーザーあたりの watch 数",
+      "instancesMax": "ユーザーあたりの instance 数",
+      "watchesLow": "不足",
+      "watchesWarning": "watch を使い切るとカーネルは ENOSPC を返し、vite・webpack・tsc --watch・VS Code はいずれも \"no space left on device\" と表示します — 満杯でもないディスクを指しながら。大きなツリーでは通常 {{recommended}} が推奨されます。",
+      "watchesRaise": "上限を上げる",
+      "watchesPrepare": "sysctl コマンドを準備",
+      "watchesPrepareHint": "Console に置くだけです — Enter を押すまで何も実行されません。sudo ではなく wsl -u root を通すので、パスワードは不要です。"
     },
     "disk": {
       "title": "ディスクイメージ",
@@ -206,7 +214,16 @@
       "suggestionsHint": "WSLPad がこれらを実行することはありません。コマンドはコンソールの入力欄に置かれるだけなので、確認してからご自身で実行してください。",
       "compactLabel": "イメージを圧縮する (管理者権限の Windows PowerShell)",
       "setSparseLabel": "イメージが自動的に縮むようにする (スパースモード)",
-      "unavailable": "このディストリビューションのディスクイメージ情報はありません"
+      "unavailable": "このディストリビューションのディスクイメージ情報はありません",
+      "defenderTitle": "Microsoft Defender",
+      "defenderRealtime": "リアルタイム保護",
+      "defenderExcluded": "このイメージの除外",
+      "defenderCovered": "除外済み",
+      "defenderNotCovered": "除外されていない",
+      "defenderNeedsAdmin": "除外リストは管理者権限のプロセスしか読めず、WSLPad はそうではありません。これは「設定なし」ではなく不明です。",
+      "defenderScanning": "リアルタイム保護は WSL がこのイメージ内で触れるすべてのブロックを読みます。目に見える異常がないのに WSL のファイルシステムが遅く感じる、最も一般的な原因です。",
+      "defenderExclude": "除外コマンド",
+      "defenderElevatedHint": "コピーして管理者権限の PowerShell で実行してください。WSLPad は実行できません — Console はディストリビューション内のシェルで、これには Windows の管理者権限が必要です。"
     },
     "wslconfig": {
       "title": "WSL 設定",
@@ -327,7 +344,15 @@
         "unknown": "不明"
       },
       "sideHintWindowsMount": "/mnt 経由でたどるため、ファイル操作のたびに Windows のファイルシステムの境界を越えることになり、Linux のディスクよりはるかに遅くなります。",
-      "sideHintUnc": "Windows から \\\\wsl.localhost 経由でたどるため、ディストリビューションの中で同じパスを開くより遅くなります。"
+      "sideHintUnc": "Windows から \\\\wsl.localhost 経由でたどるため、ディストリビューションの中で同じパスを開くより遅くなります。",
+      "drivesTitle": "Windows ドライブ",
+      "drivesNone": "マウントされている Windows ドライブはありません",
+      "drivesDisabled": "/etc/wsl.conf で自動マウントが無効です",
+      "drivesDeclared": "宣言されたオプション",
+      "driveMetadata": "metadata",
+      "driveNoMetadata": "metadata なし",
+      "metadataWarning": "metadata オプションがないと、{{drives}} での chmod と chown は成功と表示されて何も保存されません。パーミッションは読むたびに umask から作り直されるため、次の ls の前に消えています。",
+      "metadataDeclaredNotInForce": "/etc/wsl.conf は metadata を要求していますが、上のマウントにはありません。ドライブはディストリビューションの起動時にマウントされるため、wsl --shutdown が必要です。"
     },
     "config": {
       "title": "構成",
@@ -949,10 +974,31 @@
     "noIncidents": "このセッションでインシデントは検出されていません。",
     "checkComplete": "ネットワーク検査完了 — {{failed}} 件失敗",
     "exported": "診断バンドルを {{path}} にエクスポートしました",
-    "probe": { "distro": "ディストリビューション応答", "wslDns": "WSL の DNS", "windowsDns": "Windows の DNS", "defaultRoute": "WSL デフォルトルート", "windowsLocalhost": "Windows localhost ポート" },
-    "status": { "pass": "合格", "fail": "失敗", "unknown": "不明" },
+    "probe": {
+      "distro": "ディストリビューション応答",
+      "wslDns": "WSL の DNS",
+      "windowsDns": "Windows の DNS",
+      "defaultRoute": "WSL デフォルトルート",
+      "windowsLocalhost": "Windows localhost ポート"
+    },
+    "status": {
+      "pass": "合格",
+      "fail": "失敗",
+      "unknown": "不明"
+    },
     "incident": {
-      "monitoringStarted": "セッション監視を開始しました", "distroSelected": "ディストリビューション {{distro}} を選択", "distroState": "ディストリビューション {{distro}}: {{from}} → {{to}}", "unresponsive": "ディストリビューション {{distro}} が応答しなくなりました", "recovered": "ディストリビューション {{distro}} が再び応答しています", "networkMode": "有効なネットワークモードが変更されました: {{from}} → {{to}}", "dnsChanged": "DNS 構成が変更されました", "consoleFailed": "コンソール失敗: {{status}}", "consoleRecovered": "コンソールが復旧しました", "suspend": "Windows がスリープに移行します", "resume": "Windows がスリープから復帰しました", "networkCheck": "ネットワーク検査完了: {{failed}} 件失敗、{{unknown}} 件不明"
+      "monitoringStarted": "セッション監視を開始しました",
+      "distroSelected": "ディストリビューション {{distro}} を選択",
+      "distroState": "ディストリビューション {{distro}}: {{from}} → {{to}}",
+      "unresponsive": "ディストリビューション {{distro}} が応答しなくなりました",
+      "recovered": "ディストリビューション {{distro}} が再び応答しています",
+      "networkMode": "有効なネットワークモードが変更されました: {{from}} → {{to}}",
+      "dnsChanged": "DNS 構成が変更されました",
+      "consoleFailed": "コンソール失敗: {{status}}",
+      "consoleRecovered": "コンソールが復旧しました",
+      "suspend": "Windows がスリープに移行します",
+      "resume": "Windows がスリープから復帰しました",
+      "networkCheck": "ネットワーク検査完了: {{failed}} 件失敗、{{unknown}} 件不明"
     }
   },
   "warnings": {

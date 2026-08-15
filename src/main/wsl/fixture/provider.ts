@@ -31,7 +31,10 @@ import type {
   DiskConsumersInfo,
   TerminalProfilesInfo,
   WslConfigInfo,
-  ZoneIdentifierInfo
+  ZoneIdentifierInfo,
+  DriveMountsInfo,
+  DefenderInfo,
+  InotifyInfo
 } from '@shared/types'
 import { isPathLikeName, isSecretName, looksWindowsOriginated, maskEnvValue } from '@shared/masking'
 import type { WslProvider } from '../contracts'
@@ -50,6 +53,9 @@ import {
   fixtureDiskConsumers,
   fixtureServiceLog,
   fixtureTerminalProfiles,
+  fixtureDriveMounts,
+  fixtureDefender,
+  fixtureInotify,
   fixtureZoneIdentifiers,
   fixturePortProxy,
   fixtureHermes,
@@ -149,6 +155,19 @@ export class FixtureWslProvider implements WslProvider {
 
   async getDiskConsumers(distro: string): Promise<DiskConsumersInfo | null> {
     return fixtureDiskConsumers(this.known(distro))
+  }
+
+  async getDriveMounts(distro: string): Promise<DriveMountsInfo | null> {
+    return fixtureDriveMounts(this.known(distro))
+  }
+
+  /** Host-wide, like the firewall: Defender is a property of Windows. */
+  async getDefender(): Promise<DefenderInfo> {
+    return fixtureDefender()
+  }
+
+  async getInotify(distro: string): Promise<InotifyInfo | null> {
+    return fixtureInotify(this.known(distro))
   }
 
   async getTerminalProfiles(): Promise<TerminalProfilesInfo> {

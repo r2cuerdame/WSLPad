@@ -1,4 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { defenderCoverage, suggestedExclusion } from '@shared/defender-coverage'
+import { watchesAreLow } from '@shared/inotify'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import packageJson from '../../../package.json'
@@ -57,6 +59,9 @@ export const MCP_TOOL_NAMES = [
   'GetZoneIdentifiers',
   'GetTerminalProfiles',
   'GetDiskConsumers',
+  'GetDriveMounts',
+  'GetDefender',
+  'GetInotifyLimits',
   'GetServiceLog',
   'GetExplorerContext',
   'GetConsoleContext'
@@ -880,6 +885,85 @@ export function createMcpServer(deps: McpDeps): McpServer {
               { diskConsumers: dash.diskConsumers }
             )
       )
+    )
+  )
+
+  server.registerTool(
+    'GetDriveMounts',
+    {
+      description:
+        'How the Windows drives are really mounted, per drive: whether the metadata ' +
+        'option is in force (without it, chmod and chown under /mnt report success and ' +
+        'store nothing), the case sensitivity mode, and the uid/gid/umask the mount was ' +
+        'given. Also reports what [automount] options= declared, which is only an ' +
+        'intention: drives are mounted when the distribution starts, so a later edit is ' +
+        'not in force until wsl --shutdown.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) => {
+        const m = dash.driveMounts
+        if (m === null) return ok('the mount table has not been read', { driveMounts: null })
+        const bare = m.drives.filter((d) => !d.metadata).map((d) => d.point)
+        return ok(
+          `${m.drives.length} Windows drive(s)` +
+            (bare.length === 0
+              ? '; all mounted with metadata'
+              : `; no metadata on ${bare.join(', ')} — chmod/chown do not persist there`),
+          { driveMounts: m }
+        )
+      })
+    )
+  )
+
+  server.registerTool(
+    'GetDefender',
+    {
+      description:
+        "Microsoft Defender's real-time protection state, and whether this distro's disk " +
+        'image is excluded from scanning — a common invisible cause of slow WSL file ' +
+        'I/O. IMPORTANT: the exclusion list can only be read by an elevated process, and ' +
+        'WSLPad is not one, so coverage comes back as unknown rather than as ' +
+        '"not excluded". Never read that unknown as an absent exclusion.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) => {
+        const d = dash.defender
+        if (d === null) return ok('Defender has not been read', { defender: null })
+        const coverage = defenderCoverage(d, dash.disk)
+        const realtime = d.realtimeEnabled === null ? 'unknown' : d.realtimeEnabled ? 'on' : 'off'
+        return ok(
+          `real-time protection ${realtime}; image exclusion ${coverage}` +
+            (coverage === 'unknown' && !d.elevated ? ' (needs an elevated process to read)' : ''),
+          { defender: d, coverage, suggestedExclusion: suggestedExclusion(dash.disk) }
+        )
+      })
+    )
+  )
+
+  server.registerTool(
+    'GetInotifyLimits',
+    {
+      description:
+        "The kernel's file-watch ceiling: max_user_watches and max_user_instances. " +
+        'Exhausting watches returns ENOSPC, which vite, webpack, tsc --watch and VS Code ' +
+        'all print as "no space left on device" while the disk is not full. Consumption ' +
+        'is deliberately not reported: counting watches needs root, and a count that ' +
+        'could only come back as 0 would be worse than no answer.',
+      annotations: readOnly
+    },
+    guard(() =>
+      withDashboard((dash) => {
+        const i = dash.inotify
+        if (i === null) return ok('the watch limits have not been read', { inotify: null })
+        return ok(
+          `max_user_watches ${i.maxUserWatches ?? 'unknown'}, max_user_instances ${
+            i.maxUserInstances ?? 'unknown'
+          }` + (watchesAreLow(i) ? '; low for a large source tree' : ''),
+          { inotify: i, low: watchesAreLow(i) }
+        )
+      })
     )
   )
 

@@ -156,7 +156,15 @@
       "trendRising": "{{label}}: 상승 — 현재 {{current}}, {{low}}에서 {{high}} 사이",
       "trendSteady": "{{label}}: 유지 — 현재 {{current}}, {{low}}에서 {{high}} 사이",
       "trendFalling": "{{label}}: 하락 — 현재 {{current}}, {{low}}에서 {{high}} 사이",
-      "trendHint": "이 세션 동안 메모리에만 보관되며 디스크에는 아무것도 기록하지 않습니다."
+      "trendHint": "이 세션 동안 메모리에만 보관되며 디스크에는 아무것도 기록하지 않습니다.",
+      "watchesTitle": "파일 감시(watch)",
+      "watchesMax": "사용자당 watch 수",
+      "instancesMax": "사용자당 instance 수",
+      "watchesLow": "부족",
+      "watchesWarning": "watch가 바닥나면 커널이 ENOSPC를 돌려주고, vite·webpack·tsc --watch·VS Code가 모두 \"no space left on device\"로 출력합니다 — 꽉 차지도 않은 디스크를 지목하면서요. 큰 트리에는 보통 {{recommended}}를 권장합니다.",
+      "watchesRaise": "한도 올리기",
+      "watchesPrepare": "sysctl 명령 준비",
+      "watchesPrepareHint": "Console에 넣기만 합니다 — Enter를 누르기 전까지 아무것도 실행되지 않습니다. sudo가 아니라 wsl -u root로 가므로 암호가 필요 없습니다."
     },
     "disk": {
       "title": "디스크 이미지",
@@ -206,7 +214,16 @@
       "suggestionsHint": "WSLPad는 이 명령을 실행하지 않습니다. 콘솔 입력란에 넣어 둘 뿐이니 직접 확인하고 실행하세요.",
       "compactLabel": "이미지 압축 (관리자 권한 Windows PowerShell)",
       "setSparseLabel": "이미지가 스스로 줄어들게 하기 (스파스 모드)",
-      "unavailable": "이 배포판의 디스크 이미지 정보가 없습니다"
+      "unavailable": "이 배포판의 디스크 이미지 정보가 없습니다",
+      "defenderTitle": "Microsoft Defender",
+      "defenderRealtime": "실시간 보호",
+      "defenderExcluded": "이 이미지 제외됨",
+      "defenderCovered": "제외됨",
+      "defenderNotCovered": "제외되지 않음",
+      "defenderNeedsAdmin": "제외 목록은 관리자 권한 프로세스만 읽을 수 있고 WSLPad는 아닙니다. 이것은 \"설정된 것이 없음\"이 아니라 알 수 없음입니다.",
+      "defenderScanning": "실시간 보호는 WSL이 이 이미지에서 건드리는 모든 블록을 읽습니다. 눈에 보이는 이상 없이 WSL 파일시스템이 느려지는 가장 흔한 원인입니다.",
+      "defenderExclude": "제외 명령",
+      "defenderElevatedHint": "복사해서 관리자 권한 PowerShell에서 실행하세요. WSLPad는 실행할 수 없습니다 — Console은 배포판 안의 셸이고, 이 명령은 Windows 관리자 권한이 필요합니다."
     },
     "wslconfig": {
       "title": "WSL 설정",
@@ -327,7 +344,15 @@
         "unknown": "알 수 없음"
       },
       "sideHintWindowsMount": "/mnt을 거쳐 접근하므로 모든 파일 작업이 Windows 파일 시스템 경계를 넘어가며, Linux 디스크보다 훨씬 느립니다.",
-      "sideHintUnc": "Windows에서 \\\\wsl.localhost를 거쳐 접근하므로, 배포판 안에서 같은 경로를 여는 것보다 느립니다."
+      "sideHintUnc": "Windows에서 \\\\wsl.localhost를 거쳐 접근하므로, 배포판 안에서 같은 경로를 여는 것보다 느립니다.",
+      "drivesTitle": "Windows 드라이브",
+      "drivesNone": "마운트된 Windows 드라이브가 없습니다",
+      "drivesDisabled": "/etc/wsl.conf에서 자동 마운트가 꺼져 있습니다",
+      "drivesDeclared": "선언된 옵션",
+      "driveMetadata": "metadata",
+      "driveNoMetadata": "metadata 없음",
+      "metadataWarning": "metadata 옵션이 없으면 {{drives}}에서 chmod와 chown이 성공했다고 하고 아무것도 저장하지 않습니다. 권한은 읽을 때마다 umask로 다시 만들어지므로, 다음 ls 전에 이미 사라집니다.",
+      "metadataDeclaredNotInForce": "/etc/wsl.conf는 metadata를 요청했지만 위 마운트에는 없습니다. 드라이브는 배포판이 시작할 때 마운트되므로 wsl --shutdown이 필요합니다."
     },
     "config": {
       "title": "구성",
@@ -956,7 +981,11 @@
       "defaultRoute": "WSL 기본 경로",
       "windowsLocalhost": "Windows localhost 포트"
     },
-    "status": { "pass": "통과", "fail": "실패", "unknown": "알 수 없음" },
+    "status": {
+      "pass": "통과",
+      "fail": "실패",
+      "unknown": "알 수 없음"
+    },
     "incident": {
       "monitoringStarted": "세션 모니터링 시작",
       "distroSelected": "{{distro}} 배포판 선택",

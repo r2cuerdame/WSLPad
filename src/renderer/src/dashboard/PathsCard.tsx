@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import type { ImportantPathInfo } from '@shared/types'
+import type { DriveMountsInfo, ImportantPathInfo } from '@shared/types'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
@@ -9,11 +9,15 @@ import { SideBadge } from '../components/SideBadge'
 const dotClass = (exists: boolean | null): string =>
   exists === true ? 'dot dot-ok' : exists === false ? 'dot dot-err' : 'dot dot-unknown'
 
+import DriveMountsBlock from './DriveMountsBlock'
+
 export interface PathsCardProps {
   paths: ImportantPathInfo[]
+  /** How the Windows drives these paths may sit on are really mounted. */
+  mounts?: DriveMountsInfo | null
 }
 
-export default function PathsCard({ paths }: PathsCardProps): React.JSX.Element {
+export default function PathsCard({ paths, mounts = null }: PathsCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { navigateExplorer, setConsolePath, pushToast } = useApp()
 
@@ -24,6 +28,9 @@ export default function PathsCard({ paths }: PathsCardProps): React.JSX.Element 
 
   return (
     <Card titleKey="dashboard.paths.title">
+      {/* What the drives below are mounted with decides whether a permission
+          set on any of these paths survives, so it frames the list. */}
+      <DriveMountsBlock mounts={mounts} />
       {paths.map((p) => {
         const wp = p.windowsPath
         return (

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type {
   DiskConsumersInfo,
+  DefenderInfo,
   DiskImageInfo,
   LocaleCode,
   ZoneIdentifierInfo
@@ -13,6 +14,7 @@ import CopyButton from '../components/CopyButton'
 import { FolderIcon, TerminalIcon } from '../components/Icons'
 import DiskConsumersBlock from './DiskConsumersBlock'
 import ZoneIdentifierBlock from './ZoneIdentifierBlock'
+import DefenderBlock from './DefenderBlock'
 
 function Kv({
   k,
@@ -54,6 +56,8 @@ function wslArg(value: string): string {
 
 export interface DiskCardProps {
   disk: DiskImageInfo | null
+  /** Windows-side: whether the image above is being scanned as WSL reads it. */
+  defender: DefenderInfo | null
   /** Independent of the image: it is counted even when the vhdx cannot be found. */
   zone: ZoneIdentifierInfo | null
   /** What is inside the gap the numbers above describe. */
@@ -65,7 +69,12 @@ export interface DiskCardProps {
  * on Windows versus how much of it Linux still uses. Nothing here mutates the
  * image — compacting it is a Windows-side operation the user runs themselves.
  */
-export default function DiskCard({ disk, zone, consumers }: DiskCardProps): React.JSX.Element {
+export default function DiskCard({
+  disk,
+  zone,
+  consumers,
+  defender
+}: DiskCardProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const locale = i18n.language as LocaleCode
   const { prepareCommand, pushToast } = useApp()
@@ -76,6 +85,7 @@ export default function DiskCard({ disk, zone, consumers }: DiskCardProps): Reac
         <div className="dim">{t('dashboard.disk.unavailable')}</div>
         <DiskConsumersBlock consumers={consumers} />
         <ZoneIdentifierBlock zone={zone} />
+        <DefenderBlock defender={defender} disk={disk} />
       </Card>
     )
   }
@@ -128,6 +138,7 @@ export default function DiskCard({ disk, zone, consumers }: DiskCardProps): Reac
         ) : null}
         <DiskConsumersBlock consumers={consumers} />
         <ZoneIdentifierBlock zone={zone} />
+        <DefenderBlock defender={defender} disk={disk} />
       </Card>
     )
   }
@@ -257,6 +268,10 @@ export default function DiskCard({ disk, zone, consumers }: DiskCardProps): Reac
           <span className="dim">{t('dashboard.disk.reclaimableHint')}</span>
         ) : null}
       </Kv>
+      {/* A fact about this image, so it sits with the image's own numbers
+          rather than below the caches — whether anything is reading every
+          block of it is as much a property of the file as its size. */}
+      <DefenderBlock defender={defender} disk={disk} />
       {showCompact || showSparse ? (
         <>
           <div className="path-label">
@@ -285,7 +300,7 @@ export default function DiskCard({ disk, zone, consumers }: DiskCardProps): Reac
         </>
       ) : null}
       <DiskConsumersBlock consumers={consumers} />
-        <ZoneIdentifierBlock zone={zone} />
+      <ZoneIdentifierBlock zone={zone} />
     </Card>
   )
 }

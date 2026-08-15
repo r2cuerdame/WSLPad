@@ -839,6 +839,69 @@ export interface ZoneIdentifierGroup {
  * null when the search did not finish: an unfinished walk reported as a number
  * would send someone looking for files that are still there.
  */
+/**
+ * One Windows drive as the kernel really mounted it (issue #76). `[automount]
+ * options=` states an intention; these are the options in force.
+ */
+export interface DriveMountInfo {
+  /** Mount point, e.g. /mnt/c */
+  point: string
+  /** The Windows side, e.g. `C:\`; null when the row does not record it. */
+  source: string | null
+  /**
+   * Without this, chmod and chown under the mount report success and store
+   * nothing — the single most misleading DrvFs default.
+   */
+  metadata: boolean
+  /** case=off | dir | force; null when the option is absent. */
+  caseSensitivity: string | null
+  uid: number | null
+  gid: number | null
+  umask: string | null
+  fmask: string | null
+  dmask: string | null
+  /** Verbatim options, so what this app does not name is still visible. */
+  options: string
+}
+
+export interface DriveMountsInfo {
+  drives: DriveMountInfo[]
+  /** [automount] options= from /etc/wsl.conf; null when unset. */
+  declaredOptions: string | null
+  /** [automount] enabled=; null when unset or not a boolean. */
+  declaredEnabled: boolean | null
+}
+
+/**
+ * Microsoft Defender's view of the distro image (issue #77). Real-time
+ * protection scanning ext4.vhdx is a common, invisible cause of slow WSL I/O.
+ */
+export interface DefenderInfo {
+  /** Defender answered at all. */
+  available: boolean
+  /** Reading exclusions requires an elevated token; WSLPad never has one. */
+  elevated: boolean
+  /** null when the status could not be read. */
+  realtimeEnabled: boolean | null
+  /**
+   * null whenever the list was not genuinely readable. Unelevated PowerShell
+   * returns a placeholder in place of the paths, so an empty list here would
+   * be a claim WSLPad cannot support.
+   */
+  exclusionPaths: string[] | null
+}
+
+/**
+ * The kernel's file-watch ceiling (issue #78). Exhausting it surfaces as
+ * ENOSPC, which every tool prints as a disk-full message.
+ */
+export interface InotifyInfo {
+  maxUserWatches: number | null
+  maxUserInstances: number | null
+  /** Prepared for the Console, never run. Goes through wsl -u root, not sudo. */
+  raiseCommand: string
+}
+
 export interface ZoneIdentifierInfo {
   /** Where the search ran — $HOME, one filesystem, never /mnt. */
   root: string
@@ -872,6 +935,12 @@ export interface DashboardSnapshot {
   zoneIdentifier: ZoneIdentifierInfo | null
   /** null until the known caches have been measured. */
   diskConsumers: DiskConsumersInfo | null
+  /** null until /proc/mounts has been read; never an empty list on failure. */
+  driveMounts: DriveMountsInfo | null
+  /** null until Defender has been asked. Host-wide, not per distribution. */
+  defender: DefenderInfo | null
+  /** null until the watch limits have been read. */
+  inotify: InotifyInfo | null
   /** null until Windows Terminal's settings have been read. Host-wide. */
   terminalProfiles: TerminalProfilesInfo | null
   environment: EnvironmentVariableInfo[]

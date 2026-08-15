@@ -92,7 +92,7 @@ Console 會跟著切到同一個目錄 —— 不會出現看得見的 `cd`，�
 ## MCP 伺服器（唯讀）
 
 只要 WSLPad 還待在系統匣裡，它就會在 `http://127.0.0.1:4923/mcp` 提供 MCP 服務
-（Streamable HTTP、僅限 localhost、Bearer 權杖驗證），共 37 個 `Get*` 工具 ——
+（Streamable HTTP、僅限 localhost、Bearer 權杖驗證），共 40 個 `Get*` 工具 ——
 `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、`GetTextFile`、
 `GetPortOwner`, `GetCommandResolution`、……刻意不提供任何寫入／執行／終止類工具；機密與私鑰絕不會越過
 MCP 邊界。可一鍵註冊到 Claude Desktop（stdio 橋接）、Codex 與 Hermes，另外還有
@@ -139,6 +139,10 @@ Windows 登錄檔的 `DefaultUid` 會悄悄壓過 `/etc/wsl.conf` 裡的
 `~/.cache`、`~/.ssh`、`~/.hermes`，還有從 Linux 這邊看到的 Windows 使用者設定檔
 目錄 —— 每一項都標示存不存在，同時給出 Linux 與 Windows 兩種寫法，以及它落在檔案
 系統界線的哪一側（原生 ext4，還是要跨過那個慢吞吞的 Windows 掛載點）。
+還有它們底下的 Windows 磁碟機究竟是怎麼掛載的。幾乎所有的意外都來自一個選項：
+沒有 `metadata` 時，在 `/mnt/c` 上執行 `chmod` 與 `chown`
+會回報成功但什麼都不會儲存 —— 權限每次讀取時都由 umask 重新產生，所以在下一次
+`ls` 之前就已經消失了。指令碼仍然沒有執行權限，而且任何地方都不會印出錯誤。
 
 **組態檔案** —— `.wslconfig`、`/etc/wsl.conf`、`/etc/fstab`、`~/.bashrc`、
 `~/.profile`、`~/.zshrc`、`~/.config`、`/etc/environment`：每一個放在哪裡，以及
@@ -213,7 +217,7 @@ Linux 權限與符號連結目標。Windows 這側則是每個磁碟機的可用
 看起來一模一樣。
 
 
-**透過 MCP** —— 以上全部，都能透過 37 個唯讀的 `Get*` 工具取得。
+**透過 MCP** —— 以上全部，都能透過 40 個唯讀的 `Get*` 工具取得。
 [docs/MCP.md](docs/MCP.md)
 
 ## 設定與語言
@@ -273,7 +277,7 @@ WSLPad *不是*發行版管理器或市集，不是 Docker Desktop，不是 IDE�
 偵錯器／LSP，沒有雲端同步，沒有 AI 聊天，也不會自動幫你修東西。它的定位是：
 **Dashboard + Explorer + Console + 唯讀 MCP** —— 沒有別的。
 
-## 目前的限制（v0.6.0）
+## 目前的限制（v0.7.0）
 
 - 僅支援 Windows x64；安裝程式未經簽章（會跳 SmartScreen 警告）
 - 磁碟映像的數字需要 Windows 登錄檔與 `fsutil`；只要有一邊讀不到，該區塊就會照實

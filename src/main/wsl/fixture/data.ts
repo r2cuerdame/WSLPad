@@ -28,10 +28,14 @@ import type {
   TerminalProfilesInfo,
   ZoneIdentifierInfo,
   PortProxyInfo,
-  WslConfigInfo
+  WslConfigInfo,
+  DriveMountsInfo,
+  DefenderInfo,
+  InotifyInfo
 } from '@shared/types'
 import { CONFIG_FILE_SPECS, IMPORTANT_PATH_SPECS, TOOL_SPECS } from '@shared/constants'
 import { classifyPathSide } from '../contracts'
+import { raiseWatchesCommand } from '../inotify'
 
 export const FIXTURE_UBUNTU = 'Ubuntu-24.04'
 export const FIXTURE_DEBIAN = 'Debian'
@@ -1468,5 +1472,72 @@ export function fixtureDocker(distro: FixtureDistroName): DockerInfo | null {
       }
     ],
     error: null
+  }
+}
+
+/**
+ * The mount table as current WSL 2 really writes it: the drvfs options ride
+ * inside the 9p `aname=` value, separated by semicolons, and `metadata` is
+ * absent — which is the default, and the whole reason this block exists.
+ */
+export function fixtureDriveMounts(distro: FixtureDistroName): DriveMountsInfo | null {
+  if (distro !== FIXTURE_UBUNTU) return null
+  return {
+    drives: [
+      {
+        point: '/mnt/c',
+        source: 'C:\\',
+        metadata: false,
+        caseSensitivity: 'off',
+        uid: 1000,
+        gid: 1000,
+        umask: null,
+        fmask: null,
+        dmask: null,
+        options:
+          'rw,noatime,aname=drvfs;path=C:\\;uid=1000;gid=1000;case=off,' +
+          'cache=5,access=client,msize=65536,trans=fd'
+      },
+      {
+        point: '/mnt/d',
+        source: 'D:\\',
+        metadata: true,
+        caseSensitivity: 'off',
+        uid: 1000,
+        gid: 1000,
+        umask: null,
+        fmask: '133',
+        dmask: '022',
+        options:
+          'rw,noatime,aname=drvfs;path=D:\\;uid=1000;gid=1000;metadata;fmask=133;dmask=022;case=off,' +
+          'cache=5,access=client,msize=65536,trans=fd'
+      }
+    ],
+    declaredOptions: 'metadata,umask=22,fmask=11',
+    declaredEnabled: true
+  }
+}
+
+/**
+ * The ordinary case: Defender is on, WSLPad is not elevated, so the exclusion
+ * list is genuinely unreadable. Fixing that on a screenshot would hide the
+ * exact state most users are in.
+ */
+export function fixtureDefender(): DefenderInfo {
+  return {
+    available: true,
+    elevated: false,
+    realtimeEnabled: true,
+    exclusionPaths: null
+  }
+}
+
+/** The ceiling a stock distro ships with — well under what a dev tree needs. */
+export function fixtureInotify(distro: FixtureDistroName): InotifyInfo | null {
+  if (distro !== FIXTURE_UBUNTU) return null
+  return {
+    maxUserWatches: 8192,
+    maxUserInstances: 128,
+    raiseCommand: raiseWatchesCommand(FIXTURE_UBUNTU)
   }
 }
