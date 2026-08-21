@@ -12,7 +12,12 @@ import {
 } from '@shared/schemas'
 import { MAX_EDITOR_FILE_BYTES, WINDOWS_ROOT } from '@shared/constants'
 import type { McpClientKind, SettingsPatch } from '@shared/types'
-import { ExplorerError, type DistroRunner, type ExplorerBackend, type WslProvider } from '../wsl/contracts'
+import {
+  ExplorerError,
+  type DistroRunner,
+  type ExplorerBackend,
+  type WslProvider
+} from '../wsl/contracts'
 import type { WindowsFs } from '../explorer/windows'
 import type { SnapshotStore } from '../state/store'
 import { snapshotToJson, snapshotToMarkdown } from '../state/llm-markdown'
@@ -169,6 +174,9 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   handle(IpcChannels.diagnosticsNetworkCheck, (port) =>
     deps.diagnostics.runNetworkCheck(port === undefined ? null : diagnosticPortSchema.parse(port))
   )
+  handle(IpcChannels.diagnosticsRecoveryCheck, (port) =>
+    deps.diagnostics.runRecoveryCheck(port === undefined ? null : diagnosticPortSchema.parse(port))
+  )
   handle(IpcChannels.diagnosticsExport, async () => {
     const win = deps.getWindow()
     const parent = win ?? new BrowserWindow({ show: false })
@@ -177,7 +185,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
       title: 'Export diagnostic bundle',
       message: 'Review what this diagnostic file contains',
       detail:
-        'Secrets are masked. The file still contains distribution names, local paths, host versions, IP and DNS addresses, the current snapshot, and this session\'s incident timeline.',
+        "Secrets are masked. The file still contains distribution names, local paths, host versions, IP and DNS addresses, the current snapshot, and this session's incident timeline.",
       buttons: ['Export', 'Cancel'],
       defaultId: 0,
       cancelId: 1,
@@ -212,9 +220,15 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     })
     return entries
   })
-  handle(IpcChannels.explorerTree, (path) => deps.explorer.tree(distro(), linuxPathSchema.parse(path)))
-  handle(IpcChannels.explorerStat, (path) => deps.explorer.stat(distro(), linuxPathSchema.parse(path)))
-  handle(IpcChannels.explorerMkdir, (path) => deps.explorer.mkdir(distro(), linuxPathSchema.parse(path)))
+  handle(IpcChannels.explorerTree, (path) =>
+    deps.explorer.tree(distro(), linuxPathSchema.parse(path))
+  )
+  handle(IpcChannels.explorerStat, (path) =>
+    deps.explorer.stat(distro(), linuxPathSchema.parse(path))
+  )
+  handle(IpcChannels.explorerMkdir, (path) =>
+    deps.explorer.mkdir(distro(), linuxPathSchema.parse(path))
+  )
   handle(IpcChannels.explorerCreateFile, (path) =>
     deps.explorer.createFile(distro(), linuxPathSchema.parse(path))
   )
@@ -222,27 +236,50 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     deps.explorer.rename(distro(), linuxPathSchema.parse(path), fileNameSchema.parse(newName))
   )
   handle(IpcChannels.explorerCopy, (sources, destDir, move) =>
-    deps.explorer.copyMove(distro(), pathsSchema.parse(sources), linuxPathSchema.parse(destDir), boolSchema.parse(move))
+    deps.explorer.copyMove(
+      distro(),
+      pathsSchema.parse(sources),
+      linuxPathSchema.parse(destDir),
+      boolSchema.parse(move)
+    )
   )
-  handle(IpcChannels.explorerTrash, (paths) => deps.explorer.trash(distro(), pathsSchema.parse(paths)))
+  handle(IpcChannels.explorerTrash, (paths) =>
+    deps.explorer.trash(distro(), pathsSchema.parse(paths))
+  )
   handle(IpcChannels.explorerTrashList, () => deps.explorer.listTrash(distro()))
   handle(IpcChannels.explorerTrashRestore, (names) =>
     deps.explorer.restoreTrash(distro(), trashNamesSchema.parse(names))
   )
-  handle(IpcChannels.explorerDelete, (paths) => deps.explorer.remove(distro(), pathsSchema.parse(paths)))
+  handle(IpcChannels.explorerDelete, (paths) =>
+    deps.explorer.remove(distro(), pathsSchema.parse(paths))
+  )
   handle(IpcChannels.explorerReadText, (path) =>
     deps.explorer.readText(distro(), linuxPathSchema.parse(path), MAX_EDITOR_FILE_BYTES)
   )
   handle(IpcChannels.explorerWriteText, (path, content) =>
-    deps.explorer.writeText(distro(), linuxPathSchema.parse(path), z.string().max(MAX_EDITOR_FILE_BYTES).parse(content))
+    deps.explorer.writeText(
+      distro(),
+      linuxPathSchema.parse(path),
+      z.string().max(MAX_EDITOR_FILE_BYTES).parse(content)
+    )
   )
   handle(IpcChannels.explorerImport, (windowsPaths, destDir) =>
-    deps.explorer.importFromWindows(distro(), winPathsSchema.parse(windowsPaths), linuxPathSchema.parse(destDir))
+    deps.explorer.importFromWindows(
+      distro(),
+      winPathsSchema.parse(windowsPaths),
+      linuxPathSchema.parse(destDir)
+    )
   )
   handle(IpcChannels.explorerExport, (paths, windowsDir) =>
-    deps.explorer.exportToWindows(distro(), pathsSchema.parse(paths), windowsPathSchema.parse(windowsDir))
+    deps.explorer.exportToWindows(
+      distro(),
+      pathsSchema.parse(paths),
+      windowsPathSchema.parse(windowsDir)
+    )
   )
-  handle(IpcChannels.explorerCancelOp, (opId) => deps.explorer.cancelOp(stringSchema.max(128).parse(opId)))
+  handle(IpcChannels.explorerCancelOp, (opId) =>
+    deps.explorer.cancelOp(stringSchema.max(128).parse(opId))
+  )
   handle(IpcChannels.explorerDirSizes, (path, token) =>
     deps.explorer.dirSizes(distro(), linuxPathSchema.parse(path), opTokenSchema.parse(token))
   )
@@ -346,7 +383,11 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     )
   )
   handle(IpcChannels.openInWindowsExplorer, async (linuxPath) => {
-    const winPath = await deps.explorer.convertPath(distro(), linuxPathSchema.parse(linuxPath), 'windows')
+    const winPath = await deps.explorer.convertPath(
+      distro(),
+      linuxPathSchema.parse(linuxPath),
+      'windows'
+    )
     shell.showItemInFolder(winPath)
   })
   handle(IpcChannels.openExternal, (url) => {
@@ -356,7 +397,9 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     }
     return shell.openExternal(u)
   })
-  handle(IpcChannels.clipboardWrite, (text) => clipboard.writeText(z.string().max(1_000_000).parse(text)))
+  handle(IpcChannels.clipboardWrite, (text) =>
+    clipboard.writeText(z.string().max(1_000_000).parse(text))
+  )
   handle(IpcChannels.clipboardRead, () => clipboard.readText().slice(0, 1_000_000))
 
   // --- terminal -----------------------------------------------------------

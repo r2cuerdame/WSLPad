@@ -24,13 +24,15 @@ const api: WslPadApi = {
   refresh: (tier) => ipcRenderer.invoke(IpcChannels.snapshotRefresh, tier),
   setMonitoringPaused: (paused) => ipcRenderer.invoke(IpcChannels.monitoringSetPaused, paused),
   revealEnv: (name) => ipcRenderer.invoke(IpcChannels.envReveal, name),
-  serviceLog: (unit, scope, lines) => ipcRenderer.invoke(IpcChannels.serviceLog, unit, scope, lines),
+  serviceLog: (unit, scope, lines) =>
+    ipcRenderer.invoke(IpcChannels.serviceLog, unit, scope, lines),
   copyLlmMarkdown: (preset) => ipcRenderer.invoke(IpcChannels.llmCopyMarkdown, preset),
   exportLlmJson: () => ipcRenderer.invoke(IpcChannels.llmExportJson),
 
   diagnostics: {
     get: () => ipcRenderer.invoke(IpcChannels.diagnosticsGet),
     runNetworkCheck: (port) => ipcRenderer.invoke(IpcChannels.diagnosticsNetworkCheck, port),
+    runRecoveryCheck: (port) => ipcRenderer.invoke(IpcChannels.diagnosticsRecoveryCheck, port),
     exportBundle: () => ipcRenderer.invoke(IpcChannels.diagnosticsExport),
     onChange: (cb) => subscribe<DiagnosticsState>(IpcChannels.evDiagnostics, cb)
   },
@@ -42,7 +44,8 @@ const api: WslPadApi = {
     mkdir: (path) => ipcRenderer.invoke(IpcChannels.explorerMkdir, path),
     createFile: (path) => ipcRenderer.invoke(IpcChannels.explorerCreateFile, path),
     rename: (path, newName) => ipcRenderer.invoke(IpcChannels.explorerRename, path, newName),
-    copy: (sources, destDir, move) => ipcRenderer.invoke(IpcChannels.explorerCopy, sources, destDir, move),
+    copy: (sources, destDir, move) =>
+      ipcRenderer.invoke(IpcChannels.explorerCopy, sources, destDir, move),
     trash: (paths) => ipcRenderer.invoke(IpcChannels.explorerTrash, paths),
     listTrash: () => ipcRenderer.invoke(IpcChannels.explorerTrashList),
     restoreTrash: (trashNames) => ipcRenderer.invoke(IpcChannels.explorerTrashRestore, trashNames),
@@ -82,7 +85,8 @@ const api: WslPadApi = {
   },
 
   convertPath: (input, to) => ipcRenderer.invoke(IpcChannels.pathConvert, input, to),
-  openInWindowsExplorer: (linuxPath) => ipcRenderer.invoke(IpcChannels.openInWindowsExplorer, linuxPath),
+  openInWindowsExplorer: (linuxPath) =>
+    ipcRenderer.invoke(IpcChannels.openInWindowsExplorer, linuxPath),
   openExternal: (url) => ipcRenderer.invoke(IpcChannels.openExternal, url),
   copyToClipboard: (text) => ipcRenderer.invoke(IpcChannels.clipboardWrite, text),
   readClipboard: () => ipcRenderer.invoke(IpcChannels.clipboardRead),
@@ -90,7 +94,8 @@ const api: WslPadApi = {
   terminal: {
     ensure: (distro) => ipcRenderer.invoke(IpcChannels.terminalEnsure, distro),
     input: (sessionId, data) => ipcRenderer.invoke(IpcChannels.terminalInput, sessionId, data),
-    resize: (sessionId, cols, rows) => ipcRenderer.invoke(IpcChannels.terminalResize, sessionId, cols, rows),
+    resize: (sessionId, cols, rows) =>
+      ipcRenderer.invoke(IpcChannels.terminalResize, sessionId, cols, rows),
     setCwd: (sessionId, path) => ipcRenderer.invoke(IpcChannels.terminalSetCwd, sessionId, path),
     getState: (sessionId) => ipcRenderer.invoke(IpcChannels.terminalGetState, sessionId),
     onData: (cb) => subscribe<TerminalDataEvent>(IpcChannels.evTerminalData, cb),

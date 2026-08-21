@@ -965,6 +965,7 @@
     "port": "Port localhost Windows",
     "portOptional": "Port (facultatif)",
     "runCheck": "Tester le réseau",
+    "runRecovery": "Tester la récupération",
     "checking": "Test en cours…",
     "export": "Exporter le diagnostic",
     "invalidPort": "Saisissez un port entre 1 et 65535 ou laissez vide.",
@@ -972,7 +973,7 @@
     "noCheck": "Aucun test réseau n’a été exécuté pendant cette session.",
     "timeline": "Chronologie des incidents",
     "noIncidents": "Aucun incident observé pendant cette session.",
-    "checkComplete": "Test réseau terminé — {{failed}} échecs",
+    "checkComplete": "Test de récupération terminé — {{failed}} échecs",
     "exported": "Diagnostic exporté vers {{path}}",
     "probe": {
       "distro": "Réponse de la distribution",
@@ -986,7 +987,61 @@
       "fail": "Échec",
       "unknown": "Inconnu"
     },
+    "recovery": {
+      "title": "Récupération distante",
+      "empty": "Le test distingue une panne du serveur d’éditeur d’une panne de distribution ou de réseau.",
+      "recommended": "Action recommandée la moins perturbatrice :",
+      "serverSummary": "VS Code Server : {{installed}}, {{count}} processus mesurés",
+      "processes": "Processus VS Code Server mesurés",
+      "afterResume": "Depuis la reprise :",
+      "noResumeChanges": "Aucun changement mesuré depuis la veille.",
+      "prepare": "Préparer la commande",
+      "status": {
+        "recommended": "Recommandé",
+        "available": "Disponible",
+        "last-resort": "Dernier recours",
+        "unavailable": "Indisponible"
+      },
+      "roles": {
+        "server-main": "serveur",
+        "extension-host": "extensions",
+        "pty-host": "terminaux",
+        "file-watcher": "surveillance",
+        "language-server": "langage",
+        "other": "processus serveur"
+      },
+      "resumeChange": {
+        "distro-state": "Distribution",
+        "liveness": "Réponse",
+        "network-mode": "Mode réseau",
+        "dns": "DNS",
+        "console": "Console"
+      },
+      "steps": {
+        "reloadWindow": {
+          "title": "Recharger la fenêtre VS Code",
+          "reason": "Exécutez d’abord Developer: Reload Window dans VS Code.",
+          "impact": "Seule la fenêtre actuelle de l’éditeur se reconnecte."
+        },
+        "restartServer": {
+          "title": "Redémarrer uniquement VS Code Server",
+          "reason": "La commande cible uniquement les processus dont le chemin VS Code Server est prouvé.",
+          "impact": "Les terminaux WSL, tmux et autres tâches continuent."
+        },
+        "terminateDistro": {
+          "title": "Redémarrer la distribution sélectionnée",
+          "reason": "À utiliser si la réponse, le DNS WSL ou la route par défaut échoue.",
+          "impact": "Arrête les terminaux, tmux, services, conteneurs et tâches de cette distribution."
+        },
+        "shutdownWsl": {
+          "title": "Redémarrer tout WSL",
+          "reason": "Uniquement si le problème persiste après le redémarrage de la distribution.",
+          "impact": "Arrête toutes les distributions et peut interrompre Docker Desktop et les sessions en arrière-plan."
+        }
+      }
+    },
     "incident": {
+      "recoveryCheck": "Test de récupération terminé : {{step}} ({{failed}} échecs)",
       "monitoringStarted": "Surveillance de session démarrée",
       "distroSelected": "Distribution {{distro}} sélectionnée",
       "distroState": "Distribution {{distro}} : {{from}} → {{to}}",

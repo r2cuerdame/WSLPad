@@ -68,12 +68,12 @@ lorsqu'il est réellement accessible depuis Windows, et chacun porte désormais 
 verdict de **portée** : le réseau, ce PC seulement, à l'intérieur de WSL
 seulement, ou rien — avec la raison, déduite de l'adresse d'écoute, du mode
 réseau effectif et du pare-feu. Quand les faits ne sont pas lisibles, WSLPad dit
-*inconnue* au lieu de deviner. Une machine chargée affiche des centaines de ports en écoute : il y a donc un filtre par plage de ports et par nom de processus — « qui tient le 5173 » est une question, pas un exercice de défilement.
+_inconnue_ au lieu de deviner. Une machine chargée affiche des centaines de ports en écoute : il y a donc un filtre par plage de ports et par nom de processus — « qui tient le 5173 » est une question, pas un exercice de défilement.
 
 ![Ports](docs/screenshots/ports.png)
 
-Le Dashboard n'exécute jamais rien. Les boutons comme *kill*, *redémarrer un
-service* ou *sudoedit* se contentent de **préparer** la commande dans la saisie
+Le Dashboard n'exécute jamais rien. Les boutons comme _kill_, _redémarrer un
+service_ ou _sudoedit_ se contentent de **préparer** la commande dans la saisie
 de la Console — vous relisez, modifiez et appuyez sur Entrée.
 
 ![Explorer](docs/screenshots/explorer.png)
@@ -84,7 +84,7 @@ L'Explorer (explorateur) est un vrai gestionnaire de fichiers à deux volets :
 vos lecteurs **Windows** à gauche, la **distribution WSL** sélectionnée à
 droite, avec un séparateur déplaçable entre les deux. Copier de l'un vers
 l'autre, c'est tout l'intérêt — glissez d'un volet à l'autre, ou utilisez
-*Copier vers l'autre volet* — et chaque transfert affiche sa progression et peut
+_Copier vers l'autre volet_ — et chaque transfert affiche sa progression et peut
 être annulé. Un transfert ne supprime jamais sa source.
 
 Chaque volet a son propre historique, son fil d'Ariane, sa barre d'adresse, sa
@@ -209,7 +209,7 @@ ni nettoyé ; les commandes de prune sont préparées dans la Console.
 
 ![Docker](docs/screenshots/docker.png)
 
-**Hermes** — exécutable, dossier de données, environnement virtuel, configuration, état du gateway, **à quelles messageries il est réellement connecté**, les profils que vous appelleriez des agents (le courant est signalé), sessions actives, tâches planifiées, état et adresse du dashboard, nombre de serveurs MCP, ports, services utilisateur et chemins des journaux. Les messageries et les profils viennent de la CLI en lecture seule de Hermes lui-même ; quand elle ne peut pas être interrogée, la ligne indique *inconnu* et non « aucune configurée ». Le dashboard web n'est pas lancé ? La commande pour le démarrer est préparée dans la Console.
+**Hermes** — exécutable, dossier de données, environnement virtuel, configuration, état du gateway, **à quelles messageries il est réellement connecté**, les profils que vous appelleriez des agents (le courant est signalé), sessions actives, tâches planifiées, état et adresse du dashboard, nombre de serveurs MCP, ports, services utilisateur et chemins des journaux. Les messageries et les profils viennent de la CLI en lecture seule de Hermes lui-même ; quand elle ne peut pas être interrogée, la ligne indique _inconnu_ et non « aucune configurée ». Le dashboard web n'est pas lancé ? La commande pour le démarrer est préparée dans la Console.
 
 **OpenClaw** — sa propre section à côté de Hermes : exécutable, dossier de
 données, version, méthode d'installation, de quel côté de la frontière du
@@ -265,7 +265,6 @@ une restauration qui le remet en place. Si quelque chose occupe déjà la
 destination, la restauration s'arrête : annuler en détruisant un fichier, ce
 n'est pas annuler.
 
-
 **Où est passée la place** — la section disque nomme ce qui remplit l'écart
 entre la taille de l'image et ce que Linux utilise : caches de paquets, journal
 systemd, caches de compilation, corbeille, stockage de Docker, chacun avec la
@@ -280,7 +279,6 @@ journal que cet utilisateur n'a pas le droit de lire.
 est marquée. Chaque fichier qu'une compilation y touche traverse la frontière
 Windows : la raison la plus fréquente d'un « WSL lent », et l'invite est
 strictement identique.
-
 
 **Via MCP** — tout ce qui précède à travers 40 outils `Get*` en lecture seule.
 [docs/MCP.md](docs/MCP.md)
@@ -310,7 +308,7 @@ Téléchargez `WSLPad-Setup-<version>.exe` depuis les
 droit administrateur nécessaire (installation par utilisateur). WSLPad démarre
 avec Windows par défaut (à basculer depuis la zone de notification ou les
 Settings), reste dans la zone de notification et se met à jour automatiquement
-depuis les GitHub Releases. Fermer la fenêtre la masque ; *Quitter* dans le menu
+depuis les GitHub Releases. Fermer la fenêtre la masque ; _Quitter_ dans le menu
 de la zone de notification ferme l'application. Le sous-menu **À propos** de la
 zone de notification donne la version en cours, le dépôt GitHub, les notes de
 version et la page de soutien. Une recherche de mise à jour lancée depuis la
@@ -350,13 +348,13 @@ construction. Rien ne s'exécute sans votre Entrée. Principes complets :
 
 ## Hors périmètre
 
-WSLPad n'est *pas* un gestionnaire ni un magasin de distributions, pas Docker
+WSLPad n'est _pas_ un gestionnaire ni un magasin de distributions, pas Docker
 Desktop, pas un IDE ; pas d'interface Git, de débogueur ni de LSP, pas de
 synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.7.0)
+## Limites actuelles (v0.8.0)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)
@@ -374,7 +372,7 @@ d'autre.
 - La synchronisation du dossier courant de la Console exige bash ou zsh comme
   shell par défaut (les autres shells fonctionnent, simplement sans
   synchronisation automatique du chemin)
-- Copier *entre* les volets ne déplace jamais : les transferts entre systèmes de
+- Copier _entre_ les volets ne déplace jamais : les transferts entre systèmes de
   fichiers sont volontairement en copie seule, pour que rien ne soit supprimé si
   un transfert échoue
 - Le glisser-déposer depuis une fenêtre externe de l'Explorateur Windows dépend

@@ -68,12 +68,12 @@ wenn er von Windows aus tatsächlich erreichbar ist, und jeder trägt jetzt ein
 **Erreichbarkeitsurteil**: reicht ins Netzwerk, nur bis zu diesem PC, nur
 innerhalb von WSL oder nirgendwohin — samt Begründung, hergeleitet aus der
 Bind-Adresse, dem wirksamen Netzwerkmodus und der Firewall. Wenn die Fakten
-nicht lesbar sind, sagt WSLPad *unbekannt*, statt zu raten. Auf einer beschäftigten Maschine lauschen Hunderte von Ports, deshalb gibt es einen Portbereich und einen Prozessnamen-Filter — „wer hält 5173" ist eine Frage und keine Scroll-Übung.
+nicht lesbar sind, sagt WSLPad _unbekannt_, statt zu raten. Auf einer beschäftigten Maschine lauschen Hunderte von Ports, deshalb gibt es einen Portbereich und einen Prozessnamen-Filter — „wer hält 5173" ist eine Frage und keine Scroll-Übung.
 
 ![Ports](docs/screenshots/ports.png)
 
-Das Dashboard führt nie etwas aus. Schaltflächen wie *kill*, *Dienst neu
-starten* oder *sudoedit* **bereiten** den Befehl lediglich in der Eingabezeile
+Das Dashboard führt nie etwas aus. Schaltflächen wie _kill_, _Dienst neu
+starten_ oder _sudoedit_ **bereiten** den Befehl lediglich in der Eingabezeile
 der Console (Konsole) vor — Sie prüfen, bearbeiten und drücken Enter.
 
 ![Explorer](docs/screenshots/explorer.png)
@@ -83,7 +83,7 @@ der Console (Konsole) vor — Sie prüfen, bearbeiten und drücken Enter.
 Ein echter Dateimanager mit zwei Bereichen: links Ihre **Windows**-Laufwerke,
 rechts die ausgewählte **WSL-Distribution**, dazwischen ein verschiebbarer
 Trenner. Das Kopieren zwischen beiden ist der eigentliche Zweck — ziehen Sie
-Dateien hinüber oder klicken Sie auf *In den anderen Bereich kopieren* — und
+Dateien hinüber oder klicken Sie auf _In den anderen Bereich kopieren_ — und
 jede Übertragung meldet ihren Fortschritt und lässt sich abbrechen. Eine
 Übertragung löscht niemals ihre Quelle.
 
@@ -208,7 +208,7 @@ Konsole vorbereitet.
 
 ![Docker](docs/screenshots/docker.png)
 
-**Hermes** — Programmdatei, Datenverzeichnis, virtuelle Umgebung, Konfiguration, Status des Gateways, **mit welchen Messengern es tatsächlich verbunden ist**, die Profile, die man Agenten nennen würde (das aktuelle markiert), aktive Sitzungen, geplante Aufgaben, Status und Adresse des Dashboards, Anzahl der MCP-Server, Ports, Benutzerdienste und Pfade der Protokolle. Messenger und Profile stammen aus Hermes' eigener, nur lesender CLI; lässt sie sich nicht befragen, steht dort *unbekannt* und nicht „nichts konfiguriert". Das Web-Dashboard läuft nicht? Der Befehl zum Starten wird in der Konsole vorbereitet.
+**Hermes** — Programmdatei, Datenverzeichnis, virtuelle Umgebung, Konfiguration, Status des Gateways, **mit welchen Messengern es tatsächlich verbunden ist**, die Profile, die man Agenten nennen würde (das aktuelle markiert), aktive Sitzungen, geplante Aufgaben, Status und Adresse des Dashboards, Anzahl der MCP-Server, Ports, Benutzerdienste und Pfade der Protokolle. Messenger und Profile stammen aus Hermes' eigener, nur lesender CLI; lässt sie sich nicht befragen, steht dort _unbekannt_ und nicht „nichts konfiguriert". Das Web-Dashboard läuft nicht? Der Befehl zum Starten wird in der Konsole vorbereitet.
 
 **OpenClaw** — ein eigener Abschnitt neben Hermes: Programmdatei,
 Datenverzeichnis, Version, Installationsweg, auf welcher Seite der
@@ -262,7 +262,6 @@ schreibt settings.json nie.
 und ein Wiederherstellen, das sie zurücklegt. Liegt am Ziel schon etwas, bricht
 es ab: ein Rückgängig, das eine Datei zerstört, ist kein Rückgängig.
 
-
 **Wo der Platz geblieben ist** — der Disk-Abschnitt benennt, was die Lücke
 zwischen Imagegröße und tatsächlicher Nutzung füllt: Paket-Caches, das
 systemd-Journal, Build-Caches, der Papierkorb, Dockers Speicher, jeweils mit dem
@@ -277,7 +276,6 @@ Journal von einem, das dieser Benutzer nicht lesen darf.
 markiert. Jede Datei, die ein Build dort anfasst, überquert die Windows-Grenze:
 der häufigste Grund für "WSL ist langsam", und die Eingabeaufforderung sieht
 exakt gleich aus.
-
 
 **Über MCP** — alles davon über 40 `Get*`-Tools mit Nur-Lese-Zugriff.
 [docs/MCP.md](docs/MCP.md)
@@ -306,7 +304,7 @@ Laden Sie `WSLPad-Setup-<version>.exe` von den
 Sie die Datei aus — Administratorrechte sind nicht nötig (Installation pro
 Benutzer). WSLPad startet standardmäßig mit Windows (umschaltbar im Tray oder
 in den Settings), lebt im Tray und aktualisiert sich automatisch über GitHub
-Releases. Das Schließen des Fensters blendet es nur aus; *Beenden* im Tray-Menü
+Releases. Das Schließen des Fensters blendet es nur aus; _Beenden_ im Tray-Menü
 beendet die App. Das **Über**-Untermenü im Tray führt die laufende Version, das
 GitHub-Repository, die Versionshinweise und die Sponsoring-Seite. Eine im Tray
 gestartete Updateprüfung wird auch dort beantwortet: Der Menüeintrag wird zum
@@ -346,12 +344,12 @@ lesend. Nichts wird ausgeführt, ohne dass Sie Enter drücken. Alle Grundsätze:
 
 ## Nicht-Ziele
 
-WSLPad ist *kein* Distributionsmanager und kein Marktplatz, kein Docker
+WSLPad ist _kein_ Distributionsmanager und kein Marktplatz, kein Docker
 Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.7.0)
+## Aktuelle Einschränkungen (v0.8.0)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;
@@ -366,7 +364,7 @@ Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 - Die cwd-Synchronisierung der Console setzt bash oder zsh als Standard-Shell
   voraus (andere Shells funktionieren, nur eben ohne automatische
   Pfadsynchronisierung)
-- Das Kopieren *zwischen* den Bereichen verschiebt nie: Übertragungen über
+- Das Kopieren _zwischen_ den Bereichen verschiebt nie: Übertragungen über
   Dateisystemgrenzen hinweg sind bewusst reine Kopiervorgänge, damit bei einem
   Fehlschlag nichts gelöscht wird
 - Das Hineinziehen aus einem externen Fenster des Windows-Explorers hängt

@@ -58,7 +58,7 @@ Dashboard（仪表盘）、Explorer（资源管理器）和一个 MCP 接口 —
 
 ![端口](docs/screenshots/ports.png)
 
-Dashboard 本身从不执行任何东西。*kill*、*重启服务*、*sudoedit* 这类按钮只会把
+Dashboard 本身从不执行任何东西。_kill_、_重启服务_、_sudoedit_ 这类按钮只会把
 命令**准备**到 Console（控制台）的输入框里 —— 由你检查、修改，再按 Enter。
 
 ![Explorer](docs/screenshots/explorer.png)
@@ -203,7 +203,6 @@ WSL 回环例外、提到 WSL 的规则数），以及名称解析：`/etc/resol
 **回收站** —— 资源管理器送进回收站的东西、每个文件原本的位置，以及把它放回去的
 还原。如果目标位置已经有东西，还原会停下：会毁掉文件的“撤销”不是撤销。
 
-
 **空间去哪了** —— 磁盘部分会说出镜像大小与 Linux 实际用量之间的差额由什么填满：
 软件包缓存、systemd 日志、构建缓存、回收站、Docker 的存储，每一项都带上清理命令。
 在开发这个应用的机器上，那是 1.2 GB 谁也不知道的东西。
@@ -214,7 +213,6 @@ WSL 回环例外、提到 WSL 的规则数），以及名称解析：`/etc/resol
 **慢速路径，在付出代价的地方标出来** —— 控制台位于 `/mnt` 下时会标注。在那里
 构建时每碰一个文件都要跨越 Windows 边界，这是「WSL 慢」最常见的原因，而提示符
 看起来一模一样。
-
 
 **通过 MCP** —— 以上全部内容，都可以通过 40 个只读 `Get*` 工具拿到。
 [docs/MCP.md](docs/MCP.md)
@@ -276,7 +274,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 界面、调试器或 LSP，没有云同步，没有 AI 聊天，也不会自动帮你修东西。它的身份
 就是：**Dashboard + Explorer + Console + 只读 MCP** —— 别无其他。
 
-## 当前限制（v0.7.0）
+## 当前限制（v0.8.0）
 
 - 仅支持 Windows x64；安装程序未签名（会有 SmartScreen 警告）
 - 磁盘映像的数字需要读取 Windows 注册表和 `fsutil`；只要有一样读不到，这个

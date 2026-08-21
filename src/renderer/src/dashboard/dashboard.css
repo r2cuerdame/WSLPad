@@ -843,6 +843,107 @@
   font-weight: 650;
 }
 
+.diag-recovery-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.diag-editor-processes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  margin: 8px 0 12px;
+}
+
+.diag-editor-process {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+}
+
+.diag-resume-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: var(--bg-hover);
+  font-size: 11px;
+}
+
+.diag-recovery-steps {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+}
+
+.diag-recovery-step {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.diag-step-recommended {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.diag-step-unavailable {
+  opacity: 0.58;
+}
+
+.diag-step-number {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diag-step-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.diag-step-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.diag-step-command {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.diag-step-badge-recommended {
+  color: var(--accent);
+}
+
+.diag-step-badge-last-resort {
+  color: var(--err);
+}
+
 .diag-probes {
   display: grid;
   gap: 4px;
@@ -917,6 +1018,16 @@
 }
 
 @media (max-width: 900px) {
+  .diag-recovery-summary {
+    display: grid;
+  }
+  .diag-recovery-step {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+  .diag-recovery-step > .btn {
+    grid-column: 2;
+    justify-self: start;
+  }
   .diag-probe {
     grid-template-columns: 16px minmax(100px, 1fr) auto;
   }
