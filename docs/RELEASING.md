@@ -48,6 +48,21 @@ Releases are Windows NSIS installers published to GitHub Releases;
 
    All three artifacts must be attached or auto-update will not work.
 
+6. **Update WinGet** — after the GitHub release is public, copy the matching
+   multi-file manifest from `packaging/winget/manifests/` into a fork of
+   `microsoft/winget-pkgs`. Confirm that the release asset digest matches
+   `InstallerSha256`, then validate and test it before opening a manifest-only
+   pull request:
+
+   ```powershell
+   winget validate --manifest <manifest-directory>
+   winget settings --enable LocalManifestFiles
+   winget install --manifest <manifest-directory>
+   ```
+
+   Keep each WinGet pull request to one package version. The installer URL must
+   be version-specific; do not use the mutable `releases/latest` URL.
+
 ## Auto-update behavior (goal.md §4.3)
 
 - Checks on app start and every 6 hours (toggle in Settings → Updates)
