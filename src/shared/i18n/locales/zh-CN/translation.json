@@ -965,6 +965,7 @@
     "port": "Windows localhost 端口",
     "portOptional": "端口（可选）",
     "runCheck": "运行网络检查",
+    "runRecovery": "检查恢复路径",
     "checking": "检查中…",
     "export": "导出诊断",
     "invalidPort": "请输入 1 到 65535 之间的端口，或留空。",
@@ -972,7 +973,7 @@
     "noCheck": "本次会话尚未运行网络检查。",
     "timeline": "事件时间线",
     "noIncidents": "本次会话未观察到事件。",
-    "checkComplete": "网络检查完成 — {{failed}} 项失败",
+    "checkComplete": "恢复检查完成 — {{failed}} 项失败",
     "exported": "诊断包已导出到 {{path}}",
     "probe": {
       "distro": "发行版响应",
@@ -986,7 +987,61 @@
       "fail": "失败",
       "unknown": "未知"
     },
+    "recovery": {
+      "title": "远程恢复",
+      "empty": "运行恢复检查以区分编辑器服务器、发行版或网络故障。",
+      "recommended": "影响最小的建议操作：",
+      "serverSummary": "VS Code Server：{{installed}}，测得 {{count}} 个进程",
+      "processes": "测得的 VS Code Server 进程",
+      "afterResume": "从睡眠恢复后：",
+      "noResumeChanges": "与睡眠前相比未测得状态变化。",
+      "prepare": "准备命令",
+      "status": {
+        "recommended": "建议",
+        "available": "可用",
+        "last-resort": "最后手段",
+        "unavailable": "不可用"
+      },
+      "roles": {
+        "server-main": "服务器",
+        "extension-host": "扩展",
+        "pty-host": "终端",
+        "file-watcher": "监视器",
+        "language-server": "语言服务器",
+        "other": "服务器子进程"
+      },
+      "resumeChange": {
+        "distro-state": "发行版",
+        "liveness": "响应",
+        "network-mode": "网络模式",
+        "dns": "DNS",
+        "console": "控制台"
+      },
+      "steps": {
+        "reloadWindow": {
+          "title": "重新加载 VS Code 窗口",
+          "reason": "先在 VS Code 中运行 Developer: Reload Window。",
+          "impact": "仅重新连接当前编辑器窗口。"
+        },
+        "restartServer": {
+          "title": "仅重启 VS Code Server",
+          "reason": "命令只针对路径已证实属于 VS Code Server 的进程。",
+          "impact": "WSL 终端、tmux 和其他任务继续运行。"
+        },
+        "terminateDistro": {
+          "title": "重启所选发行版",
+          "reason": "发行版响应、WSL DNS 或默认路由失败时使用。",
+          "impact": "停止该发行版中的终端、tmux、服务、容器和任务。"
+        },
+        "shutdownWsl": {
+          "title": "重启整个 WSL",
+          "reason": "仅在重启所选发行版后问题仍存在时使用。",
+          "impact": "停止所有发行版，并可能中断 Docker Desktop 和后台会话。"
+        }
+      }
+    },
     "incident": {
+      "recoveryCheck": "恢复检查完成：{{step}}（{{failed}} 项失败）",
       "monitoringStarted": "会话监控已开始",
       "distroSelected": "已选择发行版 {{distro}}",
       "distroState": "发行版 {{distro}}：{{from}} → {{to}}",

@@ -296,8 +296,13 @@ function makeApi(snapshot: WslPadSnapshot) {
     copyLlmMarkdown: vi.fn(async () => '# snapshot'),
     exportLlmJson: vi.fn(async () => 'C:\\out\\snapshot.json'),
     diagnostics: {
-      get: vi.fn(async () => ({ incidents: [], lastNetworkCheck: null })),
+      get: vi.fn(async () => ({
+        incidents: [],
+        lastNetworkCheck: null,
+        lastRecoveryCheck: null
+      })),
       runNetworkCheck: vi.fn(),
+      runRecoveryCheck: vi.fn(),
       exportBundle: vi.fn(async () => 'C:\\out\\diagnostic.json'),
       onChange: vi.fn(() => () => undefined)
     },
@@ -488,6 +493,75 @@ describe('DashboardTab master–detail', () => {
     fireEvent.click(navItem('diagnostics'))
     const detail = screen.getByTestId('dashboard-detail')
     expect(within(detail).getByText('No network check has run in this session.')).toBeTruthy()
+    expect(api.diagnostics.runNetworkCheck).not.toHaveBeenCalled()
+    expect(api.diagnostics.runRecoveryCheck).not.toHaveBeenCalled()
+  })
+
+  it('shows the least-destructive recovery step and only prepares its command', async () => {
+    api.diagnostics.runRecoveryCheck.mockResolvedValue({
+      distro: 'Ubuntu-24.04',
+      startedAt: '2026-08-21T01:00:00.000Z',
+      completedAt: '2026-08-21T01:00:01.000Z',
+      network: {
+        distro: 'Ubuntu-24.04',
+        targetPort: null,
+        startedAt: '2026-08-21T01:00:00.000Z',
+        completedAt: '2026-08-21T01:00:01.000Z',
+        probes: [
+          { id: 'distro', status: 'pass', durationMs: 4, detail: 'wslpad-ok' },
+          { id: 'wsl-dns', status: 'pass', durationMs: 8, detail: '93.184.216.34' },
+          { id: 'windows-dns', status: 'pass', durationMs: 7, detail: '93.184.216.34' },
+          { id: 'default-route', status: 'pass', durationMs: 3, detail: 'default via 172.20.0.1' }
+        ]
+      },
+      vscodeServerInstalled: true,
+      vscodeProcesses: [
+        { pid: 201, role: 'extension-host', cpuPercent: 2.5, memPercent: 1.5, elapsedSeconds: 90 }
+      ],
+      recommendedStep: 'restart-vscode-server',
+      steps: [
+        {
+          id: 'reload-window',
+          status: 'available',
+          command: null,
+          reason: 'Reload first.',
+          impact: 'Current window only.'
+        },
+        {
+          id: 'restart-vscode-server',
+          status: 'recommended',
+          command: 'kill 201',
+          reason: 'Measured process only.',
+          impact: 'Editor reconnects.'
+        },
+        {
+          id: 'terminate-distro',
+          status: 'available',
+          command: "wsl.exe --terminate 'Ubuntu-24.04'",
+          reason: 'Distro fallback.',
+          impact: 'Selected distro stops.'
+        },
+        {
+          id: 'shutdown-wsl',
+          status: 'last-resort',
+          command: 'wsl.exe --shutdown',
+          reason: 'Global fallback.',
+          impact: 'All distros stop.'
+        }
+      ],
+      resumedAt: null,
+      resumeChanges: []
+    })
+
+    await renderDashboard(<PreparedProbe />)
+    fireEvent.click(navItem('diagnostics'))
+    const detail = screen.getByTestId('dashboard-detail')
+    fireEvent.click(within(detail).getByRole('button', { name: 'Check recovery path' }))
+
+    expect(await within(detail).findAllByText('Restart only VS Code Server')).toHaveLength(2)
+    expect(screen.getByTestId('prepared').textContent).toBe('')
+    fireEvent.click(within(detail).getAllByRole('button', { name: 'Prepare command' })[0])
+    expect(screen.getByTestId('prepared').textContent).toBe('kill 201')
     expect(api.diagnostics.runNetworkCheck).not.toHaveBeenCalled()
   })
 

@@ -965,6 +965,7 @@
     "port": "Windows localhost 連接埠",
     "portOptional": "連接埠（選填）",
     "runCheck": "執行網路檢查",
+    "runRecovery": "檢查復原路徑",
     "checking": "檢查中…",
     "export": "匯出診斷",
     "invalidPort": "請輸入 1 到 65535 之間的連接埠，或留空。",
@@ -972,7 +973,7 @@
     "noCheck": "本次工作階段尚未執行網路檢查。",
     "timeline": "事件時間軸",
     "noIncidents": "本次工作階段未觀察到事件。",
-    "checkComplete": "網路檢查完成 — {{failed}} 項失敗",
+    "checkComplete": "復原檢查完成 — {{failed}} 項失敗",
     "exported": "診斷套件已匯出至 {{path}}",
     "probe": {
       "distro": "發行版回應",
@@ -986,7 +987,61 @@
       "fail": "失敗",
       "unknown": "未知"
     },
+    "recovery": {
+      "title": "遠端復原",
+      "empty": "執行復原檢查以區分編輯器伺服器、發行版或網路故障。",
+      "recommended": "影響最小的建議操作：",
+      "serverSummary": "VS Code Server：{{installed}}，測得 {{count}} 個程序",
+      "processes": "測得的 VS Code Server 程序",
+      "afterResume": "從睡眠恢復後：",
+      "noResumeChanges": "與睡眠前相比未測得狀態變化。",
+      "prepare": "準備命令",
+      "status": {
+        "recommended": "建議",
+        "available": "可用",
+        "last-resort": "最後手段",
+        "unavailable": "不可用"
+      },
+      "roles": {
+        "server-main": "伺服器",
+        "extension-host": "擴充功能",
+        "pty-host": "終端機",
+        "file-watcher": "監視器",
+        "language-server": "語言伺服器",
+        "other": "伺服器子程序"
+      },
+      "resumeChange": {
+        "distro-state": "發行版",
+        "liveness": "回應",
+        "network-mode": "網路模式",
+        "dns": "DNS",
+        "console": "主控台"
+      },
+      "steps": {
+        "reloadWindow": {
+          "title": "重新載入 VS Code 視窗",
+          "reason": "先在 VS Code 中執行 Developer: Reload Window。",
+          "impact": "僅重新連線目前的編輯器視窗。"
+        },
+        "restartServer": {
+          "title": "僅重新啟動 VS Code Server",
+          "reason": "命令只針對路徑已證實屬於 VS Code Server 的程序。",
+          "impact": "WSL 終端機、tmux 和其他工作繼續執行。"
+        },
+        "terminateDistro": {
+          "title": "重新啟動所選發行版",
+          "reason": "發行版回應、WSL DNS 或預設路由失敗時使用。",
+          "impact": "停止該發行版中的終端機、tmux、服務、容器和工作。"
+        },
+        "shutdownWsl": {
+          "title": "重新啟動整個 WSL",
+          "reason": "僅在重新啟動所選發行版後問題仍存在時使用。",
+          "impact": "停止所有發行版，並可能中斷 Docker Desktop 和背景工作階段。"
+        }
+      }
+    },
     "incident": {
+      "recoveryCheck": "復原檢查完成：{{step}}（{{failed}} 項失敗）",
       "monitoringStarted": "工作階段監控已開始",
       "distroSelected": "已選擇發行版 {{distro}}",
       "distroState": "發行版 {{distro}}：{{from}} → {{to}}",

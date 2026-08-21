@@ -4,10 +4,13 @@ import type {
   IncidentKind,
   IncidentSeverity,
   NetworkCheckResult,
+  RecoveryCheckResult,
+  RecoveryResumeChange,
   WslPadSnapshot
 } from '@shared/types'
 import type { DistroRunner } from '../wsl/contracts'
 import { runNetworkCheck, type NetworkCheckDeps } from '../wsl/network-check'
+import { buildRecoveryCheck } from './recovery'
 
 interface ObservedState {
   selectedDistro: string | null
@@ -31,10 +34,14 @@ function observeState(snapshot: WslPadSnapshot): ObservedState {
     : null
   return {
     selectedDistro: distro,
-    distroState: distro ? (snapshot.distros.find((item) => item.name === distro)?.state ?? null) : null,
+    distroState: distro
+      ? (snapshot.distros.find((item) => item.name === distro)?.state ?? null)
+      : null,
     answering: snapshot.liveness?.answering ?? null,
     networkMode: dash?.wslSettings?.networkingModeEffective ?? null,
-    dnsFingerprint: dns ? JSON.stringify([dns.nameservers, dns.windowsAdapterDns, dns.error]) : null,
+    dnsFingerprint: dns
+      ? JSON.stringify([dns.nameservers, dns.windowsAdapterDns, dns.error])
+      : null,
     dnsDetail,
     consoleStatus: snapshot.terminal.status
   }
@@ -43,10 +50,14 @@ function observeState(snapshot: WslPadSnapshot): ObservedState {
 export class DiagnosticsService {
   private incidents: IncidentEvent[] = []
   private lastNetworkCheck: NetworkCheckResult | null = null
+  private lastRecoveryCheck: RecoveryCheckResult | null = null
   private previous: ObservedState | null = null
+  private suspendedState: ObservedState | null = null
+  private resumedAt: string | null = null
   private subscribers = new Set<(state: DiagnosticsState) => void>()
   private nextId = 1
   private checkInFlight: Promise<NetworkCheckResult> | null = null
+  private recoveryInFlight: Promise<RecoveryCheckResult> | null = null
 
   constructor(
     private runner: DistroRunner | null,
@@ -55,7 +66,11 @@ export class DiagnosticsService {
   ) {}
 
   get(): DiagnosticsState {
-    return { incidents: [...this.incidents], lastNetworkCheck: this.lastNetworkCheck }
+    return {
+      incidents: [...this.incidents],
+      lastNetworkCheck: this.lastNetworkCheck,
+      lastRecoveryCheck: this.lastRecoveryCheck
+    }
   }
 
   subscribe(cb: (state: DiagnosticsState) => void): () => void {
@@ -67,7 +82,14 @@ export class DiagnosticsService {
     const next = observeState(snapshot)
     const prev = this.previous
     if (prev === null) {
-      this.add('monitoring-started', 'info', null, 'diagnostics.incident.monitoringStarted', {}, 'Session monitoring started')
+      this.add(
+        'monitoring-started',
+        'info',
+        null,
+        'diagnostics.incident.monitoringStarted',
+        {},
+        'Session monitoring started'
+      )
       if (next.selectedDistro) this.selected(next.selectedDistro)
       this.previous = next
       return
@@ -80,7 +102,12 @@ export class DiagnosticsService {
     }
 
     const distro = next.selectedDistro
-    if (distro && prev.distroState !== next.distroState && prev.distroState !== null && next.distroState !== null) {
+    if (
+      distro &&
+      prev.distroState !== next.distroState &&
+      prev.distroState !== null &&
+      next.distroState !== null
+    ) {
       this.add(
         'distro-state',
         next.distroState === 'Running' ? 'recovery' : 'warning',
@@ -91,9 +118,23 @@ export class DiagnosticsService {
       )
     }
     if (distro && prev.answering === true && next.answering === false) {
-      this.add('distro-unresponsive', 'warning', distro, 'diagnostics.incident.unresponsive', { distro }, `Distribution ${distro} stopped answering`)
+      this.add(
+        'distro-unresponsive',
+        'warning',
+        distro,
+        'diagnostics.incident.unresponsive',
+        { distro },
+        `Distribution ${distro} stopped answering`
+      )
     } else if (distro && prev.answering === false && next.answering === true) {
-      this.add('distro-recovered', 'recovery', distro, 'diagnostics.incident.recovered', { distro }, `Distribution ${distro} is answering again`)
+      this.add(
+        'distro-recovered',
+        'recovery',
+        distro,
+        'diagnostics.incident.recovered',
+        { distro },
+        `Distribution ${distro} is answering again`
+      )
     }
     if (distro && prev.networkMode && next.networkMode && prev.networkMode !== next.networkMode) {
       this.add(
@@ -105,21 +146,51 @@ export class DiagnosticsService {
         `Effective networking mode changed: ${prev.networkMode} → ${next.networkMode}`
       )
     }
-    if (distro && prev.dnsFingerprint && next.dnsFingerprint && prev.dnsFingerprint !== next.dnsFingerprint) {
-      this.add('dns-changed', 'warning', distro, 'diagnostics.incident.dnsChanged', {}, 'DNS configuration changed', next.dnsDetail)
+    if (
+      distro &&
+      prev.dnsFingerprint &&
+      next.dnsFingerprint &&
+      prev.dnsFingerprint !== next.dnsFingerprint
+    ) {
+      this.add(
+        'dns-changed',
+        'warning',
+        distro,
+        'diagnostics.incident.dnsChanged',
+        {},
+        'DNS configuration changed',
+        next.dnsDetail
+      )
     }
     const wasFailed = CONSOLE_FAILURES.has(prev.consoleStatus)
     const isFailed = CONSOLE_FAILURES.has(next.consoleStatus)
     if (distro && !wasFailed && isFailed) {
-      this.add('console-failed', 'warning', distro, 'diagnostics.incident.consoleFailed', { status: next.consoleStatus }, `Console failed: ${next.consoleStatus}`)
+      this.add(
+        'console-failed',
+        'warning',
+        distro,
+        'diagnostics.incident.consoleFailed',
+        { status: next.consoleStatus },
+        `Console failed: ${next.consoleStatus}`
+      )
     } else if (distro && wasFailed && next.consoleStatus === 'ready') {
-      this.add('console-recovered', 'recovery', distro, 'diagnostics.incident.consoleRecovered', {}, 'Console recovered')
+      this.add(
+        'console-recovered',
+        'recovery',
+        distro,
+        'diagnostics.incident.consoleRecovered',
+        {},
+        'Console recovered'
+      )
     }
     this.previous = next
   }
 
   recordPower(kind: 'suspend' | 'resume'): void {
-    const distro = this.getSnapshot().selectedDistro
+    const snapshot = this.getSnapshot()
+    const distro = snapshot.selectedDistro
+    if (kind === 'suspend') this.suspendedState = observeState(snapshot)
+    else this.resumedAt = new Date().toISOString()
     this.add(
       kind === 'suspend' ? 'power-suspend' : 'power-resume',
       'info',
@@ -161,8 +232,78 @@ export class DiagnosticsService {
     return pending
   }
 
+  runRecoveryCheck(port: number | null): Promise<RecoveryCheckResult> {
+    if (this.recoveryInFlight !== null) return this.recoveryInFlight
+    const snapshot = this.getSnapshot()
+    const pending = runNetworkCheck(snapshot, port, {
+      runner: this.runner,
+      ...this.networkDeps
+    }).then((network) => {
+      this.lastNetworkCheck = network
+      const result = buildRecoveryCheck(snapshot, network, {
+        resumedAt: this.resumedAt,
+        resumeChanges: this.resumeChanges(snapshot)
+      })
+      this.lastRecoveryCheck = result
+      const failed = network.probes.filter((probe) => probe.status === 'fail').length
+      this.add(
+        'recovery-check',
+        failed > 0 ? 'warning' : 'info',
+        result.distro,
+        'diagnostics.incident.recoveryCheck',
+        { step: result.recommendedStep, failed },
+        `Recovery check completed: ${result.recommendedStep} (${failed} failed probes)`
+      )
+      return result
+    })
+    this.recoveryInFlight = pending
+    void pending.then(
+      () => {
+        this.recoveryInFlight = null
+      },
+      () => {
+        this.recoveryInFlight = null
+      }
+    )
+    return pending
+  }
+
+  private resumeChanges(snapshot: WslPadSnapshot): RecoveryResumeChange[] {
+    const before = this.suspendedState
+    if (before === null || this.resumedAt === null) return []
+    const after = observeState(snapshot)
+    if (before.selectedDistro !== after.selectedDistro) return []
+    const changes: RecoveryResumeChange[] = []
+    const add = (
+      id: RecoveryResumeChange['id'],
+      previous: string | boolean | null,
+      current: string | boolean | null
+    ): void => {
+      if (previous === current) return
+      changes.push({
+        id,
+        before: previous === null ? 'unknown' : String(previous),
+        after: current === null ? 'unknown' : String(current)
+      })
+    }
+    add('distro-state', before.distroState, after.distroState)
+    add('liveness', before.answering, after.answering)
+    add('network-mode', before.networkMode, after.networkMode)
+    if (before.dnsFingerprint !== after.dnsFingerprint)
+      add('dns', before.dnsDetail, after.dnsDetail)
+    add('console', before.consoleStatus, after.consoleStatus)
+    return changes
+  }
+
   private selected(distro: string): void {
-    this.add('distro-selected', 'info', distro, 'diagnostics.incident.distroSelected', { distro }, `Selected distribution ${distro}`)
+    this.add(
+      'distro-selected',
+      'info',
+      distro,
+      'diagnostics.incident.distroSelected',
+      { distro },
+      `Selected distribution ${distro}`
+    )
   }
 
   private add(

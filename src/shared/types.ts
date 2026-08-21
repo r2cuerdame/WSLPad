@@ -668,6 +668,7 @@ export type IncidentKind =
   | 'console-failed'
   | 'console-recovered'
   | 'network-check'
+  | 'recovery-check'
 
 /**
  * A meaningful state transition observed during this app session. The
@@ -704,10 +705,56 @@ export interface NetworkCheckResult {
   probes: NetworkProbeResult[]
 }
 
+export type VsCodeServerRole =
+  'server-main' | 'extension-host' | 'pty-host' | 'file-watcher' | 'language-server' | 'other'
+
+/** A process is included only when its command line proves it belongs to VS Code Server. */
+export interface VsCodeServerProcess {
+  pid: number
+  role: VsCodeServerRole
+  cpuPercent: number
+  memPercent: number
+  elapsedSeconds: number
+}
+
+export type RecoveryStepId =
+  'reload-window' | 'restart-vscode-server' | 'terminate-distro' | 'shutdown-wsl'
+export type RecoveryStepStatus = 'recommended' | 'available' | 'last-resort' | 'unavailable'
+
+/** One rung in the least-destructive recovery ladder. Commands are prepared, never executed. */
+export interface RecoveryStep {
+  id: RecoveryStepId
+  status: RecoveryStepStatus
+  command: string | null
+  reason: string
+  impact: string
+}
+
+export interface RecoveryResumeChange {
+  id: 'distro-state' | 'liveness' | 'network-mode' | 'dns' | 'console'
+  before: string
+  after: string
+}
+
+/** A user-triggered recovery diagnosis combining fresh probes with the latest measured process state. */
+export interface RecoveryCheckResult {
+  distro: string
+  startedAt: string
+  completedAt: string
+  network: NetworkCheckResult
+  vscodeServerInstalled: boolean | null
+  vscodeProcesses: VsCodeServerProcess[]
+  recommendedStep: RecoveryStepId
+  steps: RecoveryStep[]
+  resumedAt: string | null
+  resumeChanges: RecoveryResumeChange[]
+}
+
 /** Session-only diagnostics state, separate from the MCP/dashboard snapshot. */
 export interface DiagnosticsState {
   incidents: IncidentEvent[]
   lastNetworkCheck: NetworkCheckResult | null
+  lastRecoveryCheck: RecoveryCheckResult | null
 }
 
 export interface WarningInfo {

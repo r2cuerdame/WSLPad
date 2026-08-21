@@ -66,12 +66,12 @@ cuando es realmente accesible desde Windows, y ahora cada uno lleva además un
 **veredicto de alcance**: llega a la red, solo a este equipo, solo dentro de
 WSL o a nada, con el motivo, deducido de la dirección de enlace, el modo de red
 efectivo y el firewall. Cuando los datos no se pueden leer, WSLPad dice
-*desconocido* en lugar de adivinar. Una máquina ocupada lista cientos de puertos a la escucha, así que hay un filtro por rango de puertos y por nombre de proceso: «quién tiene el 5173» es una pregunta, no un ejercicio de scroll.
+_desconocido_ en lugar de adivinar. Una máquina ocupada lista cientos de puertos a la escucha, así que hay un filtro por rango de puertos y por nombre de proceso: «quién tiene el 5173» es una pregunta, no un ejercicio de scroll.
 
 ![Puertos](docs/screenshots/ports.png)
 
-El Dashboard (el panel) nunca ejecuta nada. Botones como *kill*, *reiniciar
-servicio* o *sudoedit* solo **preparan** el comando en la entrada de la
+El Dashboard (el panel) nunca ejecuta nada. Botones como _kill_, _reiniciar
+servicio_ o _sudoedit_ solo **preparan** el comando en la entrada de la
 Console: tú lo revisas, lo editas y pulsas Enter.
 
 ![Explorer](docs/screenshots/explorer.png)
@@ -81,7 +81,7 @@ Console: tú lo revisas, lo editas y pulsas Enter.
 Un gestor de archivos de doble panel de verdad: tus unidades de **Windows** a
 la izquierda, la **distribución de WSL** seleccionada a la derecha, y un
 divisor arrastrable entre ambos. Copiar de un lado a otro es justo el propósito
-—arrastra de un panel al otro o pulsa *Copiar al otro panel*— y cada
+—arrastra de un panel al otro o pulsa _Copiar al otro panel_— y cada
 transferencia informa de su progreso y se puede cancelar. Una transferencia
 nunca borra el origen.
 
@@ -206,7 +206,7 @@ comandos de prune se preparan en la Consola.
 
 ![Docker](docs/screenshots/docker.png)
 
-**Hermes** — ejecutable, directorio de datos, entorno virtual, configuración, estado del gateway, **a qué plataformas de mensajería está realmente conectado**, los perfiles que llamarías agentes (con el actual marcado), sesiones activas, tareas programadas, estado y dirección del dashboard, número de servidores MCP, puertos, servicios de usuario y rutas de registros. La mensajería y los perfiles se leen de la CLI de solo lectura del propio Hermes; cuando no se le puede preguntar, la fila dice *desconocido* en lugar de «ninguna configurada». ¿El dashboard web no está en marcha? El comando para arrancarlo queda preparado en la Consola.
+**Hermes** — ejecutable, directorio de datos, entorno virtual, configuración, estado del gateway, **a qué plataformas de mensajería está realmente conectado**, los perfiles que llamarías agentes (con el actual marcado), sesiones activas, tareas programadas, estado y dirección del dashboard, número de servidores MCP, puertos, servicios de usuario y rutas de registros. La mensajería y los perfiles se leen de la CLI de solo lectura del propio Hermes; cuando no se le puede preguntar, la fila dice _desconocido_ en lugar de «ninguna configurada». ¿El dashboard web no está en marcha? El comando para arrancarlo queda preparado en la Consola.
 
 **OpenClaw** — su propia sección junto a Hermes: ejecutable, directorio de
 datos, versión, método de instalación, de qué lado de la frontera del sistema de
@@ -260,7 +260,6 @@ archivo y una restauración que lo devuelve a su sitio. Si ya hay algo en el
 destino, la restauración se detiene: deshacer destruyendo un archivo no es
 deshacer.
 
-
 **Adónde se fue el espacio** — la sección de disco nombra lo que llena la
 diferencia entre el tamaño de la imagen y lo que Linux usa: cachés de paquetes,
 el diario de systemd, cachés de compilación, la papelera, el almacén de Docker,
@@ -274,7 +273,6 @@ vacío de uno que este usuario no tiene permiso para leer.
 **Rutas lentas, señaladas donde se pagan** — una consola situada bajo `/mnt`
 queda marcada. Cada archivo que toca una compilación ahí cruza la frontera de
 Windows: la razón más común de que "WSL vaya lento", y el prompt es idéntico.
-
 
 **Por MCP** — todo lo anterior a través de 40 herramientas `Get*` de solo
 lectura. [docs/MCP.md](docs/MCP.md)
@@ -304,7 +302,7 @@ Descarga `WSLPad-Setup-<version>.exe` desde
 falta permisos de administrador (instalación por usuario). WSLPad se inicia con
 Windows de forma predeterminada (se cambia desde la bandeja o en Settings),
 reside en la bandeja y se actualiza solo desde GitHub Releases. Cerrar la
-ventana solo la oculta; *Salir* en el menú de la bandeja cierra la aplicación. El
+ventana solo la oculta; _Salir_ en el menú de la bandeja cierra la aplicación. El
 submenú **Acerca de** de la bandeja lleva la versión en ejecución, el repositorio
 de GitHub, las notas de la versión y la página de patrocinio. Comprobar
 actualizaciones desde la bandeja se responde en la bandeja: la entrada del menú
@@ -343,12 +341,12 @@ ejecuta sin tu Enter. Principios completos: [docs/SECURITY.md](docs/SECURITY.md)
 
 ## Fuera de alcance
 
-WSLPad *no* es un gestor ni un mercado de distribuciones, no es Docker Desktop,
+WSLPad _no_ es un gestor ni un mercado de distribuciones, no es Docker Desktop,
 no es un IDE, no trae interfaz de Git, depurador ni LSP, no sincroniza con la
 nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 **Dashboard + Explorer + Console + MCP de solo lectura**, nada más.
 
-## Limitaciones actuales (v0.7.0)
+## Limitaciones actuales (v0.8.0)
 
 - Solo Windows x64; el instalador no está firmado (aviso de SmartScreen)
 - Las cifras de la imagen de disco necesitan el registro de Windows y `fsutil`;
@@ -364,7 +362,7 @@ nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 - La sincronización del directorio actual de la Console requiere bash o zsh
   como shell predeterminado (otros shells funcionan, solo que sin
   sincronización automática de la ruta)
-- Copiar *entre* los paneles nunca mueve: las transferencias entre sistemas de
+- Copiar _entre_ los paneles nunca mueve: las transferencias entre sistemas de
   archivos son solo de copia por diseño, así que no se borra nada si una
   transferencia falla
 - Arrastrar desde una ventana externa del Explorador de Windows depende de que

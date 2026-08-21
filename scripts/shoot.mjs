@@ -73,8 +73,10 @@ for (const shot of shots) {
     await page.getByTestId(`dashboard-nav-${shot.section}`).click()
     if (shot.diagnostics) {
       await page.getByPlaceholder('Port (optional)').fill('5173')
-      await page.getByRole('button', { name: 'Run network check' }).click()
-      await page.getByText('Network check completed: 0 failed, 3 unknown').waitFor()
+      await page.getByRole('button', { name: 'Check recovery path' }).click()
+      await page
+        .getByText('Recovery check completed: reload-window (0 failed probes)')
+        .waitFor()
     }
   }
   await page.waitForTimeout(900)

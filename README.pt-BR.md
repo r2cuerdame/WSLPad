@@ -65,12 +65,12 @@ quando ele é realmente acessível pelo Windows, e cada um agora traz um
 **veredito de alcance**: alcança a rede, somente este computador, somente dentro
 do WSL, ou nada — com o motivo, derivado do endereço de bind, do modo de rede em
 vigor e do firewall. Quando os fatos não podem ser lidos, o WSLPad diz
-*desconhecido* em vez de adivinhar. Uma máquina movimentada lista centenas de portas em escuta, então há um filtro por faixa de portas e por nome de processo — "quem está com a 5173" é uma pergunta, não um exercício de rolagem.
+_desconhecido_ em vez de adivinhar. Uma máquina movimentada lista centenas de portas em escuta, então há um filtro por faixa de portas e por nome de processo — "quem está com a 5173" é uma pergunta, não um exercício de rolagem.
 
 ![Portas](docs/screenshots/ports.png)
 
-O Dashboard (o Painel) nunca executa nada. Botões como *kill*, *reiniciar
-serviço* ou *sudoedit* apenas **preparam** o comando no campo do Console — você
+O Dashboard (o Painel) nunca executa nada. Botões como _kill_, _reiniciar
+serviço_ ou _sudoedit_ apenas **preparam** o comando no campo do Console — você
 revisa, edita e pressiona Enter.
 
 ![Explorer](docs/screenshots/explorer.png)
@@ -80,8 +80,8 @@ revisa, edita e pressiona Enter.
 O Explorer (o Explorador) é um gerenciador de arquivos de painel duplo de
 verdade: suas unidades do **Windows** à esquerda, a **distribuição WSL**
 selecionada à direita, com um divisor arrastável entre elas. Copiar entre os
-dois lados é o ponto central — arraste de um painel para o outro ou use *Copiar
-para o outro painel* — e toda transferência mostra o progresso e pode ser
+dois lados é o ponto central — arraste de um painel para o outro ou use _Copiar
+para o outro painel_ — e toda transferência mostra o progresso e pode ser
 cancelada. Uma transferência nunca apaga a origem.
 
 Cada painel tem seu próprio histórico, trilha de navegação, barra de caminho,
@@ -201,7 +201,7 @@ comandos de prune ficam preparados no Console.
 
 ![Docker](docs/screenshots/docker.png)
 
-**Hermes** — executável, diretório de dados, virtualenv, configuração, estado do gateway, **a quais mensageiros ele está de fato conectado**, os perfis que você chamaria de agentes (com o atual marcado), sessões ativas, tarefas agendadas, estado e endereço do painel, número de servidores MCP, portas, serviços de usuário e caminhos de log. Mensageiros e perfis vêm da CLI somente leitura do próprio Hermes; quando não dá para perguntar, a linha diz *desconhecido* em vez de "nenhum configurado". O painel web não está rodando? O comando para iniciá-lo fica preparado no Console.
+**Hermes** — executável, diretório de dados, virtualenv, configuração, estado do gateway, **a quais mensageiros ele está de fato conectado**, os perfis que você chamaria de agentes (com o atual marcado), sessões ativas, tarefas agendadas, estado e endereço do painel, número de servidores MCP, portas, serviços de usuário e caminhos de log. Mensageiros e perfis vêm da CLI somente leitura do próprio Hermes; quando não dá para perguntar, a linha diz _desconhecido_ em vez de "nenhum configurado". O painel web não está rodando? O comando para iniciá-lo fica preparado no Console.
 
 **OpenClaw** — uma seção própria ao lado do Hermes: executável, diretório de
 dados, versão, método de instalação, de que lado da fronteira do sistema de
@@ -256,7 +256,6 @@ settings.json.
 restauração que o coloca de volta. Se já houver algo no destino, a restauração
 para: desfazer destruindo um arquivo não é desfazer.
 
-
 **Para onde foi o espaço** — a seção de disco nomeia o que preenche a diferença
 entre o tamanho da imagem e o que o Linux usa: caches de pacotes, o journal do
 systemd, caches de build, a lixeira, o armazenamento do Docker, cada um com o
@@ -270,7 +269,6 @@ usuário não tem permissão para ler.
 **Caminhos lentos, apontados onde custam** — um console dentro de `/mnt` fica
 marcado. Cada arquivo que um build toca ali cruza a fronteira do Windows: o
 motivo mais comum de "o WSL está lento", e o prompt é idêntico.
-
 
 **Pelo MCP** — tudo isso acima por meio de 40 ferramentas `Get*` somente leitura.
 [docs/MCP.md](docs/MCP.md)
@@ -299,7 +297,7 @@ Baixe `WSLPad-Setup-<version>.exe` em
 precisar de direitos de administrador (instalação por usuário). Por padrão, o
 WSLPad inicia com o Windows (alterne pela bandeja ou em Settings), fica na
 bandeja e se atualiza sozinho pelo GitHub Releases. Fechar a janela apenas a
-oculta; *Sair* no menu da bandeja encerra o app. O submenu **Sobre** da bandeja
+oculta; _Sair_ no menu da bandeja encerra o app. O submenu **Sobre** da bandeja
 leva a versão em execução, o repositório no GitHub, as notas da versão e a
 página de apoio. Verificar atualizações pela bandeja é respondido na bandeja: o
 item do menu vira o estado (verificando, disponível, progresso do download,
@@ -337,12 +335,12 @@ construção. Nada é executado sem o seu Enter. Princípios completos:
 
 ## Fora de escopo
 
-O WSLPad *não* é um gerenciador/loja de distribuições, não é o Docker Desktop,
+O WSLPad _não_ é um gerenciador/loja de distribuições, não é o Docker Desktop,
 não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronização na
 nuvem, nem chat de IA, nem correção automática. Identidade:
 **Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
 
-## Limitações atuais (v0.7.0)
+## Limitações atuais (v0.8.0)
 
 - Somente Windows x64; o instalador não é assinado (aviso do SmartScreen)
 - Os números da imagem de disco dependem do registro do Windows e do `fsutil`;
@@ -356,7 +354,7 @@ nuvem, nem chat de IA, nem correção automática. Identidade:
   um agente de monitoramento
 - A sincronização de diretório do Console exige bash ou zsh como shell padrão
   (outros shells funcionam, só que sem sincronização automática de caminho)
-- Copiar *entre* os painéis nunca move: transferências entre sistemas de
+- Copiar _entre_ os painéis nunca move: transferências entre sistemas de
   arquivos são apenas de cópia por design, então nada é excluído se uma
   transferência falhar
 - Arrastar de uma janela externa do Explorador de Arquivos do Windows depende de

@@ -6,7 +6,7 @@ describe('diagnosticBundleToJson', () => {
   it('packages the masked snapshot, session diagnostics and privacy notice', () => {
     const json = diagnosticBundleToJson(
       makeSnapshot(),
-      { incidents: [], lastNetworkCheck: null },
+      { incidents: [], lastNetworkCheck: null, lastRecoveryCheck: null },
       { appVersion: '0.6.0', platform: 'win32', arch: 'x64', osRelease: '10.0.26100' }
     )
     const bundle = JSON.parse(json)

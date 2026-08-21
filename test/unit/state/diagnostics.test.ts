@@ -49,4 +49,33 @@ describe('DiagnosticsService', () => {
     ])
     expect(seen).toHaveBeenCalledTimes(2)
   })
+
+  it('records a user-triggered recovery check and compares state across sleep', async () => {
+    let snapshot = makeSnapshot({
+      liveness: {
+        distro: 'Ubuntu-24.04',
+        answering: true,
+        lastAliveAt: '2026-08-21T01:00:00.000Z',
+        failures: 0
+      }
+    })
+    const service = new DiagnosticsService(null, () => snapshot, {
+      lookupHost: async () => ({ address: '93.184.216.34' })
+    })
+    service.recordPower('suspend')
+    snapshot = {
+      ...snapshot,
+      liveness: { ...snapshot.liveness!, answering: false, failures: 1 },
+      terminal: { ...snapshot.terminal, status: 'start-failed' }
+    }
+    service.recordPower('resume')
+
+    const checked = await service.runRecoveryCheck(null)
+
+    expect(checked.recommendedStep).toBe('terminate-distro')
+    expect(checked.resumeChanges.map((change) => change.id)).toEqual(['liveness', 'console'])
+    expect(service.get().lastRecoveryCheck).toBe(checked)
+    expect(service.get().lastNetworkCheck).toBe(checked.network)
+    expect(service.get().incidents[0].kind).toBe('recovery-check')
+  })
 })

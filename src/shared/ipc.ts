@@ -10,6 +10,7 @@ import type {
   McpStatus,
   DiagnosticsState,
   NetworkCheckResult,
+  RecoveryCheckResult,
   Settings,
   SettingsPatch,
   TerminalDataEvent,
@@ -42,6 +43,7 @@ export const IpcChannels = {
   llmExportJson: 'wslpad:llm:export-json',
   diagnosticsGet: 'wslpad:diagnostics:get',
   diagnosticsNetworkCheck: 'wslpad:diagnostics:network-check',
+  diagnosticsRecoveryCheck: 'wslpad:diagnostics:recovery-check',
   diagnosticsExport: 'wslpad:diagnostics:export',
 
   // explorer
@@ -170,6 +172,8 @@ export interface WslPadApi {
     get(): Promise<DiagnosticsState>
     /** Port is optional; when present Windows localhost is tested too. */
     runNetworkCheck(port?: number): Promise<NetworkCheckResult>
+    /** Diagnose the editor/WSL boundary and return a least-destructive recovery ladder. */
+    runRecoveryCheck(port?: number): Promise<RecoveryCheckResult>
     /** Privacy-previewed JSON bundle containing the masked snapshot and session diagnostics. */
     exportBundle(): Promise<string | null>
     onChange(cb: (state: DiagnosticsState) => void): () => void

@@ -64,26 +64,27 @@ genuinely reachable from Windows, and each one now carries a **reachability
 verdict**: reachable from the LAN, from this PC only, inside WSL only, or
 unreachable — with the reason, derived from the bind address, the effective
 networking mode and the firewall. When the facts aren't readable WSLPad says
-*unknown* instead of guessing. A busy machine lists hundreds of listeners, so
+_unknown_ instead of guessing. A busy machine lists hundreds of listeners, so
 there is a port range and a process-name filter — "who holds 5173" is a
 question, not a scrolling exercise.
 
 ![Ports](docs/screenshots/ports.png)
 
-**Diagnostics** — a session-only incident timeline connects sleep and resume,
-distro responsiveness, DNS and network-mode changes, Console recovery, and
-explicit network checks. The check compares WSL and Windows DNS, the WSL
-default route, and an optional Windows localhost port. Nothing probes the
-network in the background; diagnostic export previews the privacy-sensitive
-fields before saving.
+**Diagnostics & remote recovery** — a session-only incident timeline connects
+sleep and resume, distro responsiveness, DNS and network-mode changes, Console
+recovery, and explicit network checks. The same check identifies proven VS Code
+Server processes and presents a least-destructive recovery ladder, keeping
+`wsl --shutdown` last. Nothing probes the network in the background and nothing
+runs a recovery command automatically; diagnostic export previews the
+privacy-sensitive fields before saving.
 
 ![Diagnostics](docs/screenshots/diagnostics.png)
 
-The Dashboard never executes anything. Buttons like *kill*, *restart service*
-or *sudoedit* only **prepare** the command in the Console input — you review,
+The Dashboard never executes anything. Buttons like _kill_, _restart service_
+or _sudoedit_ only **prepare** the command in the Console input — you review,
 edit and press Enter.
 
-*Copy for LLM* and *Export JSON* take the **whole** snapshot, not the section
+_Copy for LLM_ and _Export JSON_ take the **whole** snapshot, not the section
 you happen to be reading, so they sit on Overview rather than in every
 section's title row.
 
@@ -93,8 +94,8 @@ section's title row.
 
 A real dual-pane file manager: your **Windows** drives on the left, the
 selected **WSL distro** on the right, with a draggable splitter between them.
-Copying between the two is the point — drag across, or hit *Copy to the other
-pane* — and every transfer reports progress and can be cancelled. A transfer
+Copying between the two is the point — drag across, or hit _Copy to the other
+pane_ — and every transfer reports progress and can be cancelled. A transfer
 never deletes its source.
 
 Each pane has its own history, breadcrumb, path bar, search, optional lazy
@@ -208,7 +209,7 @@ thing on the machine. Under Docker Desktop it also names the distribution whose
 virtual disk actually holds that space, because it is not the one you are
 looking at. Read-only, and carefully so: WSLPad only contacts the daemon when it can
 see one is already running, because on a socket-activated systemd setup the
-connection *itself* would start it — and every container set to restart with
+connection _itself_ would start it — and every container set to restart with
 it. If the active context points at a remote engine, WSLPad leaves it alone
 rather than reaching out to someone's production host every minute. Nothing is
 pulled, started, stopped or pruned; the prune commands are prepared in the
@@ -221,7 +222,7 @@ messengers it is actually connected to**, the profiles you'd call agents (with
 the current one marked), active sessions, scheduled jobs, dashboard state and
 address, MCP server count, ports, user services and log paths. The messenger
 and profile facts come from Hermes' own read-only CLI; when it cannot be asked
-the row says *unknown* rather than "none configured". Not running the web
+the row says _unknown_ rather than "none configured". Not running the web
 dashboard? The command to start it is prepared in the Console.
 
 ![Hermes](docs/screenshots/hermes.png)
@@ -252,10 +253,14 @@ resolution: whether `/etc/resolv.conf` is the generated symlink or hand-edited,
 the effective `generateResolvConf`, DNS tunnelling, the nameservers in force,
 and what the Windows adapter hands out. Plus the Windows **port forwarding** rules: under NAT the distro is handed a new address on every WSL restart, so a `netsh portproxy` rule added once quietly starts forwarding into nothing. WSLPad puts each rule next to the address the distro has right now and says which ones are dead.
 
-**Diagnostics** — a session-only timeline of sleep/resume, distro, DNS,
-network-mode and Console transitions; the latest user-triggered WSL/Windows
-network check; and a diagnostic JSON bundle whose local paths, host details and
-network addresses are disclosed before export. The timeline is not persisted.
+**Diagnostics & remote recovery** — a session-only timeline of sleep/resume,
+distro, DNS, network-mode and Console transitions, plus a user-triggered check
+that separates VS Code Server, distro and network failures. It identifies only
+processes with a proven `.vscode-server` path and lays out the smallest recovery
+first: reload the editor window, restart only measured server processes,
+terminate the selected distro, then `wsl --shutdown` as the last resort. Every
+command is prepared for review, never run automatically. The diagnostic JSON
+bundle discloses its local paths, host details and network addresses before export.
 
 **Warnings** — stopped distro, systemd off, low disk, failed units, port
 conflicts, background query failures, MCP problems.
@@ -280,7 +285,6 @@ settings.json.
 restore that puts it back. If something is already at the destination the
 restore stops: an undo that destroys a file is not an undo.
 
-
 **Where the space went** — the Disk section names what is filling the gap
 between the image's size and what Linux uses: package caches, the systemd
 journal, build caches, the trash, Docker's store, each with the command that
@@ -293,7 +297,6 @@ is not allowed to read, which nothing else does.
 **Slow paths, said where they are paid** — a Console sitting under `/mnt` is
 marked as such. Every file a build touches there crosses the Windows boundary,
 which is the most common reason "WSL is slow", and the prompt looks identical.
-
 
 **Over MCP** — all of the above through 40 read-only `Get*` tools.
 [docs/MCP.md](docs/MCP.md)
@@ -321,7 +324,7 @@ Download `WSLPad-Setup-<version>.exe` from
 [Releases](https://github.com/r2cuerdame/WSLPad/releases) and run it — no
 admin rights needed (per-user install). WSLPad starts with Windows by default
 (toggle in the tray or Settings), lives in the tray, and auto-updates from
-GitHub Releases. Closing the window hides it; *Quit* in the tray menu exits.
+GitHub Releases. Closing the window hides it; _Quit_ in the tray menu exits.
 The tray's **About** submenu carries the running version, the GitHub
 repository, the release notes and the sponsor page. Checking for updates from
 the tray answers in the tray — the menu entry becomes the state (checking,
@@ -358,11 +361,11 @@ Enter. Full principles: [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Non-goals
 
-WSLPad is *not* a distro manager/marketplace, not Docker Desktop, not an IDE,
+WSLPad is _not_ a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.7.0)
+## Current limitations (v0.8.0)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is
@@ -375,7 +378,7 @@ no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
   by design: a tray companion is not a monitoring agent
 - Console cwd-sync requires bash or zsh as the default shell (other shells
   work, just without automatic path sync)
-- Copying *between* the panes never moves: cross-filesystem transfers are
+- Copying _between_ the panes never moves: cross-filesystem transfers are
   copy-only by design, so nothing is deleted if a transfer fails
 - Dragging in from an external Windows Explorer window depends on Electron
   exposing file paths; use the left pane (or the Import menu) instead

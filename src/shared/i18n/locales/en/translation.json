@@ -961,10 +961,11 @@
   },
   "diagnostics": {
     "title": "Diagnostics",
-    "intro": "This session-only timeline records meaningful WSL changes. Network checks run only when you ask and are never part of background polling.",
+    "intro": "This session-only timeline records meaningful WSL changes. Recovery checks run only when you ask and never execute a recovery command.",
     "port": "Windows localhost port",
     "portOptional": "Port (optional)",
     "runCheck": "Run network check",
+    "runRecovery": "Check recovery path",
     "checking": "Checking…",
     "export": "Export diagnostics",
     "invalidPort": "Enter a port from 1 to 65535, or leave it empty.",
@@ -972,7 +973,7 @@
     "noCheck": "No network check has run in this session.",
     "timeline": "Incident timeline",
     "noIncidents": "No incidents observed in this session.",
-    "checkComplete": "Network check complete — {{failed}} failed",
+    "checkComplete": "Recovery check complete — {{failed}} failed probes",
     "exported": "Diagnostic bundle exported to {{path}}",
     "probe": {
       "distro": "Distribution response",
@@ -986,6 +987,59 @@
       "fail": "Fail",
       "unknown": "Unknown"
     },
+    "recovery": {
+      "title": "Remote recovery",
+      "empty": "Run a recovery check to separate an editor-server failure from a distribution or network failure.",
+      "recommended": "Smallest recommended action:",
+      "serverSummary": "VS Code Server: {{installed}}, {{count}} measured process(es)",
+      "processes": "Measured VS Code Server processes",
+      "afterResume": "Since resume:",
+      "noResumeChanges": "No measured state changed from before suspend.",
+      "prepare": "Prepare command",
+      "status": {
+        "recommended": "Recommended",
+        "available": "Available",
+        "last-resort": "Last resort",
+        "unavailable": "Not available"
+      },
+      "roles": {
+        "server-main": "server",
+        "extension-host": "extensions",
+        "pty-host": "terminals",
+        "file-watcher": "watcher",
+        "language-server": "language",
+        "other": "server child"
+      },
+      "resumeChange": {
+        "distro-state": "Distribution",
+        "liveness": "Response",
+        "network-mode": "Network mode",
+        "dns": "DNS",
+        "console": "Console"
+      },
+      "steps": {
+        "reloadWindow": {
+          "title": "Reload the VS Code window",
+          "reason": "In VS Code, run Developer: Reload Window before restarting anything in WSL.",
+          "impact": "Only the current editor window reconnects."
+        },
+        "restartServer": {
+          "title": "Restart only VS Code Server",
+          "reason": "The command targets only processes whose path proves they belong to VS Code Server.",
+          "impact": "Remote editor windows reconnect; terminals, tmux and other WSL jobs keep running."
+        },
+        "terminateDistro": {
+          "title": "Restart the selected distribution",
+          "reason": "Use this when the distribution response, WSL DNS or default route failed.",
+          "impact": "Stops terminals, tmux, services, containers and jobs in this distribution."
+        },
+        "shutdownWsl": {
+          "title": "Restart all of WSL",
+          "reason": "Use only when the failure survives restarting the selected distribution.",
+          "impact": "Stops every distribution and may interrupt Docker Desktop and background sessions."
+        }
+      }
+    },
     "incident": {
       "monitoringStarted": "Session monitoring started",
       "distroSelected": "Selected distribution {{distro}}",
@@ -998,7 +1052,8 @@
       "consoleRecovered": "Console recovered",
       "suspend": "Windows is suspending",
       "resume": "Windows resumed from sleep",
-      "networkCheck": "Network check completed: {{failed}} failed, {{unknown}} unknown"
+      "networkCheck": "Network check completed: {{failed}} failed, {{unknown}} unknown",
+      "recoveryCheck": "Recovery check completed: {{step}} ({{failed}} failed probes)"
     }
   },
   "warnings": {

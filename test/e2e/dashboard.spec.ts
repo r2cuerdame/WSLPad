@@ -50,11 +50,11 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     await expect(detail).toContainText('No network check has run in this session.')
 
     await page.getByPlaceholder('Port (optional)').fill('5173')
-    await page.getByRole('button', { name: 'Run network check' }).click()
+    await page.getByRole('button', { name: 'Check recovery path' }).click()
     await expect(detail).toContainText('Distribution response')
     await expect(detail).toContainText('Fixture connection to 127.0.0.1:5173')
     await expect(detail.getByText('Pass', { exact: true })).toHaveCount(2)
-    await expect(detail).toContainText('Network check completed: 0 failed, 3 unknown')
+    await expect(detail).toContainText('Recovery check completed: reload-window (0 failed probes)')
   })
 
   // Both facts are collected on two different machines and only mean something

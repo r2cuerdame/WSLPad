@@ -965,6 +965,7 @@
     "port": "Windows localhost ポート",
     "portOptional": "ポート（任意）",
     "runCheck": "ネットワーク検査",
+    "runRecovery": "復旧経路を確認",
     "checking": "検査中…",
     "export": "診断をエクスポート",
     "invalidPort": "1～65535 のポートを入力するか、空欄にしてください。",
@@ -972,7 +973,7 @@
     "noCheck": "このセッションではまだネットワーク検査を実行していません。",
     "timeline": "インシデント履歴",
     "noIncidents": "このセッションでインシデントは検出されていません。",
-    "checkComplete": "ネットワーク検査完了 — {{failed}} 件失敗",
+    "checkComplete": "復旧検査完了 — {{failed}} 件失敗",
     "exported": "診断バンドルを {{path}} にエクスポートしました",
     "probe": {
       "distro": "ディストリビューション応答",
@@ -986,7 +987,61 @@
       "fail": "失敗",
       "unknown": "不明"
     },
+    "recovery": {
+      "title": "リモート復旧",
+      "empty": "復旧検査で、エディターサーバー、ディストリビューション、ネットワークの障害を切り分けます。",
+      "recommended": "影響が最小の推奨操作:",
+      "serverSummary": "VS Code Server: {{installed}}、測定プロセス {{count}} 件",
+      "processes": "測定された VS Code Server プロセス",
+      "afterResume": "スリープ復帰後:",
+      "noResumeChanges": "スリープ前から測定状態に変化はありません。",
+      "prepare": "コマンドを準備",
+      "status": {
+        "recommended": "推奨",
+        "available": "利用可能",
+        "last-resort": "最終手段",
+        "unavailable": "利用不可"
+      },
+      "roles": {
+        "server-main": "サーバー",
+        "extension-host": "拡張機能",
+        "pty-host": "ターミナル",
+        "file-watcher": "監視",
+        "language-server": "言語サーバー",
+        "other": "サーバー子プロセス"
+      },
+      "resumeChange": {
+        "distro-state": "ディストリビューション",
+        "liveness": "応答",
+        "network-mode": "ネットワークモード",
+        "dns": "DNS",
+        "console": "コンソール"
+      },
+      "steps": {
+        "reloadWindow": {
+          "title": "VS Code ウィンドウを再読み込み",
+          "reason": "まず VS Code で Developer: Reload Window を実行します。",
+          "impact": "現在のエディターウィンドウだけが再接続します。"
+        },
+        "restartServer": {
+          "title": "VS Code Server だけを再起動",
+          "reason": "VS Code Server のパスを確認できたプロセスだけを対象にします。",
+          "impact": "WSL のターミナル、tmux、その他のジョブは動作を続けます。"
+        },
+        "terminateDistro": {
+          "title": "選択中のディストリビューションを再起動",
+          "reason": "応答、WSL DNS、デフォルトルートの検査失敗時に使います。",
+          "impact": "このディストリビューションのターミナル、tmux、サービス、コンテナ、ジョブを停止します。"
+        },
+        "shutdownWsl": {
+          "title": "WSL 全体を再起動",
+          "reason": "ディストリビューションの再起動後も問題が残る場合だけ使います。",
+          "impact": "全ディストリビューションを停止し、Docker Desktop やバックグラウンドセッションにも影響します。"
+        }
+      }
+    },
     "incident": {
+      "recoveryCheck": "復旧検査完了: {{step}} (失敗 {{failed}} 件)",
       "monitoringStarted": "セッション監視を開始しました",
       "distroSelected": "ディストリビューション {{distro}} を選択",
       "distroState": "ディストリビューション {{distro}}: {{from}} → {{to}}",
