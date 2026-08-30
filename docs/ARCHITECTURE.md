@@ -128,6 +128,25 @@ place (`src/main/wsl/factory.ts`); fixture data cannot leak into real mode.
 | Renderer UI | `src/renderer/src/{dashboard,explorer,console,settings,components}/` |
 | Tests | `test/{unit,integration,e2e}/` |
 
+## Compatibility contracts (from goal.md)
+
+초기 기획 문서 goal.md(현재 deprecated, 전문은 git history)에서 확정되어 지금도
+유효한 계약이다.
+
+- **도구 id는 절대 이름을 바꾸지 않는다.** 테스트 fixture, 감지 설정, MCP
+  `GetToolStatus`가 도구 id를 키로 쓴다. 카탈로그 확장은 추가만 한다.
+- **감지는 배포판당 하나의 배치 sh 스크립트로 수행한다.** 버전 명령은
+  `command -v`가 먼저 찾은 도구에만 실행한다 — 설치되지 않은 도구가 비용을
+  만들면 안 된다. 싸게 버전을 얻지 못하면 설치됨 + 버전 null로 보고하고 버전을
+  지어내지 않는다.
+- **스냅샷·설정은 schema version과 함께 저장한다.** 렌더러 UI, LLM용 Markdown,
+  JSON export, MCP가 같은 `WslPadSnapshot` 모델을 공유하며 별도 중복 구현을
+  두지 않는다.
+- **제품 마크는 그 제품이 실제로 배포하는 자산만 쓴다.** 렌더러 CSP가
+  `default-src 'self'`이므로 원격 로고는 로드되지 않는다 — Hermes/OpenClaw는
+  배포된 favicon의 32×32 PNG를 data URI로 인라인하고, Docker는 공개 브랜드
+  마크를 인라인 SVG로 그린다. 자체 제작한 그림을 공식 로고 자리에 두지 않는다.
+
 ## Testing strategy
 
 - **Unit** (`vitest`): every parser against captured-style fixture strings
