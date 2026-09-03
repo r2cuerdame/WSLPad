@@ -303,6 +303,14 @@ parité des clés imposée.
 
 ## Installation
 
+### WinGet
+
+```powershell
+winget install r2cuerdame.WSLPad
+```
+
+### Téléchargement manuel
+
 Téléchargez `WSLPad-Setup-<version>.exe` depuis les
 [Releases](https://github.com/r2cuerdame/WSLPad/releases) et lancez-le — aucun
 droit administrateur nécessaire (installation par utilisateur). WSLPad démarre
@@ -354,7 +362,7 @@ synchronisation cloud, pas de chat IA, pas de correction automatique. Son
 identité : **Dashboard + Explorer + Console + MCP en lecture seule** — rien
 d'autre.
 
-## Limites actuelles (v0.8.0)
+## Limites actuelles (v0.9.0)
 
 - Windows x64 uniquement ; le programme d'installation n'est pas signé
   (avertissement SmartScreen)

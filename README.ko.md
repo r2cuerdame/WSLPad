@@ -296,6 +296,14 @@ Windows 언어를 자동으로 감지하고 없으면 English로 대체합니다
 
 ## 설치
 
+### WinGet
+
+```powershell
+winget install r2cuerdame.WSLPad
+```
+
+### 직접 다운로드
+
 [Releases](https://github.com/r2cuerdame/WSLPad/releases)에서
 `WSLPad-Setup-<version>.exe`를 내려받아 실행하세요 — 관리자 권한은 필요 없습니다
 (사용자별 설치). WSLPad는 기본적으로 Windows와 함께 시작하고(트레이나 Settings에서
@@ -342,7 +350,7 @@ WSLPad는 배포판 관리자나 마켓플레이스가 _아니고_, Docker Deskt
 없습니다. 정체성은 **Dashboard + Explorer + Console + 읽기 전용 MCP** — 그게
 전부입니다.
 
-## 현재 제한 사항 (v0.8.0)
+## 현재 제한 사항 (v0.9.0)
 
 - Windows x64 전용이며, 설치 프로그램은 서명되어 있지 않습니다(SmartScreen 경고)
 - 디스크 이미지 수치에는 Windows 레지스트리와 `fsutil`이 필요합니다. 둘 중 하나라도

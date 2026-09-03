@@ -320,6 +320,14 @@ bundled offline with enforced key parity.
 
 ## Install
 
+### WinGet
+
+```powershell
+winget install r2cuerdame.WSLPad
+```
+
+### Manual download
+
 Download `WSLPad-Setup-<version>.exe` from
 [Releases](https://github.com/r2cuerdame/WSLPad/releases) and run it — no
 admin rights needed (per-user install). WSLPad starts with Windows by default
@@ -365,7 +373,7 @@ WSLPad is _not_ a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.8.0)
+## Current limitations (v0.9.0)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is

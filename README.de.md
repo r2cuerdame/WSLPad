@@ -299,6 +299,14 @@ Schlüsselgleichheit.
 
 ## Installation
 
+### WinGet
+
+```powershell
+winget install r2cuerdame.WSLPad
+```
+
+### Manueller Download
+
 Laden Sie `WSLPad-Setup-<version>.exe` von den
 [Releases](https://github.com/r2cuerdame/WSLPad/releases) herunter und führen
 Sie die Datei aus — Administratorrechte sind nicht nötig (Installation pro
@@ -349,7 +357,7 @@ Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
 Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
 **Dashboard + Explorer + Console + MCP nur lesend** — sonst nichts.
 
-## Aktuelle Einschränkungen (v0.8.0)
+## Aktuelle Einschränkungen (v0.9.0)
 
 - Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
 - Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;

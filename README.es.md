@@ -297,6 +297,14 @@ claves obligatoria.
 
 ## Instalación
 
+### WinGet
+
+```powershell
+winget install r2cuerdame.WSLPad
+```
+
+### Descarga manual
+
 Descarga `WSLPad-Setup-<version>.exe` desde
 [Releases](https://github.com/r2cuerdame/WSLPad/releases) y ejecútalo: no hacen
 falta permisos de administrador (instalación por usuario). WSLPad se inicia con
@@ -346,7 +354,7 @@ no es un IDE, no trae interfaz de Git, depurador ni LSP, no sincroniza con la
 nube, no tiene chat de IA ni arregla nada por su cuenta. Su identidad:
 **Dashboard + Explorer + Console + MCP de solo lectura**, nada más.
 
-## Limitaciones actuales (v0.8.0)
+## Limitaciones actuales (v0.9.0)
 
 - Solo Windows x64; el instalador no está firmado (aviso de SmartScreen)
 - Las cifras de la imagen de disco necesitan el registro de Windows y `fsutil`;

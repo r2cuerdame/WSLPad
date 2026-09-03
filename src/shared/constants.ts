@@ -137,6 +137,7 @@ export const TOOL_SPECS: ReadonlyArray<ToolSpec> = [
   { id: 'openclaw', displayName: 'OpenClaw', category: 'ai' },
   { id: 'ollama', displayName: 'Ollama', category: 'ai' },
   { id: 'aider', displayName: 'Aider', category: 'ai' },
+  { id: 'nvidia-smi', displayName: 'NVIDIA GPU (nvidia-smi)', category: 'ai' },
   // runtime
   { id: 'node', displayName: 'Node.js', category: 'runtime' },
   { id: 'deno', displayName: 'Deno', category: 'runtime' },

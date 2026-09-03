@@ -118,6 +118,13 @@ const SCRIPT_CONFIG: Record<string, ToolConfigInit> = {
     exact: true,
     cfg: ['~/.aider.conf.yml']
   },
+  'nvidia-smi': {
+    bin: 'nvidia-smi',
+    alt: ['/usr/lib/wsl/lib/nvidia-smi'],
+    version: '--version',
+    proc: 'nvidia-smi',
+    exact: true
+  },
   // --- runtime ---
   node: { bin: 'node', version: '-v', proc: 'node', exact: true, cfg: ['~/.npmrc'] },
   deno: { bin: 'deno', version: '--version', proc: 'deno', exact: true, cfg: ['~/.deno'] },

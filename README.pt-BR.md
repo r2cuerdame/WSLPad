@@ -292,6 +292,14 @@ idioma vão embutidos offline, com paridade de chaves garantida.
 
 ## Instalação
 
+### WinGet
+
+```powershell
+winget install r2cuerdame.WSLPad
+```
+
+### Download manual
+
 Baixe `WSLPad-Setup-<version>.exe` em
 [Releases](https://github.com/r2cuerdame/WSLPad/releases) e execute — sem
 precisar de direitos de administrador (instalação por usuário). Por padrão, o
@@ -340,7 +348,7 @@ não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronizaç�
 nuvem, nem chat de IA, nem correção automática. Identidade:
 **Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
 
-## Limitações atuais (v0.8.0)
+## Limitações atuais (v0.9.0)
 
 - Somente Windows x64; o instalador não é assinado (aviso do SmartScreen)
 - Os números da imagem de disco dependem do registro do Windows e do `fsutil`;

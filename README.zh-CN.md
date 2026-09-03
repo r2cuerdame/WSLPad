@@ -232,6 +232,14 @@ Windows 语言，并在缺失时回退到英文。Linux 命令、路径和技术
 
 ## 安装
 
+### WinGet
+
+```powershell
+winget install r2cuerdame.WSLPad
+```
+
+### 手动下载
+
 从 [Releases](https://github.com/r2cuerdame/WSLPad/releases) 下载
 `WSLPad-Setup-<version>.exe` 并运行 —— 不需要管理员权限（按用户安装）。
 WSLPad 默认随 Windows 启动（可在托盘或 Settings 里切换），常驻托盘，并通过
@@ -274,7 +282,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 界面、调试器或 LSP，没有云同步，没有 AI 聊天，也不会自动帮你修东西。它的身份
 就是：**Dashboard + Explorer + Console + 只读 MCP** —— 别无其他。
 
-## 当前限制（v0.8.0）
+## 当前限制（v0.9.0）
 
 - 仅支持 Windows x64；安装程序未签名（会有 SmartScreen 警告）
 - 磁盘映像的数字需要读取 Windows 注册表和 `fsutil`；只要有一样读不到，这个

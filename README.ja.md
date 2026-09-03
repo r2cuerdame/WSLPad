@@ -273,6 +273,14 @@ Linux コマンド、パス、技術的な名称は決して翻訳しません�
 
 ## インストール
 
+### WinGet
+
+```powershell
+winget install r2cuerdame.WSLPad
+```
+
+### 手動ダウンロード
+
 [Releases](https://github.com/r2cuerdame/WSLPad/releases) から
 `WSLPad-Setup-<version>.exe` をダウンロードして実行してください — 管理者権限は
 不要です（ユーザー単位のインストール）。WSLPad は既定で Windows 起動時に実行され
@@ -322,7 +330,7 @@ Docker Desktop でもなく、IDE でもありません。Git の UI もデバ�
 
 - Console + 読み取り専用の MCP** — それだけです。
 
-## 現在の制限 (v0.8.0)
+## 現在の制限 (v0.9.0)
 
 - Windows x64 のみ。インストーラーは署名されていません（SmartScreen の警告）
 - ディスクイメージの数値には Windows のレジストリと `fsutil` が必要です。どちらか

@@ -233,6 +233,14 @@ WSLPad 內建 **9 種語言**的完整介面翻譯 —— 한국어、English、
 
 ## 安裝
 
+### WinGet
+
+```powershell
+winget install r2cuerdame.WSLPad
+```
+
+### 手動下載
+
 從 [Releases](https://github.com/r2cuerdame/WSLPad/releases) 下載
 `WSLPad-Setup-<version>.exe` 執行就好 —— 不需要系統管理員權限（單一使用者安裝）。
 WSLPad 預設隨 Windows 啟動（可在系統匣或設定中切換），常駐於系統匣，並透過
@@ -275,7 +283,7 @@ WSLPad *不是*發行版管理器或市集，不是 Docker Desktop，不是 IDE�
 偵錯器／LSP，沒有雲端同步，沒有 AI 聊天，也不會自動幫你修東西。它的定位是：
 **Dashboard + Explorer + Console + 唯讀 MCP** —— 沒有別的。
 
-## 目前的限制（v0.8.0）
+## 目前的限制（v0.9.0）
 
 - 僅支援 Windows x64；安裝程式未經簽章（會跳 SmartScreen 警告）
 - 磁碟映像的數字需要 Windows 登錄檔與 `fsutil`；只要有一邊讀不到，該區塊就會照實
