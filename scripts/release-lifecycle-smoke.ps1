@@ -193,7 +193,7 @@ try {
 
 - Registered WSL distributions: **$($distros.Count)**
 - Public installers: [$PreviousVersion]($previousUrl) → [$TargetVersion]($targetUrl)
-- Target SHA-256: `$actualTargetHash`
+- Target SHA-256: **$actualTargetHash**
 - Install scope/path: **HKCU / LocalAppData (no machine registration)**
 - First launch ${launchContext}: **passed for $PreviousVersion and $TargetVersion**
 - Upgrade $PreviousVersion → ${TargetVersion}: **passed**
