@@ -492,7 +492,7 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
           {/* The two files belong to two different machines and are edited in
               two different places, so they are shown one at a time rather than
               stacked into one long scroll. Not role="tab": the app keeps
-              exactly two tabs (Dashboard, Explorer) for screen readers. */}
+              exactly three top-level tabs for screen readers. */}
           <div className="scope-switch" role="group" aria-label={t('dashboard.wslconfig.title')}>
             {SCOPES.map((s) => {
               const declaredCount = all.filter(

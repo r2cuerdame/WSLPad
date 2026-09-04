@@ -21,6 +21,12 @@ Releases are Windows NSIS installers published to GitHub Releases;
    npm run test:e2e
    ```
 
+   Release notes must report the command summaries exactly as CI prints them.
+   Keep passed and skipped tests separate (for example, `1,525 passed, 9
+   skipped`), report E2E independently, and link the successful canonical CI
+   run for the exact release head (or a code-equivalent descendant that changes
+   only tests/documentation). Never relabel the total test count as "passing".
+
 3. **Build installer**
 
    ```bash

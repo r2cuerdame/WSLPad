@@ -21,12 +21,13 @@ test.describe('application shell (goal.md §18.3: 1, 2, 3, 13, 15, 19)', () => {
     expect(await mainState<boolean>(app, 'windowVisible')).toBe(true)
   })
 
-  test('has exactly two main tabs: Dashboard and Explorer', async () => {
+  test('has exactly three main tabs: Dashboard, Explorer, and Relocation', async () => {
     const { page } = launched
     const tabs = page.getByRole('tab')
-    await expect(tabs).toHaveCount(2)
+    await expect(tabs).toHaveCount(3)
     await expect(tabs.nth(0)).toContainText('Dashboard')
     await expect(tabs.nth(1)).toContainText('Explorer')
+    await expect(tabs.nth(2)).toContainText('Relocation')
   })
 
   test('closing the window hides to tray instead of quitting', async () => {

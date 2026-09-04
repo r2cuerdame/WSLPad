@@ -14,8 +14,8 @@ test.describe('settings drawer + localization (goal.md §18.3: 14, 15, 16, 17, 1
     const { page } = launched
     await page.getByTestId('settings-button').click()
     await expect(page.getByText('Settings').first()).toBeVisible()
-    // still exactly two main tabs while settings is open
-    await expect(page.getByRole('tab')).toHaveCount(2)
+    // Settings remains a drawer and adds no role beyond the three main tabs.
+    await expect(page.getByRole('tab')).toHaveCount(3)
     await page.keyboard.press('Escape')
   })
 

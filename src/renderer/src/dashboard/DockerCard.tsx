@@ -259,7 +259,7 @@ export default function DockerCard({ docker }: DockerCardProps): React.JSX.Eleme
         </span>
       </Kv>
 
-      {/* Not role="tab": the app keeps exactly two tabs for screen readers. */}
+      {/* Not role="tab": only the three top-level tabs use that role. */}
       <div className="scope-switch" role="group" aria-label={t('dashboard.docker.title')}>
         {VIEWS.map((id) => (
           <button
