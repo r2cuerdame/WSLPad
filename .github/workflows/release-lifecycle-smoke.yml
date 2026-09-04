@@ -1,0 +1,54 @@
+name: Public release lifecycle smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      previous_version:
+        description: Previously supported version to upgrade from
+        required: true
+        default: 1.0.0
+      target_version:
+        description: Public release version under verification
+        required: true
+        default: 1.0.1
+      target_sha256:
+        description: Expected SHA-256 for the public target installer
+        required: true
+        default: 10890A27E3D3582E916961CC20F96BF798277F9749728606AD1ACBAC1B7E768F
+  pull_request:
+    paths:
+      - .github/workflows/release-lifecycle-smoke.yml
+      - scripts/release-lifecycle-smoke.ps1
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    name: Install, launch, update, uninstall, and reinstall
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out lifecycle script
+        uses: actions/checkout@v7
+
+      - name: Confirm associations are not applicable
+        shell: pwsh
+        run: |
+          $configured = Select-String -Path electron-builder.yml -Pattern '^\s*(protocols|fileAssociations):'
+          if ($configured) { throw 'Lifecycle coverage must be extended for configured protocols/file associations.' }
+          'No protocols or file associations are configured; this acceptance item is not applicable.'
+
+      - name: Exercise public installer lifecycle
+        shell: pwsh
+        env:
+          PREVIOUS_VERSION: ${{ inputs.previous_version || '1.0.0' }}
+          TARGET_VERSION: ${{ inputs.target_version || '1.0.1' }}
+          TARGET_SHA256: ${{ inputs.target_sha256 || '10890A27E3D3582E916961CC20F96BF798277F9749728606AD1ACBAC1B7E768F' }}
+        run: |
+          ./scripts/release-lifecycle-smoke.ps1 `
+            -PreviousVersion $env:PREVIOUS_VERSION `
+            -TargetVersion $env:TARGET_VERSION `
+            -TargetSha256 $env:TARGET_SHA256 `
+            -RequireNoDistros
