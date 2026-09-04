@@ -50,7 +50,8 @@
   },
   "tabs": {
     "dashboard": "대시보드",
-    "explorer": "탐색기"
+    "explorer": "탐색기",
+    "migration": "이전 마법사"
   },
   "tray": {
     "open": "WSLPad 열기",
@@ -223,7 +224,10 @@
       "defenderNeedsAdmin": "제외 목록은 관리자 권한 프로세스만 읽을 수 있고 WSLPad는 아닙니다. 이것은 \"설정된 것이 없음\"이 아니라 알 수 없음입니다.",
       "defenderScanning": "실시간 보호는 WSL이 이 이미지에서 건드리는 모든 블록을 읽습니다. 눈에 보이는 이상 없이 WSL 파일시스템이 느려지는 가장 흔한 원인입니다.",
       "defenderExclude": "제외 명령",
-      "defenderElevatedHint": "복사해서 관리자 권한 PowerShell에서 실행하세요. WSLPad는 실행할 수 없습니다 — Console은 배포판 안의 셸이고, 이 명령은 Windows 관리자 권한이 필요합니다."
+      "defenderElevatedHint": "복사해서 관리자 권한 PowerShell에서 실행하세요. WSLPad는 실행할 수 없습니다 — Console은 배포판 안의 셸이고, 이 명령은 Windows 관리자 권한이 필요합니다.",
+      "relocateTitle": "배포판을 다른 드라이브로 옮겨야 하나요?",
+      "relocateHint": "단계별 안전 이전 마법사를 따라 진행하세요.",
+      "openWizard": "마법사 열기"
     },
     "wslconfig": {
       "title": "WSL 설정",
@@ -1085,5 +1089,41 @@
     "deleteDone": "{{count}}개 항목을 삭제했습니다",
     "settingsSaved": "설정이 저장되었습니다",
     "openedInExplorer": "Explorer에서 열었습니다"
+  },
+  "migration": {
+    "title": "VHDX 안전 이전 마법사",
+    "subtitle": "데이터 유실 없이 WSL 배포판을 다른 드라이브로 안전하게 이전합니다.",
+    "selectDistro": "배포판 선택",
+    "currentLocation": "현재 VHDX 위치",
+    "imageSize": "가상 디스크 크기",
+    "step1Title": "1. 이전 대상 위치 선택",
+    "step1Desc": "VHDX를 이전할 보조 드라이브의 대상 폴더 경로를 입력하세요.",
+    "targetFolder": "대상 폴더 경로",
+    "targetPlaceholder": "예: D:\\WSL\\Ubuntu",
+    "freeSpace": "대상 드라이브 여유 공간",
+    "spaceSufficient": "대상 드라이브의 여유 공간이 충분합니다.",
+    "spaceWarning": "대상 드라이브의 여유 공간이 부족합니다. 이미지 크기의 1.5배 이상 권장합니다.",
+    "step2Title": "2. WSL 정지 & 백업 내보내기",
+    "step2Desc": "배포판을 안전하게 종료하고 tar 아카이브로 내보냅니다.",
+    "exportCmdLabel": "내보내기 명령 (PowerShell / CMD에서 실행)",
+    "verifyExport": "백업 파일 확인",
+    "exportVerified": "백업 파일이 성공적으로 확인되었습니다!",
+    "exportNotFound": "백업 파일이 없거나 비어 있습니다. 위 명령을 먼저 실행해 주세요.",
+    "step3Title": "3. 새 위치로 가져오기 (Import)",
+    "step3Desc": "새 드라이브의 대상 폴더로 배포판을 가져옵니다.",
+    "importCmdLabel": "가져오기 명령 (PowerShell / CMD에서 실행)",
+    "verifyImport": "새 위치 등록 확인",
+    "importVerified": "대상 위치에 새 배포판이 성공적으로 등록되었습니다!",
+    "importNotFound": "새 위치에서 배포판이 아직 확인되지 않았습니다.",
+    "step4Title": "4. 기본 계정 복원 및 부팅 확인",
+    "step4Desc": "가져온 배포판은 기본 사용자가 root로 바뀔 수 있습니다. 설정을 확인하세요.",
+    "userHint": "/etc/wsl.conf 파일에 [user] default=<사용자명> 항목이 있는지 확인하세요.",
+    "bootTest": "배포판 부팅 확인",
+    "step5Title": "5. 정리 및 용량 확보 완료",
+    "step5Desc": "새 배포판이 정상 작동하면 임시 백업 tar 파일을 삭제하고 구 배포판을 정리하세요.",
+    "cleanupHint": "임시 백업 tar 파일을 삭제하여 보조 드라이브의 용량을 회수하세요.",
+    "prev": "이전 단계",
+    "next": "다음 단계",
+    "completed": "배포판 이전 워크플로우 완료!"
   }
 }

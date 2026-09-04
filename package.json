@@ -1,6 +1,6 @@
 {
   "name": "wslpad",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "A small Windows companion for WSL.",
   "main": "out/main/index.js",
   "author": "r2cuerdame",

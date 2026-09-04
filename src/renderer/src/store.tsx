@@ -10,7 +10,7 @@ import {
 } from 'react'
 import type { FsKind, Settings, WslPadSnapshot } from '@shared/types'
 
-export type MainTab = 'dashboard' | 'explorer'
+export type MainTab = 'dashboard' | 'explorer' | 'migration'
 
 export interface Toast {
   id: number

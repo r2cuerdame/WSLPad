@@ -50,7 +50,8 @@
   },
   "tabs": {
     "dashboard": "Tableau de bord",
-    "explorer": "Explorateur"
+    "explorer": "Explorateur",
+    "migration": "Assistant de migration"
   },
   "tray": {
     "open": "Ouvrir WSLPad",
@@ -223,7 +224,10 @@
       "defenderNeedsAdmin": "Seul un processus élevé peut lire la liste d’exclusions, et WSLPad n’en est pas un. C’est inconnu, pas « rien de configuré ».",
       "defenderScanning": "La protection en temps réel lit chaque bloc que WSL touche dans cette image. C’est la raison la plus courante pour laquelle un système de fichiers WSL paraît lent sans rien de visible.",
       "defenderExclude": "Commande d’exclusion",
-      "defenderElevatedHint": "À copier et exécuter dans une PowerShell élevée. WSLPad ne peut pas le faire : la Console est un shell dans la distribution, et ceci demande les droits administrateur Windows."
+      "defenderElevatedHint": "À copier et exécuter dans une PowerShell élevée. WSLPad ne peut pas le faire : la Console est un shell dans la distribution, et ceci demande les droits administrateur Windows.",
+      "relocateTitle": "Déplacer la distribution sur un autre lecteur ?",
+      "relocateHint": "Suivez l'assistant de migration sécurisée étape par étape.",
+      "openWizard": "Ouvrir l'assistant"
     },
     "wslconfig": {
       "title": "Paramètres WSL",
@@ -1085,5 +1089,41 @@
     "deleteDone": "{{count}} élément(s) supprimés",
     "settingsSaved": "Paramètres enregistrés",
     "openedInExplorer": "Ouvert dans l’Explorer"
+  },
+  "migration": {
+    "title": "Assistant de migration sécurisée VHDX",
+    "subtitle": "Migrez en toute sécurité votre distribution WSL vers un autre lecteur sans perte de données.",
+    "selectDistro": "Sélectionner la distribution",
+    "currentLocation": "Emplacement actuel du VHDX",
+    "imageSize": "Taille du disque virtuel",
+    "step1Title": "1. Choisir l'emplacement cible",
+    "step1Desc": "Spécifiez le dossier sur votre lecteur secondaire où le VHDX doit être déplacé.",
+    "targetFolder": "Dossier cible",
+    "targetPlaceholder": "ex. D:\\WSL\\Ubuntu",
+    "freeSpace": "Espace libre sur le lecteur cible",
+    "spaceSufficient": "Le lecteur cible dispose de suffisamment d'espace libre.",
+    "spaceWarning": "Espace libre faible. Au moins 1,5 fois la taille de l'image est recommandée.",
+    "step2Title": "2. Arrêter WSL et exporter la sauvegarde",
+    "step2Desc": "Arrêtez la distribution en toute sécurité et exportez-la dans une archive tar.",
+    "exportCmdLabel": "Commande d'exportation (à exécuter dans PowerShell / CMD)",
+    "verifyExport": "Vérifier le fichier de sauvegarde",
+    "exportVerified": "Fichier de sauvegarde vérifié avec succès !",
+    "exportNotFound": "Fichier de sauvegarde introuvable ou vide. Veuillez d'abord exécuter la commande.",
+    "step3Title": "3. Importer dans le nouvel emplacement",
+    "step3Desc": "Importez la distribution dans le dossier cible de votre lecteur secondaire.",
+    "importCmdLabel": "Commande d'importation (à exécuter dans PowerShell / CMD)",
+    "verifyImport": "Vérifier le nouvel enregistrement",
+    "importVerified": "Nouvelle distribution vérifiée avec succès !",
+    "importNotFound": "Distribution introuvable au nouvel emplacement pour l'instant.",
+    "step4Title": "4. Vérifier l'utilisateur par défaut et démarrer",
+    "step4Desc": "Les distributions importées utilisent souvent root par défaut. Vérifiez la configuration.",
+    "userHint": "Vérifiez /etc/wsl.conf pour vous assurer que [user] default=<nom> est configuré.",
+    "bootTest": "Tester le lancement",
+    "step5Title": "5. Nettoyage et récupération d'espace",
+    "step5Desc": "Une fois vérifié, supprimez l'archive de sauvegarde temporaire pour récupérer de l'espace.",
+    "cleanupHint": "Supprimez l'archive tar temporaire pour libérer de l'espace sur le lecteur secondaire.",
+    "prev": "Étape précédente",
+    "next": "Étape suivante",
+    "completed": "Processus de migration terminé !"
   }
 }

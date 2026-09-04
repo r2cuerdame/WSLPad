@@ -77,7 +77,7 @@ export default function DiskCard({
 }: DiskCardProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const locale = i18n.language as LocaleCode
-  const { prepareCommand, pushToast } = useApp()
+  const { prepareCommand, pushToast, setTab } = useApp()
 
   if (disk === null) {
     return (
@@ -300,6 +300,23 @@ export default function DiskCard({
         </>
       ) : null}
       <DiskConsumersBlock consumers={consumers} />
+      <div className="path-row" style={{ marginTop: 12 }}>
+        <div className="row-main">
+          <div className="path-line">
+            <span className="path-label">
+              {t('dashboard.disk.relocateTitle', { defaultValue: 'Need to move this distro to another drive?' })}
+            </span>
+          </div>
+          <div className="dim">
+            {t('dashboard.disk.relocateHint', { defaultValue: 'Follow the step-by-step safe relocation wizard.' })}
+          </div>
+        </div>
+        <span className="row-actions">
+          <button type="button" className="btn btn-small" onClick={() => setTab('migration')}>
+            {t('dashboard.disk.openWizard', { defaultValue: 'Open Wizard' })}
+          </button>
+        </span>
+      </div>
       <ZoneIdentifierBlock zone={zone} />
     </Card>
   )

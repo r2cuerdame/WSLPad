@@ -354,3 +354,86 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Migration Wizard */
+.migration-tab {
+  padding: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.migration-overview-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.wizard-steps-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  overflow-x: auto;
+}
+
+.wizard-step-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.wizard-step-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.wizard-step-btn.done {
+  border-color: var(--ok);
+  color: var(--text);
+}
+
+.wizard-step-btn .step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.1);
+  font-size: 11px;
+}
+
+.wizard-step-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.wizard-step-panel h3 {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+}
+
+.wizard-step-panel .code-block {
+  padding: 10px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius);
+  margin-top: 8px;
+  font-size: 12px;
+}
+

@@ -50,7 +50,8 @@
   },
   "tabs": {
     "dashboard": "Dashboard",
-    "explorer": "Explorer"
+    "explorer": "Explorer",
+    "migration": "Relocation Wizard"
   },
   "tray": {
     "open": "Open WSLPad",
@@ -223,7 +224,10 @@
       "defenderNeedsAdmin": "The exclusion list can only be read by an elevated process, and WSLPad is not one. This is unknown, not \"none configured\".",
       "defenderScanning": "Real-time protection reads every block WSL touches inside this image. It is the most common reason a WSL filesystem feels slow with nothing visibly wrong.",
       "defenderExclude": "Exclusion command",
-      "defenderElevatedHint": "Copy and run this in an elevated PowerShell. WSLPad cannot run it: the Console is a shell inside the distribution, and this needs Windows administrator rights."
+      "defenderElevatedHint": "Copy and run this in an elevated PowerShell. WSLPad cannot run it: the Console is a shell inside the distribution, and this needs Windows administrator rights.",
+      "relocateTitle": "Need to move this distro to another drive?",
+      "relocateHint": "Follow the step-by-step safe relocation wizard.",
+      "openWizard": "Open Wizard"
     },
     "wslconfig": {
       "title": "WSL settings",
@@ -1085,5 +1089,41 @@
     "deleteDone": "Deleted {{count}} item(s)",
     "settingsSaved": "Settings saved",
     "openedInExplorer": "Opened in Explorer"
+  },
+  "migration": {
+    "title": "VHDX Safe Relocation Wizard",
+    "subtitle": "Safely migrate your WSL distribution to another drive without data loss.",
+    "selectDistro": "Select Distribution",
+    "currentLocation": "Current VHDX location",
+    "imageSize": "Virtual disk size",
+    "step1Title": "1. Choose Target Location",
+    "step1Desc": "Specify the folder on your secondary drive where the VHDX should be relocated.",
+    "targetFolder": "Target Folder",
+    "targetPlaceholder": "e.g. D:\\WSL\\Ubuntu",
+    "freeSpace": "Free space on target drive",
+    "spaceSufficient": "Target drive has sufficient free space.",
+    "spaceWarning": "Target drive has low free space. At least 1.5x of image size recommended.",
+    "step2Title": "2. Terminate WSL & Export Backup",
+    "step2Desc": "Shut down the distribution safely and export it into an archive file.",
+    "exportCmdLabel": "Export command (Run in PowerShell / CMD)",
+    "verifyExport": "Verify Backup File",
+    "exportVerified": "Backup file verified successfully!",
+    "exportNotFound": "Backup file not found or empty. Please run the command above first.",
+    "step3Title": "3. Import into New Location",
+    "step3Desc": "Import the distribution into the target folder on your secondary drive.",
+    "importCmdLabel": "Import command (Run in PowerShell / CMD)",
+    "verifyImport": "Verify New Registration",
+    "importVerified": "New distribution verified at target location!",
+    "importNotFound": "Distribution not found at new location yet.",
+    "step4Title": "4. Verify Default User & Boot",
+    "step4Desc": "Imported distributions often default to root. Verify default user configuration.",
+    "userHint": "Check /etc/wsl.conf to ensure [user] default=<username> is configured.",
+    "bootTest": "Launch Distro Test",
+    "step5Title": "5. Cleanup & Reclaim Space",
+    "step5Desc": "Once you have verified the new instance, safely remove the temporary backup archive and unregister the old instance.",
+    "cleanupHint": "Delete the temporary backup archive to reclaim storage on your secondary drive.",
+    "prev": "Previous Step",
+    "next": "Next Step",
+    "completed": "Relocation workflow completed!"
   }
 }

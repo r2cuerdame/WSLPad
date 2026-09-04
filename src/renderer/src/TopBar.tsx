@@ -73,6 +73,14 @@ export default function TopBar(): React.JSX.Element {
         >
           {t('tabs.explorer')}
         </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'migration'}
+          className={tab === 'migration' ? 'tab active' : 'tab'}
+          onClick={() => setTab('migration')}
+        >
+          {t('tabs.migration', { defaultValue: 'Relocation' })}
+        </button>
       </nav>
 
       <div className="topbar-right">

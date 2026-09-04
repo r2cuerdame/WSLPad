@@ -50,7 +50,8 @@
   },
   "tabs": {
     "dashboard": "仪表盘",
-    "explorer": "资源管理器"
+    "explorer": "资源管理器",
+    "migration": "迁移向导"
   },
   "tray": {
     "open": "打开 WSLPad",
@@ -223,7 +224,10 @@
       "defenderNeedsAdmin": "排除列表只有管理员权限的进程才能读取，而 WSLPad 不是。这是未知，而不是「没有配置」。",
       "defenderScanning": "实时保护会读取 WSL 在此映像中触及的每一个块。这是 WSL 文件系统在看不出任何问题的情况下变慢的最常见原因。",
       "defenderExclude": "排除命令",
-      "defenderElevatedHint": "请复制到管理员权限的 PowerShell 中运行。WSLPad 无法执行它 —— Console 是发行版内部的 shell，而这需要 Windows 管理员权限。"
+      "defenderElevatedHint": "请复制到管理员权限的 PowerShell 中运行。WSLPad 无法执行它 —— Console 是发行版内部的 shell，而这需要 Windows 管理员权限。",
+      "relocateTitle": "需要将此发行版移动到其他驱动器吗？",
+      "relocateHint": "按照分步安全迁移向导进行操作。",
+      "openWizard": "打开向导"
     },
     "wslconfig": {
       "title": "WSL 设置",
@@ -1085,5 +1089,41 @@
     "deleteDone": "已删除 {{count}} 个项目",
     "settingsSaved": "设置已保存",
     "openedInExplorer": "已在 Explorer 中打开"
+  },
+  "migration": {
+    "title": "VHDX 安全迁移向导",
+    "subtitle": "在不丢失数据的情况下，安全地将 WSL 发行版迁移到其他驱动器。",
+    "selectDistro": "选择发行版",
+    "currentLocation": "当前 VHDX 位置",
+    "imageSize": "虚拟磁盘大小",
+    "step1Title": "1. 选择目标位置",
+    "step1Desc": "指定要将 VHDX 迁移到的目标驱动器文件夹路径。",
+    "targetFolder": "目标文件夹",
+    "targetPlaceholder": "例如: D:\\WSL\\Ubuntu",
+    "freeSpace": "目标驱动器可用空间",
+    "spaceSufficient": "目标驱动器可用空间充足。",
+    "spaceWarning": "目标驱动器可用空间不足。建议至少为镜像大小的 1.5 倍。",
+    "step2Title": "2. 终止 WSL 并导出备份",
+    "step2Desc": "安全关闭发行版并导出为 tar 归档文件。",
+    "exportCmdLabel": "导出命令 (在 PowerShell / CMD 中运行)",
+    "verifyExport": "验证备份文件",
+    "exportVerified": "备份文件验证成功！",
+    "exportNotFound": "备份文件不存在或为空。请先运行上述命令。",
+    "step3Title": "3. 导入到新位置",
+    "step3Desc": "将发行版导入到目标驱动器文件夹中。",
+    "importCmdLabel": "导入命令 (在 PowerShell / CMD 中运行)",
+    "verifyImport": "验证新注册",
+    "importVerified": "目标位置的新发行版验证成功！",
+    "importNotFound": "新位置尚未检测到该发行版。",
+    "step4Title": "4. 验证默认用户与启动",
+    "step4Desc": "导入的发行版默认用户可能重置为 root。请核对用户配置。",
+    "userHint": "检查 /etc/wsl.conf 中是否包含 [user] default=<用户名> 配置。",
+    "bootTest": "启动测试",
+    "step5Title": "5. 清理与释放空间",
+    "step5Desc": "验证无误后，安全删除临时备份归档并注销旧实例。",
+    "cleanupHint": "删除临时备份归档以回收目标驱动器空间。",
+    "prev": "上一步",
+    "next": "下一步",
+    "completed": "迁移工作流程已完成！"
   }
 }

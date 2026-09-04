@@ -320,9 +320,9 @@ describe('TopBar distro selector', () => {
     expect(screen.getByTestId('settings-button')).toBeTruthy()
   })
 
-  it('still exposes exactly the two main tabs', async () => {
+  it('exposes the main tabs including relocation wizard', async () => {
     await renderTopBar()
 
-    expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(screen.getAllByRole('tab')).toHaveLength(3)
   })
 })

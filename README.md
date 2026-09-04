@@ -122,8 +122,14 @@ It also recovers on its own. WSL is often still busy when WSLPad starts with
 Windows, and a shell that could not be started is now reported as exactly that
 — **with the reason** — instead of a misleading "distribution stopped". Once
 the distro reads as running the Console retries without being asked, and if it
-still cannot start, a retry button stays there. Restarting the app is never the
-answer.
+still cannot start, a retry button stays there. Restarting the app is never the answer.
+
+### Relocation Wizard — move distros without fear
+
+C drive filling up because of WSL? The step-by-step Relocation Wizard guides you
+through safely exporting and moving your distro's VHDX to a secondary drive (like D:\)
+with built-in verification gates. It checks disk headroom, verifies backup integrity,
+preserves your default Linux user, and never runs destructive commands automatically.
 
 ## MCP server (read-only)
 
@@ -373,7 +379,7 @@ WSLPad is _not_ a distro manager/marketplace, not Docker Desktop, not an IDE,
 no Git UI/debugger/LSP, no cloud sync, no AI chat, no auto-fixing. Identity:
 **Dashboard + Explorer + Console + read-only MCP** — nothing else.
 
-## Current limitations (v0.9.0)
+## Current limitations (v1.0.0)
 
 - Windows x64 only; installer is unsigned (SmartScreen warning)
 - Disk-image numbers need the Windows registry and `fsutil`; if either is

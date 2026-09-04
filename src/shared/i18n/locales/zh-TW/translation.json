@@ -50,7 +50,8 @@
   },
   "tabs": {
     "dashboard": "儀表板",
-    "explorer": "檔案總管"
+    "explorer": "檔案總管",
+    "migration": "遷移精靈"
   },
   "tray": {
     "open": "開啟 WSLPad",
@@ -223,7 +224,10 @@
       "defenderNeedsAdmin": "排除清單只有系統管理員權限的處理程序才能讀取，而 WSLPad 不是。這是未知，而不是「沒有設定」。",
       "defenderScanning": "即時保護會讀取 WSL 在此映像中碰到的每一個區塊。這是 WSL 檔案系統在看不出任何問題的情況下變慢的最常見原因。",
       "defenderExclude": "排除命令",
-      "defenderElevatedHint": "請複製到系統管理員權限的 PowerShell 執行。WSLPad 無法執行 —— Console 是發行版內部的 shell，而這需要 Windows 系統管理員權限。"
+      "defenderElevatedHint": "請複製到系統管理員權限的 PowerShell 執行。WSLPad 無法執行 —— Console 是發行版內部的 shell，而這需要 Windows 系統管理員權限。",
+      "relocateTitle": "需要將此發行版移動至其他磁碟機嗎？",
+      "relocateHint": "依照逐步安全遷移精靈進行操作。",
+      "openWizard": "開啟精靈"
     },
     "wslconfig": {
       "title": "WSL 設定",
@@ -1085,5 +1089,41 @@
     "deleteDone": "已刪除 {{count}} 個項目",
     "settingsSaved": "設定已儲存",
     "openedInExplorer": "已在 Explorer 中開啟"
+  },
+  "migration": {
+    "title": "VHDX 安全遷移精靈",
+    "subtitle": "在不遺失資料的情況下，安全地將 WSL 發行版遷移至其他磁碟機。",
+    "selectDistro": "選擇發行版",
+    "currentLocation": "目前 VHDX 位置",
+    "imageSize": "虛擬磁碟大小",
+    "step1Title": "1. 選擇目標位置",
+    "step1Desc": "指定要將 VHDX 遷移至目標磁碟機的資料夾路徑。",
+    "targetFolder": "目標資料夾",
+    "targetPlaceholder": "例如: D:\\WSL\\Ubuntu",
+    "freeSpace": "目標磁碟機可用空間",
+    "spaceSufficient": "目標磁碟機可用空間充足。",
+    "spaceWarning": "目標磁碟機可用空間不足。建議至少為映像大小的 1.5 倍。",
+    "step2Title": "2. 終止 WSL 並匯出備份",
+    "step2Desc": "安全關閉發行版並匯出為 tar 封存檔案。",
+    "exportCmdLabel": "匯出命令 (在 PowerShell / CMD 中執行)",
+    "verifyExport": "驗證備份檔案",
+    "exportVerified": "備份檔案驗證成功！",
+    "exportNotFound": "備份檔案不存在或為空。請先執行上述命令。",
+    "step3Title": "3. 匯入至新位置",
+    "step3Desc": "將發行版匯入至目標磁碟機資料夾中。",
+    "importCmdLabel": "匯入命令 (在 PowerShell / CMD 中執行)",
+    "verifyImport": "驗證新註冊",
+    "importVerified": "目標位置的新發行版驗證成功！",
+    "importNotFound": "新位置尚未偵測到該發行版。",
+    "step4Title": "4. 驗證預設使用者與啟動",
+    "step4Desc": "匯入的發行版預設使用者可能重設為 root。請檢查使用者設定。",
+    "userHint": "檢查 /etc/wsl.conf 中是否包含 [user] default=<使用者名稱> 設定。",
+    "bootTest": "啟動測試",
+    "step5Title": "5. 清理與釋放空間",
+    "step5Desc": "驗證無誤後，安全刪除暫存備份封存並註銷舊執行個體。",
+    "cleanupHint": "刪除暫存備份封存以回收目標磁碟機空間。",
+    "prev": "上一步",
+    "next": "下一步",
+    "completed": "遷移工作流程已完成！"
   }
 }

@@ -50,7 +50,8 @@
   },
   "tabs": {
     "dashboard": "Dashboard",
-    "explorer": "Explorer"
+    "explorer": "Explorer",
+    "migration": "Migrations-Assistent"
   },
   "tray": {
     "open": "WSLPad öffnen",
@@ -223,7 +224,10 @@
       "defenderNeedsAdmin": "Die Ausschlussliste kann nur ein Prozess mit erhöhten Rechten lesen, und WSLPad ist keiner. Das ist unbekannt, nicht „nichts konfiguriert\".",
       "defenderScanning": "Der Echtzeitschutz liest jeden Block, den WSL in diesem Image anfasst. Das ist der häufigste Grund, warum sich ein WSL-Dateisystem ohne sichtbaren Fehler langsam anfühlt.",
       "defenderExclude": "Ausschluss-Befehl",
-      "defenderElevatedHint": "In einer PowerShell mit erhöhten Rechten ausführen. WSLPad kann das nicht: die Konsole ist eine Shell in der Distribution, und dies braucht Windows-Administratorrechte."
+      "defenderElevatedHint": "In einer PowerShell mit erhöhten Rechten ausführen. WSLPad kann das nicht: die Konsole ist eine Shell in der Distribution, und dies braucht Windows-Administratorrechte.",
+      "relocateTitle": "Distribution auf ein anderes Laufwerk verschieben?",
+      "relocateHint": "Folgen Sie dem Schritt-für-Schritt-Assistenten für eine sichere Migration.",
+      "openWizard": "Assistent öffnen"
     },
     "wslconfig": {
       "title": "WSL-Einstellungen",
@@ -1085,5 +1089,41 @@
     "deleteDone": "{{count}} Element(e) gelöscht",
     "settingsSaved": "Einstellungen gespeichert",
     "openedInExplorer": "Im Explorer geöffnet"
+  },
+  "migration": {
+    "title": "VHDX-Sicherheitsmigrations-Assistent",
+    "subtitle": "Migrieren Sie Ihre WSL-Distribution sicher und ohne Datenverlust auf ein anderes Laufwerk.",
+    "selectDistro": "Distribution auswählen",
+    "currentLocation": "Aktueller VHDX-Pfad",
+    "imageSize": "Größe der virtuellen Festplatte",
+    "step1Title": "1. Zielspeicherort wählen",
+    "step1Desc": "Geben Sie den Ordner auf Ihrem zweiten Laufwerk an, in den die VHDX verschoben werden soll.",
+    "targetFolder": "Zielordner",
+    "targetPlaceholder": "z.B. D:\\WSL\\Ubuntu",
+    "freeSpace": "Freier Speicherplatz auf Ziellaufwerk",
+    "spaceSufficient": "Das Ziellaufwerk verfügt über ausreichend freien Speicherplatz.",
+    "spaceWarning": "Wenig freier Speicherplatz. Mindestens das 1,5-fache der Image-Größe empfohlen.",
+    "step2Title": "2. WSL beenden & Sicherung exportieren",
+    "step2Desc": "Beenden Sie die Distribution sicher und exportieren Sie sie in ein tar-Archiv.",
+    "exportCmdLabel": "Export-Befehl (in PowerShell / CMD ausführen)",
+    "verifyExport": "Sicherungsdatei überprüfen",
+    "exportVerified": "Sicherungsdatei erfolgreich überprüft!",
+    "exportNotFound": "Sicherungsdatei nicht gefunden oder leer. Bitte führen Sie zuerst den Befehl aus.",
+    "step3Title": "3. Am neuen Speicherort importieren",
+    "step3Desc": "Importieren Sie die Distribution in den Zielordner auf Ihrem zweiten Laufwerk.",
+    "importCmdLabel": "Import-Befehl (in PowerShell / CMD ausführen)",
+    "verifyImport": "Neue Registrierung überprüfen",
+    "importVerified": "Neue Distribution am Zielort erfolgreich überprüft!",
+    "importNotFound": "Distribution am neuen Speicherort noch nicht gefunden.",
+    "step4Title": "4. Standardbenutzer & Start prüfen",
+    "step4Desc": "Importierte Distributionen verwenden oft root als Standard. Konfiguration prüfen.",
+    "userHint": "Prüfen Sie /etc/wsl.conf auf den Eintrag [user] default=<benutzername>.",
+    "bootTest": "Start testen",
+    "step5Title": "5. Bereinigung & Speicherfreigabe",
+    "step5Desc": "Nach erfolgreicher Überprüfung das temporäre tar-Archiv löschen, um Speicher freizugeben.",
+    "cleanupHint": "Löschen Sie das temporäre Archiv, um Speicherplatz freizugeben.",
+    "prev": "Vorheriger Schritt",
+    "next": "Nächster Schritt",
+    "completed": "Migrations-Workflow abgeschlossen!"
   }
 }

@@ -50,7 +50,8 @@
   },
   "tabs": {
     "dashboard": "ダッシュボード",
-    "explorer": "エクスプローラー"
+    "explorer": "エクスプローラー",
+    "migration": "移行ウィザード"
   },
   "tray": {
     "open": "WSLPad を開く",
@@ -223,7 +224,10 @@
       "defenderNeedsAdmin": "除外リストは管理者権限のプロセスしか読めず、WSLPad はそうではありません。これは「設定なし」ではなく不明です。",
       "defenderScanning": "リアルタイム保護は WSL がこのイメージ内で触れるすべてのブロックを読みます。目に見える異常がないのに WSL のファイルシステムが遅く感じる、最も一般的な原因です。",
       "defenderExclude": "除外コマンド",
-      "defenderElevatedHint": "コピーして管理者権限の PowerShell で実行してください。WSLPad は実行できません — Console はディストリビューション内のシェルで、これには Windows の管理者権限が必要です。"
+      "defenderElevatedHint": "コピーして管理者権限の PowerShell で実行してください。WSLPad は実行できません — Console はディストリビューション内のシェルで、これには Windows の管理者権限が必要です。",
+      "relocateTitle": "別ドライブへ移行しますか？",
+      "relocateHint": "ステップバイステップの安全な移行ウィザードを実行します。",
+      "openWizard": "ウィザードを開く"
     },
     "wslconfig": {
       "title": "WSL 設定",
@@ -1085,5 +1089,41 @@
     "deleteDone": "{{count}} 個の項目を削除しました",
     "settingsSaved": "設定を保存しました",
     "openedInExplorer": "Explorer で開きました"
+  },
+  "migration": {
+    "title": "VHDX 安全移行ウィザード",
+    "subtitle": "データを失うことなく、WSL ディストリビューションを別ドライブへ安全に移行します。",
+    "selectDistro": "ディストリビューション選択",
+    "currentLocation": "現在の VHDX パス",
+    "imageSize": "仮想ディスクサイズ",
+    "step1Title": "1. 移行先フォルダの選択",
+    "step1Desc": "VHDX を移行する別ドライブのフォルダパスを指定してください。",
+    "targetFolder": "移行先フォルダ",
+    "targetPlaceholder": "例: D:\\WSL\\Ubuntu",
+    "freeSpace": "移行先端ドライブの空き容量",
+    "spaceSufficient": "移行先端ドライブの空き容量は十分です。",
+    "spaceWarning": "空き容量が不足しています。イメージサイズの1.5倍以上を推奨します。",
+    "step2Title": "2. WSL の停止とバックアップ出力",
+    "step2Desc": "ディストリビューションを安全に停止し、tar アーカイブとしてエクスポートします。",
+    "exportCmdLabel": "エクスポートコマンド (PowerShell / CMD で実行)",
+    "verifyExport": "バックアップファイルの確認",
+    "exportVerified": "バックアップファイルが正常に確認されました！",
+    "exportNotFound": "バックアップファイルが見つからないか空です。上記のコマンドを実行してください。",
+    "step3Title": "3. 新しい場所へのインポート",
+    "step3Desc": "指定した別ドライブのフォルダにディストリビューションをインポートします。",
+    "importCmdLabel": "インポートコマンド (PowerShell / CMD で実行)",
+    "verifyImport": "新規登録の確認",
+    "importVerified": "移行先に新しいディストリビューションが登録されました！",
+    "importNotFound": "移行先でディストリビューションがまだ確認できません。",
+    "step4Title": "4. 既定ユーザーの確認と起動テスト",
+    "step4Desc": "インポートしたディストリビューションは既定ユーザーが root になることがあります。",
+    "userHint": "/etc/wsl.conf に [user] default=<ユーザー名> が設定されているか確認してください。",
+    "bootTest": "起動テスト",
+    "step5Title": "5. クリーンアップと完了",
+    "step5Desc": "動作確認後、一時バックアップ tar ファイルを削除して容量を確保してください。",
+    "cleanupHint": "一時バックアップファイルを削除してドライブ容量を回収してください。",
+    "prev": "前のステップ",
+    "next": "次のステップ",
+    "completed": "移行ワークフローが完了しました！"
   }
 }

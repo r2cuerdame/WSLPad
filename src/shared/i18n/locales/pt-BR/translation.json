@@ -50,7 +50,8 @@
   },
   "tabs": {
     "dashboard": "Painel",
-    "explorer": "Explorador"
+    "explorer": "Explorador",
+    "migration": "Assistente de migração"
   },
   "tray": {
     "open": "Abrir o WSLPad",
@@ -223,7 +224,10 @@
       "defenderNeedsAdmin": "A lista de exclusões só pode ser lida por um processo elevado, e o WSLPad não é um. Isto é desconhecido, não \"nada configurado\".",
       "defenderScanning": "A proteção em tempo real lê cada bloco que o WSL toca dentro desta imagem. É a causa mais comum de um sistema de arquivos WSL parecer lento sem nada visível.",
       "defenderExclude": "Comando de exclusão",
-      "defenderElevatedHint": "Copie e execute em um PowerShell elevado. O WSLPad não pode: o Console é um shell dentro da distribuição, e isto precisa de direitos de administrador do Windows."
+      "defenderElevatedHint": "Copie e execute em um PowerShell elevado. O WSLPad não pode: o Console é um shell dentro da distribuição, e isto precisa de direitos de administrador do Windows.",
+      "relocateTitle": "Mover distribuição para outra unidade?",
+      "relocateHint": "Siga o assistente passo a passo para uma migração segura.",
+      "openWizard": "Abrir assistente"
     },
     "wslconfig": {
       "title": "Configurações do WSL",
@@ -1085,5 +1089,41 @@
     "deleteDone": "{{count}} item(ns) excluídos",
     "settingsSaved": "Configurações salvas",
     "openedInExplorer": "Aberto no Explorer"
+  },
+  "migration": {
+    "title": "Assistente de Migração Segura de VHDX",
+    "subtitle": "Migre sua distribuição WSL com segurança para outra unidade sem perda de dados.",
+    "selectDistro": "Selecionar distribuição",
+    "currentLocation": "Local atual do VHDX",
+    "imageSize": "Tamanho do disco virtual",
+    "step1Title": "1. Escolher local de destino",
+    "step1Desc": "Especifique a pasta na unidade secundária para onde o VHDX deve ser movido.",
+    "targetFolder": "Pasta de destino",
+    "targetPlaceholder": "ex: D:\\WSL\\Ubuntu",
+    "freeSpace": "Espaço livre na unidade de destino",
+    "spaceSufficient": "A unidade de destino tem espaço livre suficiente.",
+    "spaceWarning": "Pouco espaço livre. Recomenda-se pelo menos 1,5x o tamanho da imagem.",
+    "step2Title": "2. Encerrar WSL e exportar backup",
+    "step2Desc": "Encerre a distribuição com segurança e exporte-a para um arquivo tar.",
+    "exportCmdLabel": "Comando de exportação (executar no PowerShell / CMD)",
+    "verifyExport": "Verificar arquivo de backup",
+    "exportVerified": "Arquivo de backup verificado com sucesso!",
+    "exportNotFound": "Arquivo não encontrado ou vazio. Execute o comando acima primeiro.",
+    "step3Title": "3. Importar no novo local",
+    "step3Desc": "Importe a distribuição para a pasta de destino na unidade secundária.",
+    "importCmdLabel": "Comando de importação (executar no PowerShell / CMD)",
+    "verifyImport": "Verificar novo registro",
+    "importVerified": "Nova distribuição verificada com sucesso no local de destino!",
+    "importNotFound": "A distribuição ainda não foi detectada no novo local.",
+    "step4Title": "4. Verificar usuário padrão e inicialização",
+    "step4Desc": "Distribuições importadas costumam usar root como padrão. Verifique a configuração.",
+    "userHint": "Verifique o /etc/wsl.conf para garantir que [user] default=<usuário> esteja definido.",
+    "bootTest": "Testar inicialização",
+    "step5Title": "5. Limpeza e liberação de espaço",
+    "step5Desc": "Após a verificação, exclua o arquivo tar temporário para liberar armazenamento.",
+    "cleanupHint": "Exclua o arquivo tar temporário para recuperar espaço na unidade secundária.",
+    "prev": "Etapa anterior",
+    "next": "Próxima etapa",
+    "completed": "Fluxo de migração concluído!"
   }
 }
