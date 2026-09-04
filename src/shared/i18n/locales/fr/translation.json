@@ -1101,8 +1101,8 @@
     "targetFolder": "Dossier cible",
     "targetPlaceholder": "ex. D:\\WSL\\Ubuntu",
     "freeSpace": "Espace libre sur le lecteur cible",
-    "spaceSufficient": "Le lecteur cible dispose de suffisamment d'espace libre.",
-    "spaceWarning": "Espace libre faible. Au moins 1,5 fois la taille de l'image est recommandée.",
+    "spaceSufficient": "Espace suffisant : {{free}} disponible (recommandé : {{needed}}).",
+    "spaceWarning": "Espace faible : {{free}} disponible (recommandé : {{needed}}). Risque de manquer d'espace pendant l'exportation.",
     "step2Title": "2. Arrêter WSL et exporter la sauvegarde",
     "step2Desc": "Arrêtez la distribution en toute sécurité et exportez-la dans une archive tar.",
     "exportCmdLabel": "Commande d'exportation (à exécuter dans PowerShell / CMD)",
@@ -1124,6 +1124,13 @@
     "cleanupHint": "Supprimez l'archive tar temporaire pour libérer de l'espace sur le lecteur secondaire.",
     "prev": "Étape précédente",
     "next": "Étape suivante",
-    "completed": "Processus de migration terminé !"
+    "completed": "Processus de migration terminé !",
+    "targetDrive": "Lecteur cible",
+    "openFolder": "Ouvrir dans l'Explorateur",
+    "noSecondaryDrive": "Aucun lecteur secondaire détecté. Connectez un disque externe ou choisissez un dossier sur C:.",
+    "driveNotFound": "Le lecteur {{drive}} est introuvable sur ce système.",
+    "spaceCritical": "Espace insuffisant : seulement {{free}} disponible, mais l'image requiert au moins {{minNeeded}}.",
+    "bootVerified": "Démarrage vérifié avec succès !",
+    "stepRequiredHint": "Veuillez terminer la vérification à cette étape avant de continuer."
   }
 }

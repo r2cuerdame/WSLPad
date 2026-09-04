@@ -1101,8 +1101,8 @@
     "targetFolder": "대상 폴더 경로",
     "targetPlaceholder": "예: D:\\WSL\\Ubuntu",
     "freeSpace": "대상 드라이브 여유 공간",
-    "spaceSufficient": "대상 드라이브의 여유 공간이 충분합니다.",
-    "spaceWarning": "대상 드라이브의 여유 공간이 부족합니다. 이미지 크기의 1.5배 이상 권장합니다.",
+    "spaceSufficient": "여유 공간 충분: {{free}} 사용 가능 (권장: {{needed}}).",
+    "spaceWarning": "여유 공간 주의: {{free}} 사용 가능 (권장: {{needed}}). 내보내기 도중 용량이 부족할 수 있습니다.",
     "step2Title": "2. WSL 정지 & 백업 내보내기",
     "step2Desc": "배포판을 안전하게 종료하고 tar 아카이브로 내보냅니다.",
     "exportCmdLabel": "내보내기 명령 (PowerShell / CMD에서 실행)",
@@ -1124,6 +1124,13 @@
     "cleanupHint": "임시 백업 tar 파일을 삭제하여 보조 드라이브의 용량을 회수하세요.",
     "prev": "이전 단계",
     "next": "다음 단계",
-    "completed": "배포판 이전 워크플로우 완료!"
+    "completed": "배포판 이전 워크플로우 완료!",
+    "targetDrive": "대상 드라이브",
+    "openFolder": "탐색기에서 열기",
+    "noSecondaryDrive": "보조 드라이브가 감지되지 않았습니다. 외장 드라이브를 연결하거나 C: 드라이브 폴더를 지정하세요.",
+    "driveNotFound": "{{drive}} 드라이브가 시스템에 존재하지 않습니다.",
+    "spaceCritical": "용량 부족 위험: 남은 용량이 {{free}}뿐이며, 최소 {{minNeeded}} 이상 필요합니다.",
+    "bootVerified": "배포판 부팅이 성공적으로 확인되었습니다!",
+    "stepRequiredHint": "다음 단계로 넘어가려면 현재 단계의 확인을 먼저 완료해야 합니다."
   }
 }

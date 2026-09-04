@@ -1101,8 +1101,8 @@
     "targetFolder": "Zielordner",
     "targetPlaceholder": "z.B. D:\\WSL\\Ubuntu",
     "freeSpace": "Freier Speicherplatz auf Ziellaufwerk",
-    "spaceSufficient": "Das Ziellaufwerk verfügt über ausreichend freien Speicherplatz.",
-    "spaceWarning": "Wenig freier Speicherplatz. Mindestens das 1,5-fache der Image-Größe empfohlen.",
+    "spaceSufficient": "Ausreichend freier Speicherplatz: {{free}} verfügbar (empfohlen: {{needed}}).",
+    "spaceWarning": "Knapper Speicherplatz: {{free}} verfügbar (empfohlen: {{needed}}). Speicher könnte beim Export knapp werden.",
     "step2Title": "2. WSL beenden & Sicherung exportieren",
     "step2Desc": "Beenden Sie die Distribution sicher und exportieren Sie sie in ein tar-Archiv.",
     "exportCmdLabel": "Export-Befehl (in PowerShell / CMD ausführen)",
@@ -1124,6 +1124,13 @@
     "cleanupHint": "Löschen Sie das temporäre Archiv, um Speicherplatz freizugeben.",
     "prev": "Vorheriger Schritt",
     "next": "Nächster Schritt",
-    "completed": "Migrations-Workflow abgeschlossen!"
+    "completed": "Migrations-Workflow abgeschlossen!",
+    "targetDrive": "Ziellaufwerk",
+    "openFolder": "Im Explorer öffnen",
+    "noSecondaryDrive": "Kein zweites Laufwerk erkannt. Schließen Sie ein externes Laufwerk an oder wählen Sie einen Ordner auf C:.",
+    "driveNotFound": "Laufwerk {{drive}} wurde auf diesem System nicht gefunden.",
+    "spaceCritical": "Nicht genügend Speicherplatz: nur {{free}} verfügbar, das Image benötigt mindestens {{minNeeded}}.",
+    "bootVerified": "Start erfolgreich überprüft!",
+    "stepRequiredHint": "Bitte schließen Sie die Überprüfung in diesem Schritt ab, bevor Sie fortfahren."
   }
 }

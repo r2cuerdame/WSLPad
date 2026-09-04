@@ -1101,8 +1101,8 @@
     "targetFolder": "Carpeta de destino",
     "targetPlaceholder": "ej. D:\\WSL\\Ubuntu",
     "freeSpace": "Espacio libre en la unidad de destino",
-    "spaceSufficient": "La unidad de destino tiene suficiente espacio libre.",
-    "spaceWarning": "Espacio libre insuficiente. Se recomienda al menos 1.5 veces el tamaño de la imagen.",
+    "spaceSufficient": "Espacio suficiente: {{free}} disponible (recomendado: {{needed}}).",
+    "spaceWarning": "Poco espacio libre: {{free}} disponible (recomendado: {{needed}}). Podría agotarse durante la exportación.",
     "step2Title": "2. Detener WSL y exportar copia de seguridad",
     "step2Desc": "Cierra la distribución de forma segura y expórtala en un archivo tar.",
     "exportCmdLabel": "Comando de exportación (ejecutar en PowerShell / CMD)",
@@ -1124,6 +1124,13 @@
     "cleanupHint": "Elimina el archivo tar temporal para recuperar almacenamiento en la unidad secundaria.",
     "prev": "Paso anterior",
     "next": "Paso siguiente",
-    "completed": "¡Flujo de migración completado!"
+    "completed": "¡Flujo de migración completado!",
+    "targetDrive": "Unidad de destino",
+    "openFolder": "Abrir en el Explorador",
+    "noSecondaryDrive": "No se detectó unidad secundaria. Conecta una unidad externa o elige una carpeta en C:.",
+    "driveNotFound": "La unidad {{drive}} no se encontró en este sistema.",
+    "spaceCritical": "Espacio insuficiente: solo {{free}} disponible, pero la imagen requiere al menos {{minNeeded}}.",
+    "bootVerified": "¡Inicio verificado con éxito!",
+    "stepRequiredHint": "Completa la verificación en este paso antes de continuar."
   }
 }

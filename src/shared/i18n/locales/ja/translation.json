@@ -1101,8 +1101,8 @@
     "targetFolder": "移行先フォルダ",
     "targetPlaceholder": "例: D:\\WSL\\Ubuntu",
     "freeSpace": "移行先端ドライブの空き容量",
-    "spaceSufficient": "移行先端ドライブの空き容量は十分です。",
-    "spaceWarning": "空き容量が不足しています。イメージサイズの1.5倍以上を推奨します。",
+    "spaceSufficient": "空き容量十分: {{free}} 利用可能 (推奨: {{needed}})。",
+    "spaceWarning": "空き容量注意: {{free}} 利用可能 (推奨: {{needed}})。エクスポート中に容量不足になる可能性があります。",
     "step2Title": "2. WSL の停止とバックアップ出力",
     "step2Desc": "ディストリビューションを安全に停止し、tar アーカイブとしてエクスポートします。",
     "exportCmdLabel": "エクスポートコマンド (PowerShell / CMD で実行)",
@@ -1124,6 +1124,13 @@
     "cleanupHint": "一時バックアップファイルを削除してドライブ容量を回収してください。",
     "prev": "前のステップ",
     "next": "次のステップ",
-    "completed": "移行ワークフローが完了しました！"
+    "completed": "移行ワークフローが完了しました！",
+    "targetDrive": "移行先ドライブ",
+    "openFolder": "エクスプローラーで開く",
+    "noSecondaryDrive": "セカンダリドライブが見つかりません。外付けドライブを接続するか C: を指定してください。",
+    "driveNotFound": "ドライブ {{drive}} が見つかりません。",
+    "spaceCritical": "容量不足: 空き容量が {{free}} しかなく、最低 {{minNeeded}} が必要です。",
+    "bootVerified": "起動が正常に確認されました！",
+    "stepRequiredHint": "次のステップへ進むには、現在のステップの確認を完了してください。"
   }
 }

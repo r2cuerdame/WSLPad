@@ -1101,8 +1101,8 @@
     "targetFolder": "目标文件夹",
     "targetPlaceholder": "例如: D:\\WSL\\Ubuntu",
     "freeSpace": "目标驱动器可用空间",
-    "spaceSufficient": "目标驱动器可用空间充足。",
-    "spaceWarning": "目标驱动器可用空间不足。建议至少为镜像大小的 1.5 倍。",
+    "spaceSufficient": "可用空间充足: {{free}} 可用 (推荐: {{needed}})。",
+    "spaceWarning": "空间不足告警: {{free}} 可用 (推荐: {{needed}})。导出过程中可能会耗尽磁盘。",
     "step2Title": "2. 终止 WSL 并导出备份",
     "step2Desc": "安全关闭发行版并导出为 tar 归档文件。",
     "exportCmdLabel": "导出命令 (在 PowerShell / CMD 中运行)",
@@ -1124,6 +1124,13 @@
     "cleanupHint": "删除临时备份归档以回收目标驱动器空间。",
     "prev": "上一步",
     "next": "下一步",
-    "completed": "迁移工作流程已完成！"
+    "completed": "迁移工作流程已完成！",
+    "targetDrive": "目标驱动器",
+    "openFolder": "在资源管理器中打开",
+    "noSecondaryDrive": "未检测到辅助驱动器。请连接外部驱动器或选择 C: 盘文件夹。",
+    "driveNotFound": "未在此系统中找到驱动器 {{drive}}。",
+    "spaceCritical": "空间严重不足: 仅剩 {{free}}，但镜像至少需要 {{minNeeded}}。",
+    "bootVerified": "启动测试验证成功！",
+    "stepRequiredHint": "进入下一步之前，请先完成当前步骤的验证。"
   }
 }

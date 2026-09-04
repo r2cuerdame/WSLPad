@@ -1101,8 +1101,8 @@
     "targetFolder": "Target Folder",
     "targetPlaceholder": "e.g. D:\\WSL\\Ubuntu",
     "freeSpace": "Free space on target drive",
-    "spaceSufficient": "Target drive has sufficient free space.",
-    "spaceWarning": "Target drive has low free space. At least 1.5x of image size recommended.",
+    "spaceSufficient": "Sufficient free space: {{free}} available (recommended: {{needed}}).",
+    "spaceWarning": "Low headroom: {{free}} available (recommended: {{needed}}). May run out of disk during export.",
     "step2Title": "2. Terminate WSL & Export Backup",
     "step2Desc": "Shut down the distribution safely and export it into an archive file.",
     "exportCmdLabel": "Export command (Run in PowerShell / CMD)",
@@ -1124,6 +1124,13 @@
     "cleanupHint": "Delete the temporary backup archive to reclaim storage on your secondary drive.",
     "prev": "Previous Step",
     "next": "Next Step",
-    "completed": "Relocation workflow completed!"
+    "completed": "Relocation workflow completed!",
+    "targetDrive": "Target Drive",
+    "openFolder": "Open in Explorer",
+    "noSecondaryDrive": "No secondary drive detected. Connect an external drive or choose a folder on C:.",
+    "driveNotFound": "Drive {{drive}} was not found on this system.",
+    "spaceCritical": "Insufficient space: only {{free}} available, but the image requires at least {{minNeeded}}.",
+    "bootVerified": "Boot verified successfully!",
+    "stepRequiredHint": "Please complete verification in this step before proceeding."
   }
 }

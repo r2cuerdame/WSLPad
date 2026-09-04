@@ -1101,8 +1101,8 @@
     "targetFolder": "目標資料夾",
     "targetPlaceholder": "例如: D:\\WSL\\Ubuntu",
     "freeSpace": "目標磁碟機可用空間",
-    "spaceSufficient": "目標磁碟機可用空間充足。",
-    "spaceWarning": "目標磁碟機可用空間不足。建議至少為映像大小的 1.5 倍。",
+    "spaceSufficient": "可用空間充足: {{free}} 可用 (建議: {{needed}})。",
+    "spaceWarning": "空間不足警告: {{free}} 可用 (建議: {{needed}})。匯出過程中可能會耗盡磁碟。",
     "step2Title": "2. 終止 WSL 並匯出備份",
     "step2Desc": "安全關閉發行版並匯出為 tar 封存檔案。",
     "exportCmdLabel": "匯出命令 (在 PowerShell / CMD 中執行)",
@@ -1124,6 +1124,13 @@
     "cleanupHint": "刪除暫存備份封存以回收目標磁碟機空間。",
     "prev": "上一步",
     "next": "下一步",
-    "completed": "遷移工作流程已完成！"
+    "completed": "遷移工作流程已完成！",
+    "targetDrive": "目標磁碟機",
+    "openFolder": "在檔案總管中開啟",
+    "noSecondaryDrive": "未偵測到次要磁碟機。請連接外接磁碟機或選擇 C: 磁碟資料夾。",
+    "driveNotFound": "在此系統中找不到磁碟機 {{drive}}。",
+    "spaceCritical": "空間嚴重不足: 僅剩 {{free}}，但映像至少需要 {{minNeeded}}。",
+    "bootVerified": "啟動測試驗證成功！",
+    "stepRequiredHint": "進入下一步之前，請先完成當前步驟的驗證。"
   }
 }

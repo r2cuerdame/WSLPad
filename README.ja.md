@@ -330,7 +330,7 @@ Docker Desktop でもなく、IDE でもありません。Git の UI もデバ�
 
 - Console + 読み取り専用の MCP** — それだけです。
 
-## 現在の制限 (v1.0.0)
+## 現在の制限 (v1.0.1)
 
 - Windows x64 のみ。インストーラーは署名されていません（SmartScreen の警告）
 - ディスクイメージの数値には Windows のレジストリと `fsutil` が必要です。どちらか
