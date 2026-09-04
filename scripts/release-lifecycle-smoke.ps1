@@ -93,8 +93,13 @@ function Install-WslPad {
   Assert-True ($executable.StartsWith($env:LOCALAPPDATA, [StringComparison]::OrdinalIgnoreCase)) `
     "Installer did not use a per-user LocalAppData path: $executable"
   $actualVersion = (Get-Item -LiteralPath $executable).VersionInfo.ProductVersion
-  Assert-True ($actualVersion -eq $ExpectedVersion) `
-    "Installed product version is $actualVersion, expected $ExpectedVersion"
+  $expectedProductVersion = if ($ExpectedVersion -match '^\d+\.\d+\.\d+$') {
+    "$ExpectedVersion.0"
+  } else {
+    $ExpectedVersion
+  }
+  Assert-True ($actualVersion -eq $expectedProductVersion) `
+    "Installed product version is $actualVersion, expected $expectedProductVersion"
   return $executable
 }
 
