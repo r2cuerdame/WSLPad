@@ -34,8 +34,9 @@ talks through a typed, allowlisted IPC bridge.
 │  TopBar (distro switch · MCP badge · refresh · pause · settings gear)     │
 │  Tab 1 Dashboard — master/detail: 17-section list | selected section      │
 │  Tab 2 Explorer  — dual pane:  Windows files | WSL files (+ splitter)     │
+│  Tab 3 Relocation — guarded VHDX export/import migration wizard           │
 │  ConsolePanel (xterm.js, always visible, resizable/collapsible)           │
-│  SettingsDrawer (modal drawer — never a third tab)                        │
+│  SettingsDrawer (modal drawer — never a top-level tab)                    │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,7 +46,8 @@ diagnostics, paths, configuration, tools, Docker, Hermes, OpenClaw,
 environment, processes, services, ports and warnings) are listed on the left;
 the right side renders only the selected one, so wide tables
 (processes, environment) get the whole window instead of a card cell. The list
-is a `listbox`, never a `tablist` — the app has exactly two `tab` roles.
+is a `listbox`, never a `tablist` — the app has exactly three `tab` roles:
+Dashboard, Explorer and Relocation.
 
 ### Explorer: dual pane
 Both panes are the same component (`FilePane`) driven by an `FsAdapter`:
@@ -155,5 +157,6 @@ place (`src/main/wsl/factory.ts`); fixture data cannot leak into real mode.
 - **Integration**: MCP server over real HTTP with the official SDK client,
   settings persistence round-trips, runner behavior.
 - **E2E** (Playwright + Electron, fixture mode): the 19 scenarios from
-  goal.md §18.3 — tray, two tabs only, console echo, hidden-runner absence,
+  goal.md §18.3 plus current feature contracts — tray, three top-level tabs,
+  console echo, hidden-runner absence,
   editor save, Copy for LLM, MCP call, locale switching, quit.

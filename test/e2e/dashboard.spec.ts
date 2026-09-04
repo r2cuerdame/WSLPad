@@ -20,8 +20,8 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     const { page } = launched
     const nav = page.getByTestId('dashboard-nav')
     await expect(nav).toBeVisible({ timeout: 15000 })
-    // The section list must not introduce more tab roles (goal.md §5.2)
-    await expect(page.getByRole('tab')).toHaveCount(2)
+    // The section list must not introduce more roles beyond the three top-level tabs.
+    await expect(page.getByRole('tab')).toHaveCount(3)
     for (const id of ['overview', 'resources', 'tools', 'processes', 'ports', 'warnings']) {
       await expect(page.getByTestId(`dashboard-nav-${id}`)).toBeVisible()
     }

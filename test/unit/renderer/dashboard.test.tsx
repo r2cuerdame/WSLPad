@@ -435,7 +435,7 @@ describe('DashboardTab master–detail', () => {
       expect(item.textContent).toContain(label)
     })
 
-    // The two main tabs live in TopBar; the Dashboard must not add more.
+    // The three main tabs live in TopBar; the Dashboard must not add more.
     expect(screen.queryAllByRole('tab')).toHaveLength(0)
     expect(screen.queryAllByRole('tablist')).toHaveLength(0)
   })

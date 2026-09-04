@@ -87,7 +87,7 @@ describe('CopyForLlm preset choice', () => {
       'WSL bug report (GitHub issue)',
       'Agent context (CLAUDE.md / AGENTS.md)'
     ])
-    // The app has exactly two tabs; a menu must not add a third (goal.md §16).
+    // Only the app's three top-level tabs use the tab role; a menu must not add one.
     expect(screen.queryAllByRole('tab')).toHaveLength(0)
   })
 

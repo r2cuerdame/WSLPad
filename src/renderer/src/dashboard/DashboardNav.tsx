@@ -80,7 +80,7 @@ export interface DashboardNavProps {
 
 /**
  * Master list of the Dashboard. It is a listbox, never a tablist: the app owns
- * exactly two role="tab" elements (goal.md §5.2) and they belong to the main tabs.
+ * exactly three role="tab" elements and they belong to the main tabs.
  */
 export default function DashboardNav({
   selected,
