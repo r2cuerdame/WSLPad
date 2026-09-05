@@ -12,8 +12,8 @@
 
 WSLPad 是一个常驻 Windows 托盘的应用，把 WSL 环境里原本看不见的部分显示出来：
 哪些发行版在运行、工具装在哪里、哪个端口上有谁在监听 —— 另外还有一个真正的
-文件管理器、一个可交互的控制台，以及一个**只读 MCP 服务器**，让你的 LLM 工具
-能够查看（但永远无法修改）你的环境。
+双窗格文件管理器、一个可交互的控制台、一个带安全防护的 VHDX 迁移向导，以及
+一个**只读 MCP 服务器**，让你的 LLM 工具能够查看（但永远无法修改）你的环境。
 
 ![WSLPad Dashboard](docs/screenshots/dashboard.png)
 
@@ -22,16 +22,16 @@ WSLPad 是一个常驻 Windows 托盘的应用，把 WSL 环境里原本看不�
 在 WSL 里装上 Hermes、Codex、Claude、Docker、Node 或 Python 之后，从 Windows
 这一侧就什么都看不见了：安装路径、配置文件、环境变量、服务、端口、systemd
 状态，还有 Linux 路径和 Windows 路径之间的对应关系。WSLPad 把这些统统整理进
-Dashboard（仪表盘）、Explorer（资源管理器）和一个 MCP 接口 —— 而且绝不会背着
+Dashboard（仪表盘）、Explorer（资源管理器）、迁移向导和一个 MCP 接口 —— 而且绝不会背着
 你改动系统。
 
-## 三个界面
+## 核心界面
 
 ### Dashboard —— 只读状态，逐个板块查看
 
-在左侧选板块，在右侧看内容：一共十六个，从概览一直到警告。表格能用满整个窗口，
+在左侧选板块，在右侧看内容：一共十七个，从概览一直到警告。表格能用满整个窗口，
 而不是挤在一张小卡片里；左侧列表还带实时角标。完整清单在[下面](#你实际能看到什么)；
-其中有四个板块值得单独拿出来说，因为它们回答的正是 WSL 自己不回答的问题：
+其中有五个板块值得单独拿出来说，因为它们回答的正是 WSL 自己不回答的问题：
 
 **磁盘映像** —— 发行版的 `ext4.vhdx` 只会变大，从不自己缩小，而 Linux 里的
 `df` 报出来的上限是虚的。WSLPad 会显示这个映像到底在哪里、在你的 Windows 磁盘
@@ -46,24 +46,23 @@ Dashboard（仪表盘）、Explorer（资源管理器）和一个 MCP 接口 —
 
 ![WSL settings](docs/screenshots/wslconfig.png)
 
-**网络** —— Windows 防火墙窗口里从来看不到的那层 Hyper-V 防火墙：它默认开着，
-会悄悄丢掉发往 WSL 的入站流量；另外还有一块名称解析，把 `/etc/resolv.conf`、
-`generateResolvConf`、DNS 隧道和 Windows 适配器下发的服务器并排放在一起 ——
-于是“Temporary failure in name resolution”终于有一个地方可以查。
+**网络** —— Windows 防火墙窗口里绝不会显示的 Hyper-V 防火墙，默认开启并默默丢弃进入 WSL 的流量；加上一个把 `/etc/resolv.conf`、`generateResolvConf`、DNS 隧道和 Windows 适配器的服务器并排展示的名称解析块 —— 让 "Temporary failure in name resolution" 有了一个唯一的排查位置。
 
-**端口** —— WSL 侧的监听标记为 `WSL`，确实能从 Windows 访问时则标记为
-`WSL + Windows`，而且现在每一个都带一个**可达范围**判定：整个网络、仅本机、
-仅 WSL 内部，还是哪里都到不了 —— 并附上理由，由绑定地址、实际生效的网络模式
-和防火墙推算出来。当这些事实读不到时，WSLPad 会说*未知*，而不是靠猜。 繁忙的机器上会有数百个监听端口，因此这里提供端口范围和进程名筛选 ——「谁占着 5173」是一个问题，不该是一次滚动作业。
+**端口** —— WSL 侦听器被标记为 `WSL`，或者在 Windows 可以真正访问时标记为 `WSL + Windows`，并且每一个都带有一个**可达性判定**：可从 LAN 访问、仅限此 PC、仅在 WSL 内部可达、不可达 —— 并附有基于绑定地址、有效网络模式和防火墙得出的原因。当事实无法读取时，WSLPad 会显示 *未知* 而不是猜测。繁忙的机器会列出数百个侦听器，因此提供了端口范围和进程名称过滤器 —— “谁占用了 5173” 是一个直接的查询，而不是滚屏苦力。
 
-![端口](docs/screenshots/ports.png)
+![Ports](docs/screenshots/ports.png)
 
-Dashboard 本身从不执行任何东西。_kill_、_重启服务_、_sudoedit_ 这类按钮只会把
-命令**准备**到 Console（控制台）的输入框里 —— 由你检查、修改，再按 Enter。
+**诊断与远程恢复** —— 仅限会话的事件时间线连接了睡眠与唤醒、发行版响应能力、DNS 和网络模式更改、Console 恢复以及明确的网络检查。同一检查可识别经过验证的 VS Code Server 进程并展示破坏性最小的恢复阶梯，将 `wsl --shutdown` 保留为最后手段。后台不会探测网络，也不会自动运行恢复命令；诊断导出会先预览隐私敏感字段再保存。
 
-![Explorer](docs/screenshots/explorer.png)
+![Diagnostics](docs/screenshots/diagnostics.png)
+
+Dashboard 绝不会执行任何操作。*终止*、*重启服务* 或 *sudoedit* 等按钮只会在 Console 输入框中**准备**命令 —— 由你审查、编辑并按下 Enter。
+
+*复制给 LLM* 和 *导出 JSON* 会提取**完整**快照，而不是你正在查看的板块，因此它们位于概览上，而不是每个板块的标题行中。
 
 ### Explorer —— 左边 Windows，右边 WSL
+
+![Explorer](docs/screenshots/explorer.png)
 
 一个真正的双窗格文件管理器：左边是你的 **Windows** 驱动器，右边是选中的
 **WSL 发行版**，中间是可拖动的分隔条。在两侧之间复制文件正是它存在的意义 ——
@@ -87,6 +86,10 @@ Console 会跟着切到同一个目录 —— 不会出现可见的 `cd`，也�
 执行器完成。
 
 控制台还会自行恢复。WSLPad 随 Windows 启动时 WSL 往往还在忙，无法启动 shell 的状态现在会如实报告 —— **并附上原因** —— 而不是误导性的「发行版已停止」。一旦发行版显示为运行中，控制台会自动重试；若仍然无法启动，重新连接按钮会一直留在那里。重启应用从来不是答案。
+
+### 迁移向导 (Relocation Wizard) —— 安全转移发行版
+
+WSL 导致 C 盘空间告急？分步安全迁移向导会引导你将发行版的 VHDX 虚拟磁盘安全导出并迁移到备用驱动器（例如 D:\），并具备严格的验证关卡。它会检查磁盘空间余量（推荐留出 1.5 倍冗余）、验证备份完整性、保留你的默认 Linux 用户，且绝不会自动执行破坏性命令。
 
 ## MCP 服务器（只读）
 
@@ -148,7 +151,7 @@ DXCore 与 Windows 版本，因为下面每一条「此版本不支持」的判�
 `~/.profile`、`~/.zshrc`、`~/.config`、`/etc/environment`：每个文件在哪里，
 以及它是否存在、可读、可写。
 
-**已安装工具** —— 11 个类别共 86 个工具（AI CLI、运行时、包管理器、版本控制、
+**已安装工具** —— 11 个类别共 87 个工具（AI CLI、运行时、包管理器、版本控制、
 容器、云与远程、构建工具、数据库、编辑器与 Shell、媒体、实用工具），每个都带
 安装状态、解析出的路径、版本、安装方式、配置路径、正在运行的进程数、它运行自
 文件系统边界的哪一侧，以及 —— 这一点很重要 —— 这个命令实际解析到的是不是
@@ -219,9 +222,10 @@ WSL 回环例外、提到 WSL 的规则数），以及名称解析：`/etc/resol
 
 ## Settings（设置）与语言
 
-右上角始终可见的齿轮会打开一个设置抽屉 —— 而不是第三个标签页：语言、主题
+右上角始终可见的齿轮会打开一个模态设置抽屉（不占用顶层标签页空间）：语言、主题
 （跟随系统/浅色/深色）、随 Windows 启动、暂停监控与快速/中速/慢速轮询间隔、
-Explorer 默认设置、Console 字体与回滚行数、检查更新（检查中、可用、下载进度、准备安装并附重启按钮、失败原因都会留在原处显示）、恢复全部默认值 —— 以及
+Explorer 默认设置、Console 字体与回滚行数、检查更新（检查中、可用、下载进度、
+准备安装并附重启按钮、失败原因都会留在原处显示）、恢复全部默认值 —— 以及
 完整的 **MCP 面板**：状态、复制端点、复制配置 JSON、一键注册到 Codex /
 Claude Desktop / Hermes、连接测试和重新生成令牌。
 
@@ -230,39 +234,59 @@ WSLPad 内置 **9 种语言**的完整界面翻译 —— 한국어、English、
 Windows 语言，并在缺失时回退到英文。Linux 命令、路径和技术名称一律不翻译；
 语言包离线随应用打包，并强制校验键的一致性。
 
-## 安装
+## 安装与 CLI
+
+### 直接下载（推荐）
+
+从 [Releases](https://github.com/r2cuerdame/WSLPad/releases) 下载
+`WSLPad-Setup-<version>.exe` 并运行 —— 不需要管理员权限（按用户安装至 `%LOCALAPPDATA%\Programs\WSLPad\`）。
+
+WSLPad 默认随 Windows 启动（登录项带 `--hidden` 参数，可在托盘或 Settings 里切换），
+常驻托盘，并通过 GitHub Releases 自动更新。关闭窗口只是把它隐藏到托盘；托盘菜单里的*退出*才会真正结束程序。
+
+> **关于 Windows SmartScreen**：当前版本未签名 —— SmartScreen 在首次运行时会提示一次（“更多信息” → “仍要运行”）。
+
+系统要求：Windows 10/11 x64。WSL 是可选的 —— 没有 WSL 时，WSLPad 会显示一条安装提示，而不是直接崩溃。
 
 ### WinGet
+
+官方软件包清单维护在 `packaging/winget/manifests/` 中，并已提交至 Windows Package Manager 社区仓库（PR [microsoft/winget-pkgs#422317](https://github.com/microsoft/winget-pkgs/pull/422317)，等待合并）。
+
+在等待上游合并期间，你可以使用仓库内置的清单进行本地验证和安装：
+
+```powershell
+winget install --manifest packaging/winget/manifests/r/r2cuerdame/WSLPad/1.0.1
+```
+
+社区仓库 PR 合并后，即可直接使用标准命令安装：
 
 ```powershell
 winget install r2cuerdame.WSLPad
 ```
 
-### 手动下载
+### CLI 参数与后台行为
 
-从 [Releases](https://github.com/r2cuerdame/WSLPad/releases) 下载
-`WSLPad-Setup-<version>.exe` 并运行 —— 不需要管理员权限（按用户安装）。
-WSLPad 默认随 Windows 启动（可在托盘或 Settings 里切换），常驻托盘，并通过
-GitHub Releases 自动更新。关闭窗口只是把它隐藏起来；托盘菜单里的*退出*才会
-真正结束程序。托盘的**关于**子菜单里有当前版本、GitHub 仓库、发行说明和赞助页面。从托盘检查更新
-由托盘作答 —— 菜单项本身就是状态（检查中、可用、下载进度、准备安装），结果通过桌面
-通知送达，窗口不会突然弹出来。
-
-> 安装程序未签名 —— SmartScreen 会提示一次（“更多信息” → “仍要运行”）。
-
-系统要求：Windows 10/11 x64。WSL 是可选的 —— 没有 WSL 时，WSLPad 会显示一条
-安装提示，而不是直接崩溃。
+- `WSLPad.exe` —— 启动应用 GUI（若已有实例在运行，则通过单实例锁激活已有窗口）。
+- `WSLPad.exe --hidden` —— 以最小化常驻托盘方式启动（用于 Windows 开机自动启动）。
+- `WSLPad.exe --mcp-stdio` —— 用于 Claude Desktop 等本地 MCP 客户端的 stdio 桥接模式。将标准 I/O 代理至后台常驻应用的 HTTP 服务器（`http://127.0.0.1:4923/mcp`）。
 
 ## 开发
 
 ```bash
-npm install          # deps (node-pty ships prebuilt N-API binaries)
-npm run dev          # electron-vite dev with HMR
-npm run typecheck
-npm run lint
-npm run test         # vitest unit + integration
-npm run test:e2e     # Playwright Electron E2E (fixture mode, no WSL needed)
-npm run dist         # NSIS installer into release/
+npm install          # 或 npm ci（安装依赖）
+npm run dev          # electron-vite dev（支持 HMR）
+npm run typecheck    # node 和 web 的严格 TypeScript 检查
+npm run lint         # ESLint 9
+npm run test         # vitest 单元与集成测试（90 个文件，1534 个测试）
+npm run build        # electron-vite 生产环境构建
+npm run test:e2e     # Playwright Electron E2E（固定模式: WSLPAD_FIXTURE_MODE=1）
+npm run dist         # 构建 NSIS 安装程序和 blockmap 到 release/
+```
+
+全新 Windows 环境下的发布生命周期冒烟测试（安装、启动、更新检测与应用、卸载、重新安装）：
+
+```powershell
+./scripts/release-lifecycle-smoke.ps1 -TargetVersion 1.0.1 -TargetSha256 <SHA256>
 ```
 
 `WSLPAD_FIXTURE_MODE=1` 会让整个应用跑在一个确定性的内存 WSL 世界上 ——
@@ -280,7 +304,7 @@ CI 和 E2E 用的就是它。参见
 
 WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不是 IDE，没有 Git
 界面、调试器或 LSP，没有云同步，没有 AI 聊天，也不会自动帮你修东西。它的身份
-就是：**Dashboard + Explorer + Console + 只读 MCP** —— 别无其他。
+就是：**Dashboard + Explorer + Console + 迁移向导 + 只读 MCP** —— 别无其他。
 
 ## 当前限制（v1.0.1）
 
@@ -290,6 +314,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 - 实际生效的网络模式需要 `wslinfo`（WSL 2.0.4+）；更老的版本上会显示为未知
 - Hyper-V 防火墙这一层只存在于较新的 Windows 版本上；没有这一层的地方，
   WSLPad 会报未知，而不是“已关闭”
+- 迁移向导 (Relocation Wizard) 需要目标驱动器具备足够的可用空间（推荐留出 1.5 倍冗余用于临时 tar 导出与 vhdx 导入），并由用户按照引导手动执行 CLI 命令
 - 趋势迷你图只存在内存里 —— 关掉应用历史就清零，这是有意为之：托盘伴侣不是
   监控代理
 - Console 的工作目录同步需要默认 shell 是 bash 或 zsh（其他 shell 也能用，
@@ -311,8 +336,7 @@ WSLPad *不是*发行版管理器或应用市场，不是 Docker Desktop，不�
 缺陷请提交到[问题追踪](https://github.com/r2cuerdame/WSLPad/issues/new/choose)，安全问题请通过[私密安全公告](https://github.com/r2cuerdame/WSLPad/security/advisories/new)。
 
 - [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — 怎么做，以及为什么这样显示
-- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 接下来该展示什么；0.2 的候选清单已经在那里，取自 WSL
-  用户在上游抱怨最多的问题
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 接下来该展示什么
 - [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — 它在你的机器上发现了什么
 
 [CONTRIBUTING](.github/CONTRIBUTING.md) 列出了拉取请求绝不能破坏的四条规则。

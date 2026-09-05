@@ -10,11 +10,11 @@
 
 > WSL のための小さな Windows コンパニオン。
 
-WSLPad は Windows のトレイに常駐して、WSL 環境の見えない部分を見えるようにする
-アプリです。どのディストリビューションが動いているか、ツールがどこに入っている
-か、どのポートで何が待ち受けているか — そこに本物のファイルマネージャーと対話型
-のコンソール、そして LLM ツールが環境を参照するだけで決して変更できない
-**読み取り専用の MCP サーバー** が加わります。
+WSLPad は Windows トレイに常駐しながら WSL 環境の目に見えない部分を可視化する
+アプリです。どのディストリビューションが動いているか、ツールがどこにある
+か、どのポートで何が待ち受けているか — そこに本物の 2 ペイン式ファイルマネージャー、
+対話型コンソール、安全な VHDX 移行ウィザード、そして LLM ツールが環境を参照する
+だけで決して変更できない **読み取り専用の MCP サーバー** が加わります。
 
 ![WSLPad ダッシュボード](docs/screenshots/dashboard.png)
 
@@ -24,13 +24,13 @@ WSL の中に Hermes、Codex、Claude、Docker、Node、Python を入れた途�
 からは何も見えなくなります。インストール先、設定ファイル、環境変数、サービス、
 ポート、systemd の状態、Linux パスと Windows パスの対応まで、まとめて全部です。
 WSLPad はその全部を Dashboard（ダッシュボード）と Explorer（エクスプローラー）、
-そして MCP の窓口に整理します — 裏でシステムを書き換えることは一切ありません。
+移行ウィザード、そして MCP の窓口に整理します — 裏でシステムを書き換えることは一切ありません。
 
-## 3 つの画面
+## 主要な画面
 
 ### Dashboard — 読み取り専用の状態をセクション単位で
 
-左でセクションを選び、右で読む。概要から警告まで 16 個あります。表は窮屈なカード
+左でセクションを選び、右で読む。概要から警告まで 17 個あります。表は窮屈なカード
 ではなくウィンドウ全体を使い、一覧にはライブのバッジが付きます。全項目は
 [下記](#実際に見えるもの)にまとめてありますが、WSL 自身が答えてくれない疑問に
 答えるという意味で、4 つのセクションは先に取り上げておきます。
@@ -43,26 +43,26 @@ WSLPad はその全部を Dashboard（ダッシュボード）と Explorer（エ
 
 ![ディスクイメージ](docs/screenshots/disk.png)
 
-**WSL 設定** — WSL は設定を受け取っておきながら、その半分を黙って無視します。
-`.wslconfig` と `wsl.conf` のすべてのキーを、宣言値、実際の値、そして判定 —
-適用済み、再起動が必要、セクション違い、不明なキー、このビルドでは非対応 — と
-並べて表示します。要求したネットワークモードと実際に動いているネットワークモード
-も含めて。 2 つのファイルは別々のマシンにあり、編集する場所も違うので、一度に片方だけを読みます — 切り替えボタンには各ファイルが宣言した項目数と、確認が必要な値があるかどうかが表示されます。
+**WSL 設定** — WSL は設定を受け入れて、その半分を黙って無視します。
+`.wslconfig` と `wsl.conf` のすべてのキーについて、指定した値、実際に効いている値、
+そして判定を表示します。適用済み、再起動が必要、セクション違い、未知のキー、
+このビルドでは非対応。求めたネットワークモードと実際に得られたモードも含みます。
+2 つのファイルは別々のマシンにあり編集場所も違うため、1 つずつ読みます —
+切り替えボタンには宣言された項目数と、注意が必要な項目があるかが示されます。
 
 ![WSL 設定](docs/screenshots/wslconfig.png)
 
-**ネットワーク** — Windows ファイアウォールの画面には決して現れない Hyper-V の
-ファイアウォール。既定で有効になっていて、WSL への受信トラフィックを黙って落とし
-ます。さらに `/etc/resolv.conf`、`generateResolvConf`、DNS トンネリング、Windows
-アダプターのサーバーを並べて見せる名前解決のブロック — 「Temporary failure in
-name resolution」を調べる場所が 1 つになります。
+**ネットワーク** — Windows のファイアウォール設定画面には決して出てこない
+Hyper-V のファイアウォール。既定で有効になっており、WSL への受信トラフィックを
+黙って落とします。さらに `/etc/resolv.conf`、`generateResolvConf`、DNS トンネリング、
+Windows アダプターの DNS サーバーを並べて示す名前解決ブロック — これにより
+"Temporary failure in name resolution" の確認先が 1 か所に定まります。
 
-**ポート** — WSL 側で待ち受けているポートには `WSL`、Windows から本当に接続でき
-るものには `WSL + Windows` が付き、さらにそれぞれに **届く範囲の判定** が付きま
-す。ネットワークまで届くのか、この PC までなのか、WSL の中だけなのか、どこにも
-届かないのか — バインドアドレス、実際に動いているネットワークモード、そしてファイア
-ウォールから導いた理由付きで。事実を読み取れないとき、WSLPad は推測せずに _不明_
-と表示します。 混み合ったマシンでは待ち受けポートが数百になります。だからポート範囲とプロセス名のフィルターがあります — 「5173 を掴んでいるのは誰か」は質問であって、スクロール作業ではありません。
+**ポート** — WSL 側で listen しているポートには `WSL` の印が付き、Windows から
+本当に届くときは `WSL + Windows` になります。そして各ポートには **到達性判定**
+が付きます：LAN から到達可能、この PC からのみ、WSL 内部のみ、あるいは到達不可
+— バインドアドレス、実際のネットワークモード、ファイアウォールから導いた理由
+とともに。事実が読み取れないときは推測せず *不明* と表示します。 混み合ったマシンでは待ち受けポートが数百になります。だからポート範囲とプロセス名のフィルターがあります — 「5173 を掴んでいるのは誰か」は質問であって、スクロール作業ではありません。
 
 ![ポート](docs/screenshots/ports.png)
 
@@ -70,9 +70,9 @@ Dashboard は何も実行しません。_kill_、_restart service_、_sudoedit_ 
 ボタンは、コマンドを Console（コンソール）の入力欄に **準備する** だけです —
 確認して、書き換えて、Enter を押すのはあなたです。
 
-![エクスプローラー](docs/screenshots/explorer.png)
-
 ### Explorer — 左は Windows、右は WSL
+
+![エクスプローラー](docs/screenshots/explorer.png)
 
 本物の 2 ペイン式ファイルマネージャーです。左には **Windows** のドライブ、右には
 選択中の **WSL ディストリビューション**、その間にドラッグで動かせるスプリッター
@@ -101,10 +101,14 @@ Ctrl+C、タブ補完、vim / htop / ssh もすべて動きます）が、どの
 
 コンソールは自力で復帰もします。WSLPad が Windows と一緒に起動するとき、WSL はまだ忙しいことが多く、シェルを起動できなかった状態は「ディストリビューション停止中」という誤解ではなく、そのまま — **理由とともに** — 報告されます。ディストリビューションが実行中と分かればコンソールは言われなくても再試行し、それでも起動できないときは再接続ボタンが残ります。アプリを再起動する必要はありません。
 
+### 移行ウィザード (Relocation Wizard) — 安全なドライブ移行
+
+WSL のせいで C ドライブの空き容量が不足していませんか？段階的な移行ウィザードにより、ディストリビューションの VHDX 仮想ディスクを D ドライブなどのセカンダリドライブへ安全にエクスポート・インポートできます。ディスクの空き容量検証（1.5 倍の余裕を推奨）、バックアップの整合性確認、既定の Linux ユーザーの維持まで、各段階で検証を行いながら案内し、破壊的なコマンドを自動実行することは一切ありません。
+
 ## MCP サーバー（読み取り専用）
 
 WSLPad がトレイにいるあいだ、`http://127.0.0.1:4923/mcp` で MCP を提供します
-（Streamable HTTP、localhost のみ、Bearer トークン認証）。ツールは 31 個の
+（Streamable HTTP、localhost のみ、Bearer トークン認証）。ツールは 40 個の
 `Get*` — `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、
 `GetTextFile`、`GetPortOwner`, `GetCommandResolution`、… 書き込み / 実行 / kill 系のツールは意図的に
 置いていません。シークレットや秘密鍵が MCP の境界を越えることもありません。
@@ -174,7 +178,7 @@ Direct3D・DXCore・Windows ビルド。以下の「このビルドでは非対�
 `~/.profile`、`~/.zshrc`、`~/.config`、`/etc/environment`。それぞれの場所と、
 存在するか、読めるか、書けるか。
 
-**インストール済みツール** — 11 カテゴリ 86 種類のツール（AI CLI、ランタイム、
+**インストール済みツール** — 11 カテゴリ 87 種類のツール（AI CLI、ランタイム、
 パッケージマネージャー、バージョン管理、コンテナー、クラウドとリモート、ビルド
 ツール、データベース、エディターとシェル、メディア、ユーティリティ）。それぞれ
 インストール済みかどうか、解決されたパス、バージョン、インストール方法
@@ -258,11 +262,12 @@ prune コマンドはコンソールに用意するだけです。
 
 ## Settings（設定）と言語
 
-右上の歯車（常に押せます）を押すと設定ドロワーが開きます — 3 つ目のタブではあり
-ません。言語、テーマ（システム / ライト / ダーク）、Windows 起動時に実行、監視の
-一時停止と高速 / 中速 / 低速のポーリング間隔、Explorer の既定値、Console のフォン
-ト / スクロールバック、更新の確認（確認中・利用可能・ダウンロード進捗・インストール準備完了（再起動ボタン付き）・失敗理由をその場に表示し続けます）、すべて既定値に戻す — そして **MCP パネル** 一
-式：状態、エンドポイントのコピー、設定 JSON のコピー、Codex / Claude Desktop /
+右上の歯車（常に押せます）を押すとモーダル設定ドロワーが開きます（上部タブの領域を
+消費しないドロワー形式）：言語、テーマ（システム / ライト / ダーク）、Windows 起動時に実行、
+監視の一時停止と高速 / 中速 / 低速のポーリング間隔、Explorer の既定値、Console のフォント /
+スクロールバック、更新の確認（確認中・利用可能・ダウンロード進捗・インストール準備完了
+（再起動ボタン付き）・失敗理由をその場に表示し続けます）、すべて既定値に戻す — そして
+**MCP パネル** 一式：状態、エンドポイントのコピー、設定 JSON のコピー、Codex / Claude Desktop /
 Hermes のワンクリック登録、接続テスト、トークンの再生成。
 
 WSLPad は **9 言語** ぶんの UI 翻訳を完全な形で同梱しています — 한국어、English、
@@ -271,43 +276,64 @@ Windows の言語を自動的に検出し、該当がなければ English にフ
 Linux コマンド、パス、技術的な名称は決して翻訳しません。ロケールはオフラインで
 同梱され、キーの一致は強制されています。
 
-## インストール
+## インストール & CLI
+
+### 直接ダウンロード（推奨）
+
+[Releases](https://github.com/r2cuerdame/WSLPad/releases) から
+`WSLPad-Setup-<version>.exe` をダウンロードして実行してください — 管理者権限は
+不要です（`%LOCALAPPDATA%\Programs\WSLPad\` へのユーザー単位インストール）。
+
+WSLPad は既定で Windows 起動時に実行され（ログイン項目の `--hidden` フラグ、トレイまたは
+Settings で切り替え）、トレイに常駐し、GitHub Releases から自動更新します。ウィンドウを閉じると
+トレイに隠れるだけで、トレイメニューの _終了_ を選ぶと完全に終了します。
+
+> **Windows SmartScreen について**: 現在のリリースは未署名のため、初回実行時に
+> SmartScreen の警告が表示されます（「詳細情報」→「実行」）。
+
+要件: Windows 10/11 x64。WSL は必須ではありません — 入っていなくても WSLPad は
+落ちずにセットアップの案内を表示します。
 
 ### WinGet
+
+公式パッケージマニフェストは `packaging/winget/manifests/` で管理され、Windows Package Manager
+コミュニティリポジトリに提出されています（PR [microsoft/winget-pkgs#422317](https://github.com/microsoft/winget-pkgs/pull/422317)、マージ待ち）。
+
+アップストリームでのマージ前でも、同梱のマニフェストを使用してローカル検証およびインストールが可能です：
+
+```powershell
+winget install --manifest packaging/winget/manifests/r/r2cuerdame/WSLPad/1.0.1
+```
+
+コミュニティリポジトリの PR がマージされた後は、通常の WinGet コマンドで直接インストールできます：
 
 ```powershell
 winget install r2cuerdame.WSLPad
 ```
 
-### 手動ダウンロード
+### CLI フラグとバックグラウンド動作
 
-[Releases](https://github.com/r2cuerdame/WSLPad/releases) から
-`WSLPad-Setup-<version>.exe` をダウンロードして実行してください — 管理者権限は
-不要です（ユーザー単位のインストール）。WSLPad は既定で Windows 起動時に実行され
-（トレイまたは Settings で切り替え）、トレイに常駐し、GitHub Releases から自動更新
-します。ウィンドウを閉じると隠れるだけで、トレイメニューの _終了_ を選ぶと終了し
-ます。トレイの **情報** サブメニューには、実行中のバージョン、GitHub リポジトリ、
-リリースノート、スポンサーページがあります。トレイからの更新確認はトレイが答え
-ます — メニュー項目自体が状態（確認中、利用可能、ダウンロード率、インストール
-準備完了）になり、結果はデスクトップ通知で届きます。ウィンドウが勝手に前面に
-出ることはありません。
-
-> インストーラーは署名されていません — SmartScreen が一度だけ確認します（「詳細情報」→
-> 「実行」）。
-
-要件: Windows 10/11 x64。WSL は必須ではありません — 入っていなくても WSLPad は
-落ちずにセットアップの案内を表示します。
+- `WSLPad.exe` — アプリ GUI を起動（単一インスタンスロックにより、すでに起動中ならそのウィンドウを前面化）。
+- `WSLPad.exe --hidden` — Windows トレイに最小化された状態で起動（Windows ログイン時の自動起動で使用）。
+- `WSLPad.exe --mcp-stdio` — Claude Desktop などのローカル MCP クライアント用 stdio ブリッジモード。常駐トレイアプリの HTTP サーバー（`http://127.0.0.1:4923/mcp`）へ標準入出力を中継します。
 
 ## 開発
 
 ```bash
-npm install          # deps (node-pty ships prebuilt N-API binaries)
-npm run dev          # electron-vite dev with HMR
-npm run typecheck
-npm run lint
-npm run test         # vitest unit + integration
-npm run test:e2e     # Playwright Electron E2E (fixture mode, no WSL needed)
-npm run dist         # NSIS installer into release/
+npm install          # または npm ci（依存関係のインストール）
+npm run dev          # electron-vite dev（HMR 有効）
+npm run typecheck    # node および web の厳格な TypeScript チェック
+npm run lint         # ESLint 9
+npm run test         # vitest 単体・結合テスト（90 ファイル、1,534 テスト）
+npm run build        # electron-vite プロダクションビルド
+npm run test:e2e     # Playwright Electron E2E（フィクスチャモード: WSLPAD_FIXTURE_MODE=1）
+npm run dist         # release/ ディレクトリに NSIS インストーラーと blockmap をビルド
+```
+
+クリーンな Windows 環境でのリリースライフサイクルスモークテスト（インストール、起動、更新適用、アンインストール、再インストール）の検証：
+
+```powershell
+./scripts/release-lifecycle-smoke.ps1 -TargetVersion 1.0.1 -TargetSha256 <SHA256>
 ```
 
 `WSLPAD_FIXTURE_MODE=1` を付けると、決定的なインメモリの WSL 環境の上でアプリ
@@ -326,9 +352,7 @@ npm run dist         # NSIS installer into release/
 
 WSLPad はディストリビューションの管理ツールでもマーケットプレイスでも _なく_、
 Docker Desktop でもなく、IDE でもありません。Git の UI もデバッガーも LSP もなく、
-クラウド同期も AI チャットも自動修復もありません。正体は **Dashboard + Explorer
-
-- Console + 読み取り専用の MCP** — それだけです。
+クラウド同期も AI チャットも自動修復もありません。正体は **Dashboard + Explorer + Console + 移行ウィザード + 読み取り専用 MCP** — それだけです。
 
 ## 現在の制限 (v1.0.1)
 
@@ -339,6 +363,7 @@ Docker Desktop でもなく、IDE でもありません。Git の UI もデバ�
   です。それより古いビルドでは不明と表示されます
 - Hyper-V のファイアウォールの層は最近の Windows のビルドにしかありません。ない
   環境では、WSLPad は「無効」ではなく不明と表示します
+- 移行ウィザード (Relocation Wizard) は移行先ドライブの十分な空き容量（一時 tar エクスポートおよび vhdx インポートのため 1.5 倍を推奨）と、案内された CLI コマンドのユーザー実行を必要とします
 - 推移のスパークラインはメモリの中だけにあり、アプリを閉じると履歴は消えます。
   これは設計上そうしています — トレイのコンパニオンは監視エージェントではありま
   せん
@@ -353,7 +378,7 @@ Docker Desktop でもなく、IDE でもありません。Git の UI もデバ�
 
 ## ロードマップ
 
-次の予定: VHDX の縮小・拡張コマンドの用意、ARM64 ビルド、そして署名済み
+次の予定: VHDX の縮小・拡張コマンドのコンソール準備、ARM64 ビルド、そして署名済み
 インストーラー。
 
 ## コミュニティ
@@ -364,8 +389,7 @@ Docker Desktop でもなく、IDE でもありません。Git の UI もデバ�
 [非公開のアドバイザリ](https://github.com/r2cuerdame/WSLPad/security/advisories/new)へ。
 
 - [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — やり方、そしてなぜそう表示されるのか
-- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 次に何を見せるべきか。0.2 の候補リストはすでにあり、WSL
-  利用者が本家で最も多く訴えている問題から選びました
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 次に何を見せるべきか
 - [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — あなたのマシンで何が見つかったか
 
 [CONTRIBUTING](.github/CONTRIBUTING.md) に、プルリクエストが破ってはならない 4 つの規則が

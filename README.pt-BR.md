@@ -13,9 +13,10 @@
 O WSLPad é um app residente na bandeja do Windows que torna visíveis as partes
 invisíveis da sua instalação do WSL: quais distribuições estão em execução,
 onde ficam suas ferramentas, o que está escutando em cada porta — além de um
-gerenciador de arquivos de verdade, um console interativo e um **servidor MCP
-somente leitura**, para que suas ferramentas de LLM possam inspecionar (nunca
-modificar) o seu ambiente.
+gerenciador de arquivos de verdade, um console interativo, um assistente seguro
+de migração de distribuições (Relocation Wizard) e um **servidor MCP somente
+leitura**, para que suas ferramentas de LLM possam inspecionar (nunca modificar)
+o seu ambiente.
 
 ![Dashboard do WSLPad](docs/screenshots/dashboard.png)
 
@@ -25,14 +26,14 @@ Instale Hermes, Codex, Claude, Docker, Node ou Python dentro do WSL e, de
 repente, nada mais é visível pelo Windows: caminhos de instalação, arquivos de
 configuração, variáveis de ambiente, serviços, portas, estado do systemd ou
 como os caminhos do Linux correspondem aos caminhos do Windows. O WSLPad
-organiza tudo isso em um dashboard, um explorador de arquivos e uma superfície
-MCP — sem nunca alterar o seu sistema pelas suas costas.
+organiza tudo isso em um Dashboard, um Explorer, um Relocation Wizard e uma
+superfície MCP — sem nunca alterar o seu sistema pelas suas costas.
 
-## As três superfícies
+## Superfícies principais
 
 ### Dashboard — estado somente leitura, seção por seção
 
-Escolha uma seção à esquerda e leia à direita — são dezesseis, da visão geral aos
+Escolha uma seção à esquerda e leia à direita — são dezessete, da visão geral aos
 avisos. As tabelas ocupam a janela inteira, em vez de um cartão apertado, e a
 lista carrega indicadores ao vivo. O inventário completo está
 [abaixo](#o-que-você-realmente-vê); quatro seções merecem destaque porque
@@ -73,9 +74,9 @@ O Dashboard (o Painel) nunca executa nada. Botões como _kill_, _reiniciar
 serviço_ ou _sudoedit_ apenas **preparam** o comando no campo do Console — você
 revisa, edita e pressiona Enter.
 
-![Explorer](docs/screenshots/explorer.png)
-
 ### Explorer — Windows à esquerda, WSL à direita
+
+![Explorer](docs/screenshots/explorer.png)
 
 O Explorer (o Explorador) é um gerenciador de arquivos de painel duplo de
 verdade: suas unidades do **Windows** à esquerda, a **distribuição WSL**
@@ -107,6 +108,15 @@ executa aparecem na transcrição; as consultas internas do WSLPad são executad
 por um runner oculto separado.
 
 Ele também se recupera sozinho. O WSL costuma continuar ocupado quando o WSLPad sobe junto com o Windows, e um shell que não pôde ser iniciado agora é relatado exatamente assim — **com o motivo** — em vez de um enganoso "distribuição parada". Assim que a distribuição aparece como em execução, o Console tenta de novo sem ser pedido, e se ainda assim não iniciar, o botão de reconectar continua ali. Reiniciar o aplicativo nunca é a resposta.
+
+### Relocation Wizard — mover distribuições com segurança
+
+A unidade `C:` está cheia por causa do WSL? O **Relocation Wizard** (Assistente de Migração) passo a passo orienta você na exportação e realocação segura do VHDX da sua distribuição para uma unidade secundária (como `D:\`), sem risco de perda de dados:
+- Seleção visual da unidade de destino e cálculo prévio do espaço livre
+- Verificação prévia e encerramento limpo da distribuição (`wsl --terminate`)
+- Comandos de exportação `tar`, desregistro limpo e reimportação preparados diretamente no Console
+- Restauração garantida do usuário padrão no `/etc/wsl.conf`
+- Validação pós-migração para certificar a integridade do ambiente
 
 ## Servidor MCP (somente leitura)
 
@@ -182,7 +192,7 @@ sem permissão de execução, e nenhum erro é impresso em lugar nenhum.
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: onde
 cada um está e se ele existe, é legível e é gravável.
 
-**Ferramentas instaladas** — 86 ferramentas em 11 categorias (CLIs de IA,
+**Ferramentas instaladas** — 87 ferramentas em 11 categorias (CLIs de IA,
 runtimes, gerenciadores de pacotes, controle de versão, contêineres, nuvem,
 build, bancos de dados, editores e shells, mídia, utilitários), cada uma com
 estado de instalação, caminho resolvido, versão, método de instalação, caminhos
@@ -273,16 +283,17 @@ motivo mais comum de "o WSL está lento", e o prompt é idêntico.
 **Pelo MCP** — tudo isso acima por meio de 40 ferramentas `Get*` somente leitura.
 [docs/MCP.md](docs/MCP.md)
 
-## Settings e idiomas
+## Configurações e idiomas
 
-A engrenagem (canto superior direito, sempre disponível) abre a gaveta de
-Settings (Configurações) — nunca uma terceira aba: idioma, tema
-(sistema/claro/escuro), iniciar com o Windows, pausa do monitoramento +
+A engrenagem (canto superior direito, sempre disponível) abre um painel deslizante
+modal de **Configurações** (Settings), sem ocupar espaço nas abas principais: idioma,
+tema (sistema/claro/escuro), iniciar com o Windows, pausa do monitoramento +
 intervalos de sondagem rápido/médio/lento, padrões do Explorer,
-fonte/scrollback do Console, verificação de atualizações — com o estado sempre à vista: verificando, disponível, progresso do download, pronta para instalar (com botão de reiniciar) ou por que falhou —, restaurar tudo — e o
-**painel MCP** completo: status, copiar endpoint, copiar JSON de configuração,
-registro em um clique para Codex / Claude Desktop / Hermes, teste de conexão e
-geração de um novo token.
+fonte/scrollback do Console, verificação de atualizações — com o estado sempre à vista:
+verificando, disponível, progresso do download, pronta para instalar (com botão de
+reiniciar) ou por que falhou —, restaurar tudo — e o **painel MCP** completo: status,
+copiar endpoint, copiar JSON de configuração, registro em um clique para
+Codex / Claude Desktop / Hermes, teste de conexão e geração de um novo token.
 
 O WSLPad traz traduções completas da interface para **9 idiomas** — 한국어,
 English, 日本語, 简体中文, 繁體中文, Español, Français, Deutsch, Português do
@@ -290,43 +301,66 @@ Brasil — com detecção automática do idioma do Windows e fallback para o ing
 Comandos do Linux, caminhos e nomes técnicos nunca são traduzidos; os pacotes de
 idioma vão embutidos offline, com paridade de chaves garantida.
 
-## Instalação
+## Instalação e CLI
+
+### Download direto (Recomendado)
+
+Baixe `WSLPad-Setup-<version>.exe` em
+[Releases](https://github.com/r2cuerdame/WSLPad/releases) e execute — sem
+precisar de direitos de administrador (instalação por usuário em `%LOCALAPPDATA%\Programs\WSLPad\`).
+
+Por padrão, o WSLPad inicia com o Windows (sinalizador `--hidden` nos itens de
+inicialização, configurável na bandeja ou em Configurações), fica na bandeja e se
+atualiza sozinho pelo GitHub Releases. Fechar a janela apenas a oculta na bandeja;
+_Sair_ no menu da bandeja encerra o app por completo.
+
+> **Nota sobre o Windows SmartScreen**: As versões atuais não são assinadas —
+> o SmartScreen vai perguntar no primeiro início ("Mais informações" → "Executar assim mesmo").
+
+Requisitos: Windows 10/11 x64. O WSL é opcional — sem ele, o WSLPad mostra uma
+dica de configuração em vez de quebrar.
 
 ### WinGet
+
+O manifesto oficial do pacote é mantido em `packaging/winget/manifests/` e foi
+enviado ao repositório comunitário do Windows Package Manager
+(PR [microsoft/winget-pkgs#422317](https://github.com/microsoft/winget-pkgs/pull/422317), aguardando merge).
+
+Enquanto o merge oficial está em andamento, você pode validar e instalar localmente usando o manifesto incluído:
+
+```powershell
+winget install --manifest packaging/winget/manifests/r/r2cuerdame/WSLPad/1.0.1
+```
+
+Assim que o PR for incorporado no repositório comunitário oficial, a instalação padrão estará disponível:
 
 ```powershell
 winget install r2cuerdame.WSLPad
 ```
 
-### Download manual
+### Opções de linha de comando e execução em segundo plano
 
-Baixe `WSLPad-Setup-<version>.exe` em
-[Releases](https://github.com/r2cuerdame/WSLPad/releases) e execute — sem
-precisar de direitos de administrador (instalação por usuário). Por padrão, o
-WSLPad inicia com o Windows (alterne pela bandeja ou em Settings), fica na
-bandeja e se atualiza sozinho pelo GitHub Releases. Fechar a janela apenas a
-oculta; _Sair_ no menu da bandeja encerra o app. O submenu **Sobre** da bandeja
-leva a versão em execução, o repositório no GitHub, as notas da versão e a
-página de apoio. Verificar atualizações pela bandeja é respondido na bandeja: o
-item do menu vira o estado (verificando, disponível, progresso do download,
-pronta para instalar) e o resultado chega como notificação; a janela nunca é
-jogada na sua frente.
-
-> O instalador não é assinado — o SmartScreen vai perguntar uma vez ("Mais informações" → "Executar assim mesmo").
-
-Requisitos: Windows 10/11 x64. O WSL é opcional — sem ele, o WSLPad mostra uma
-dica de configuração em vez de quebrar.
+- `WSLPad.exe` — Inicia a interface gráfica (ou coloca o foco na instância em execução via bloqueio de instância única).
+- `WSLPad.exe --hidden` — Inicia minimizado diretamente na bandeja do sistema (usado na inicialização automática do Windows).
+- `WSLPad.exe --mcp-stdio` — Modo de ponte stdio para clientes MCP locais (como o Claude Desktop). Redireciona a entrada/saída padrão para o servidor HTTP MCP do aplicativo em segundo plano (`http://127.0.0.1:4923/mcp`).
 
 ## Desenvolvimento
 
 ```bash
-npm install          # deps (node-pty ships prebuilt N-API binaries)
-npm run dev          # electron-vite dev with HMR
-npm run typecheck
-npm run lint
-npm run test         # vitest unit + integration
-npm run test:e2e     # Playwright Electron E2E (fixture mode, no WSL needed)
-npm run dist         # NSIS installer into release/
+npm install          # ou npm ci (dependências)
+npm run dev          # electron-vite dev com HMR
+npm run typecheck    # verificação estrita de TypeScript para node e web
+npm run lint         # ESLint 9
+npm run test         # testes unitários e de integração vitest (90 arquivos, 1534 testes)
+npm run build        # compilação de produção com electron-vite
+npm run test:e2e     # Playwright Electron E2E (modo fixture: WSLPAD_FIXTURE_MODE=1)
+npm run dist         # instalador NSIS e blockmap em release/
+```
+
+Teste de fumaça do ciclo de vida de lançamento em um ambiente Windows limpo (instalação, inicialização, atualização, desinstalação e reinstalação):
+
+```powershell
+./scripts/release-lifecycle-smoke.ps1 -TargetVersion 1.0.1 -TargetSha256 <SHA256>
 ```
 
 `WSLPAD_FIXTURE_MODE=1` roda o app inteiro contra um mundo WSL determinístico em
@@ -346,7 +380,7 @@ construção. Nada é executado sem o seu Enter. Princípios completos:
 O WSLPad _não_ é um gerenciador/loja de distribuições, não é o Docker Desktop,
 não é uma IDE, não tem interface de Git/depurador/LSP, não tem sincronização na
 nuvem, nem chat de IA, nem correção automática. Identidade:
-**Dashboard + Explorer + Console + MCP somente leitura** — nada além disso.
+**Dashboard + Explorer + Console + Relocation Wizard + MCP somente leitura** — nada além disso.
 
 ## Limitações atuais (v1.0.1)
 
@@ -357,6 +391,8 @@ nuvem, nem chat de IA, nem correção automática. Identidade:
   antigas o mostram como desconhecido
 - A camada de firewall do Hyper-V só existe em builds recentes do Windows; onde
   ela não existe, o WSLPad informa desconhecido em vez de "desativado"
+- O Relocation Wizard requer espaço livre suficiente no disco de destino
+  (1,5x recomendado para o arquivo tar temporário e o vhdx importado) e a execução guiada de comandos CLI pelo usuário
 - As sparklines de tendência ficam apenas na memória — o histórico é reiniciado
   quando você fecha o app, e isso é intencional: um companheiro de bandeja não é
   um agente de monitoramento
@@ -372,8 +408,7 @@ nuvem, nem chat de IA, nem correção automática. Identidade:
 
 ## Roadmap
 
-A seguir: comandos preparados para encolher e expandir o VHDX, uma compilação
-ARM64 e um instalador assinado.
+Próximos passos: compilação ARM64, instalador assinado e diagnósticos em tempo real aprimorados.
 
 ## Comunidade
 
@@ -383,8 +418,7 @@ Bugs vão para o [rastreador de issues](https://github.com/r2cuerdame/WSLPad/iss
 um [aviso privado](https://github.com/r2cuerdame/WSLPad/security/advisories/new).
 
 - [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — como se faz, e por que aparece assim
-- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — o que o WSLPad deve mostrar em seguida; a lista para a 0.2
-  já está lá, tirada daquilo de que os usuários de WSL mais reclamam lá em cima
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — o que o WSLPad deve mostrar em seguida, inspirado no feedback da comunidade
 - [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — o que ele encontrou na sua máquina
 
 [CONTRIBUTING](.github/CONTRIBUTING.md) lista as quatro regras que um pull request não pode

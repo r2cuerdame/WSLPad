@@ -79,7 +79,7 @@ Releases are Windows NSIS installers published to GitHub Releases;
 
 ## Code signing
 
-v0.1.0 ships unsigned — Windows SmartScreen will warn on first run. For a
+Current releases ship unsigned — Windows SmartScreen will warn on first run. For a
 future release, provide `CSC_LINK`/`CSC_KEY_PASSWORD` env vars to
 electron-builder or switch to Azure Trusted Signing.
 
