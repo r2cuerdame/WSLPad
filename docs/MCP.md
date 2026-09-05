@@ -60,9 +60,9 @@ at-a-glance status badge):
 | `GetToolStatus` | One tool's detection detail (`{ tool }`) |
 | `GetHermesStatus` | Hermes install/gateway/dashboard, connected messengers, profiles ("agents"), active sessions, scheduled jobs, ports/services |
 | `GetEnvironment` | Env var names + masked values (secrets never raw) |
-| `GetProcesses` / `GetProcess` | Process table / one PID |
-| `GetServices` / `GetService` | systemd services / one unit |
-| `GetProcess` | One process by pid, from the cached list (`{ pid }`) |
+| `GetProcesses` | Process table (PID, user, CPU %, memory %, elapsed time, command line) |
+| `GetProcess` | One process by PID from the cached list (`{ pid }`) |
+| `GetServices` | systemd service units with scope, load/active/sub state, and description |
 | `GetService` | One systemd unit by name (`{ name }`) |
 | `GetPorts` | Listening ports, each marked with whether Windows also binds it |
 | `GetDiskImage` | ext4.vhdx location, size on the Windows disk, reclaimable space |

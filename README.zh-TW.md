@@ -12,8 +12,8 @@
 
 WSLPad 是一支常駐在 Windows 系統匣的應用程式，把你 WSL 環境中看不見的部分
 攤開來：哪些發行版正在執行、工具裝在哪裡、哪個連接埠上有什麼在監聽 ——
-另外還有一個真正的檔案總管、一個可互動的主控台，以及一個**唯讀 MCP 伺服器**，
-讓你的 LLM 工具能夠檢視（絕不修改）你的環境。
+另外還有一個真正的雙窗格檔案總管、一個可互動的主控台、一個具備安全防護的 VHDX
+遷移精靈，以及一個**唯讀 MCP 伺服器**，讓你的 LLM 工具能夠檢視（絕不修改）你的環境。
 
 ![WSLPad 儀表板](docs/screenshots/dashboard.png)
 
@@ -22,15 +22,15 @@ WSLPad 是一支常駐在 Windows 系統匣的應用程式，把你 WSL 環境�
 在 WSL 裡裝了 Hermes、Codex、Claude、Docker、Node 或 Python 之後，Windows 這邊
 突然什麼都看不到了：安裝路徑、設定檔、環境變數、服務、連接埠、systemd 狀態，
 還有 Linux 路徑到底怎麼對應到 Windows 路徑。WSLPad 把這一切整理成一個
-Dashboard、一個 Explorer 與一個 MCP 介面 —— 而且從不在你背後改動系統。
+Dashboard、一個 Explorer、一個遷移精靈與一個 MCP 介面 —— 而且從不在你背後改動系統。
 
-## 三個介面
+## 核心介面
 
 ### Dashboard — 唯讀狀態，一區一區看
 
-左邊挑一個區塊，右邊就讀它 —— 從總覽到警告，一共十六個。表格用的是整個視窗，
+左邊挑一個區塊，右邊就讀它 —— 從總覽到警告，一共十七個。表格用的是整個視窗，
 而不是擠在一張小卡片裡，左側清單還帶著即時徽章。完整清單在
-[下方](#你實際看得到什麼)；其中有四個區塊值得特別點出來，因為它們回答的是
+[下方](#你實際看得到什麼)；其中有五個區塊值得特別點出來，因為它們回答的是
 WSL 自己不肯回答的問題：
 
 **磁碟映像** —— 發行版的 `ext4.vhdx` 只會長大、從來不會縮小，而 Linux 裡的
@@ -46,25 +46,23 @@ Windows 磁碟上佔了多少、發行版內部實際用了多少，以及有多
 
 ![WSL 設定](docs/screenshots/wslconfig.png)
 
-**網路** —— 那一層 Windows 防火牆視窗裡從來看不到的 Hyper-V 防火牆：它預設就
-開著，而且會默默丟掉送往 WSL 的輸入流量；另外還有名稱解析區塊，把
-`/etc/resolv.conf`、`generateResolvConf`、DNS 通道與 Windows 介面卡拿到的伺服器
-並排放在一起 —— 於是「Temporary failure in name resolution」只剩下一個地方要看。
+**網路** —— Windows 防火牆視窗裡絕不會出現的 Hyper-V 防火牆，預設開啟且默默丟棄連往 WSL 的傳入流量；加上一個把 `/etc/resolv.conf`、`generateResolvConf`、DNS 通道與 Windows 配接卡的伺服器並列展示的名稱解析區塊 —— 讓 "Temporary failure in name resolution" 有了唯一的排查所在。
 
-**連接埠** —— WSL 的監聽者標示為 `WSL`，如果真的能從 Windows 連到，則標示為
-`WSL + Windows`，而且每一個現在都帶著一個**可達範圍判定**：整個 LAN 都連得到、
-只有這台電腦連得到、只有 WSL 內部連得到，或哪裡都到不了 —— 並附上理由，由繫結
-位址、實際生效的網路模式與防火牆推導而來。當這些事實讀不到時，WSLPad 會照實說
-_未知_，而不是逕自猜測。 繁忙的機器上會有數百個接聽的連接埠，因此這裡提供連接埠範圍與處理程序名稱篩選 ——「誰佔著 5173」是一個問題，不該是一次捲動作業。
+**連接埠** —— WSL 端的監聽會標記為 `WSL`，確認能從 Windows 連線時則標記為 `WSL + Windows`，且現在每個都附帶**連線能力判定**：可從 LAN 連線、僅限本 PC、僅限 WSL 內部、無法連線 —— 並附有由繫結位址、實際生效的網路模式與防火牆推算的原因。當無法讀取事實時，WSLPad 會顯示 *未知* 而不妄加猜測。繁忙的機器上會有數百個監聽連接埠，因此提供連接埠範圍與處理程序名稱篩選 —— 「誰佔用了 5173」是一個具體的問題，不該是一場捲動折磨。
 
 ![連接埠](docs/screenshots/ports.png)
 
-Dashboard 不會執行任何東西。_kill_、_restart service_ 或 _sudoedit_ 這類按鈕只會
-把命令**準備**在 Console 的輸入列裡 —— 由你檢查、修改，然後按 Enter。
+**診斷與遠端復原** —— 僅限工作階段的事件時間軸串聯了睡眠與喚醒、發行版回應能力、DNS 與網路模式變更、Console 復原以及明確的網路檢查。同一檢查可識別經驗證的 VS Code Server 處理程序並提供破壞性最小的復原階梯，將 `wsl --shutdown` 保留為最後手段。背景不會探測網路，也不會自動執行復原命令；診斷匯出在儲存前會預覽具隱私敏感性的欄位。
 
-![Explorer](docs/screenshots/explorer.png)
+![診斷](docs/screenshots/diagnostics.png)
+
+Dashboard 絕不自行執行任何動作。*結束*、*重新啟動服務*、*sudoedit* 等按鈕只會將命令**準備**在 Console 輸入列中 —— 由你審閱、修改並按下 Enter。
+
+*複製給 LLM* 與 *匯出 JSON* 會擷取**完整**快照，而非你目前正在閱讀的單一區塊，因此它們位於總覽中，而非每個區塊的標題列。
 
 ### Explorer — 左邊 Windows，右邊 WSL
+
+![Explorer](docs/screenshots/explorer.png)
 
 貨真價實的雙窗格檔案管理員：左邊是你的 **Windows** 磁碟機，右邊是選定的
 **WSL 發行版**，中間有一條可拖曳的分隔線。重點就在兩邊互傳 —— 直接拖過去，
@@ -88,6 +86,10 @@ Console 會跟著切到同一個目錄 —— 不會出現看得見的 `cd`，�
 負責。
 
 主控台也會自行復原。WSLPad 隨 Windows 啟動時 WSL 往往還在忙，無法啟動 shell 的狀態現在會如實回報 —— **並附上原因** —— 而不是誤導性的「發行版已停止」。一旦發行版顯示為執行中，主控台會自動重試；若仍然無法啟動，重新連線按鈕會一直留著。重新啟動應用程式從來不是答案。
+
+### 遷移精靈 (Relocation Wizard) —— 安全遷移發行版
+
+WSL 導致 C 槽空間不足？逐步安全遷移精靈引導你將發行版的 VHDX 虛擬磁碟安全匯出並遷移至次要硬碟（例如 D:\），具備嚴格的驗證關卡。它会檢查硬碟可用空間（建議保留 1.5 倍充裕空間）、驗證備份完整性、保留你的預設 Linux 使用者，絕不自動執行破壞性命令。
 
 ## MCP 伺服器（唯讀）
 
@@ -148,7 +150,7 @@ Windows 登錄檔的 `DefaultUid` 會悄悄壓過 `/etc/wsl.conf` 裡的
 `~/.profile`、`~/.zshrc`、`~/.config`、`/etc/environment`：每一個放在哪裡，以及
 它存不存在、能不能讀、能不能寫。
 
-**已安裝工具** —— 11 個類別、共 86 項工具（AI CLI、執行階段、套件管理員、版本
+**已安裝工具** —— 11 個類別、共 87 項工具（AI CLI、執行階段、套件管理員、版本
 控制、容器、雲端、建置工具、資料庫、編輯器與 Shell、媒體、公用程式），每一項都
 附上是否已安裝、解析出的路徑、版本、安裝方式（apt／snap／nvm／npm-global／pipx／
 uv／Windows interop／……）、設定路徑、執行中的處理程序數量、它落在檔案系統界線的
@@ -220,50 +222,70 @@ Linux 權限與符號連結目標。Windows 這側則是每個磁碟機的可用
 
 ## 設定與語言
 
-右上角那顆隨時都在的齒輪會拉出設定抽屜 —— 而不是第三個分頁：語言、佈景主題
+右上角那顆隨時都在的齒輪會拉出互動設定抽屜（不佔用頂層分頁空間）：語言、佈景主題
 （系統／淺色／深色）、隨 Windows 啟動、暫停監控與快／中／慢輪詢間隔、Explorer
-預設值、Console 字型／回捲行數、更新檢查（檢查中、可用、下載進度、準備安裝並附重新啟動按鈕、失敗原因都會留在原處顯示）、還原全部預設值 —— 以及完整的
-**MCP 面板**：狀態、複製端點、複製設定 JSON、一鍵註冊到 Codex／Claude Desktop／
-Hermes、連線測試與重新產生權杖。
+預設值、Console 字型／回捲行數、更新檢查（檢查中、可用、下載進度、準備安裝並附重新啟動按鈕、
+失敗原因都會留在原處顯示）、還原全部預設值 —— 以及完整的 **MCP 面板**：狀態、
+複製端點、複製設定 JSON、一鍵註冊到 Codex／Claude Desktop／Hermes、連線測試與重新產生權杖。
 
 WSLPad 內建 **9 種語言**的完整介面翻譯 —— 한국어、English、日本語、简体中文、
 繁體中文、Español、Français、Deutsch、Português do Brasil ——
 會自動偵測 Windows 語言，並以英文作為後備。Linux 命令、路徑與技術名稱一律不翻譯；
 語系檔全部離線打包，並強制檢查鍵值一致。
 
-## 安裝
+## 安裝與 CLI
+
+### 直接下載（建議）
+
+從 [Releases](https://github.com/r2cuerdame/WSLPad/releases) 下載
+`WSLPad-Setup-<version>.exe` 執行就好 —— 不需要系統管理員權限（單一使用者安裝至 `%LOCALAPPDATA%\Programs\WSLPad\`）。
+
+WSLPad 預設隨 Windows 啟動（登入項目的 `--hidden` 旗標，可在系統匣或設定中切換），
+常駐於系統匣，並透過 GitHub Releases 自動更新。關閉視窗只是隱藏到系統匣；系統匣選單中的*結束*才會真正離開。
+
+> **關於 Windows SmartScreen**：目前版本未經簽章 —— 首次啟動時 SmartScreen 會出現提示（「其他資訊」→「仍要執行」）。
+
+需求：Windows 10/11 x64。WSL 是選用的 —— 沒有 WSL 時，WSLPad 會顯示安裝提示，而不是直接掛掉。
 
 ### WinGet
+
+官方套件清單維護於 `packaging/winget/manifests/` 中，並已提交至 Windows Package Manager 社群儲存庫（PR [microsoft/winget-pkgs#422317](https://github.com/microsoft/winget-pkgs/pull/422317)，等待合併中）。
+
+在等待上游合併期間，你可以使用儲存庫隨附的清單進行本機驗證與安裝：
+
+```powershell
+winget install --manifest packaging/winget/manifests/r/r2cuerdame/WSLPad/1.0.1
+```
+
+社群儲存庫 PR 合併後，即可直接使用標準命令安裝：
 
 ```powershell
 winget install r2cuerdame.WSLPad
 ```
 
-### 手動下載
+### CLI 旗標與背景行為
 
-從 [Releases](https://github.com/r2cuerdame/WSLPad/releases) 下載
-`WSLPad-Setup-<version>.exe` 執行就好 —— 不需要系統管理員權限（單一使用者安裝）。
-WSLPad 預設隨 Windows 啟動（可在系統匣或設定中切換），常駐於系統匣，並透過
-GitHub Releases 自動更新。關閉視窗只是隱藏起來；系統匣選單中的*結束*才會真的離開。
-系統匣的**關於**子選單裡有目前版本、GitHub 儲存庫、版本資訊與贊助頁面。從系統匣檢查
-更新由系統匣作答 —— 選單項目本身就是狀態（檢查中、可用、下載進度、準備安裝），結果
-以桌面通知送達，視窗不會突然跳出來。
-
-> 安裝程式未經簽章 —— SmartScreen 會詢問一次（「其他資訊」→「仍要執行」）。
-
-需求：Windows 10/11 x64。WSL 是選用的 —— 沒有 WSL 時，WSLPad 會顯示安裝提示，
-而不是直接掛掉。
+- `WSLPad.exe` —— 啟動應用程式 GUI（若已有執行個體，則透過單一執行個體鎖定聚焦既有視窗）。
+- `WSLPad.exe --hidden` —— 以最小化常駐系統匣啟動（用於 Windows 開機自動啟動）。
+- `WSLPad.exe --mcp-stdio` —— 供 Claude Desktop 等本機 MCP 用戶端使用的 stdio 橋接模式。將標準 I/O 代理至背景常駐應用程式的 HTTP 伺服器（`http://127.0.0.1:4923/mcp`）。
 
 ## 開發
 
 ```bash
-npm install          # deps (node-pty ships prebuilt N-API binaries)
-npm run dev          # electron-vite dev with HMR
-npm run typecheck
-npm run lint
-npm run test         # vitest unit + integration
-npm run test:e2e     # Playwright Electron E2E (fixture mode, no WSL needed)
-npm run dist         # NSIS installer into release/
+npm install          # 或 npm ci（安裝相依套件）
+npm run dev          # electron-vite dev（支援 HMR）
+npm run typecheck    # node 與 web 嚴格 TypeScript 檢查
+npm run lint         # ESLint 9
+npm run test         # vitest 單元與整合測試（90 個檔案，1,534 個測試）
+npm run build        # electron-vite 正式環境建置
+npm run test:e2e     # Playwright Electron E2E（固定模式: WSLPAD_FIXTURE_MODE=1）
+npm run dist         # 建置 NSIS 安裝程式與 blockmap 至 release/
+```
+
+全新 Windows 環境下的發行生命週期冒煙測試（安裝、啟動、更新偵測與套用、解除安裝、重新安裝）：
+
+```powershell
+./scripts/release-lifecycle-smoke.ps1 -TargetVersion 1.0.1 -TargetSha256 <SHA256>
 ```
 
 `WSLPAD_FIXTURE_MODE=1` 會讓整個應用程式跑在一個結果可預期的記憶體內 WSL 世界上
@@ -281,7 +303,7 @@ npm run dist         # NSIS installer into release/
 
 WSLPad *不是*發行版管理器或市集，不是 Docker Desktop，不是 IDE，沒有 Git UI／
 偵錯器／LSP，沒有雲端同步，沒有 AI 聊天，也不會自動幫你修東西。它的定位是：
-**Dashboard + Explorer + Console + 唯讀 MCP** —— 沒有別的。
+**Dashboard + Explorer + Console + 遷移精靈 + 唯讀 MCP** —— 沒有別的。
 
 ## 目前的限制（v1.0.1）
 
@@ -291,6 +313,7 @@ WSLPad *不是*發行版管理器或市集，不是 Docker Desktop，不是 IDE�
 - 實際生效的網路模式需要 `wslinfo`（WSL 2.0.4+）；較舊的組建會顯示為未知
 - Hyper-V 防火牆這一層只存在於較新的 Windows 組建上；沒有這一層的地方，WSLPad
   會回報未知，而不是「已停用」
+- 遷移精靈 (Relocation Wizard) 需要目的磁碟機具備充裕的可用空間（建議保留 1.5 倍充裕空間供暫存 tar 匯出與 vhdx 匯入），並由使用者依照指引手動執行 CLI 指令
 - 趨勢走勢圖只存在於記憶體裡 —— 關掉應用程式歷史就歸零，這是刻意的：系統匣夥伴
   不是監控代理程式
 - Console 的 cwd 同步需要預設 shell 是 bash 或 zsh（其他 shell 也能用，只是沒有
@@ -312,8 +335,7 @@ WSLPad *不是*發行版管理器或市集，不是 Docker Desktop，不是 IDE�
 錯誤請提交到[問題追蹤](https://github.com/r2cuerdame/WSLPad/issues/new/choose)，安全疑慮請透過[私密安全公告](https://github.com/r2cuerdame/WSLPad/security/advisories/new)。
 
 - [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — 怎麼做，以及為什麼這樣顯示
-- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 接下來該顯示什麼；0.2 的候選清單已經在那裡，取自 WSL
-  使用者在上游抱怨最多的問題
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 接下來該顯示什麼
 - [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — 它在你的機器上發現了什麼
 
 [CONTRIBUTING](.github/CONTRIBUTING.md) 列出了拉取請求絕不能破壞的四條規則。
