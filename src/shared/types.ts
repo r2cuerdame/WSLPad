@@ -407,6 +407,55 @@ export interface ToolInfo {
   shadowedByWindows: boolean
 }
 
+/** Package-manager surfaces used by Discover and the Update Center (issue #88). */
+export type PackageProviderId = 'apt' | 'npm' | 'cargo' | 'brew' | 'snap' | 'winget'
+export type PackageTarget = 'wsl' | 'windows'
+export type PackageProviderState = 'ready' | 'unavailable' | 'unsupported' | 'error' | 'timed-out'
+
+/** One provider outcome. Failures stay local to this row and never erase other results. */
+export interface PackageProviderStatus {
+  provider: PackageProviderId
+  displayName: string
+  target: PackageTarget
+  state: PackageProviderState
+  /** Short, normalized explanation. Raw command output never crosses IPC. */
+  message: string | null
+}
+
+/** One read-only package search result with the command the user may review. */
+export interface PackageSearchItem {
+  provider: PackageProviderId
+  target: PackageTarget
+  name: string
+  version: string | null
+  description: string | null
+  /** Prepared in Console only; WSLPad never executes it. */
+  installCommand: string
+}
+
+export interface PackageDiscoverResult {
+  query: string
+  results: PackageSearchItem[]
+  providers: PackageProviderStatus[]
+}
+
+/** One installed package for which a provider reports a newer version. */
+export interface PackageUpdateItem {
+  provider: PackageProviderId
+  target: PackageTarget
+  name: string
+  installedVersion: string | null
+  availableVersion: string | null
+  /** Prepared in Console only; WSLPad never executes it. */
+  updateCommand: string
+}
+
+export interface PackageUpdateCenterResult {
+  updates: PackageUpdateItem[]
+  providers: PackageProviderStatus[]
+  checkedAt: string
+}
+
 export interface HermesProcessInfo {
   pid: number
   command: string

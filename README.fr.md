@@ -200,7 +200,7 @@ n’est affichée.
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment` : où se
 trouve chacun et s'il existe, s'il est lisible et s'il est modifiable.
 
-**Outils installés** — 87 outils en 11 catégories (CLI d'IA, environnements
+**Outils installés** — 111 outils en 11 catégories (CLI d'IA, environnements
 d'exécution, gestionnaires de paquets, gestion de versions, conteneurs, cloud,
 compilation, bases de données, éditeurs et shells, médias, utilitaires), chacun
 avec son état d'installation, son chemin résolu, sa version, sa méthode

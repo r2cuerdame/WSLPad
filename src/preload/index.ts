@@ -37,6 +37,11 @@ const api: WslPadApi = {
     onChange: (cb) => subscribe<DiagnosticsState>(IpcChannels.evDiagnostics, cb)
   },
 
+  tools: {
+    search: (query) => ipcRenderer.invoke(IpcChannels.packageDiscover, query),
+    checkUpdates: () => ipcRenderer.invoke(IpcChannels.packageUpdates)
+  },
+
   explorer: {
     list: (path, opts) => ipcRenderer.invoke(IpcChannels.explorerList, path, opts),
     tree: (path) => ipcRenderer.invoke(IpcChannels.explorerTree, path),

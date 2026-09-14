@@ -70,4 +70,15 @@ describe('WslRunner', () => {
     await expect(runner.runInDistro('bad;name', 'echo hi')).rejects.toThrow(/Invalid WSL distro name/)
     await expect(runner.runInDistro('$(rm -rf)', 'echo hi')).rejects.toThrow(/Invalid WSL distro name/)
   })
+
+  it('runs bounded host commands without treating a missing tool as missing WSL', async () => {
+    const runner = new WslRunner(node)
+    const host = await runner.runHostCommand(node, ['-e', "process.stdout.write('host')"])
+    expect(host.stdout).toBe('host')
+    await expect(runner.runHostCommand('definitely-not-a-real-host-tool.exe', [])).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
+    const after = await runner.runWsl(['-e', "process.stdout.write('wsl')"], { encoding: 'utf8' })
+    expect(after.stdout).toBe('wsl')
+  })
 })

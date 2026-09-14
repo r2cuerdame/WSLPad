@@ -14,6 +14,11 @@ import { FixtureConsoleFactory } from './fixture/console'
 import { FixtureExplorerBackend } from './fixture/explorer'
 import { FixtureWslProvider } from './fixture/provider'
 import { createFixtureWindowsFs } from './fixture/windows'
+import {
+  FixturePackageDiscoveryService,
+  LivePackageDiscoveryService,
+  type PackageDiscoveryService
+} from '../tools/service'
 
 export interface Backends {
   provider: WslProvider
@@ -22,6 +27,7 @@ export interface Backends {
   windowsFs: WindowsFs
   consoleFactory: ConsoleBackendFactory
   runner: DistroRunner | null
+  packageDiscovery: PackageDiscoveryService
   fixtureMode: boolean
 }
 
@@ -35,6 +41,7 @@ export function createBackends(): Backends {
       // Console and Explorer share one in-memory tree so `ls` matches the UI.
       consoleFactory: new FixtureConsoleFactory(explorer.fs),
       runner: null,
+      packageDiscovery: new FixturePackageDiscoveryService(),
       fixtureMode: true
     }
   }
@@ -45,6 +52,7 @@ export function createBackends(): Backends {
     windowsFs: createWindowsFs(),
     consoleFactory: createRealConsoleFactory(runner),
     runner,
+    packageDiscovery: new LivePackageDiscoveryService(runner),
     fixtureMode: false
   }
 }

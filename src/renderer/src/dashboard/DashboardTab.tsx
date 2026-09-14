@@ -18,6 +18,8 @@ import DiagnosticsCard from './DiagnosticsCard'
 import PathsCard from './PathsCard'
 import ConfigCard from './ConfigCard'
 import ToolsCard, { effectiveAppendWindowsPath } from './ToolsCard'
+import DiscoverCard from './DiscoverCard'
+import UpdateCenterCard from './UpdateCenterCard'
 import HermesCard from './HermesCard'
 import DockerCard from './DockerCard'
 import OpenClawCard, { findOpenClaw } from './OpenClawCard'
@@ -240,6 +242,10 @@ export default function DashboardTab(): React.JSX.Element {
             appendWindowsPath={effectiveAppendWindowsPath(dash.wslSettings)}
           />
         )
+      case 'discover':
+        return <DiscoverCard distro={dash.distro.name} />
+      case 'update-center':
+        return <UpdateCenterCard />
       case 'openclaw':
         return <OpenClawCard openclaw={findOpenClaw(dash.tools)} />
       case 'docker':

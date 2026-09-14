@@ -269,11 +269,13 @@ function toolCall(script: string, id: string): string {
  */
 function shSyntaxCheck(script: string): { ran: boolean; ok: boolean; message: string } {
   const candidates: ReadonlyArray<[string, string[]]> = [
-    ['sh', ['-n', '-c', script]],
-    ['wsl.exe', ['--exec', '/bin/sh', '-n', '-c', script]]
+    // Feed the program over stdin: Windows sh launchers often inherit cmd's
+    // 8191-character argv ceiling, below wsl.exe's real 32767-character cap.
+    ['sh', ['-n']],
+    ['wsl.exe', ['--exec', '/bin/sh', '-n']]
   ]
   for (const [file, args] of candidates) {
-    const res = spawnSync(file, args, { timeout: 20000, windowsHide: true })
+    const res = spawnSync(file, args, { input: script, timeout: 20000, windowsHide: true })
     if (res.error) continue
     // wsl.exe speaks UTF-16LE; dropping NULs decodes both it and sh's UTF-8.
     const message = `${res.stdout?.toString('utf8') ?? ''}${res.stderr?.toString('utf8') ?? ''}`
@@ -410,6 +412,18 @@ describe('buildToolsScript', () => {
     expect(toolCall(script, 'java')).toContain(`'-version'`)
     expect(toolCall(script, 'dotnet')).toContain(`'--version'`)
     expect(toolCall(script, 'psql')).toContain(`'--version'`)
+  })
+
+  it('covers the issue 88 additions with bounded, non-downloading probes', () => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    expect(toolCall(script, 'asdf')).toContain('$HOME/.asdf/bin/asdf')
+    expect(toolCall(script, 'fnm')).toContain('$HOME/.local/share/fnm/fnm')
+    expect(toolCall(script, 'minikube')).toContain(`'version --short'`)
+    expect(toolCall(script, 'nerdctl')).toContain(`'--version'`)
+    expect(toolCall(script, 'nginx')).toContain(`'-v'`)
+    expect(script).not.toContain('bazelisk')
+    expect(TOOL_SPECS.length).toBeGreaterThanOrEqual(100)
+    expect(TOOL_SPECS.length).toBeLessThanOrEqual(130)
   })
 
   it('bounds every version command with timeout when the distro has one', () => {

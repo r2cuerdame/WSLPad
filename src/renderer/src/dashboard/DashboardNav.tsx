@@ -11,6 +11,8 @@ import {
   HistoryIcon,
   ListIcon,
   PackageIcon,
+  SearchIcon,
+  BoltIcon,
   PlugIcon,
   ServerIcon,
   SlidersIcon,
@@ -29,6 +31,8 @@ export type DashboardSectionId =
   | 'paths'
   | 'configuration'
   | 'tools'
+  | 'discover'
+  | 'update-center'
   | 'docker'
   | 'hermes'
   | 'openclaw'
@@ -57,6 +61,8 @@ export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   { id: 'paths', titleKey: 'dashboard.paths.title', Icon: FolderIcon },
   { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },
+  { id: 'discover', titleKey: 'dashboard.discover.title', Icon: SearchIcon },
+  { id: 'update-center', titleKey: 'dashboard.updateCenter.title', Icon: BoltIcon },
   { id: 'docker', titleKey: 'dashboard.docker.title', Icon: DockerMark },
   { id: 'hermes', titleKey: 'dashboard.hermes.title', Icon: HermesMark },
   { id: 'openclaw', titleKey: 'dashboard.openclaw.title', Icon: OpenClawMark },

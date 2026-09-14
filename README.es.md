@@ -213,7 +213,7 @@ parte.
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: dónde
 está cada uno y si existe, si se puede leer y si se puede escribir.
 
-**Herramientas instaladas** — 87 herramientas en 11 categorías (CLI de IA,
+**Herramientas instaladas** — 111 herramientas en 11 categorías (CLI de IA,
 entornos de ejecución, gestores de paquetes, control de versiones,
 contenedores, nube, compilación, bases de datos, editores y shells, multimedia,
 utilidades), cada una con su estado de instalación, la ruta resuelta, la

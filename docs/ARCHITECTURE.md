@@ -14,6 +14,7 @@ talks through a typed, allowlisted IPC bridge.
 │        ├─ WslProvider     (collectors over the Hidden Runner)             │
 │        ├─ ExplorerBackend (Linux file ops over the Hidden Runner)         │
 │        ├─ WindowsFs       (Windows file ops over node fs — left pane)     │
+│        ├─ PackageDiscovery (on-demand apt/npm/cargo/brew/snap/winget)     │
 │        └─ ConsoleFactory  (node-pty → wsl.exe interactive shells)         │
 │        │                                                                  │
 │  SnapshotStore ── single JSON-serializable WslPadSnapshot                 │
@@ -32,7 +33,7 @@ talks through a typed, allowlisted IPC bridge.
          │ contextIsolation preload (window.wslpad, explicit channel list)
 ┌────────────────────────────── renderer (React) ───────────────────────────┐
 │  TopBar (distro switch · MCP badge · refresh · pause · settings gear)     │
-│  Tab 1 Dashboard — master/detail: 17-section list | selected section      │
+│  Tab 1 Dashboard — master/detail: 19-section list | selected section      │
 │  Tab 2 Explorer  — dual pane:  Windows files | WSL files (+ splitter)     │
 │  Tab 3 Relocation — guarded VHDX export/import migration wizard           │
 │  ConsolePanel (xterm.js, always visible, resizable/collapsible)           │
@@ -41,8 +42,9 @@ talks through a typed, allowlisted IPC bridge.
 ```
 
 ### Dashboard: master–detail
-The 17 sections (overview, resources, disk, WSL settings, network,
-diagnostics, paths, configuration, tools, Docker, Hermes, OpenClaw,
+The 19 sections (overview, resources, disk, WSL settings, network,
+diagnostics, paths, configuration, installed tools, Discover, Update Center,
+Docker, Hermes, OpenClaw,
 environment, processes, services, ports and warnings) are listed on the left;
 the right side renders only the selected one, so wide tables
 (processes, environment) get the whole window instead of a card cell. The list
@@ -86,6 +88,12 @@ keeps at most 100 incidents in memory for the current app session, and runs
 network probes only after an explicit renderer request. Its export combines the
 already secret-masked snapshot with the incident list and latest check after a
 privacy preview; diagnostics are not exposed through MCP.
+
+Package discovery and package update checks use the same boundary: they run
+only after an explicit renderer request, with one bounded subprocess per
+detected provider. Results and failures are normalized independently and are
+not added to polling, snapshot exports, or MCP. Install and update actions only
+prepare a quoted command in the Console input; they never submit it.
 
 ### Read-only by construction
 - Dashboard buttons only *prepare* commands into the Console input; nothing is

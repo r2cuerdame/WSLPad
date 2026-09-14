@@ -192,7 +192,7 @@ sem permissão de execução, e nenhum erro é impresso em lugar nenhum.
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: onde
 cada um está e se ele existe, é legível e é gravável.
 
-**Ferramentas instaladas** — 87 ferramentas em 11 categorias (CLIs de IA,
+**Ferramentas instaladas** — 111 ferramentas em 11 categorias (CLIs de IA,
 runtimes, gerenciadores de pacotes, controle de versão, contêineres, nuvem,
 build, bancos de dados, editores e shells, mídia, utilitários), cada uma com
 estado de instalação, caminho resolvido, versão, método de instalação, caminhos
