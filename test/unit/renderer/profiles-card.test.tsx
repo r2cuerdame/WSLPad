@@ -260,4 +260,25 @@ describe('ProfilesCard (issue #90)', () => {
     expect(chip.textContent).toContain('Saved')
     expect(chip.textContent).toContain('1/2')
   })
+
+  it('disables custom-profile creation at the persisted schema limit', async () => {
+    api = makeApi(
+      parseSettings({
+        profiles: {
+          custom: Array.from({ length: 20 }, (_, index) => ({
+            id: `custom-${index}`,
+            name: `Profile ${index}`,
+            toolIds: ['git']
+          }))
+        }
+      })
+    )
+    ;(window as unknown as { wslpad: WslPadApi }).wslpad = api as unknown as WslPadApi
+    await renderCard(TOOLS)
+    const button = screen.getByTestId('profiles-new-custom')
+    expect(button.hasAttribute('disabled')).toBe(true)
+    fireEvent.click(button)
+    expect(screen.queryByTestId('profile-custom-form')).toBeNull()
+    expect(api.settings.set).not.toHaveBeenCalled()
+  })
 })

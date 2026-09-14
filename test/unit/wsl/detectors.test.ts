@@ -826,13 +826,16 @@ describe('detectTools', () => {
     expect(tools.find((t) => t.id === 'go')?.services).toEqual([])
   })
 
-  it('defaults tools missing from truncated output to not installed', async () => {
+  it('marks tools missing from truncated output as incomplete, not confirmed absent', async () => {
     const partial = 'TOOL:git\nPATH:/usr/bin/git\nVER:git version 2.43.0\nPROC:0\n'
     const runner = new FakeRunner(toolsResponder(partial))
     const tools = await detectTools(runner, 'Ubuntu-24.04')
     expect(tools).toHaveLength(TOOL_SCRIPT_SPECS.length)
-    expect(tools.find((t) => t.id === 'git')?.installed).toBe(true)
-    expect(tools.find((t) => t.id === 'docker')?.installed).toBe(false)
+    expect(tools.find((t) => t.id === 'git')).toMatchObject({ installed: true, probeComplete: true })
+    expect(tools.find((t) => t.id === 'docker')).toMatchObject({
+      installed: false,
+      probeComplete: false
+    })
   })
 
   it('returns empty services when the services call fails', async () => {

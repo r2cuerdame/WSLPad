@@ -742,6 +742,7 @@ function buildToolInfo(
   return {
     id: spec.id,
     displayName: spec.displayName,
+    probeComplete: section !== undefined,
     installed,
     executablePath,
     version,

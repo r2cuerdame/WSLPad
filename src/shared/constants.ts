@@ -64,6 +64,9 @@ export const CLOCK_SKEW_WARN_SECONDS = 10
 
 export const CONSOLE_FONT_SIZE_BOUNDS = { min: 8, max: 32 } as const
 export const CONSOLE_SCROLLBACK_BOUNDS = { min: 200, max: 100000 } as const
+/** Bounded settings payloads for lightweight Developer Profiles (issue #90). */
+export const CUSTOM_PROFILE_LIMIT = 20
+export const CUSTOM_PROFILE_TOOL_LIMIT = 60
 export const CONSOLE_DEFAULTS = {
   fontSize: 14,
   fontFamily: 'Cascadia Mono, Consolas, monospace',

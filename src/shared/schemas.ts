@@ -3,6 +3,8 @@ import {
   CONSOLE_DEFAULTS,
   CONSOLE_FONT_SIZE_BOUNDS,
   CONSOLE_SCROLLBACK_BOUNDS,
+  CUSTOM_PROFILE_LIMIT,
+  CUSTOM_PROFILE_TOOL_LIMIT,
   MCP_DEFAULT_PORT,
   MCP_PORT_BOUNDS,
   POLL_BOUNDS,
@@ -25,8 +27,6 @@ const clamped = (min: number, max: number, dflt: number) =>
     .catch(dflt)
     .transform((v) => Math.min(max, Math.max(min, v)))
 
-const CUSTOM_PROFILE_LIMIT = 20
-const CUSTOM_PROFILE_TOOL_LIMIT = 60
 const CATALOG_TOOL_IDS = new Set(TOOL_SPECS.map((spec) => spec.id))
 
 /**

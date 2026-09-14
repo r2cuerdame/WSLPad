@@ -218,6 +218,18 @@ describe('evaluateProfile', () => {
     expect(result.missing).toBe(0)
   })
 
+  it('keeps unobserved rows from an incomplete batched probe unknown and non-actionable', () => {
+    const tools = snapshotTools({ apt: '2.7', node: '22.1.0' })
+    const docker = tools.find((item) => item.id === 'docker')!
+    docker.probeComplete = false
+    const result = evaluateProfile(WEB, tools)
+    const status = result.tools.find((item) => item.needId === 'docker')!
+    expect(status).toMatchObject({ state: 'unknown', resolution: null })
+    expect(result.missing).toBe(6)
+    expect(result.unknown).toBe(1)
+    expect(result.prepareAllCommand).not.toContain('docker.io')
+  })
+
   it('prefers the first candidate provider the snapshot detected', () => {
     const providers = detectedProviders(snapshotTools({ cargo: '1.80.0', brew: '4.3.0' }))
     expect([...providers].sort()).toEqual(['brew', 'cargo'])

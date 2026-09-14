@@ -390,6 +390,8 @@ export type ToolId =
 export interface ToolInfo {
   id: ToolId | string
   displayName: string
+  /** False when the batched detector ended before this tool's probe started. */
+  probeComplete?: boolean
   installed: boolean
   executablePath: string | null
   version: string | null

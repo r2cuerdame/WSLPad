@@ -267,9 +267,12 @@ export function evaluateProfile(
   const statuses: ProfileToolStatus[] = profile.needs.map((need) => {
     const known = need.toolIds.map((id) => byId.get(id)).filter((tool) => tool !== undefined)
     const satisfied = known.find((tool) => tool.installed)
-    // A need none of the snapshot rows describe is unknown, never missing: the
-    // catalog detection may have failed for this distro entirely.
-    const state = satisfied ? 'installed' : known.length === 0 ? 'unknown' : 'missing'
+    // A need is only missing when every alternative was actually probed. The
+    // detector still emits catalog-shaped rows after a timeout, marked with
+    // probeComplete=false, so those rows must remain unknown and non-actionable.
+    const fullyObserved =
+      known.length === need.toolIds.length && known.every((tool) => tool.probeComplete !== false)
+    const state = satisfied ? 'installed' : fullyObserved ? 'missing' : 'unknown'
     return {
       needId: need.id,
       toolIds: [...need.toolIds],

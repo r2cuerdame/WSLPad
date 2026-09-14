@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { TOOL_CATEGORIES, TOOL_SPECS } from '@shared/constants'
+import { CUSTOM_PROFILE_LIMIT, TOOL_CATEGORIES, TOOL_SPECS } from '@shared/constants'
 import { allProfiles, evaluateProfile } from '@shared/profiles'
 import type {
   CustomProfileSetting,
@@ -45,6 +45,7 @@ export default function ProfilesCard({ tools, onDiscover }: ProfilesCardProps): 
   const profiles = useMemo(() => allProfiles(custom), [custom])
   const [selectedId, setSelectedId] = useState(profiles[0]?.id ?? 'web')
   const [editing, setEditing] = useState(false)
+  const customLimitReached = custom.length >= CUSTOM_PROFILE_LIMIT
 
   const evaluations = useMemo(
     () => new Map(profiles.map((profile) => [profile.id, evaluateProfile(profile, tools)])),
@@ -89,6 +90,7 @@ export default function ProfilesCard({ tools, onDiscover }: ProfilesCardProps): 
         type="button"
         className="btn"
         aria-expanded={editing}
+        disabled={!editing && customLimitReached}
         onClick={() => setEditing((value) => !value)}
         data-testid="profiles-new-custom"
       >
@@ -130,6 +132,9 @@ export default function ProfilesCard({ tools, onDiscover }: ProfilesCardProps): 
         <CustomProfileForm
           onCancel={() => setEditing(false)}
           onSave={async (setting) => {
+            // Settings validation remains the final boundary, but do not close
+            // the form or select an id that cannot be persisted at the limit.
+            if (custom.length >= CUSTOM_PROFILE_LIMIT) return
             await saveCustom([...custom, setting])
             setEditing(false)
             setSelectedId(setting.id)
