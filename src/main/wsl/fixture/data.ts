@@ -825,6 +825,7 @@ export function fixtureEnvRaw(distro: FixtureDistroName): Record<string, string>
   if (distro !== FIXTURE_UBUNTU) return {}
   return {
     PATH: FIXTURE_PATH_VALUE,
+    PWD: '/home/dev/projects/wslpad',
     HOME: FIXTURE_HOME,
     USER: FIXTURE_USER,
     SHELL: '/bin/bash',

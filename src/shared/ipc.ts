@@ -2,6 +2,7 @@ import type {
   ConsoleStatus,
   DirSizeResult,
   DistroSummary,
+  DoctorReport,
   FileEntry,
   FileOpProgress,
   FileStat,
@@ -49,6 +50,7 @@ export const IpcChannels = {
   diagnosticsExport: 'wslpad:diagnostics:export',
   packageDiscover: 'wslpad:packages:discover',
   packageUpdates: 'wslpad:packages:updates',
+  doctorRun: 'wslpad:doctor:run',
 
   // explorer
   explorerList: 'wslpad:explorer:list',
@@ -187,6 +189,11 @@ export interface WslPadApi {
   tools: {
     search(query: string): Promise<PackageDiscoverResult>
     checkUpdates(): Promise<PackageUpdateCenterResult>
+  }
+
+  /** Environment Doctor: derive verdicts from the existing snapshot (issue #89). */
+  doctor: {
+    run(): Promise<DoctorReport>
   }
 
   explorer: {

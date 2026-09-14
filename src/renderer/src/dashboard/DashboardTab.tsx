@@ -15,6 +15,7 @@ import DiskCard from './DiskCard'
 import WslSettingsCard, { settingNeedsAttention } from './WslSettingsCard'
 import NetworkCard, { networkNeedsAttention } from './NetworkCard'
 import DiagnosticsCard from './DiagnosticsCard'
+import DoctorCard from './DoctorCard'
 import PathsCard from './PathsCard'
 import ConfigCard from './ConfigCard'
 import ToolsCard, { effectiveAppendWindowsPath } from './ToolsCard'
@@ -225,6 +226,8 @@ export default function DashboardTab(): React.JSX.Element {
         )
       case 'diagnostics':
         return <DiagnosticsCard />
+      case 'doctor':
+        return <DoctorCard />
       case 'paths':
         return <PathsCard paths={dash.paths} mounts={dash.driveMounts} />
       case 'configuration':

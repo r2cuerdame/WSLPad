@@ -28,6 +28,7 @@ import { buildMcpConfigJson, registerClient, testMcpConnection } from '../mcp/re
 import type { AppUpdater } from '../updater'
 import { resourcePath } from '../resources'
 import type { DiagnosticsService } from '../state/diagnostics'
+import { runDoctor } from '@shared/doctor'
 import { diagnosticBundleToJson } from '../state/diagnostic-bundle'
 import type { PackageDiscoveryService } from '../tools/service'
 
@@ -168,6 +169,13 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   handle(IpcChannels.packageUpdates, () =>
     deps.packageDiscovery.updates(selectedDistroOf(deps))
   )
+
+  // --- Environment Doctor (issue #89) ------------------------------------
+  handle(IpcChannels.doctorRun, () => {
+    const snap = deps.store.get()
+    if (!snap?.dashboard) throw new Error('No dashboard snapshot available')
+    return runDoctor(snap.dashboard)
+  })
 
   // --- LLM export (goal.md §12) ------------------------------------------
   handle(IpcChannels.llmCopyMarkdown, (preset) => {

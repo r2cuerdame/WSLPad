@@ -1011,6 +1011,48 @@ export interface ZoneIdentifierInfo {
   error: string | null
 }
 
+// ---------------------------------------------------------------------------
+// Environment Doctor (issue #89)
+// ---------------------------------------------------------------------------
+
+/**
+ * Explicit verdict for one doctor check. 'unknown' is a first-class outcome:
+ * a check that cannot observe its subject must say so rather than guessing.
+ */
+export type DoctorVerdict = 'healthy' | 'warning' | 'error' | 'unknown'
+
+/**
+ * One doctor check result. Every verdict carries evidence — a short English
+ * sentence stating what was observed, never what was assumed. When a safe
+ * remediation exists, `command` is the prepared shell text (never executed
+ * automatically — the Console pattern applies, goal.md §2.2, §8.5).
+ */
+export interface DoctorCheckResult {
+  /** Stable machine-readable identifier, e.g. 'project-path', 'clock-skew'. */
+  id: string
+  /** Human-readable title, e.g. "Project path filesystem". */
+  title: string
+  verdict: DoctorVerdict
+  /** What was observed — always populated, never empty. */
+  evidence: string
+  /** Remediation command, prepared-only; null when none is safe or applicable. */
+  command: string | null
+}
+
+/**
+ * The complete Environment Doctor report (issue #89). Produced from the latest
+ * DashboardSnapshot using existing collectors — no new probes are executed.
+ * Every check is independent: one collector's failure leaves its own verdict
+ * 'unknown' and never contaminates another check.
+ */
+export interface DoctorReport {
+  /** ISO 8601 timestamp of when the report was generated. */
+  generatedAt: string
+  checks: DoctorCheckResult[]
+  /** Masked Markdown summary suitable for sharing with an LLM. */
+  maskedMarkdown: string
+}
+
 export interface DashboardSnapshot {
   distro: DistroDetails
   system: SystemInfo

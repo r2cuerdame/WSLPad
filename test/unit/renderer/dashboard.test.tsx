@@ -23,6 +23,7 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['wslconfig', 'WSL settings'],
   ['network', 'Network'],
   ['diagnostics', 'Diagnostics'],
+  ['doctor', 'Environment Doctor'],
   ['paths', 'Important paths'],
   ['configuration', 'Configuration files'],
   ['tools', 'Installed tools'],
@@ -366,6 +367,21 @@ function makeApi(snapshot: WslPadSnapshot) {
           }
         ],
         checkedAt: '2026-09-14T00:00:00.000Z'
+      }))
+    },
+    doctor: {
+      run: vi.fn(async () => ({
+        generatedAt: '2026-07-30T12:00:00.000Z',
+        checks: [
+          {
+            id: 'project-path',
+            title: 'Project path filesystem',
+            verdict: 'healthy' as const,
+            evidence: 'Home directory /home/dev is on native ext4.',
+            command: null
+          }
+        ],
+        maskedMarkdown: '# Doctor Report'
       }))
     },
     convertPath: vi.fn(async () => ''),

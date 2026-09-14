@@ -2,6 +2,7 @@ import { useCallback, useId, useRef, type KeyboardEvent, type ReactNode } from '
 import { useTranslation } from 'react-i18next'
 import {
   ActivityIcon,
+  CheckIcon,
   ExternalIcon,
   FileIcon,
   FolderIcon,
@@ -28,6 +29,7 @@ export type DashboardSectionId =
   | 'wslconfig'
   | 'network'
   | 'diagnostics'
+  | 'doctor'
   | 'paths'
   | 'configuration'
   | 'tools'
@@ -58,6 +60,7 @@ export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   // section already owns, so the two are never confused in the list.
   { id: 'network', titleKey: 'dashboard.network.title', Icon: ExternalIcon },
   { id: 'diagnostics', titleKey: 'diagnostics.title', Icon: HistoryIcon },
+  { id: 'doctor', titleKey: 'doctor.title', Icon: CheckIcon },
   { id: 'paths', titleKey: 'dashboard.paths.title', Icon: FolderIcon },
   { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },
