@@ -1008,6 +1008,22 @@
     "pathConversionFailed": "このパスは変換できません",
     "consoleHint": "コンソールで次のコマンドを使用できます:"
   },
+  "doctor": {
+    "title": "Environment Doctor",
+    "intro": "Analyzes the current snapshot and produces explicit healthy, warning, error, or unknown verdicts for common WSL environment issues. No new probes are executed — verdicts are derived from data already collected. Commands are prepared for review only, never executed automatically.",
+    "empty": "Run the doctor to check your environment.",
+    "run": "Run Doctor",
+    "running": "Running…",
+    "complete": "Doctor complete — {{errors}} error(s), {{warnings}} warning(s)",
+    "copyReport": "Copy for LLM",
+    "reportCopied": "Doctor report copied for LLM",
+    "verdict": {
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "error": "Error",
+      "unknown": "Unknown"
+    }
+  },
   "diagnostics": {
     "title": "診断",
     "intro": "このセッションで重要な WSL の変化を記録します。ネットワーク検査は要求したときだけ実行され、バックグラウンド監視には含まれません。",

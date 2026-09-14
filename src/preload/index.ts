@@ -42,6 +42,10 @@ const api: WslPadApi = {
     checkUpdates: () => ipcRenderer.invoke(IpcChannels.packageUpdates)
   },
 
+  doctor: {
+    run: () => ipcRenderer.invoke(IpcChannels.doctorRun)
+  },
+
   explorer: {
     list: (path, opts) => ipcRenderer.invoke(IpcChannels.explorerList, path, opts),
     tree: (path) => ipcRenderer.invoke(IpcChannels.explorerTree, path),

@@ -1478,3 +1478,62 @@
   border-radius: var(--r-sm);
   background: var(--surface-sunken, rgb(127 127 127 / 6%));
 }
+
+/* --- Environment Doctor (issue #89) --- */
+
+.doctor-summary {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.doctor-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.doctor-check {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+}
+
+.doctor-check-healthy { border-left: 3px solid var(--green, #22c55e); }
+.doctor-check-warning { border-left: 3px solid var(--yellow, #eab308); }
+.doctor-check-error { border-left: 3px solid var(--red, #ef4444); }
+.doctor-check-unknown { border-left: 3px solid var(--dim, #888); }
+
+.doctor-check-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doctor-check-title {
+  font-weight: 600;
+  flex: 1;
+}
+
+.doctor-check-evidence {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.doctor-check-command {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doctor-check-command code {
+  flex: 1;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: var(--surface-sunken, rgb(127 127 127 / 6%));
+  border-radius: var(--r-sm);
+}

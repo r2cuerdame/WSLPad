@@ -1008,6 +1008,22 @@
     "pathConversionFailed": "Dieser Pfad kann nicht konvertiert werden",
     "consoleHint": "Sie können den folgenden Befehl in der Konsole ausführen:"
   },
+  "doctor": {
+    "title": "Environment Doctor",
+    "intro": "Analyzes the current snapshot and produces explicit healthy, warning, error, or unknown verdicts for common WSL environment issues. No new probes are executed — verdicts are derived from data already collected. Commands are prepared for review only, never executed automatically.",
+    "empty": "Run the doctor to check your environment.",
+    "run": "Run Doctor",
+    "running": "Running…",
+    "complete": "Doctor complete — {{errors}} error(s), {{warnings}} warning(s)",
+    "copyReport": "Copy for LLM",
+    "reportCopied": "Doctor report copied for LLM",
+    "verdict": {
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "error": "Error",
+      "unknown": "Unknown"
+    }
+  },
   "diagnostics": {
     "title": "Diagnose",
     "intro": "Diese sitzungsbezogene Zeitleiste zeichnet wichtige WSL-Änderungen auf. Netzwerkprüfungen laufen nur auf Anforderung und nie als Teil der Hintergrundabfrage.",

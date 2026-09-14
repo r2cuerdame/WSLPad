@@ -1008,6 +1008,22 @@
     "pathConversionFailed": "Ce chemin ne peut pas être converti",
     "consoleHint": "Vous pouvez exécuter la commande suivante dans la console :"
   },
+  "doctor": {
+    "title": "Environment Doctor",
+    "intro": "Analyzes the current snapshot and produces explicit healthy, warning, error, or unknown verdicts for common WSL environment issues. No new probes are executed — verdicts are derived from data already collected. Commands are prepared for review only, never executed automatically.",
+    "empty": "Run the doctor to check your environment.",
+    "run": "Run Doctor",
+    "running": "Running…",
+    "complete": "Doctor complete — {{errors}} error(s), {{warnings}} warning(s)",
+    "copyReport": "Copy for LLM",
+    "reportCopied": "Doctor report copied for LLM",
+    "verdict": {
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "error": "Error",
+      "unknown": "Unknown"
+    }
+  },
   "diagnostics": {
     "title": "Diagnostic",
     "intro": "Cette chronologie de session enregistre les changements WSL importants. Les tests réseau ne s’exécutent qu’à votre demande et ne font jamais partie de la surveillance en arrière-plan.",

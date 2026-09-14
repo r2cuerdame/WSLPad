@@ -1008,6 +1008,22 @@
     "pathConversionFailed": "此路径无法转换",
     "consoleHint": "可在控制台中使用以下命令："
   },
+  "doctor": {
+    "title": "Environment Doctor",
+    "intro": "Analyzes the current snapshot and produces explicit healthy, warning, error, or unknown verdicts for common WSL environment issues. No new probes are executed — verdicts are derived from data already collected. Commands are prepared for review only, never executed automatically.",
+    "empty": "Run the doctor to check your environment.",
+    "run": "Run Doctor",
+    "running": "Running…",
+    "complete": "Doctor complete — {{errors}} error(s), {{warnings}} warning(s)",
+    "copyReport": "Copy for LLM",
+    "reportCopied": "Doctor report copied for LLM",
+    "verdict": {
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "error": "Error",
+      "unknown": "Unknown"
+    }
+  },
   "diagnostics": {
     "title": "诊断",
     "intro": "记录本次会话中重要的 WSL 变化。网络检查仅在您请求时运行，不属于后台轮询。",
