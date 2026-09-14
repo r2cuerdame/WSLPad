@@ -30,12 +30,16 @@ async function loadState(path: string): Promise<TelemetryState> {
   }
   return { installId: randomUUID() }
 }
+
 async function saveState(path: string, state: TelemetryState): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
   await writeFile(path, JSON.stringify(state), 'utf8')
 }
 
 export async function sendPurplePulseHeartbeat(): Promise<void> {
+  // Development/QA runs must not contaminate production telemetry.
+  if (!app.isPackaged) return
+
   try {
     const statePath = join(app.getPath('userData'), 'purplepulse.json')
     const state = await loadState(statePath)
@@ -58,7 +62,8 @@ export async function sendPurplePulseHeartbeat(): Promise<void> {
           project_id: PROJECT_ID,
           install_id: state.installId,
           version: app.getVersion(),
-          os: process.platform
+          os: process.platform === 'win32' ? 'windows' : process.platform,
+          platform: 'electron'
         }),
         signal: controller.signal
       })
