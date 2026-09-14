@@ -1098,7 +1098,8 @@
         "make": "Pilote les scripts de compilation de nombreux paquets et les Makefiles de projets."
       },
       "rust": {
-        "rust": "rustup installe et met à jour rustc et garde stable et nightly côte à côte.",
+        "rustup": "Installe, met à jour et sélectionne les toolchains Rust tout en gardant stable et nightly côte à côte.",
+        "rust": "Compile le code source Rust en binaires et bibliothèques.",
         "cargo": "Compile, teste et installe les crates ; arrive avec rustup.",
         "clang": "Compilateur et éditeur de liens C dont plusieurs crates et bindgen ont besoin pour le code natif.",
         "pkgConfig": "Permet aux scripts de compilation de trouver les bibliothèques système comme OpenSSL."

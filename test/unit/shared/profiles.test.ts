@@ -105,7 +105,7 @@ describe('Developer Profiles data (issue #90)', () => {
       expect.arrayContaining(['python', 'uv', 'pipx', 'poetry', 'gcc', 'make'])
     )
     expect(toolsOf('rust')).toEqual(
-      expect.arrayContaining(['rust', 'cargo', 'clang', 'pkg-config'])
+      expect.arrayContaining(['rustup', 'rust', 'cargo', 'clang', 'pkg-config'])
     )
     expect(toolsOf('ai')).toEqual(
       expect.arrayContaining(['codex', 'claude', 'gemini', 'ollama', 'playwright', 'node'])

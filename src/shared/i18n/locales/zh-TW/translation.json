@@ -1098,7 +1098,8 @@
         "make": "驅動許多套件的建置指令碼與專案 Makefile。"
       },
       "rust": {
-        "rust": "rustup 安裝並更新 rustc，並讓 stable 與 nightly 並存。",
+        "rustup": "安裝、更新並選擇 Rust 工具鏈，同時讓 stable 與 nightly 並存。",
+        "rust": "將 Rust 原始碼編譯為二進位檔與程式庫。",
         "cargo": "建置、測試與安裝 crate；隨 rustup 一起提供。",
         "clang": "多個 crate 與 bindgen 處理原生程式碼所需的 C 編譯器與連結器。",
         "pkgConfig": "讓建置指令碼找到 OpenSSL 等系統程式庫。"

@@ -1098,7 +1098,8 @@
         "make": "많은 패키지의 빌드 스크립트와 프로젝트 Makefile을 구동합니다."
       },
       "rust": {
-        "rust": "rustup이 rustc를 설치·업데이트하고 stable과 nightly를 나란히 유지합니다.",
+        "rustup": "Rust 툴체인을 설치·업데이트·선택하고 stable과 nightly를 나란히 유지합니다.",
+        "rust": "Rust 소스 코드를 바이너리와 라이브러리로 컴파일합니다.",
         "cargo": "크레이트를 빌드, 테스트, 설치합니다. rustup과 함께 제공됩니다.",
         "clang": "여러 크레이트와 bindgen이 네이티브 코드에 필요로 하는 C 컴파일러와 링커입니다.",
         "pkgConfig": "빌드 스크립트가 OpenSSL 같은 시스템 라이브러리를 찾게 합니다."

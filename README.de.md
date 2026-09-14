@@ -197,7 +197,7 @@ Skripte bleiben nicht ausführbar, und nirgends erscheint ein Fehler.
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: wo
 jede Datei liegt und ob sie existiert, lesbar und beschreibbar ist.
 
-**Installierte Tools** — 111 Tools in 11 Kategorien (KI-CLIs,
+**Installierte Tools** — 112 Tools in 11 Kategorien (KI-CLIs,
 Laufzeitumgebungen, Paketmanager, Versionsverwaltung, Container, Cloud,
 Build-Tools, Datenbanken, Editoren und Shells, Medien, Dienstprogramme),
 jeweils mit Installationsstatus, aufgelöstem Pfad, Version, Installationsart,

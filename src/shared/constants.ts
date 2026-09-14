@@ -146,6 +146,7 @@ export const TOOL_SPECS: ReadonlyArray<ToolSpec> = [
   { id: 'ruby', displayName: 'Ruby', category: 'runtime' },
   { id: 'go', displayName: 'Go', category: 'runtime' },
   { id: 'rust', displayName: 'Rust', category: 'runtime' },
+  { id: 'rustup', displayName: 'rustup', category: 'runtime' },
   { id: 'java', displayName: 'Java', category: 'runtime' },
   { id: 'dotnet', displayName: '.NET', category: 'runtime' },
   { id: 'php', displayName: 'PHP', category: 'runtime' },

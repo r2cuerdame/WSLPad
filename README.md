@@ -200,7 +200,7 @@ non-executable and no error is printed anywhere.
 `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: where
 each one is and whether it exists, is readable and is writable.
 
-**Installed tools** — 111 tools in 11 categories (AI CLIs, runtimes, package
+**Installed tools** — 112 tools in 11 categories (AI CLIs, runtimes, package
 managers, version control, containers, cloud, build tools, databases, editors &
 shells, media, utilities), each with its install status, resolved path, version,
 install method, config paths, running process count, which side of the

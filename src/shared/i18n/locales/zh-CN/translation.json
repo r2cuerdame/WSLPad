@@ -1098,7 +1098,8 @@
         "make": "驱动许多包的构建脚本和项目 Makefile。"
       },
       "rust": {
-        "rust": "rustup 安装并更新 rustc，并让 stable 与 nightly 并存。",
+        "rustup": "安装、更新并选择 Rust 工具链，同时让 stable 与 nightly 并存。",
+        "rust": "将 Rust 源代码编译为二进制文件和库。",
         "cargo": "构建、测试和安装 crate；随 rustup 一起提供。",
         "clang": "多个 crate 和 bindgen 处理原生代码所需的 C 编译器和链接器。",
         "pkgConfig": "让构建脚本找到 OpenSSL 等系统库。"

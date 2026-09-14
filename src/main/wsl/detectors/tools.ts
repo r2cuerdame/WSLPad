@@ -146,6 +146,12 @@ const SCRIPT_CONFIG: Record<string, ToolConfigInit> = {
     exact: true,
     cfg: ['~/.rustup', '~/.cargo']
   },
+  rustup: {
+    bin: 'rustup',
+    version: '--version',
+    cfg: ['~/.rustup'],
+    signals: ['.rustup']
+  },
   // java prints its version banner on STDERR — the probe merges 2>&1.
   java: { bin: 'java', version: '-version', proc: 'java', exact: true, cfg: [] },
   dotnet: {

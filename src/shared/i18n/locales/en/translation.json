@@ -1098,7 +1098,8 @@
         "make": "Drives the build scripts of many packages and project Makefiles."
       },
       "rust": {
-        "rust": "rustup installs and updates rustc and keeps stable and nightly side by side.",
+        "rustup": "Installs, updates and selects Rust toolchains while keeping stable and nightly side by side.",
+        "rust": "Compiles Rust source into binaries and libraries.",
         "cargo": "Builds, tests and installs crates; arrives with rustup.",
         "clang": "C compiler and linker that several crates and bindgen need for native code.",
         "pkgConfig": "Lets build scripts find system libraries such as OpenSSL."

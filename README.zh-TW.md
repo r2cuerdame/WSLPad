@@ -150,7 +150,7 @@ Windows 登錄檔的 `DefaultUid` 會悄悄壓過 `/etc/wsl.conf` 裡的
 `~/.profile`、`~/.zshrc`、`~/.config`、`/etc/environment`：每一個放在哪裡，以及
 它存不存在、能不能讀、能不能寫。
 
-**已安裝工具** —— 11 個類別、共 111 項工具（AI CLI、執行階段、套件管理員、版本
+**已安裝工具** —— 11 個類別、共 112 項工具（AI CLI、執行階段、套件管理員、版本
 控制、容器、雲端、建置工具、資料庫、編輯器與 Shell、媒體、公用程式），每一項都
 附上是否已安裝、解析出的路徑、版本、安裝方式（apt／snap／nvm／npm-global／pipx／
 uv／Windows interop／……）、設定路徑、執行中的處理程序數量、它落在檔案系統界線的

@@ -123,7 +123,7 @@ describe('ProfilesCard (issue #90)', () => {
     for (const [id, name, count] of [
       ['web', 'Web', '4/8'],
       ['python', 'Python', '0/6'],
-      ['rust', 'Rust', '0/4'],
+      ['rust', 'Rust', '0/5'],
       ['ai', 'AI', '3/8'],
       ['containers', 'Containers / Kubernetes', '0/5']
     ]) {

@@ -13,7 +13,7 @@ describe('documentation and contract drift checks', () => {
     expect(TOOL_CATEGORIES).toHaveLength(11)
     expect(TOOL_SPECS.length).toBeGreaterThanOrEqual(100)
     expect(TOOL_SPECS.length).toBeLessThanOrEqual(130)
-    expect(TOOL_SPECS).toHaveLength(111)
+    expect(TOOL_SPECS).toHaveLength(112)
 
     const categoriesInSpecs = new Set(TOOL_SPECS.map((s) => s.category))
     for (const cat of TOOL_CATEGORIES) {

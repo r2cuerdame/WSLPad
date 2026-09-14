@@ -84,6 +84,7 @@ export const TOOL_PACKAGE_CANDIDATES: Readonly<Record<string, readonly ProfilePa
     poetry: [apt('python3-poetry'), brew('poetry')],
     gcc: [apt('build-essential'), brew('gcc')],
     make: [apt('build-essential'), brew('make')],
+    rustup: [apt('rustup'), brew('rustup'), snap('rustup')],
     rust: [apt('rustup'), brew('rustup'), snap('rustup')],
     cargo: [apt('rustup'), brew('rustup'), snap('rustup')],
     clang: [apt('clang'), brew('llvm')],
@@ -139,6 +140,7 @@ export const DEVELOPER_PROFILES: readonly DeveloperProfile[] = [
     kind: 'builtin',
     name: null,
     needs: [
+      need('rustup', ['rustup'], 'rust.rustup'),
       need('rust', ['rust'], 'rust.rust'),
       need('cargo', ['cargo'], 'rust.cargo'),
       need('clang', ['clang'], 'rust.clang'),
