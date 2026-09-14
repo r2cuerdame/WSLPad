@@ -3,6 +3,7 @@ import { join } from 'path'
 import { readFileSync } from 'fs'
 import { parseSettings } from '@shared/schemas'
 import { WslPadApp } from './app'
+import { sendPurplePulseHeartbeat } from './telemetry'
 
 // Isolated userData for E2E runs (set before any path use).
 if (process.env.WSLPAD_USER_DATA) {
@@ -36,6 +37,7 @@ if (process.argv.includes('--mcp-stdio')) {
     })
 
     app.whenReady().then(() => {
+      void sendPurplePulseHeartbeat()
       void wslpad.start()
     })
 
