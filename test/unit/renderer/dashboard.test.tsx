@@ -26,6 +26,7 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['doctor', 'Environment Doctor'],
   ['paths', 'Important paths'],
   ['configuration', 'Configuration files'],
+  ['profiles', 'Developer Profiles'],
   ['tools', 'Installed tools'],
   ['discover', 'Discover'],
   ['update-center', 'Update Center'],

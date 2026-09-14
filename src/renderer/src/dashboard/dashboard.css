@@ -1537,3 +1537,75 @@
   background: var(--surface-sunken, rgb(127 127 127 / 6%));
   border-radius: var(--r-sm);
 }
+
+/* --- Developer Profiles (issue #90) --- */
+
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-row {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.profile-row.expanded {
+  border-color: var(--accent);
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.profile-header:hover {
+  background: var(--surface-hover, rgb(127 127 127 / 6%));
+}
+
+.profile-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.profile-desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.profile-counts {
+  flex-shrink: 0;
+}
+
+.profile-detail {
+  padding: 0 14px 14px;
+}
+
+.profile-tool-table {
+  font-size: 12px;
+}
+
+.profile-tool-missing td:first-child {
+  opacity: 0.7;
+}
+
+.profile-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}

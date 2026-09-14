@@ -32,7 +32,7 @@ describe('documentation and contract drift checks', () => {
     const sectionIds = [...sectionBlockMatch![1].matchAll(/id:\s*'([^']+)'/g)].map(
       (m) => m[1]
     )
-    expect(sectionIds).toHaveLength(20)
+    expect(sectionIds).toHaveLength(21)
   })
 
   it('MCP tool roster matches expected count (40 tools)', () => {
