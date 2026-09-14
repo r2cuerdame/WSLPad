@@ -1537,3 +1537,139 @@
   background: var(--surface-sunken, rgb(127 127 127 / 6%));
   border-radius: var(--r-sm);
 }
+
+/* --- Developer Profiles (issue #90) --- */
+
+/* Profiles are chips, not a second listbox: the master list already owns the
+   keyboard-navigated role, and five to a dozen chips wrap fine. */
+.profiles-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0 8px;
+}
+
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.profile-chip:hover {
+  background: var(--bg-hover);
+}
+
+.profile-chip.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.profile-chip-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-description {
+  margin: 0 0 4px;
+}
+
+.profile-summary {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.profile-summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-table .profile-reason {
+  white-space: normal;
+  min-width: 220px;
+}
+
+.profile-table .profile-resolution {
+  font-size: 12px;
+}
+
+.profile-table .profile-actions {
+  overflow: visible;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.profile-table .profile-actions .btn + .btn {
+  margin-left: 4px;
+}
+
+.profile-tool-name {
+  font-weight: 600;
+}
+
+.profile-custom-actions {
+  padding-top: 8px;
+}
+
+.profile-custom-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-card);
+}
+
+.profile-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profile-custom-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The whole catalog is on offer, so the picker scrolls instead of the card. */
+.profile-custom-picker {
+  max-height: 240px;
+  overflow: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-custom-group {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px 8px 6px;
+  margin: 0;
+  min-width: 160px;
+}
+
+.profile-custom-group legend {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 0 4px;
+}
+
+.profile-custom-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.7;
+}

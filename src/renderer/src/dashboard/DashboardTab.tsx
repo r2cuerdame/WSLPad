@@ -20,6 +20,7 @@ import PathsCard from './PathsCard'
 import ConfigCard from './ConfigCard'
 import ToolsCard, { effectiveAppendWindowsPath } from './ToolsCard'
 import DiscoverCard from './DiscoverCard'
+import ProfilesCard from './ProfilesCard'
 import UpdateCenterCard from './UpdateCenterCard'
 import HermesCard from './HermesCard'
 import DockerCard from './DockerCard'
@@ -54,15 +55,31 @@ export default function DashboardTab(): React.JSX.Element {
   // The title row hosts the active section's controls; a ref callback in state
   // so the first render after mount actually has the node to portal into.
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null)
+  // A Profiles row hands its missing tool to Discover: the query travels with
+  // the section switch, and Discover searches once it is on screen.
+  const [discoverRequest, setDiscoverRequest] = useState<{ id: number; query: string } | null>(
+    null
+  )
 
   const selectSection = useCallback((id: DashboardSectionId) => {
     setSection(id)
+    // Leaving Discover retires the hand-over, so coming back later never
+    // re-runs a provider query the user did not ask for again.
+    if (id !== 'discover') setDiscoverRequest(null)
     try {
       window.localStorage.setItem(STORAGE_KEY, id)
     } catch {
       // Persistence is best effort — selection still applies for this session.
     }
   }, [])
+
+  const discoverFromProfiles = useCallback(
+    (query: string) => {
+      setDiscoverRequest((current) => ({ id: (current?.id ?? 0) + 1, query }))
+      selectSection('discover')
+    },
+    [selectSection]
+  )
 
   // "Show process" on the Ports section targets the Processes section.
   useEffect(() => {
@@ -246,7 +263,9 @@ export default function DashboardTab(): React.JSX.Element {
           />
         )
       case 'discover':
-        return <DiscoverCard distro={dash.distro.name} />
+        return <DiscoverCard distro={dash.distro.name} request={discoverRequest} />
+      case 'profiles':
+        return <ProfilesCard tools={dash.tools} onDiscover={discoverFromProfiles} />
       case 'update-center':
         return <UpdateCenterCard />
       case 'openclaw':

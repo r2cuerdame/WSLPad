@@ -7,9 +7,10 @@ import {
   MCP_PORT_BOUNDS,
   POLL_BOUNDS,
   POLL_DEFAULTS,
-  SETTINGS_SCHEMA_VERSION
+  SETTINGS_SCHEMA_VERSION,
+  TOOL_SPECS
 } from './constants'
-import { SUPPORTED_LOCALES, type Settings } from './types'
+import { SUPPORTED_LOCALES, type CustomProfileSetting, type Settings } from './types'
 
 // ---------------------------------------------------------------------------
 // Settings schema (goal.md §5.4): validate, clamp, recover.
@@ -23,6 +24,44 @@ const clamped = (min: number, max: number, dflt: number) =>
     .int()
     .catch(dflt)
     .transform((v) => Math.min(max, Math.max(min, v)))
+
+const CUSTOM_PROFILE_LIMIT = 20
+const CUSTOM_PROFILE_TOOL_LIMIT = 60
+const CATALOG_TOOL_IDS = new Set(TOOL_SPECS.map((spec) => spec.id))
+
+/**
+ * A user-defined Developer Profile (issue #90): a name and catalog tool ids.
+ * Ids outside the catalog are dropped rather than kept as dead rows, and a
+ * profile that ends up empty or unnamed is dropped as a whole — a profile is a
+ * view over the catalog, never a place to type free-form package names.
+ */
+export const customProfileSchema = z.object({
+  id: z.string().regex(/^custom-[A-Za-z0-9_-]{1,64}$/),
+  name: z
+    .string()
+    .transform((value) => value.trim().slice(0, 60))
+    .refine((value) => value.length > 0),
+  toolIds: z
+    .array(z.string())
+    .transform((ids) => [...new Set(ids.filter((id) => CATALOG_TOOL_IDS.has(id)))])
+    .refine((ids) => ids.length > 0 && ids.length <= CUSTOM_PROFILE_TOOL_LIMIT)
+})
+
+/** Invalid entries are dropped one by one; a bad row never erases the others. */
+const customProfileListSchema = z
+  .array(z.unknown())
+  .catch([])
+  .transform((rows) => {
+    const seen = new Set<string>()
+    const out: CustomProfileSetting[] = []
+    for (const row of rows) {
+      const parsed = customProfileSchema.safeParse(row)
+      if (!parsed.success || seen.has(parsed.data.id)) continue
+      seen.add(parsed.data.id)
+      out.push(parsed.data)
+    }
+    return out.slice(0, CUSTOM_PROFILE_LIMIT)
+  })
 
 export const settingsSchema = z.object({
   schemaVersion: z.literal(SETTINGS_SCHEMA_VERSION).catch(SETTINGS_SCHEMA_VERSION),
@@ -58,7 +97,8 @@ export const settingsSchema = z.object({
       token: z.string().catch('')
     })
     .catch({ enabled: true, port: MCP_DEFAULT_PORT, token: '' }),
-  updates: z.object({ autoCheck: z.boolean().catch(true) }).catch({ autoCheck: true })
+  updates: z.object({ autoCheck: z.boolean().catch(true) }).catch({ autoCheck: true }),
+  profiles: z.object({ custom: customProfileListSchema }).catch({ custom: [] })
 })
 
 export function defaultSettings(): Settings {

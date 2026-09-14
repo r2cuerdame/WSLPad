@@ -208,6 +208,17 @@ filesystem boundary it lives on, and — importantly — whether the command
 actually resolves to a **Windows** binary under `/mnt/c` instead of one
 installed in the distro.
 
+**Developer Profiles** — five recommended tool sets (Web, Python, Rust, AI,
+Containers / Kubernetes) checked against the installed-tools catalog above:
+how many are installed, how many are missing, and one line on why each tool
+is there. A missing tool resolves to the package managers WSLPad already saw
+in the distribution — the same apt / npm / cargo / Homebrew / snap commands
+Discover prepares — or is handed to Discover when none of them carries it.
+**Prepare missing installs** places one reviewable line in the Console and
+nothing runs until you press Enter. A custom profile is a name plus a pick
+from the catalog, stored in settings; WSLPad does not become a package
+manager.
+
 **Docker** — its own section: engine and client versions, context, data root,
 images and containers, and the `docker system df` breakdown — including the
 **build cache**, which no listing shows and which is routinely the largest

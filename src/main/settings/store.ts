@@ -8,6 +8,7 @@ import type {
   ExplorerSettings,
   McpSettings,
   MonitoringSettings,
+  ProfileSettings,
   Settings,
   SettingsPatch,
   UpdateSettings
@@ -129,7 +130,8 @@ export class SettingsStore {
       ]),
       // token is intentionally absent from the merge keys (goal.md §16)
       mcp: mergeSection<McpSettings>(cur.mcp, p.mcp, ['enabled', 'port']),
-      updates: mergeSection<UpdateSettings>(cur.updates, p.updates, ['autoCheck'])
+      updates: mergeSection<UpdateSettings>(cur.updates, p.updates, ['autoCheck']),
+      profiles: mergeSection<ProfileSettings>(cur.profiles, p.profiles, ['custom'])
     }
     this.settings = parseSettings(candidate)
     this.persist()

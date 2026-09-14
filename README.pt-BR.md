@@ -201,6 +201,17 @@ sistema de arquivos ela fica e — o mais importante — se o comando na verdade
 acaba em um binário do **Windows** sob `/mnt/c` em vez de um instalado na
 distribuição.
 
+**Perfis de desenvolvedor** — cinco conjuntos de ferramentas recomendados (Web,
+Python, Rust, IA, Contêineres / Kubernetes) conferidos contra o catálogo de
+ferramentas instaladas acima: quantas estão instaladas, quantas faltam e uma
+linha sobre por que cada ferramenta está ali. Uma ferramenta ausente é resolvida
+pelos gerenciadores de pacotes que o WSLPad já viu na distribuição — os mesmos
+comandos apt / npm / cargo / Homebrew / snap que o Discover prepara — ou
+entregue ao Discover quando nenhum a oferece. **Preparar instalações ausentes**
+coloca uma linha revisável no Console e nada roda até você pressionar Enter. Um
+perfil personalizado é um nome mais uma seleção do catálogo, salvo nas
+configurações; o WSLPad não vira um gerenciador de pacotes.
+
 **Docker** — uma seção própria: versões do engine e do cliente, contexto, raiz
 de dados, imagens e contêineres, e o detalhamento do `docker system df` —
 inclusive o **cache de build**, que nenhuma listagem mostra e que costuma ser a

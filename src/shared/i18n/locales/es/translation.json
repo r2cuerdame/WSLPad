@@ -1024,6 +1024,104 @@
       "unknown": "Unknown"
     }
   },
+  "profiles": {
+    "title": "Perfiles de desarrollador",
+    "intro": "Compara esta distribución con el conjunto de herramientas recomendado para un flujo de trabajo. El estado proviene del catálogo de herramientas instaladas ya recopilado; las herramientas que faltan se resuelven con los gestores de paquetes detectados aquí, con los mismos comandos que prepara Discover.",
+    "listLabel": "Perfiles",
+    "count": "{{installed}}/{{total}}",
+    "installed": "{{count}} instaladas",
+    "missing": "{{count}} faltantes",
+    "unknown": "{{count}} desconocidas",
+    "resolvable": "{{resolvable}} de {{missing}} faltantes pueden prepararse con los proveedores detectados",
+    "prepareMissing": "Preparar instalaciones faltantes",
+    "tool": "Herramienta",
+    "status": "Estado",
+    "why": "Por qué",
+    "resolution": "Se resuelve con",
+    "noProvider": "Ningún proveedor detectado la ofrece — busca en Discover",
+    "discover": "Discover",
+    "discoverNamed": "Buscar {{name}} en Discover",
+    "state": {
+      "installed": "Instalada",
+      "missing": "Faltante",
+      "unknown": "Desconocida"
+    },
+    "custom": {
+      "new": "Nuevo perfil personalizado",
+      "name": "Nombre del perfil",
+      "filter": "Filtrar catálogo",
+      "tools": "Herramientas del catálogo",
+      "picked": "{{count}} seleccionadas",
+      "description": "Un perfil personalizado que definiste a partir del catálogo de herramientas.",
+      "reason": "Elegida por ti para este perfil.",
+      "delete": "Eliminar este perfil"
+    },
+    "builtin": {
+      "web": {
+        "name": "Web",
+        "description": "Servicios y front-ends Node.js con contenedores, GitHub y pruebas de navegador."
+      },
+      "python": {
+        "name": "Python",
+        "description": "Proyectos Python modernos con herramientas de entorno rápidas y compilación de extensiones nativas."
+      },
+      "rust": {
+        "name": "Rust",
+        "description": "La cadena de herramientas de Rust más las piezas del sistema que esperan los crates con dependencias nativas."
+      },
+      "ai": {
+        "name": "AI",
+        "description": "Agentes de programación y modelos locales, con el runtime en el que se distribuyen."
+      },
+      "containers": {
+        "name": "Containers / Kubernetes",
+        "description": "Construye imágenes localmente y comunícate con clústeres, reales o desechables."
+      }
+    },
+    "reason": {
+      "web": {
+        "node": "Ejecuta las herramientas de JavaScript y TypeScript; todos los demás elementos Web lo dan por hecho.",
+        "packageManager": "Instala las dependencias del proyecto; pnpm es más rápido y estricto, npm viene con Node.",
+        "docker": "Ejecuta bases de datos, colas y la propia aplicación igual que en CI y producción.",
+        "git": "Control de versiones del proyecto; también es lo que maneja la CLI de GitHub.",
+        "gh": "Pull requests, issues y Actions desde la terminal, sin pasar por el navegador.",
+        "jq": "Lee y transforma JSON de APIs y archivos de configuración en una línea.",
+        "ripgrep": "Busca en un árbol grande en milisegundos; editores y agentes dependen de él.",
+        "playwright": "Pruebas de navegador de extremo a extremo dentro de la distro; sus navegadores se instalan aparte (npx playwright install)."
+      },
+      "python": {
+        "python": "El intérprete en sí; Ubuntu incluye python3 pero no siempre cabeceras ni venv.",
+        "uv": "Instalador y gestor de entornos rápido que sustituye a pip, virtualenv y pip-tools.",
+        "pipx": "Instala herramientas CLI de Python en entornos aislados para que nunca se rompan entre sí.",
+        "poetry": "Gestor de dependencias y empaquetado para proyectos con archivos de bloqueo pyproject.toml.",
+        "gcc": "Compila extensiones nativas cuando no existe un wheel para esta plataforma.",
+        "make": "Ejecuta los scripts de compilación de muchos paquetes y los Makefiles de proyectos."
+      },
+      "rust": {
+        "rust": "rustup instala y actualiza rustc y mantiene stable y nightly en paralelo.",
+        "cargo": "Compila, prueba e instala crates; llega con rustup.",
+        "clang": "Compilador y enlazador de C que varios crates y bindgen necesitan para código nativo.",
+        "pkgConfig": "Permite que los scripts de compilación encuentren bibliotecas del sistema como OpenSSL."
+      },
+      "ai": {
+        "codex": "La CLI del agente de programación de OpenAI.",
+        "claude": "La CLI del agente Claude Code de Anthropic.",
+        "gemini": "El agente Gemini CLI de Google.",
+        "ollama": "Ejecuta modelos abiertos localmente para que los agentes funcionen sin clave en la nube.",
+        "playwright": "Da a los agentes un navegador real para pruebas y tareas web; los navegadores se instalan aparte.",
+        "node": "El runtime en el que se distribuyen las CLI de los agentes.",
+        "npm": "Instala y actualiza las CLI de los agentes (npm install --global).",
+        "git": "Los agentes hacen commits, ramas y diffs mediante Git."
+      },
+      "containers": {
+        "engine": "Construye y ejecuta imágenes; Podman es la alternativa sin demonio a Docker.",
+        "kubectl": "Se comunica con cualquier clúster de Kubernetes.",
+        "helm": "Instala y actualiza aplicaciones Kubernetes empaquetadas (charts).",
+        "k9s": "Interfaz de terminal para observar y navegar un clúster.",
+        "localCluster": "Un clúster local desechable para probar manifiestos; kind, k3d y minikube son intercambiables aquí."
+      }
+    }
+  },
   "diagnostics": {
     "title": "Diagnóstico",
     "intro": "Esta cronología de sesión registra cambios importantes de WSL. Las pruebas de red solo se ejecutan cuando las solicita y nunca forman parte del sondeo en segundo plano.",

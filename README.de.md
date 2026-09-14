@@ -206,6 +206,17 @@ zum Windows-Dateisystem es liegt und — wichtig — ob der Befehl tatsächlich 
 ein **Windows**-Programm unter `/mnt/c` auflöst statt auf eines, das in der
 Distribution installiert ist.
 
+**Entwicklerprofile** — fünf empfohlene Werkzeugsätze (Web, Python, Rust, KI,
+Container / Kubernetes), abgeglichen mit dem Katalog der installierten Werkzeuge
+oben: wie viele installiert sind, wie viele fehlen und eine Zeile dazu, warum
+jedes Werkzeug dort steht. Ein fehlendes Werkzeug wird über die Paketmanager
+aufgelöst, die WSLPad in der Distribution bereits gesehen hat — dieselben apt /
+npm / cargo / Homebrew / snap-Befehle, die Discover vorbereitet — oder an
+Discover übergeben, wenn keiner es führt. **Fehlende Installationen vorbereiten**
+legt eine prüfbare Zeile in die Console, und nichts läuft, bevor Sie Enter
+drücken. Ein eigenes Profil ist ein Name plus eine Auswahl aus dem Katalog,
+gespeichert in den Einstellungen; WSLPad wird kein Paketmanager.
+
 **Docker** — ein eigener Abschnitt: Engine- und Client-Version, Kontext,
 Datenverzeichnis, Images und Container sowie die Aufschlüsselung von
 `docker system df` — einschließlich des **Build-Cache**, den keine Liste zeigt

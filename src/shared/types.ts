@@ -377,6 +377,7 @@ export type ToolId =
   | 'python'
   | 'pip'
   | 'uv'
+  | 'rustup'
   | 'git'
   | 'docker'
   | 'docker-compose'
@@ -1053,6 +1054,98 @@ export interface DoctorReport {
   maskedMarkdown: string
 }
 
+// ---------------------------------------------------------------------------
+// Developer Profiles (issue #90)
+// ---------------------------------------------------------------------------
+
+/**
+ * One package a provider from issue #88 can install for a catalog tool, in
+ * preference order. Resolution never invents a package name: a tool without a
+ * candidate on any detected provider is handed to Discover instead.
+ */
+export interface ProfilePackageCandidate {
+  provider: PackageProviderId
+  name: string
+}
+
+/**
+ * One requirement of a profile. Any listed catalog tool satisfies it (pnpm or
+ * npm, Docker or Podman); the first id is what resolution installs when none
+ * is present. `reasonKey` is the i18n key that explains why the profile wants
+ * it — null for custom profiles, whose tools were chosen by the user.
+ */
+export interface ProfileNeed {
+  id: string
+  toolIds: string[]
+  reasonKey: string | null
+}
+
+export type ProfileKind = 'builtin' | 'custom'
+
+export interface DeveloperProfile {
+  id: string
+  kind: ProfileKind
+  /** Display name for custom profiles; built-in names come from i18n by id. */
+  name: string | null
+  needs: ProfileNeed[]
+}
+
+/** null = the snapshot could not say (tool absent from the catalog result). */
+export type ProfileToolState = 'installed' | 'missing' | 'unknown'
+
+/** A missing need mapped to one detected provider through the #88 model. */
+export interface ProfileResolution {
+  provider: PackageProviderId
+  target: PackageTarget
+  name: string
+  /** Prepared in Console only; WSLPad never executes it. */
+  installCommand: string
+}
+
+export interface ProfileToolStatus {
+  needId: string
+  toolIds: string[]
+  /** "pnpm / npm" — display names of every tool that satisfies the need. */
+  displayName: string
+  reasonKey: string | null
+  state: ProfileToolState
+  /** The catalog id that satisfied the need, when installed. */
+  installedToolId: string | null
+  version: string | null
+  /** null when no detected provider carries a candidate — Discover is the fallback. */
+  resolution: ProfileResolution | null
+  /** What to search in Discover for this need. */
+  discoverQuery: string
+}
+
+export interface ProfileEvaluation {
+  profileId: string
+  total: number
+  installed: number
+  missing: number
+  unknown: number
+  /** Missing needs that resolved to a provider command. */
+  resolvable: number
+  tools: ProfileToolStatus[]
+  /**
+   * Every resolvable install grouped per provider and chained with `&&`, for
+   * one reviewable Console line. null when nothing is both missing and
+   * resolvable — never an empty string.
+   */
+  prepareAllCommand: string | null
+}
+
+/** A user-defined profile persisted in settings: a name and catalog tool ids. */
+export interface CustomProfileSetting {
+  id: string
+  name: string
+  toolIds: string[]
+}
+
+export interface ProfileSettings {
+  custom: CustomProfileSetting[]
+}
+
 export interface DashboardSnapshot {
   distro: DistroDetails
   system: SystemInfo
@@ -1293,6 +1386,7 @@ export interface Settings {
   console: ConsoleSettings
   mcp: McpSettings
   updates: UpdateSettings
+  profiles: ProfileSettings
 }
 
 /** Deep partial patch applied via settings:set */
@@ -1305,6 +1399,7 @@ export type SettingsPatch = {
   console?: Partial<ConsoleSettings>
   mcp?: Partial<Pick<McpSettings, 'enabled' | 'port'>>
   updates?: Partial<UpdateSettings>
+  profiles?: Partial<ProfileSettings>
 }
 
 // ---------------------------------------------------------------------------

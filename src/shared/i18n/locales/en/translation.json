@@ -1024,6 +1024,104 @@
       "unknown": "Unknown"
     }
   },
+  "profiles": {
+    "title": "Developer Profiles",
+    "intro": "Compare this distribution against the recommended tool set of a workflow. Status comes from the Installed tools catalog already collected; missing tools resolve to the package managers detected here, with the same commands Discover prepares.",
+    "listLabel": "Profiles",
+    "count": "{{installed}}/{{total}}",
+    "installed": "{{count}} installed",
+    "missing": "{{count}} missing",
+    "unknown": "{{count}} unknown",
+    "resolvable": "{{resolvable}} of {{missing}} missing can be prepared through detected providers",
+    "prepareMissing": "Prepare missing installs",
+    "tool": "Tool",
+    "status": "Status",
+    "why": "Why",
+    "resolution": "Resolves via",
+    "noProvider": "No detected provider carries it — search Discover",
+    "discover": "Discover",
+    "discoverNamed": "Search Discover for {{name}}",
+    "state": {
+      "installed": "Installed",
+      "missing": "Missing",
+      "unknown": "Unknown"
+    },
+    "custom": {
+      "new": "New custom profile",
+      "name": "Profile name",
+      "filter": "Filter catalog",
+      "tools": "Catalog tools",
+      "picked": "{{count}} selected",
+      "description": "A custom profile you defined from the tool catalog.",
+      "reason": "Chosen by you for this profile.",
+      "delete": "Delete this profile"
+    },
+    "builtin": {
+      "web": {
+        "name": "Web",
+        "description": "Node.js services and front-ends with containers, GitHub and browser testing."
+      },
+      "python": {
+        "name": "Python",
+        "description": "Modern Python projects with fast environment tooling and native extension builds."
+      },
+      "rust": {
+        "name": "Rust",
+        "description": "The Rust toolchain plus the system pieces crates with native dependencies expect."
+      },
+      "ai": {
+        "name": "AI",
+        "description": "Coding agents and local models, with the runtime they are distributed on."
+      },
+      "containers": {
+        "name": "Containers / Kubernetes",
+        "description": "Build images locally and talk to clusters, real or throwaway."
+      }
+    },
+    "reason": {
+      "web": {
+        "node": "Runs JavaScript and TypeScript tooling; every other Web item assumes it.",
+        "packageManager": "Installs project dependencies; pnpm is faster and stricter, npm ships with Node.",
+        "docker": "Runs databases, queues and the app itself the same way CI and production do.",
+        "git": "Version control for the project; also what the GitHub CLI drives.",
+        "gh": "Pull requests, issues and Actions from the terminal, without a browser round-trip.",
+        "jq": "Reads and reshapes JSON from APIs and config files in one line.",
+        "ripgrep": "Searches a large tree in milliseconds; editors and agents lean on it.",
+        "playwright": "End-to-end browser tests inside the distro; its browsers install separately (npx playwright install)."
+      },
+      "python": {
+        "python": "The interpreter itself; Ubuntu ships python3 but not always headers or venv.",
+        "uv": "Fast installer and environment manager that replaces pip, virtualenv and pip-tools.",
+        "pipx": "Installs Python CLI tools in isolated environments so they never break each other.",
+        "poetry": "Dependency and packaging manager for projects that use pyproject.toml lock files.",
+        "gcc": "Compiles native extensions when no wheel exists for this platform.",
+        "make": "Drives the build scripts of many packages and project Makefiles."
+      },
+      "rust": {
+        "rust": "rustup installs and updates rustc and keeps stable and nightly side by side.",
+        "cargo": "Builds, tests and installs crates; arrives with rustup.",
+        "clang": "C compiler and linker that several crates and bindgen need for native code.",
+        "pkgConfig": "Lets build scripts find system libraries such as OpenSSL."
+      },
+      "ai": {
+        "codex": "OpenAI’s coding agent CLI.",
+        "claude": "Anthropic’s Claude Code agent CLI.",
+        "gemini": "Google’s Gemini CLI agent.",
+        "ollama": "Runs open models locally so agents can work without a cloud key.",
+        "playwright": "Gives agents a real browser for testing and web tasks; browsers install separately.",
+        "node": "The runtime the agent CLIs are distributed on.",
+        "npm": "Installs and updates the agent CLIs (npm install --global).",
+        "git": "Agents commit, branch and diff through Git."
+      },
+      "containers": {
+        "engine": "Builds and runs images; Podman is the daemonless alternative to Docker.",
+        "kubectl": "Talks to any Kubernetes cluster.",
+        "helm": "Installs and upgrades packaged Kubernetes applications (charts).",
+        "k9s": "Terminal UI for watching and navigating a cluster.",
+        "localCluster": "A throwaway local cluster for testing manifests; kind, k3d and minikube are interchangeable here."
+      }
+    }
+  },
   "diagnostics": {
     "title": "Diagnostics",
     "intro": "This session-only timeline records meaningful WSL changes. Recovery checks run only when you ask and never execute a recovery command.",

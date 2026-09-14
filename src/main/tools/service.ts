@@ -8,6 +8,13 @@ import type {
   PackageUpdateItem
 } from '@shared/types'
 import type { DistroRunner, RunResult } from '../wsl/contracts'
+import {
+  PACKAGE_PROVIDER_DISPLAY_NAMES,
+  PACKAGE_PROVIDER_IDS,
+  packageInstallCommand,
+  packageProviderTarget,
+  packageUpdateCommand
+} from '@shared/package-commands'
 import { assertValidDistroName, shellQuote } from '../wsl/escape'
 
 const PROVIDER_TIMEOUT_MS = 15_000
@@ -48,15 +55,6 @@ interface WslOperation<T> {
   body: string
   parse(output: string): T[]
   unsupportedMessage?: string
-}
-
-const DISPLAY_NAMES: Record<PackageProviderId, string> = {
-  apt: 'APT',
-  npm: 'npm',
-  cargo: 'Cargo',
-  brew: 'Homebrew',
-  snap: 'Snap',
-  winget: 'winget'
 }
 
 function status(
@@ -164,7 +162,7 @@ export function parseAptSearch(output: string): PackageSearchItem[] {
       name: match[1],
       version: null,
       description: match[2].trim().slice(0, 500),
-      installCommand: `sudo apt install -- ${shellQuote(match[1])}`
+      installCommand: packageInstallCommand('apt', [match[1]])
     })
   }
   return items.slice(0, 20)
@@ -183,7 +181,7 @@ export function parseAptUpdates(output: string): PackageUpdateItem[] {
       name: match[1],
       installedVersion: match[3],
       availableVersion: match[2],
-      updateCommand: `sudo apt install --only-upgrade -- ${shellQuote(match[1])}`
+      updateCommand: packageUpdateCommand('apt', match[1])
     })
   }
   return items.slice(0, 100)
@@ -204,7 +202,7 @@ export function parseNpmSearch(output: string): PackageSearchItem[] {
           name: item.name,
           version: textOrNull(item.version),
           description: textOrNull(item.description),
-          installCommand: `npm install --global ${shellQuote(item.name)}`
+          installCommand: packageInstallCommand('npm', [item.name])
         }
       ]
     })
@@ -224,7 +222,7 @@ export function parseNpmUpdates(output: string): PackageUpdateItem[] {
         name,
         installedVersion: textOrNull(row.current),
         availableVersion: textOrNull(row.latest ?? row.wanted),
-        updateCommand: `npm install --global ${shellQuote(`${name}@latest`)}`
+        updateCommand: packageUpdateCommand('npm', name)
       }
     ]
   })
@@ -241,7 +239,7 @@ export function parseCargoSearch(output: string): PackageSearchItem[] {
       name: match[1],
       version: match[2],
       description: textOrNull(match[3]),
-      installCommand: `cargo install --locked ${shellQuote(match[1])}`
+      installCommand: packageInstallCommand('cargo', [match[1]])
     })
   }
   return items.slice(0, 20)
@@ -259,7 +257,7 @@ export function parseBrewSearch(output: string): PackageSearchItem[] {
       name,
       version: null,
       description: null,
-      installCommand: `brew install ${shellQuote(name)}`
+      installCommand: packageInstallCommand('brew', [name])
     }))
 }
 
@@ -285,9 +283,7 @@ export function parseBrewUpdates(output: string): PackageUpdateItem[] {
         name,
         installedVersion: installed,
         availableVersion: textOrNull(row.current_version),
-        updateCommand: cask
-          ? `brew upgrade --cask ${shellQuote(name)}`
-          : `brew upgrade ${shellQuote(name)}`
+        updateCommand: packageUpdateCommand('brew', name, { cask })
       }
     ]
   })
@@ -314,7 +310,7 @@ export function parseSnapSearch(output: string): PackageSearchItem[] {
           name: row[0],
           version: textOrNull(row[1]),
           description: textOrNull(row.slice(4).join(' ')),
-          installCommand: `sudo snap install ${shellQuote(row[0])}`
+          installCommand: packageInstallCommand('snap', [row[0]])
         }
       ]
     })
@@ -340,7 +336,7 @@ export function parseSnapUpdates(output: string): PackageUpdateItem[] {
           name: row[0],
           installedVersion: installed.get(row[0]) ?? null,
           availableVersion: textOrNull(row[1]),
-          updateCommand: `sudo snap refresh ${shellQuote(row[0])}`
+          updateCommand: packageUpdateCommand('snap', row[0])
         }
       ]
     })
@@ -370,10 +366,6 @@ export function parseWingetTable(output: string): string[][] {
   })
 }
 
-function wingetCommand(action: 'install' | 'upgrade', id: string): string {
-  return `winget.exe ${action} --id ${id} --exact --source winget`
-}
-
 export function parseWingetSearch(output: string): PackageSearchItem[] {
   return parseWingetTable(output).flatMap((row): PackageSearchItem[] => {
     const id = row[1]
@@ -385,7 +377,7 @@ export function parseWingetSearch(output: string): PackageSearchItem[] {
         name: id,
         version: textOrNull(row[2]),
         description: textOrNull(row[0]),
-        installCommand: wingetCommand('install', id)
+        installCommand: packageInstallCommand('winget', [id])
       }
     ]
   })
@@ -402,7 +394,7 @@ export function parseWingetUpdates(output: string): PackageUpdateItem[] {
         name: id,
         installedVersion: textOrNull(row[2]),
         availableVersion: textOrNull(row[3]),
-        updateCommand: wingetCommand('upgrade', id)
+        updateCommand: packageUpdateCommand('winget', id)
       }
     ]
   })
@@ -419,7 +411,7 @@ function wslProvider(
 ): PackageProvider {
   const provider: PackageProvider = {
     id,
-    displayName: DISPLAY_NAMES[id],
+    displayName: PACKAGE_PROVIDER_DISPLAY_NAMES[id],
     target: 'wsl',
     search: (ctx, query) =>
       runWslOperation(ctx, {
@@ -486,7 +478,7 @@ const providers: PackageProvider[] = [
 
 const wingetProvider: PackageProvider = {
   id: 'winget',
-  displayName: DISPLAY_NAMES.winget,
+  displayName: PACKAGE_PROVIDER_DISPLAY_NAMES.winget,
   target: 'windows',
   search: (ctx, query) =>
     runWinget(
@@ -626,6 +618,16 @@ export class FixturePackageDiscoveryService implements PackageDiscoveryService {
         version: '7.5.3.0',
         description: 'PowerShell',
         installCommand: 'winget.exe install --id Microsoft.PowerShell --exact --source winget'
+      },
+      // A Developer Profiles hand-over target: the fixture distro has no snap,
+      // so Helm reaches Discover instead of resolving offline (issue #90).
+      {
+        provider: 'snap',
+        target: 'wsl',
+        name: 'helm',
+        version: '3.16.2',
+        description: 'The Kubernetes package manager',
+        installCommand: "sudo snap install 'helm'"
       }
     ]
     return {
@@ -672,10 +674,10 @@ export class FixturePackageDiscoveryService implements PackageDiscoveryService {
 }
 
 function fixtureStatuses(state: PackageProviderStatus['state']): PackageProviderStatus[] {
-  return (['apt', 'npm', 'cargo', 'brew', 'snap', 'winget'] as const).map((provider) => ({
+  return PACKAGE_PROVIDER_IDS.map((provider) => ({
     provider,
-    displayName: DISPLAY_NAMES[provider],
-    target: provider === 'winget' ? 'windows' : 'wsl',
+    displayName: PACKAGE_PROVIDER_DISPLAY_NAMES[provider],
+    target: packageProviderTarget(provider),
     state,
     message: null
   }))

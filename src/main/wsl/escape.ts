@@ -1,13 +1,8 @@
-/** POSIX shell single-quote escaping: safe interpolation into sh -c scripts. */
-export function shellQuote(value: string): string {
-  if (value.length === 0) return "''"
-  return `'${value.replace(/'/g, `'\\''`)}'`
-}
+import { shellQuote, shellQuoteAll } from '@shared/shell-quote'
 
-/** Quote a list of values as separate shell words. */
-export function shellQuoteAll(values: string[]): string {
-  return values.map(shellQuote).join(' ')
-}
+// Quoting moved to shared/ so the profile resolver (issue #90) builds the same
+// prepared commands; re-exported here so runner/collector imports keep one path.
+export { shellQuote, shellQuoteAll }
 
 const DISTRO_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 

@@ -209,6 +209,17 @@ de quel côté de la frontière du système de fichiers il vit, et — c'est
 important — si la commande se résout en réalité vers un binaire **Windows** sous
 `/mnt/c` au lieu d'une version installée dans la distribution.
 
+**Profils de développeur** — cinq ensembles d’outils recommandés (Web, Python,
+Rust, IA, Conteneurs / Kubernetes) confrontés au catalogue des outils installés
+ci-dessus : combien sont installés, combien manquent, et une ligne sur la raison
+de chaque outil. Un outil manquant est résolu vers les gestionnaires de paquets
+que WSLPad a déjà vus dans la distribution — les mêmes commandes apt / npm /
+cargo / Homebrew / snap que prépare Discover — ou remis à Discover quand aucun
+ne le propose. **Préparer les installations manquantes** place une ligne
+relisible dans la Console et rien ne s’exécute avant que vous n’appuyiez sur
+Entrée. Un profil personnalisé est un nom plus une sélection dans le catalogue,
+enregistré dans les réglages ; WSLPad ne devient pas un gestionnaire de paquets.
+
 **Docker** — sa propre section : versions du moteur et du client, contexte,
 racine des données, images et conteneurs, et le détail de `docker system df`,
 y compris le **cache de build**, qu'aucune liste n'affiche et qui est souvent

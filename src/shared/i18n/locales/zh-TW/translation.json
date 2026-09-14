@@ -1024,6 +1024,104 @@
       "unknown": "Unknown"
     }
   },
+  "profiles": {
+    "title": "開發者設定檔",
+    "intro": "將此發行版與某個工作流程的建議工具集進行比較。狀態來自已收集的已安裝工具目錄；缺少的工具會解析到此處偵測到的套件管理員，並準備與 Discover 相同的指令。",
+    "listLabel": "設定檔",
+    "count": "{{installed}}/{{total}}",
+    "installed": "已安裝 {{count}} 個",
+    "missing": "缺少 {{count}} 個",
+    "unknown": "未知 {{count}} 個",
+    "resolvable": "缺少的 {{missing}} 個中有 {{resolvable}} 個可透過偵測到的提供者準備",
+    "prepareMissing": "準備缺少的安裝",
+    "tool": "工具",
+    "status": "狀態",
+    "why": "原因",
+    "resolution": "解析方式",
+    "noProvider": "偵測到的提供者中沒有它 — 請在 Discover 中搜尋",
+    "discover": "Discover",
+    "discoverNamed": "在 Discover 中搜尋 {{name}}",
+    "state": {
+      "installed": "已安裝",
+      "missing": "缺少",
+      "unknown": "未知"
+    },
+    "custom": {
+      "new": "新增自訂設定檔",
+      "name": "設定檔名稱",
+      "filter": "篩選目錄",
+      "tools": "目錄工具",
+      "picked": "已選擇 {{count}} 個",
+      "description": "您從工具目錄中自行定義的自訂設定檔。",
+      "reason": "由您為此設定檔選擇。",
+      "delete": "刪除此設定檔"
+    },
+    "builtin": {
+      "web": {
+        "name": "Web",
+        "description": "具備容器、GitHub 與瀏覽器測試的 Node.js 服務與前端。"
+      },
+      "python": {
+        "name": "Python",
+        "description": "擁有快速環境工具與原生擴充建置的現代 Python 專案。"
+      },
+      "rust": {
+        "name": "Rust",
+        "description": "Rust 工具鏈以及具原生相依性的 crate 所需的系統元件。"
+      },
+      "ai": {
+        "name": "AI",
+        "description": "程式設計代理與本機模型，以及它們所依賴的執行環境。"
+      },
+      "containers": {
+        "name": "Containers / Kubernetes",
+        "description": "在本機建置映像並與真實或拋棄式叢集通訊。"
+      }
+    },
+    "reason": {
+      "web": {
+        "node": "執行 JavaScript 與 TypeScript 工具；其他所有 Web 項目都以它為前提。",
+        "packageManager": "安裝專案相依套件；pnpm 更快更嚴格，npm 隨 Node 一起提供。",
+        "docker": "以與 CI 和正式環境相同的方式執行資料庫、佇列和應用程式本身。",
+        "git": "專案的版本控制；也是 GitHub CLI 操作的對象。",
+        "gh": "在終端機中處理提取要求、議題與 Actions，無需往返瀏覽器。",
+        "jq": "一行讀取並重塑來自 API 與設定檔的 JSON。",
+        "ripgrep": "毫秒級搜尋大型目錄樹；編輯器與代理都依賴它。",
+        "playwright": "在發行版內執行端對端瀏覽器測試；瀏覽器需另行安裝（npx playwright install）。"
+      },
+      "python": {
+        "python": "直譯器本身；Ubuntu 內建 python3，但不一定有標頭檔或 venv。",
+        "uv": "取代 pip、virtualenv 與 pip-tools 的快速安裝器與環境管理員。",
+        "pipx": "將 Python CLI 工具安裝到隔離環境，使其互不影響。",
+        "poetry": "面向使用 pyproject.toml 鎖定檔專案的相依與封裝管理員。",
+        "gcc": "當此平台沒有 wheel 時編譯原生擴充。",
+        "make": "驅動許多套件的建置指令碼與專案 Makefile。"
+      },
+      "rust": {
+        "rust": "rustup 安裝並更新 rustc，並讓 stable 與 nightly 並存。",
+        "cargo": "建置、測試與安裝 crate；隨 rustup 一起提供。",
+        "clang": "多個 crate 與 bindgen 處理原生程式碼所需的 C 編譯器與連結器。",
+        "pkgConfig": "讓建置指令碼找到 OpenSSL 等系統程式庫。"
+      },
+      "ai": {
+        "codex": "OpenAI 的程式設計代理 CLI。",
+        "claude": "Anthropic 的 Claude Code 代理 CLI。",
+        "gemini": "Google 的 Gemini CLI 代理。",
+        "ollama": "在本機執行開放模型，讓代理無需雲端金鑰即可運作。",
+        "playwright": "為代理提供真實瀏覽器用於測試與網頁任務；瀏覽器需另行安裝。",
+        "node": "代理 CLI 所發佈的執行環境。",
+        "npm": "安裝與更新代理 CLI（npm install --global）。",
+        "git": "代理透過 Git 提交、分支與比較差異。"
+      },
+      "containers": {
+        "engine": "建置並執行映像；Podman 是無守護程序的 Docker 替代品。",
+        "kubectl": "與任何 Kubernetes 叢集通訊。",
+        "helm": "安裝與升級封裝的 Kubernetes 應用程式（chart）。",
+        "k9s": "用於觀察與瀏覽叢集的終端機 UI。",
+        "localCluster": "用於測試資訊清單的拋棄式本機叢集；此處 kind、k3d 與 minikube 可互換。"
+      }
+    }
+  },
   "diagnostics": {
     "title": "診斷",
     "intro": "記錄本次工作階段中重要的 WSL 變化。網路檢查只會在您要求時執行，不屬於背景輪詢。",

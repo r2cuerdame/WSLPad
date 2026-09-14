@@ -133,6 +133,14 @@ export const PackageIcon = icon(
 
 export const BoltIcon = icon(<path d="M9.2 1.6L3.6 8.9h3.9l-.7 5.5 5.6-7.3H8.5z" />)
 
+/** Stacked layers: a profile is a set laid over the tool catalog. */
+export const LayersIcon = icon(
+  <>
+    <path d="M8 2.2L14 5.4 8 8.6 2 5.4z" />
+    <path d="M2 8.4l6 3.2 6-3.2M2 11.2l6 3.2 6-3.2" />
+  </>
+)
+
 export const ListIcon = icon(
   <>
     <path d="M6 4h7.5M6 8h7.5M6 12h7.5" />

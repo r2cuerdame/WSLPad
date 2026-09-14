@@ -28,6 +28,7 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['configuration', 'Configuration files'],
   ['tools', 'Installed tools'],
   ['discover', 'Discover'],
+  ['profiles', 'Developer Profiles'],
   ['update-center', 'Update Center'],
   ['docker', 'Docker'],
   ['hermes', 'Hermes'],
@@ -776,6 +777,36 @@ describe('DashboardTab master–detail', () => {
     expect(screen.getByText('Cargo: Timed out')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Prepare install command for ripgrep' }))
     expect(screen.getByTestId('prepared').textContent).toBe("sudo apt install -- 'ripgrep'")
+    expect(api.terminal.input).not.toHaveBeenCalled()
+  })
+
+  it('hands a missing profile tool to Discover with its package query and searches once', async () => {
+    // apt is detected, ripgrep is not: the Web profile can resolve it, and can
+    // also send it to Discover for a live provider view.
+    snapshot.dashboard!.tools.push(
+      { ...snapshot.dashboard!.tools[0], id: 'apt', displayName: 'APT', version: '2.7.14' },
+      { ...snapshot.dashboard!.tools[1], id: 'ripgrep', displayName: 'ripgrep' }
+    )
+    await renderDashboard(<PreparedProbe />)
+    fireEvent.click(navItem('profiles'))
+    expect(api.tools.search).not.toHaveBeenCalled()
+    const detail = screen.getByTestId('dashboard-detail')
+    expect(within(detail).getByTestId('profile-tool-ripgrep').textContent).toContain('apt: ripgrep')
+
+    fireEvent.click(within(detail).getByRole('button', { name: 'Search Discover for ripgrep' }))
+    expect(navItem('discover').getAttribute('aria-selected')).toBe('true')
+    expect(api.tools.search).toHaveBeenCalledTimes(1)
+    expect(api.tools.search).toHaveBeenCalledWith('ripgrep')
+    expect(await screen.findByText('fast recursive search')).toBeTruthy()
+    expect((screen.getByLabelText('Search available packages') as HTMLInputElement).value).toBe(
+      'ripgrep'
+    )
+
+    // Leaving and returning does not repeat the provider query.
+    fireEvent.click(navItem('profiles'))
+    fireEvent.click(navItem('discover'))
+    expect(api.tools.search).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('prepared').textContent).toBe('')
     expect(api.terminal.input).not.toHaveBeenCalled()
   })
 

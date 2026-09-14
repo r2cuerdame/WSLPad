@@ -159,3 +159,52 @@ describe('SettingsStore.reset and regenerateMcpToken', () => {
     expect(onDisk.mcp.token).toBe(after.mcp.token)
   })
 })
+
+describe('custom Developer Profiles in settings (issue #90)', () => {
+  it('defaults to no custom profiles', () => {
+    expect(parseSettings({}).profiles).toEqual({ custom: [] })
+    expect(new SettingsStore(file).get().profiles.custom).toEqual([])
+  })
+
+  it('keeps valid rows, drops unknown tool ids, empty and duplicate profiles field by field', () => {
+    const parsed = parseSettings({
+      profiles: {
+        custom: [
+          { id: 'custom-a', name: '  Mine  ', toolIds: ['node', 'nope', 'jq', 'node'] },
+          { id: 'custom-a', name: 'Duplicate id', toolIds: ['jq'] },
+          { id: 'custom-b', name: '   ', toolIds: ['jq'] },
+          { id: 'custom-c', name: 'Empty', toolIds: ['nope'] },
+          { id: 'not-prefixed', name: 'Bad id', toolIds: ['jq'] },
+          'garbage',
+          { id: 'custom-d', name: 'Ok', toolIds: ['git'] }
+        ]
+      }
+    })
+    expect(parsed.profiles.custom).toEqual([
+      { id: 'custom-a', name: 'Mine', toolIds: ['node', 'jq'] },
+      { id: 'custom-d', name: 'Ok', toolIds: ['git'] }
+    ])
+  })
+
+  it('recovers a broken profiles section to defaults without touching other keys', () => {
+    const parsed = parseSettings({ theme: 'dark', profiles: 'nonsense' })
+    expect(parsed.theme).toBe('dark')
+    expect(parsed.profiles).toEqual({ custom: [] })
+    expect(parseSettings({ profiles: { custom: 'nonsense' } }).profiles.custom).toEqual([])
+  })
+
+  it('patches and persists custom profiles through the store', () => {
+    const store = new SettingsStore(file)
+    store.patch({ profiles: { custom: [{ id: 'custom-x', name: 'Mine', toolIds: ['jq'] }] } })
+    expect(store.get().profiles.custom).toEqual([{ id: 'custom-x', name: 'Mine', toolIds: ['jq'] }])
+    // An unrelated patch leaves the profiles alone.
+    store.patch({ theme: 'dark' })
+    expect(store.get().profiles.custom).toHaveLength(1)
+    const reloaded = new SettingsStore(file)
+    expect(reloaded.get().profiles.custom).toEqual([
+      { id: 'custom-x', name: 'Mine', toolIds: ['jq'] }
+    ])
+    store.patch({ profiles: { custom: [] } })
+    expect(store.get().profiles.custom).toEqual([])
+  })
+})

@@ -1024,6 +1024,104 @@
       "unknown": "Unknown"
     }
   },
+  "profiles": {
+    "title": "开发者配置文件",
+    "intro": "将此发行版与某个工作流的推荐工具集进行比较。状态来自已收集的已安装工具目录；缺失的工具会解析到此处检测到的包管理器，并准备与 Discover 相同的命令。",
+    "listLabel": "配置文件",
+    "count": "{{installed}}/{{total}}",
+    "installed": "已安装 {{count}} 个",
+    "missing": "缺失 {{count}} 个",
+    "unknown": "未知 {{count}} 个",
+    "resolvable": "缺失的 {{missing}} 个中有 {{resolvable}} 个可通过检测到的提供者准备",
+    "prepareMissing": "准备缺失的安装",
+    "tool": "工具",
+    "status": "状态",
+    "why": "原因",
+    "resolution": "解析方式",
+    "noProvider": "检测到的提供者中没有它 — 请在 Discover 中搜索",
+    "discover": "Discover",
+    "discoverNamed": "在 Discover 中搜索 {{name}}",
+    "state": {
+      "installed": "已安装",
+      "missing": "缺失",
+      "unknown": "未知"
+    },
+    "custom": {
+      "new": "新建自定义配置文件",
+      "name": "配置文件名称",
+      "filter": "筛选目录",
+      "tools": "目录工具",
+      "picked": "已选择 {{count}} 个",
+      "description": "您从工具目录中自行定义的自定义配置文件。",
+      "reason": "由您为此配置文件选择。",
+      "delete": "删除此配置文件"
+    },
+    "builtin": {
+      "web": {
+        "name": "Web",
+        "description": "带有容器、GitHub 和浏览器测试的 Node.js 服务与前端。"
+      },
+      "python": {
+        "name": "Python",
+        "description": "拥有快速环境工具和原生扩展构建的现代 Python 项目。"
+      },
+      "rust": {
+        "name": "Rust",
+        "description": "Rust 工具链以及带原生依赖的 crate 所需的系统组件。"
+      },
+      "ai": {
+        "name": "AI",
+        "description": "编码代理与本地模型，以及它们所依赖的运行时。"
+      },
+      "containers": {
+        "name": "Containers / Kubernetes",
+        "description": "在本地构建镜像并与真实或一次性集群通信。"
+      }
+    },
+    "reason": {
+      "web": {
+        "node": "运行 JavaScript 和 TypeScript 工具；其他所有 Web 项都以它为前提。",
+        "packageManager": "安装项目依赖；pnpm 更快更严格，npm 随 Node 一起提供。",
+        "docker": "以与 CI 和生产环境相同的方式运行数据库、队列和应用本身。",
+        "git": "项目的版本控制；也是 GitHub CLI 驱动的对象。",
+        "gh": "在终端中处理拉取请求、议题和 Actions，无需往返浏览器。",
+        "jq": "一行读取并重塑来自 API 和配置文件的 JSON。",
+        "ripgrep": "毫秒级搜索大型目录树；编辑器和代理都依赖它。",
+        "playwright": "在发行版内运行端到端浏览器测试；浏览器需单独安装（npx playwright install）。"
+      },
+      "python": {
+        "python": "解释器本身；Ubuntu 自带 python3，但不一定有头文件或 venv。",
+        "uv": "替代 pip、virtualenv 和 pip-tools 的快速安装器与环境管理器。",
+        "pipx": "将 Python CLI 工具安装到隔离环境中，使其互不影响。",
+        "poetry": "面向使用 pyproject.toml 锁文件项目的依赖与打包管理器。",
+        "gcc": "当此平台没有 wheel 时编译原生扩展。",
+        "make": "驱动许多包的构建脚本和项目 Makefile。"
+      },
+      "rust": {
+        "rust": "rustup 安装并更新 rustc，并让 stable 与 nightly 并存。",
+        "cargo": "构建、测试和安装 crate；随 rustup 一起提供。",
+        "clang": "多个 crate 和 bindgen 处理原生代码所需的 C 编译器和链接器。",
+        "pkgConfig": "让构建脚本找到 OpenSSL 等系统库。"
+      },
+      "ai": {
+        "codex": "OpenAI 的编码代理 CLI。",
+        "claude": "Anthropic 的 Claude Code 代理 CLI。",
+        "gemini": "Google 的 Gemini CLI 代理。",
+        "ollama": "在本地运行开放模型，让代理无需云密钥即可工作。",
+        "playwright": "为代理提供真实浏览器用于测试和网页任务；浏览器需单独安装。",
+        "node": "代理 CLI 所分发的运行时。",
+        "npm": "安装和更新代理 CLI（npm install --global）。",
+        "git": "代理通过 Git 提交、分支和比较差异。"
+      },
+      "containers": {
+        "engine": "构建并运行镜像；Podman 是无守护进程的 Docker 替代品。",
+        "kubectl": "与任何 Kubernetes 集群通信。",
+        "helm": "安装和升级打包的 Kubernetes 应用（chart）。",
+        "k9s": "用于观察和浏览集群的终端 UI。",
+        "localCluster": "用于测试清单的一次性本地集群；此处 kind、k3d 和 minikube 可互换。"
+      }
+    }
+  },
   "diagnostics": {
     "title": "诊断",
     "intro": "记录本次会话中重要的 WSL 变化。网络检查仅在您请求时运行，不属于后台轮询。",

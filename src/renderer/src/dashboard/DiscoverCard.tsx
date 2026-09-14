@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PackageDiscoverResult } from '@shared/types'
 import Card from '../components/Card'
@@ -12,16 +12,29 @@ type ViewState =
   | { kind: 'done'; value: PackageDiscoverResult }
   | { kind: 'error'; message: string }
 
-export default function DiscoverCard({ distro }: { distro: string }): React.JSX.Element {
+export interface DiscoverCardProps {
+  distro: string
+  /**
+   * A search another section asked for (Developer Profiles hand over a missing
+   * tool). The id makes a repeated identical query a new request; the card
+   * runs it once when it arrives, which is still one explicit user click.
+   */
+  request?: { id: number; query: string } | null
+}
+
+export default function DiscoverCard({
+  distro,
+  request = null
+}: DiscoverCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { prepareCommand, pushToast } = useApp()
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(request?.query ?? '')
   const [view, setView] = useState<ViewState>({ kind: 'idle' })
   const requestId = useRef(0)
+  const servedRequest = useRef<number | null>(null)
 
-  const search = async (event: FormEvent): Promise<void> => {
-    event.preventDefault()
-    const value = query.trim()
+  const run = async (raw: string): Promise<void> => {
+    const value = raw.trim()
     if (value.length < 2) return
     const id = ++requestId.current
     setView({ kind: 'loading' })
@@ -35,11 +48,23 @@ export default function DiscoverCard({ distro }: { distro: string }): React.JSX.
     }
   }
 
+  const search = (event: FormEvent): void => {
+    event.preventDefault()
+    void run(query)
+  }
+
+  useEffect(() => {
+    if (request === null || servedRequest.current === request.id) return
+    servedRequest.current = request.id
+    setQuery(request.query)
+    void run(request.query)
+  }, [request])
+
   return (
     <Card
       titleKey="dashboard.discover.title"
       actions={
-        <form className="package-search" onSubmit={(event) => void search(event)}>
+        <form className="package-search" onSubmit={search}>
           <input
             className="dash-input"
             type="search"

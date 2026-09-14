@@ -21,7 +21,7 @@ describe('documentation and contract drift checks', () => {
     }
   })
 
-  it('dashboard nav sections match expected count (20 sections)', () => {
+  it('dashboard nav sections match expected count (21 sections)', () => {
     const navPath = path.join(ROOT, 'src/renderer/src/dashboard/DashboardNav.tsx')
     expect(fs.existsSync(navPath)).toBe(true)
     const navContent = fs.readFileSync(navPath, 'utf8')
@@ -32,7 +32,7 @@ describe('documentation and contract drift checks', () => {
     const sectionIds = [...sectionBlockMatch![1].matchAll(/id:\s*'([^']+)'/g)].map(
       (m) => m[1]
     )
-    expect(sectionIds).toHaveLength(20)
+    expect(sectionIds).toHaveLength(21)
   })
 
   it('MCP tool roster matches expected count (40 tools)', () => {

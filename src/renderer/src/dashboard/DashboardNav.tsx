@@ -10,6 +10,7 @@ import {
   GearIcon,
   InfoIcon,
   HistoryIcon,
+  LayersIcon,
   ListIcon,
   PackageIcon,
   SearchIcon,
@@ -34,6 +35,7 @@ export type DashboardSectionId =
   | 'configuration'
   | 'tools'
   | 'discover'
+  | 'profiles'
   | 'update-center'
   | 'docker'
   | 'hermes'
@@ -65,6 +67,7 @@ export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },
   { id: 'discover', titleKey: 'dashboard.discover.title', Icon: SearchIcon },
+  { id: 'profiles', titleKey: 'profiles.title', Icon: LayersIcon },
   { id: 'update-center', titleKey: 'dashboard.updateCenter.title', Icon: BoltIcon },
   { id: 'docker', titleKey: 'dashboard.docker.title', Icon: DockerMark },
   { id: 'hermes', titleKey: 'dashboard.hermes.title', Icon: HermesMark },

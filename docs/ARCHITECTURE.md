@@ -33,7 +33,7 @@ talks through a typed, allowlisted IPC bridge.
          │ contextIsolation preload (window.wslpad, explicit channel list)
 ┌────────────────────────────── renderer (React) ───────────────────────────┐
 │  TopBar (distro switch · MCP badge · refresh · pause · settings gear)     │
-│  Tab 1 Dashboard — master/detail: 19-section list | selected section      │
+│  Tab 1 Dashboard — master/detail: 21-section list | selected section      │
 │  Tab 2 Explorer  — dual pane:  Windows files | WSL files (+ splitter)     │
 │  Tab 3 Relocation — guarded VHDX export/import migration wizard           │
 │  ConsolePanel (xterm.js, always visible, resizable/collapsible)           │
@@ -42,9 +42,9 @@ talks through a typed, allowlisted IPC bridge.
 ```
 
 ### Dashboard: master–detail
-The 19 sections (overview, resources, disk, WSL settings, network,
-diagnostics, paths, configuration, installed tools, Discover, Update Center,
-Docker, Hermes, OpenClaw,
+The 21 sections (overview, resources, disk, WSL settings, network,
+diagnostics, Environment Doctor, paths, configuration, installed tools,
+Discover, Developer Profiles, Update Center, Docker, Hermes, OpenClaw,
 environment, processes, services, ports and warnings) are listed on the left;
 the right side renders only the selected one, so wide tables
 (processes, environment) get the whole window instead of a card cell. The list
@@ -95,6 +95,22 @@ detected provider. Results and failures are normalized independently and are
 not added to polling, snapshot exports, or MCP. Install and update actions only
 prepare a quoted command in the Console input; they never submit it.
 
+Developer Profiles (issue #90) add no probe at all. A profile is data in
+`src/shared/profiles.ts`: needs (one or more catalog tool ids that satisfy
+it, plus a reason key) and, per catalog tool, the package each #88 provider
+carries. `evaluateProfile()` is a pure function over the snapshot's Installed
+Tools rows: a need is installed, missing, or — when the catalog result has no
+row for it — unknown. A missing need resolves to the first candidate whose
+provider the same snapshot saw installed, and its install text comes from
+`src/shared/package-commands.ts`, the single place Discover, the Update
+Center and profiles all build provider commands. winget is never assumed from
+the WSL side; a tool no detected provider carries is handed to Discover with
+its package name as the query. "Prepare missing installs" joins every
+resolvable row into one reviewable Console line, grouped per provider.
+Custom profiles are a name plus catalog tool ids persisted in settings
+(`profiles.custom`, schema-validated like every other section) — deliberately
+not package names, so WSLPad never becomes a package manager.
+
 ### Read-only by construction
 - Dashboard buttons only *prepare* commands into the Console input; nothing is
   executed until the user presses Enter in the Console.
@@ -125,6 +141,7 @@ place (`src/main/wsl/factory.ts`); fixture data cannot leak into real mode.
 | Area | Path |
 | --- | --- |
 | Shared contracts (types, IPC, schemas, i18n, masking) | `src/shared/` |
+| Developer Profiles data + evaluation, provider command builders | `src/shared/{profiles,package-commands}.ts` |
 | Hidden runner + parsers + detectors | `src/main/wsl/` |
 | Snapshot store, polling, warnings, diagnostics, LLM export | `src/main/state/` |
 | On-demand WSL/Windows network probes | `src/main/wsl/network-check.ts` |

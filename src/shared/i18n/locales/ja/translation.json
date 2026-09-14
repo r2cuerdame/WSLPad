@@ -1024,6 +1024,104 @@
       "unknown": "Unknown"
     }
   },
+  "profiles": {
+    "title": "開発者プロファイル",
+    "intro": "このディストリビューションをワークフローごとの推奨ツールセットと比較します。状態は収集済みのインストール済みツールカタログから取得し、不足ツールはここで検出されたパッケージマネージャーに解決され、Discover と同じコマンドを準備します。",
+    "listLabel": "プロファイル",
+    "count": "{{installed}}/{{total}}",
+    "installed": "{{count}} 件インストール済み",
+    "missing": "{{count}} 件不足",
+    "unknown": "{{count}} 件不明",
+    "resolvable": "不足 {{missing}} 件のうち {{resolvable}} 件を検出済みプロバイダーで準備できます",
+    "prepareMissing": "不足分のインストールを準備",
+    "tool": "ツール",
+    "status": "状態",
+    "why": "理由",
+    "resolution": "解決先",
+    "noProvider": "検出済みプロバイダーにありません — Discover で検索してください",
+    "discover": "Discover",
+    "discoverNamed": "Discover で {{name}} を検索",
+    "state": {
+      "installed": "インストール済み",
+      "missing": "不足",
+      "unknown": "不明"
+    },
+    "custom": {
+      "new": "新しいカスタムプロファイル",
+      "name": "プロファイル名",
+      "filter": "カタログを絞り込む",
+      "tools": "カタログのツール",
+      "picked": "{{count}} 件選択",
+      "description": "ツールカタログから自分で定義したカスタムプロファイルです。",
+      "reason": "このプロファイルのために自分で選択しました。",
+      "delete": "このプロファイルを削除"
+    },
+    "builtin": {
+      "web": {
+        "name": "Web",
+        "description": "コンテナ、GitHub、ブラウザテストを備えた Node.js サービスとフロントエンド。"
+      },
+      "python": {
+        "name": "Python",
+        "description": "高速な環境ツールとネイティブ拡張ビルドを備えた最新の Python プロジェクト。"
+      },
+      "rust": {
+        "name": "Rust",
+        "description": "Rust ツールチェーンと、ネイティブ依存を持つクレートが必要とするシステム構成要素。"
+      },
+      "ai": {
+        "name": "AI",
+        "description": "コーディングエージェントとローカルモデル、およびそれらが配布されるランタイム。"
+      },
+      "containers": {
+        "name": "Containers / Kubernetes",
+        "description": "ローカルでイメージをビルドし、本番または使い捨てのクラスターと通信します。"
+      }
+    },
+    "reason": {
+      "web": {
+        "node": "JavaScript と TypeScript のツールを実行します。他の Web 項目はすべてこれを前提とします。",
+        "packageManager": "プロジェクトの依存関係をインストールします。pnpm はより高速で厳密、npm は Node に同梱されます。",
+        "docker": "CI や本番と同じ方法でデータベース、キュー、アプリ自体を実行します。",
+        "git": "プロジェクトのバージョン管理であり、GitHub CLI が操作する対象でもあります。",
+        "gh": "ブラウザを往復せずにターミナルからプルリクエスト、Issue、Actions を扱います。",
+        "jq": "API や設定ファイルの JSON を 1 行で読み取り、整形します。",
+        "ripgrep": "大きなツリーをミリ秒で検索します。エディターやエージェントが依存しています。",
+        "playwright": "ディストリビューション内でエンドツーエンドのブラウザテストを実行します。ブラウザは別途インストールします（npx playwright install）。"
+      },
+      "python": {
+        "python": "インタープリター本体です。Ubuntu には python3 がありますが、ヘッダーや venv は常にあるとは限りません。",
+        "uv": "pip、virtualenv、pip-tools を置き換える高速なインストーラー兼環境マネージャーです。",
+        "pipx": "Python の CLI ツールを隔離環境にインストールし、互いに壊さないようにします。",
+        "poetry": "pyproject.toml のロックファイルを使うプロジェクトの依存関係・パッケージングマネージャーです。",
+        "gcc": "このプラットフォーム向けの wheel がない場合にネイティブ拡張をコンパイルします。",
+        "make": "多くのパッケージのビルドスクリプトやプロジェクトの Makefile を駆動します。"
+      },
+      "rust": {
+        "rust": "rustup が rustc をインストール・更新し、stable と nightly を並行して保持します。",
+        "cargo": "クレートをビルド、テスト、インストールします。rustup に同梱されます。",
+        "clang": "複数のクレートや bindgen がネイティブコードに必要とする C コンパイラーとリンカーです。",
+        "pkgConfig": "ビルドスクリプトが OpenSSL などのシステムライブラリを見つけられるようにします。"
+      },
+      "ai": {
+        "codex": "OpenAI のコーディングエージェント CLI です。",
+        "claude": "Anthropic の Claude Code エージェント CLI です。",
+        "gemini": "Google の Gemini CLI エージェントです。",
+        "ollama": "オープンモデルをローカルで実行し、クラウドキーなしでエージェントを動かせます。",
+        "playwright": "エージェントにテストや Web 作業用の実ブラウザを提供します。ブラウザは別途インストールします。",
+        "node": "エージェント CLI が配布されるランタイムです。",
+        "npm": "エージェント CLI をインストール・更新します（npm install --global）。",
+        "git": "エージェントは Git でコミット、ブランチ、差分を扱います。"
+      },
+      "containers": {
+        "engine": "イメージをビルドして実行します。Podman はデーモン不要の Docker 代替です。",
+        "kubectl": "あらゆる Kubernetes クラスターと通信します。",
+        "helm": "パッケージ化された Kubernetes アプリケーション（チャート）をインストール・更新します。",
+        "k9s": "クラスターを監視・操作するターミナル UI です。",
+        "localCluster": "マニフェストをテストする使い捨てローカルクラスターです。ここでは kind、k3d、minikube は置き換え可能です。"
+      }
+    }
+  },
   "diagnostics": {
     "title": "診断",
     "intro": "このセッションで重要な WSL の変化を記録します。ネットワーク検査は要求したときだけ実行され、バックグラウンド監視には含まれません。",
