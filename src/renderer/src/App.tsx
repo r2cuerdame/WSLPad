@@ -6,7 +6,7 @@ import { i18n, initRendererI18n } from './i18n'
 import TopBar from './TopBar'
 import DashboardTab from './dashboard/DashboardTab'
 import ExplorerTab from './explorer/ExplorerTab'
-import MigrationTab from './migration/MigrationTab'
+import RecoveryTab from './recovery/RecoveryTab'
 import ConsolePanel from './console/ConsolePanel'
 import SettingsDrawer from './settings/SettingsDrawer'
 import { Toasts } from './components/Toasts'
@@ -49,7 +49,7 @@ function Shell(): React.JSX.Element {
         <ExplorerTab />
       </main>
       <main className="tab-content" style={{ display: tab === 'migration' ? undefined : 'none' }}>
-        <MigrationTab />
+        <RecoveryTab />
       </main>
       <ConsolePanel />
       <SettingsDrawer />

@@ -420,16 +420,8 @@ export default function MigrationTab(): React.JSX.Element {
             <div className="notice-ok" style={{ marginTop: 12 }}>
               {t('migration.completed')}
             </div>
-            <div className="path-row" style={{ marginTop: 12 }}>
-              <div className="row-main">
-                <div className="path-line">
-                  <span className="path-label">{t('migration.cleanupHint')}</span>
-                </div>
-                <pre className="mono dim code-block">Remove-Item "{backupPath}"</pre>
-              </div>
-              <span className="row-actions">
-                <CopyButton text={`Remove-Item "${backupPath}"`} size={14} />
-              </span>
+            <div className="notice-warn" style={{ marginTop: 12 }}>
+              {t('migration.cleanupHint')}
             </div>
           </div>
         )}

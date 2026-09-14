@@ -79,7 +79,7 @@ export default function TopBar(): React.JSX.Element {
           className={tab === 'migration' ? 'tab active' : 'tab'}
           onClick={() => setTab('migration')}
         >
-          {t('tabs.migration', { defaultValue: 'Relocation' })}
+          {t('tabs.recovery', { defaultValue: 'Recovery' })}
         </button>
       </nav>
 
