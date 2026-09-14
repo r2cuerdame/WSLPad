@@ -19,6 +19,7 @@ import DoctorCard from './DoctorCard'
 import PathsCard from './PathsCard'
 import ConfigCard from './ConfigCard'
 import ToolsCard, { effectiveAppendWindowsPath } from './ToolsCard'
+import ProfilesCard from './ProfilesCard'
 import DiscoverCard from './DiscoverCard'
 import UpdateCenterCard from './UpdateCenterCard'
 import HermesCard from './HermesCard'
@@ -51,6 +52,7 @@ export default function DashboardTab(): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const locale = i18n.language as LocaleCode
   const [section, setSection] = useState<DashboardSectionId>(readStoredSection)
+  const [discoverQuery, setDiscoverQuery] = useState('')
   // The title row hosts the active section's controls; a ref callback in state
   // so the first render after mount actually has the node to portal into.
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null)
@@ -245,8 +247,18 @@ export default function DashboardTab(): React.JSX.Element {
             appendWindowsPath={effectiveAppendWindowsPath(dash.wslSettings)}
           />
         )
+      case 'profiles':
+        return (
+          <ProfilesCard
+            tools={dash.tools}
+            onDiscover={(query) => {
+              setDiscoverQuery(query)
+              selectSection('discover')
+            }}
+          />
+        )
       case 'discover':
-        return <DiscoverCard distro={dash.distro.name} />
+        return <DiscoverCard distro={dash.distro.name} initialQuery={discoverQuery} />
       case 'update-center':
         return <UpdateCenterCard />
       case 'openclaw':

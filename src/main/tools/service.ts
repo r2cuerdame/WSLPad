@@ -620,6 +620,14 @@ export class FixturePackageDiscoveryService implements PackageDiscoveryService {
         installCommand: "npm install --global 'typescript'"
       },
       {
+        provider: 'npm',
+        target: 'wsl',
+        name: 'pnpm',
+        version: '10.15.1',
+        description: 'Fast, disk-efficient Node.js package manager',
+        installCommand: "npm install --global 'pnpm'"
+      },
+      {
         provider: 'winget',
         target: 'windows',
         name: 'Microsoft.PowerShell',

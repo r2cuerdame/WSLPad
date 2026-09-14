@@ -165,6 +165,13 @@ export const PlugIcon = icon(
   </>
 )
 
+export const UserIcon = icon(
+  <>
+    <circle cx="8" cy="5" r="2.8" />
+    <path d="M2.8 14a5.2 5.2 0 0 1 10.4 0" />
+  </>
+)
+
 /**
  * Deliberately vintage duplicate mark for the WSL side of the Explorer: hard
  * 90° corners, 2px slabs and ruled lines, so it never gets mistaken for the

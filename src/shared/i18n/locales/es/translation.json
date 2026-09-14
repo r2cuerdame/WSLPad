@@ -1193,5 +1193,93 @@
     "spaceCritical": "Espacio insuficiente: solo {{free}} disponible, pero la imagen requiere al menos {{minNeeded}}.",
     "bootVerified": "¡Inicio verificado con éxito!",
     "stepRequiredHint": "Completa la verificación en este paso antes de continuar."
+  },
+  "profiles": {
+    "title": "Developer Profiles",
+    "intro": "Recommended tool sets for common developer workflows. Shows installed and missing tools from the current environment. Missing tools can be searched through Discover; install commands are placed in Console for review only, never executed automatically.",
+    "allInstalled": "All installed",
+    "counts": "{{installed}}/{{total}} installed",
+    "reason": "Reason",
+    "status": "Status",
+    "installed": "Installed",
+    "missing": "Missing",
+    "discover": "Discover",
+    "discoverNamed": "Discover {{name}} in package providers",
+    "discoverMissing": "Discover {{count}} missing tool(s)",
+    "discoverHandoff": "Switched to Discover — search for the missing tool there.",
+
+    "prepare": "Prepare install",
+    "prepareNamed": "Prepare install for {{name}}",
+    "prepareMissing": "Prepare {{count}} missing install(s)",
+    "prepareNeedsChoice": "{{name}} needs a package choice ? opened Discover instead.",
+    "custom": {
+      "reason": "User-selected tool"
+    },
+    "web": {
+      "name": "Web Development",
+      "description": "Full-stack JavaScript/TypeScript workflows with Node.js, package managers, Docker, and testing.",
+      "reason": {
+        "node": "JavaScript/TypeScript runtime, required for most web toolchains",
+        "npm": "Default Node.js package manager, ships with Node",
+        "pnpm": "Fast, disk-efficient package manager favored in monorepos",
+        "docker": "Containerized databases, services and reproducible builds",
+        "git": "Version control — the foundation of every collaborative workflow",
+        "gh": "GitHub CLI for pull requests, issues and CI without leaving the terminal",
+        "jq": "JSON processing on the command line — API responses, configs, logs",
+        "ripgrep": "Fast code search across large repositories",
+        "playwright": "Cross-browser end-to-end testing framework"
+      }
+    },
+    "python": {
+      "name": "Python Development",
+      "description": "Python applications and data science with modern packaging and build tooling.",
+      "reason": {
+        "python": "The Python interpreter itself",
+        "uv": "Extremely fast Python package installer and resolver",
+        "pipx": "Install and run Python CLI tools in isolated environments",
+        "poetry": "Dependency management and packaging with lock files",
+        "gcc": "C compiler needed to build Python packages with native extensions",
+        "make": "Build automation used by many C-extension packages"
+      }
+    },
+    "rust": {
+      "name": "Rust Development",
+      "description": "Systems programming with Rust, Cargo, and native build dependencies.",
+      "reason": {
+        "rust": "The Rust compiler (rustc), installed via rustup",
+        "cargo": "Rust package manager and build system",
+        "clang": "C/C++ compiler and linker needed by many crate build scripts",
+        "pkg-config": "Locates system libraries for crates that link to C dependencies",
+        "git": "Version control and Cargo's source for git dependencies"
+      }
+    },
+    "ai": {
+      "name": "AI & Coding Agents",
+      "description": "AI coding assistants, local model runners, and the runtimes they depend on.",
+      "reason": {
+        "codex": "OpenAI Codex CLI for AI-assisted code generation",
+        "claude": "Anthropic Claude CLI for interactive AI assistance",
+        "gemini": "Google Gemini CLI for AI-assisted development",
+        "ollama": "Run large language models locally on your machine",
+        "playwright": "Browser automation used by AI agents for web interaction",
+        "node": "Runtime required by Codex and many AI tool SDKs",
+        "python": "Runtime required by most ML frameworks and AI toolkits"
+      }
+    },
+    "container": {
+      "name": "Container & Kubernetes",
+      "description": "Container runtimes, orchestration tools, and local Kubernetes clusters.",
+      "reason": {
+        "docker": "Industry-standard container runtime and image builder",
+        "docker-compose": "Multi-container application orchestration",
+        "podman": "Daemonless container engine, drop-in Docker replacement",
+        "kubectl": "Kubernetes command-line tool for cluster management",
+        "helm": "Kubernetes package manager for deploying applications",
+        "k9s": "Terminal UI for Kubernetes cluster monitoring",
+        "kind": "Run local Kubernetes clusters inside Docker containers",
+        "k3d": "Lightweight Kubernetes clusters using k3s in Docker",
+        "minikube": "Local Kubernetes cluster for development and testing"
+      }
+    }
   }
 }

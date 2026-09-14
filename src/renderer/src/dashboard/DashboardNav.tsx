@@ -17,6 +17,7 @@ import {
   PlugIcon,
   ServerIcon,
   SlidersIcon,
+  UserIcon,
   WarningIcon,
   type IconProps
 } from '../components/Icons'
@@ -32,6 +33,7 @@ export type DashboardSectionId =
   | 'doctor'
   | 'paths'
   | 'configuration'
+  | 'profiles'
   | 'tools'
   | 'discover'
   | 'update-center'
@@ -63,6 +65,7 @@ export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   { id: 'doctor', titleKey: 'doctor.title', Icon: CheckIcon },
   { id: 'paths', titleKey: 'dashboard.paths.title', Icon: FolderIcon },
   { id: 'configuration', titleKey: 'dashboard.config.title', Icon: SlidersIcon },
+  { id: 'profiles', titleKey: 'profiles.title', Icon: UserIcon },
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },
   { id: 'discover', titleKey: 'dashboard.discover.title', Icon: SearchIcon },
   { id: 'update-center', titleKey: 'dashboard.updateCenter.title', Icon: BoltIcon },

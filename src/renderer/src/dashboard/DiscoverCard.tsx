@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PackageDiscoverResult } from '@shared/types'
 import Card from '../components/Card'
@@ -12,12 +12,22 @@ type ViewState =
   | { kind: 'done'; value: PackageDiscoverResult }
   | { kind: 'error'; message: string }
 
-export default function DiscoverCard({ distro }: { distro: string }): React.JSX.Element {
+export default function DiscoverCard({
+  distro,
+  initialQuery = ''
+}: {
+  distro: string
+  initialQuery?: string
+}): React.JSX.Element {
   const { t } = useTranslation()
   const { prepareCommand, pushToast } = useApp()
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
   const [view, setView] = useState<ViewState>({ kind: 'idle' })
   const requestId = useRef(0)
+
+  useEffect(() => {
+    if (initialQuery) setQuery(initialQuery)
+  }, [initialQuery])
 
   const search = async (event: FormEvent): Promise<void> => {
     event.preventDefault()

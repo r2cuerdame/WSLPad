@@ -25,6 +25,7 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     for (const id of [
       'overview',
       'resources',
+      'profiles',
       'tools',
       'discover',
       'update-center',
