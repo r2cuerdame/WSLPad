@@ -29,6 +29,7 @@ import type { AppUpdater } from '../updater'
 import { resourcePath } from '../resources'
 import type { DiagnosticsService } from '../state/diagnostics'
 import { diagnosticBundleToJson } from '../state/diagnostic-bundle'
+import type { PackageDiscoveryService } from '../tools/service'
 
 export interface IpcDeps {
   store: SnapshotStore
@@ -40,6 +41,7 @@ export interface IpcDeps {
   mcp: McpServerHost
   updater: AppUpdater
   diagnostics: DiagnosticsService
+  packageDiscovery: PackageDiscoveryService
   runner: DistroRunner | null
   getWindow(): BrowserWindow | null
   applySettingsPatch(patch: SettingsPatch): Promise<void>
@@ -84,6 +86,13 @@ const winRootOrPathSchema = z.union([z.literal(WINDOWS_ROOT), windowsPathSchema]
 const sessionIdSchema = z.string().regex(/^term-[A-Za-z0-9._-]+$/)
 /** Renderer-generated op id for a cancellable directory-size run. */
 const opTokenSchema = z.string().regex(/^[A-Za-z0-9-]{1,64}$/)
+/** Search text is data, never shell: providers quote it after this bounded validation. */
+const packageQuerySchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(80)
+  .regex(/^[\p{L}\p{N}][\p{L}\p{N} @+._/-]*$/u)
 
 /** Wrap ExplorerError into a message the renderer can parse back (goal.md §14). */
 function rethrow(err: unknown): never {
@@ -150,6 +159,14 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   })
   handle(IpcChannels.envReveal, (name) =>
     deps.provider.revealEnv(selectedDistroOf(deps), stringSchema.max(256).parse(name))
+  )
+
+  // --- package discovery (on demand; never part of polling or MCP) -------
+  handle(IpcChannels.packageDiscover, (query) =>
+    deps.packageDiscovery.discover(selectedDistroOf(deps), packageQuerySchema.parse(query))
+  )
+  handle(IpcChannels.packageUpdates, () =>
+    deps.packageDiscovery.updates(selectedDistroOf(deps))
   )
 
   // --- LLM export (goal.md §12) ------------------------------------------

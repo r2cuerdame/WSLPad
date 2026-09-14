@@ -641,6 +641,47 @@
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
+/* On-demand package surfaces keep provider health visible beside successful
+   results, without adding another polling cost to the dashboard snapshot. */
+.package-search,
+.package-provider-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.package-intro {
+  margin: 0;
+}
+
+.package-safety {
+  margin: -4px 0 4px;
+}
+
+.package-provider-strip {
+  padding: 2px 0;
+}
+
+.package-provider-ready {
+  color: var(--ok);
+}
+
+.package-provider-error,
+.package-provider-timed-out {
+  color: var(--err);
+}
+
+.package-provider-unavailable,
+.package-provider-unsupported {
+  color: var(--text-faint);
+}
+
+.package-table td:last-child {
+  overflow: visible;
+  text-align: right;
+}
+
 /* --- resource bars --- */
 
 /* A meter that spans the whole panel is unreadable — the row is a fixed block. */

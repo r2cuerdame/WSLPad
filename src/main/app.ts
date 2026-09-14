@@ -136,6 +136,7 @@ export class WslPadApp {
       mcp: this.mcp,
       updater: this.updater,
       diagnostics: this.diagnostics,
+      packageDiscovery: this.backends.packageDiscovery,
       runner: this.backends.runner,
       getWindow: () => this.window,
       applySettingsPatch: (patch) => this.applySettingsPatch(patch),

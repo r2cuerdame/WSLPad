@@ -3,7 +3,7 @@
 // for this file alone keeps them out of everything else.
 /// <reference lib="dom" />
 import { expect, test } from '@playwright/test'
-import { closeApp, launchWslPad, type LaunchedApp } from './_helpers'
+import { closeApp, consoleText, launchWslPad, type LaunchedApp } from './_helpers'
 
 test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
   let launched: LaunchedApp
@@ -22,7 +22,16 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     await expect(nav).toBeVisible({ timeout: 15000 })
     // The section list must not introduce more roles beyond the three top-level tabs.
     await expect(page.getByRole('tab')).toHaveCount(3)
-    for (const id of ['overview', 'resources', 'tools', 'processes', 'ports', 'warnings']) {
+    for (const id of [
+      'overview',
+      'resources',
+      'tools',
+      'discover',
+      'update-center',
+      'processes',
+      'ports',
+      'warnings'
+    ]) {
       await expect(page.getByTestId(`dashboard-nav-${id}`)).toBeVisible()
     }
 
@@ -40,6 +49,30 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     const detail = page.getByTestId('dashboard-detail')
     await expect(detail).toContainText('8790', { timeout: 15000 })
     await expect(detail).toContainText('Windows')
+  })
+
+  test('discovers and checks updates without executing prepared commands', async () => {
+    const { page } = launched
+    await page.getByTestId('dashboard-nav-discover').click()
+    await page.getByLabel('Search available packages').fill('ripgrep')
+    await page.getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByTestId('dashboard-detail')).toContainText('ripgrep')
+    await page.getByRole('button', { name: 'Prepare install command for ripgrep' }).click()
+    await expect.poll(() => consoleText(page)).toContain("sudo apt install -- 'ripgrep'")
+
+    await page.getByTestId('dashboard-nav-update-center').click()
+    await page.getByRole('button', { name: 'Check for updates' }).click()
+    await expect(page.getByTestId('dashboard-detail')).toContainText('Microsoft.PowerShell')
+    await expect(page.getByTestId('dashboard-detail')).toContainText('7.5.2.0')
+    await expect(page.getByTestId('dashboard-detail')).toContainText('7.5.3.0')
+    await page
+      .getByRole('button', { name: 'Prepare update command for Microsoft.PowerShell' })
+      .click()
+    await expect.poll(() => consoleText(page)).toContain(
+      'winget.exe upgrade --id Microsoft.PowerShell --exact --source winget'
+    )
+    // Prepared text has no Enter: the fixture shell never emitted a command result.
+    await expect.poll(() => consoleText(page)).not.toContain('Unknown command')
   })
 
   test('runs session-only diagnostics only after an explicit click', async () => {

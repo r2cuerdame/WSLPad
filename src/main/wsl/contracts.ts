@@ -70,6 +70,8 @@ export interface DistroRunner {
   runWsl(args: string[], opts?: RunOptions): Promise<RunResult>
   /** Run a POSIX sh script inside a distro via `wsl.exe -d <d> --exec /bin/sh -c <script>`. */
   runInDistro(distro: string, script: string, opts?: RunOptions): Promise<RunResult>
+  /** Optional bounded host-side command surface; used for Windows winget discovery only. */
+  runHostCommand?(file: string, args: string[], opts?: RunOptions): Promise<RunResult>
   /** Kill every child process this runner still tracks. */
   disposeAll(): Promise<void>
 }

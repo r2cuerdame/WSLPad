@@ -10,9 +10,9 @@ import { assertValidDistroName, shellQuote } from '../escape'
  * user services. Output is a line protocol parsed here:
  *   TOOL:<id> / PATH:<command -v> / VER:<version line> / PROC:<count> / CFG:<path>
  *
- * Cost control, because the catalog is ~86 tools and the slow tier only has
+ * Cost control, because the catalog is ~110 tools and the slow tier only has
  * RUNNER_SLOW_TIMEOUT_MS: the per-tool work is a shell function called with
- * arguments (so the script stays ~7 KB rather than ~30 KB), and every probe
+ * arguments (so the script stays ~10 KB rather than ~30 KB), and every probe
  * that costs a fork — the version command and pgrep — runs ONLY after
  * `command -v` resolved the tool. An absent tool therefore costs one builtin
  * lookup. Version commands are additionally wrapped in `timeout` when the
@@ -156,7 +156,14 @@ const SCRIPT_CONFIG: Record<string, ToolConfigInit> = {
     cfg: ['~/.dotnet', '~/.nuget']
   },
   php: { bin: 'php', version: '--version', proc: 'php', exact: true, cfg: ['~/.config/php'] },
+  mise: { bin: 'mise', alt: ['~/.local/bin/mise'], version: '--version', cfg: ['~/.config/mise/config.toml'] },
+  asdf: { bin: 'asdf', alt: ['~/.asdf/bin/asdf'], version: '--version', cfg: ['~/.asdfrc', '~/.tool-versions'] },
+  pyenv: { bin: 'pyenv', alt: ['~/.pyenv/bin/pyenv'], version: '--version', cfg: ['~/.pyenv/version'] },
+  fnm: { bin: 'fnm', alt: ['~/.local/share/fnm/fnm', '~/.fnm/fnm'], version: '--version', cfg: ['~/.local/share/fnm', '~/.fnm'] },
+  volta: { bin: 'volta', alt: ['~/.volta/bin/volta'], version: '--version', cfg: ['~/.volta'] },
   // --- package ---
+  apt: { bin: 'apt', version: '--version', cfg: [] },
+  snap: { bin: 'snap', version: '--version', cfg: ['/var/lib/snapd'] },
   npm: { bin: 'npm', version: '-v', proc: 'npm', exact: true, cfg: ['~/.npmrc'] },
   pnpm: { bin: 'pnpm', version: '-v', proc: 'pnpm', exact: true, cfg: ['~/.npmrc'] },
   yarn: {
@@ -234,13 +241,21 @@ const SCRIPT_CONFIG: Record<string, ToolConfigInit> = {
   },
   helm: { bin: 'helm', version: 'version --short', cfg: ['~/.config/helm'] },
   k9s: { bin: 'k9s', version: 'version', proc: 'k9s', exact: true, cfg: ['~/.config/k9s'] },
+  kind: { bin: 'kind', version: '--version', cfg: [] },
+  k3d: { bin: 'k3d', version: 'version', cfg: ['~/.config/k3d'] },
+  minikube: { bin: 'minikube', version: 'version --short', cfg: ['~/.minikube'] },
+  buildah: { bin: 'buildah', version: '--version', proc: 'buildah', exact: true, cfg: ['~/.config/containers'] },
+  nerdctl: { bin: 'nerdctl', version: '--version', proc: 'nerdctl', exact: true, cfg: ['~/.config/nerdctl/nerdctl.toml'] },
   // --- cloud ---
   aws: { bin: 'aws', version: '--version', cfg: ['~/.aws'] },
   gcloud: { bin: 'gcloud', version: '--version', cfg: ['~/.config/gcloud'] },
   az: { bin: 'az', version: 'version', cfg: ['~/.azure'] },
   terraform: { bin: 'terraform', version: 'version', cfg: ['~/.terraform.d'] },
+  opentofu: { bin: 'tofu', version: 'version', cfg: ['~/.tofurc'] },
   ansible: { bin: 'ansible', version: '--version', cfg: ['~/.ansible.cfg', '~/.ansible'] },
   ssh: { bin: 'ssh', version: '-V', proc: 'ssh', exact: true, cfg: ['~/.ssh/config'] },
+  cloudflared: { bin: 'cloudflared', version: '--version', proc: 'cloudflared', exact: true, cfg: ['~/.cloudflared/config.yml'] },
+  tailscale: { bin: 'tailscale', version: 'version', proc: 'tailscaled', exact: true, cfg: ['/var/lib/tailscale/tailscaled.state'] },
   // --- build ---
   gcc: { bin: 'gcc', version: '--version', cfg: [] },
   make: { bin: 'make', version: '--version', proc: 'make', exact: true, cfg: [] },
@@ -248,6 +263,8 @@ const SCRIPT_CONFIG: Record<string, ToolConfigInit> = {
   clang: { bin: 'clang', version: '--version', cfg: [] },
   ninja: { bin: 'ninja', version: '--version', proc: 'ninja', exact: true, cfg: [] },
   'pkg-config': { bin: 'pkg-config', version: '--version', cfg: [] },
+  meson: { bin: 'meson', version: '--version', cfg: [] },
+  bazel: { bin: 'bazel', version: '--version', cfg: ['~/.bazelrc'] },
   // --- database ---
   sqlite3: { bin: 'sqlite3', version: '--version', cfg: ['~/.sqliterc'] },
   psql: { bin: 'psql', version: '--version', proc: 'psql', exact: true, cfg: ['~/.psqlrc'] },
@@ -311,7 +328,14 @@ const SCRIPT_CONFIG: Record<string, ToolConfigInit> = {
     version: '--version',
     proc: 'chrom',
     cfg: ['~/.config/chromium']
-  }
+  },
+  btop: { bin: 'btop', version: '--version', proc: 'btop', exact: true, cfg: ['~/.config/btop'] },
+  lazygit: { bin: 'lazygit', version: '--version', proc: 'lazygit', exact: true, cfg: ['~/.config/lazygit/config.yml', '~/.config/jesseduffield/lazygit/config.yml'] },
+  glab: { bin: 'glab', version: '--version', cfg: ['~/.config/glab-cli/config.yml'] },
+  httpie: { bin: 'http', version: '--version', cfg: ['~/.config/httpie/config.json', '~/.httpie/config.json'] },
+  mkcert: { bin: 'mkcert', version: '-version', cfg: ['~/.local/share/mkcert'] },
+  caddy: { bin: 'caddy', version: 'version', proc: 'caddy', exact: true, cfg: ['~/.config/caddy', '/etc/caddy/Caddyfile'] },
+  nginx: { bin: 'nginx', version: '-v', proc: 'nginx', exact: true, cfg: ['/etc/nginx/nginx.conf'] }
 }
 
 /**
@@ -535,6 +559,11 @@ export function inferInstallMethod(toolId: string, executablePath: string | null
   if (!executablePath) return null
   const p = executablePath
   if (p.includes('/.nvm/')) return 'nvm'
+  if (p.includes('/.asdf/')) return 'asdf'
+  if (p.includes('/.pyenv/')) return 'pyenv'
+  if (p.includes('/.volta/')) return 'volta'
+  if (p.includes('/.local/share/fnm/')) return 'fnm'
+  if (p.includes('/.fnm/')) return 'fnm'
   if (p.includes('/.bun/')) return 'bundled'
   if (p.includes('/linuxbrew/')) return 'brew'
   if (p.includes('/.cargo/bin/')) return 'cargo'

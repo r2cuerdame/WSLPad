@@ -149,7 +149,14 @@ export const TOOL_SPECS: ReadonlyArray<ToolSpec> = [
   { id: 'java', displayName: 'Java', category: 'runtime' },
   { id: 'dotnet', displayName: '.NET', category: 'runtime' },
   { id: 'php', displayName: 'PHP', category: 'runtime' },
+  { id: 'mise', displayName: 'mise', category: 'runtime' },
+  { id: 'asdf', displayName: 'asdf', category: 'runtime' },
+  { id: 'pyenv', displayName: 'pyenv', category: 'runtime' },
+  { id: 'fnm', displayName: 'Fast Node Manager', category: 'runtime' },
+  { id: 'volta', displayName: 'Volta', category: 'runtime' },
   // package
+  { id: 'apt', displayName: 'APT', category: 'package' },
+  { id: 'snap', displayName: 'Snap', category: 'package' },
   { id: 'npm', displayName: 'npm', category: 'package' },
   { id: 'pnpm', displayName: 'pnpm', category: 'package' },
   { id: 'yarn', displayName: 'yarn', category: 'package' },
@@ -168,6 +175,8 @@ export const TOOL_SPECS: ReadonlyArray<ToolSpec> = [
   { id: 'git', displayName: 'Git', category: 'vcs' },
   { id: 'git-lfs', displayName: 'Git LFS', category: 'vcs' },
   { id: 'gh', displayName: 'GitHub CLI', category: 'vcs' },
+  { id: 'lazygit', displayName: 'lazygit', category: 'vcs' },
+  { id: 'glab', displayName: 'GitLab CLI', category: 'vcs' },
   { id: 'svn', displayName: 'Subversion', category: 'vcs' },
   // container
   { id: 'docker', displayName: 'Docker', category: 'container' },
@@ -176,13 +185,23 @@ export const TOOL_SPECS: ReadonlyArray<ToolSpec> = [
   { id: 'kubectl', displayName: 'kubectl', category: 'container' },
   { id: 'helm', displayName: 'Helm', category: 'container' },
   { id: 'k9s', displayName: 'k9s', category: 'container' },
+  { id: 'kind', displayName: 'kind', category: 'container' },
+  { id: 'k3d', displayName: 'k3d', category: 'container' },
+  { id: 'minikube', displayName: 'minikube', category: 'container' },
+  { id: 'buildah', displayName: 'Buildah', category: 'container' },
+  { id: 'nerdctl', displayName: 'nerdctl', category: 'container' },
   // cloud
   { id: 'aws', displayName: 'AWS CLI', category: 'cloud' },
   { id: 'gcloud', displayName: 'Google Cloud CLI', category: 'cloud' },
   { id: 'az', displayName: 'Azure CLI', category: 'cloud' },
   { id: 'terraform', displayName: 'Terraform', category: 'cloud' },
+  { id: 'opentofu', displayName: 'OpenTofu', category: 'cloud' },
   { id: 'ansible', displayName: 'Ansible', category: 'cloud' },
   { id: 'ssh', displayName: 'OpenSSH', category: 'cloud' },
+  { id: 'cloudflared', displayName: 'cloudflared', category: 'cloud' },
+  { id: 'tailscale', displayName: 'Tailscale', category: 'cloud' },
+  { id: 'caddy', displayName: 'Caddy', category: 'cloud' },
+  { id: 'nginx', displayName: 'nginx', category: 'cloud' },
   // build
   { id: 'gcc', displayName: 'GCC', category: 'build' },
   { id: 'make', displayName: 'Make', category: 'build' },
@@ -190,6 +209,8 @@ export const TOOL_SPECS: ReadonlyArray<ToolSpec> = [
   { id: 'clang', displayName: 'Clang', category: 'build' },
   { id: 'ninja', displayName: 'Ninja', category: 'build' },
   { id: 'pkg-config', displayName: 'pkg-config', category: 'build' },
+  { id: 'meson', displayName: 'Meson', category: 'build' },
+  { id: 'bazel', displayName: 'Bazel', category: 'build' },
   // database
   { id: 'sqlite3', displayName: 'SQLite', category: 'database' },
   { id: 'psql', displayName: 'PostgreSQL client', category: 'database' },
@@ -226,7 +247,10 @@ export const TOOL_SPECS: ReadonlyArray<ToolSpec> = [
   { id: 'rsync', displayName: 'rsync', category: 'util' },
   { id: 'direnv', displayName: 'direnv', category: 'util' },
   { id: 'playwright', displayName: 'Playwright', category: 'util' },
-  { id: 'chromium', displayName: 'Chromium', category: 'util' }
+  { id: 'chromium', displayName: 'Chromium', category: 'util' },
+  { id: 'btop', displayName: 'btop', category: 'util' },
+  { id: 'httpie', displayName: 'HTTPie', category: 'util' },
+  { id: 'mkcert', displayName: 'mkcert', category: 'util' }
 ]
 
 export const CONSOLE_HEIGHT_BOUNDS = { min: 80, max: 600 } as const

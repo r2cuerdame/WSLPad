@@ -10,6 +10,8 @@ import type {
   McpStatus,
   DiagnosticsState,
   NetworkCheckResult,
+  PackageDiscoverResult,
+  PackageUpdateCenterResult,
   RecoveryCheckResult,
   Settings,
   SettingsPatch,
@@ -45,6 +47,8 @@ export const IpcChannels = {
   diagnosticsNetworkCheck: 'wslpad:diagnostics:network-check',
   diagnosticsRecoveryCheck: 'wslpad:diagnostics:recovery-check',
   diagnosticsExport: 'wslpad:diagnostics:export',
+  packageDiscover: 'wslpad:packages:discover',
+  packageUpdates: 'wslpad:packages:updates',
 
   // explorer
   explorerList: 'wslpad:explorer:list',
@@ -177,6 +181,12 @@ export interface WslPadApi {
     /** Privacy-previewed JSON bundle containing the masked snapshot and session diagnostics. */
     exportBundle(): Promise<string | null>
     onChange(cb: (state: DiagnosticsState) => void): () => void
+  }
+
+  /** Explicit, read-only provider queries. Commands returned here are drafts only. */
+  tools: {
+    search(query: string): Promise<PackageDiscoverResult>
+    checkUpdates(): Promise<PackageUpdateCenterResult>
   }
 
   explorer: {

@@ -411,6 +411,51 @@
         "util": "ユーティリティ"
       }
     },
+    "discover": {
+      "title": "Discover",
+      "searchLabel": "Search available packages",
+      "searchPlaceholder": "Search packages",
+      "search": "Search",
+      "intro": "Search package managers detected in {{distro}} and on Windows.",
+      "idle": "Enter at least two characters. Providers are queried only when you search.",
+      "loading": "Searching detected providers…",
+      "failed": "Discovery failed",
+      "empty": "No matching packages were returned by the available providers.",
+      "prepare": "Prepare install",
+      "prepareNamed": "Prepare install command for {{name}}"
+    },
+    "updateCenter": {
+      "title": "Update Center",
+      "check": "Check for updates",
+      "refresh": "Check again",
+      "intro": "Check installed packages against each provider’s current update view.",
+      "idle": "Update providers are queried only when you start a check.",
+      "loading": "Checking detected providers…",
+      "failed": "Update check failed",
+      "empty": "No available updates were reported.",
+      "installed": "Installed version",
+      "available": "Available version",
+      "prepare": "Prepare update",
+      "prepareNamed": "Prepare update command for {{name}}"
+    },
+    "packages": {
+      "provider": "Provider",
+      "version": "Version",
+      "target": "Target",
+      "providerStatus": "Package provider status",
+      "safety": "Read-only results. Commands are only placed in Console for review and never run automatically.",
+      "side": {
+        "wsl": "WSL",
+        "windows": "Windows"
+      },
+      "state": {
+        "ready": "Ready",
+        "unavailable": "Unavailable",
+        "unsupported": "Unsupported",
+        "error": "Error",
+        "timed-out": "Timed out"
+      }
+    },
     "docker": {
       "title": "Docker",
       "unavailable": "このディストリビューションの Docker 情報はありません",

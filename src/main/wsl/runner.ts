@@ -62,8 +62,19 @@ export class WslRunner implements DistroRunner {
     )
   }
 
-  private spawnAndCollect(spec: SpawnSpec, opts: RunOptions): Promise<RunResult> {
-    if (this.wslMissing) return Promise.reject(new WslNotAvailableError())
+  /** Host commands share the same hidden-window, timeout, cap and child tracking rules. */
+  runHostCommand(file: string, args: string[], opts: RunOptions = {}): Promise<RunResult> {
+    return this.spawnAndCollect({ file, args }, { encoding: 'utf8', ...opts }, false)
+  }
+
+  private spawnAndCollect(
+    spec: SpawnSpec,
+    opts: RunOptions,
+    missingMeansWslUnavailable = true
+  ): Promise<RunResult> {
+    if (missingMeansWslUnavailable && this.wslMissing) {
+      return Promise.reject(new WslNotAvailableError())
+    }
     const timeoutMs = opts.timeoutMs ?? RUNNER_TIMEOUT_MS
     const maxBytes = opts.maxOutputBytes ?? RUNNER_MAX_OUTPUT_BYTES
     const encoding = opts.encoding ?? 'auto'
@@ -126,7 +137,7 @@ export class WslRunner implements DistroRunner {
         settled = true
         clearTimeout(timer)
         this.children.delete(child)
-        if (err.code === 'ENOENT') {
+        if (err.code === 'ENOENT' && missingMeansWslUnavailable) {
           this.wslMissing = true
           reject(new WslNotAvailableError())
         } else {

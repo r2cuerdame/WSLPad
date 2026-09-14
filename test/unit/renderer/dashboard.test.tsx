@@ -26,6 +26,8 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['paths', 'Important paths'],
   ['configuration', 'Configuration files'],
   ['tools', 'Installed tools'],
+  ['discover', 'Discover'],
+  ['update-center', 'Update Center'],
   ['docker', 'Docker'],
   ['hermes', 'Hermes'],
   ['openclaw', 'OpenClaw'],
@@ -305,6 +307,66 @@ function makeApi(snapshot: WslPadSnapshot) {
       runRecoveryCheck: vi.fn(),
       exportBundle: vi.fn(async () => 'C:\\out\\diagnostic.json'),
       onChange: vi.fn(() => () => undefined)
+    },
+    tools: {
+      search: vi.fn(async (query: string) => ({
+        query,
+        results: [
+          {
+            provider: 'apt' as const,
+            target: 'wsl' as const,
+            name: 'ripgrep',
+            version: '14.1.0',
+            description: 'fast recursive search',
+            installCommand: "sudo apt install -- 'ripgrep'"
+          }
+        ],
+        providers: [
+          {
+            provider: 'apt' as const,
+            displayName: 'APT',
+            target: 'wsl' as const,
+            state: 'ready' as const,
+            message: null
+          },
+          {
+            provider: 'cargo' as const,
+            displayName: 'Cargo',
+            target: 'wsl' as const,
+            state: 'timed-out' as const,
+            message: 'Provider timed out'
+          }
+        ]
+      })),
+      checkUpdates: vi.fn(async () => ({
+        updates: [
+          {
+            provider: 'winget' as const,
+            target: 'windows' as const,
+            name: 'Microsoft.PowerShell',
+            installedVersion: '7.5.2.0',
+            availableVersion: '7.5.3.0',
+            updateCommand: 'winget.exe upgrade --id Microsoft.PowerShell --exact --source winget'
+          }
+        ],
+        providers: [
+          {
+            provider: 'winget' as const,
+            displayName: 'winget',
+            target: 'windows' as const,
+            state: 'ready' as const,
+            message: null
+          },
+          {
+            provider: 'cargo' as const,
+            displayName: 'Cargo',
+            target: 'wsl' as const,
+            state: 'unsupported' as const,
+            message: 'No reliable native update listing'
+          }
+        ],
+        checkedAt: '2026-09-14T00:00:00.000Z'
+      }))
     },
     convertPath: vi.fn(async () => ''),
     openInWindowsExplorer: vi.fn(async () => undefined),
@@ -684,6 +746,38 @@ describe('DashboardTab master–detail', () => {
     expect(screen.getByTestId('prepared').textContent).toBe('kill 4242')
     expect(api.terminal.input).not.toHaveBeenCalled()
     expect(api.terminal.ensure).not.toHaveBeenCalled()
+  })
+
+  it('discovers packages on demand and only prepares the install command', async () => {
+    await renderDashboard(<PreparedProbe />)
+    fireEvent.click(navItem('discover'))
+    expect(api.tools.search).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText('Search available packages'), {
+      target: { value: 'ripgrep' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    expect(await screen.findByText('fast recursive search')).toBeTruthy()
+    expect(screen.getByText('Cargo: Timed out')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare install command for ripgrep' }))
+    expect(screen.getByTestId('prepared').textContent).toBe("sudo apt install -- 'ripgrep'")
+    expect(api.terminal.input).not.toHaveBeenCalled()
+  })
+
+  it('checks updates on demand and only prepares the Windows update command', async () => {
+    await renderDashboard(<PreparedProbe />)
+    fireEvent.click(navItem('update-center'))
+    expect(api.tools.checkUpdates).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Check for updates' }))
+    expect(await screen.findByText('Microsoft.PowerShell')).toBeTruthy()
+    expect(screen.getByText('Cargo: Unsupported')).toBeTruthy()
+    expect(screen.getByText('Windows')).toBeTruthy()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Prepare update command for Microsoft.PowerShell' })
+    )
+    expect(screen.getByTestId('prepared').textContent).toBe(
+      'winget.exe upgrade --id Microsoft.PowerShell --exact --source winget'
+    )
+    expect(api.terminal.input).not.toHaveBeenCalled()
   })
 
   it('keeps the Copy for LLM actions in the toolbar', async () => {
