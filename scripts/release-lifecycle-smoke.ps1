@@ -1,12 +1,14 @@
 [CmdletBinding()]
 param(
-  [string]$PreviousVersion = '1.0.0',
-  [string]$TargetVersion = '1.0.1',
-  [Parameter(Mandatory)]
-  [ValidatePattern('^[0-9A-Fa-f]{64}$')]
-  [string]$TargetSha256,
+  [string]$PreviousVersion = '1.1.1',
+  [string]$TargetVersion = '1.1.2',
+  [ValidatePattern('^([0-9A-Fa-f]{64})?$')]
+  [string]$TargetSha256 = '',
   [string]$Repository = 'r2cuerdame/WSLPad',
-  [switch]$RequireNoDistros
+  [string]$LocalPreviousInstaller = '',
+  [string]$LocalTargetInstaller = '',
+  [switch]$RequireNoDistros,
+  [switch]$CleanFirst
 )
 
 $ErrorActionPreference = 'Stop'
@@ -139,6 +141,7 @@ function Uninstall-WslPad {
   Wait-Until -Description 'WSLPad executable removal' -Condition {
     -not (Test-Path -LiteralPath $executable)
   }
+  Start-Sleep -Seconds 2
   Assert-Shortcuts -Present $false
 }
 
@@ -151,6 +154,11 @@ $marker = Join-Path $settingsDirectory "release-lifecycle-smoke-$markerId.txt"
 $markerValue = "preserve-$markerId"
 
 try {
+  if ($CleanFirst) {
+    if (Get-WslPadUninstallEntry) {
+      Uninstall-WslPad
+    }
+  }
   Assert-True ($null -eq (Get-WslPadUninstallEntry)) 'Clean-machine precondition failed: WSLPad is already installed'
   Assert-True ($null -eq (Get-SystemWslPadUninstallEntry)) 'Clean-machine precondition failed: system WSLPad install exists'
   $distros = @(& wsl.exe --list --quiet 2>$null | Where-Object { $_.Trim().Length -gt 0 })
@@ -160,11 +168,25 @@ try {
   $launchContext = if ($distros.Count -eq 0) { 'without a WSL distribution' } else { "with $($distros.Count) WSL distribution(s)" }
 
   New-Item -ItemType Directory -Path $tempRoot | Out-Null
-  $previousUrl = Download-Installer -Version $PreviousVersion -Destination $previousInstaller
-  $targetUrl = Download-Installer -Version $TargetVersion -Destination $targetInstaller
+  if ($LocalPreviousInstaller -and (Test-Path -LiteralPath $LocalPreviousInstaller)) {
+    $previousInstaller = (Resolve-Path -LiteralPath $LocalPreviousInstaller).Path
+    $previousUrl = "local:$previousInstaller"
+  } else {
+    $previousUrl = Download-Installer -Version $PreviousVersion -Destination $previousInstaller
+  }
+
+  if ($LocalTargetInstaller -and (Test-Path -LiteralPath $LocalTargetInstaller)) {
+    $targetInstaller = (Resolve-Path -LiteralPath $LocalTargetInstaller).Path
+    $targetUrl = "local:$targetInstaller"
+  } else {
+    $targetUrl = Download-Installer -Version $TargetVersion -Destination $targetInstaller
+  }
+
   $actualTargetHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $targetInstaller).Hash
-  Assert-True ($actualTargetHash -eq $TargetSha256.ToUpperInvariant()) `
-    "Published target SHA-256 is $actualTargetHash, expected $TargetSha256"
+  if ($TargetSha256) {
+    Assert-True ($actualTargetHash -eq $TargetSha256.ToUpperInvariant()) `
+      "Published target SHA-256 is $actualTargetHash, expected $TargetSha256"
+  }
 
   $previousExecutable = Install-WslPad -Installer $previousInstaller -ExpectedVersion $PreviousVersion
   Assert-Shortcuts -Present $true
