@@ -60,14 +60,14 @@ jobs:
           TARGET_VERSION: ${{ inputs.target_version || (github.event_name == 'pull_request' && '1.1.1' || '1.1.2') }}
           TARGET_SHA256: ${{ inputs.target_sha256 || (github.event_name == 'pull_request' && 'AA6CA9FAB141FF459D7C9ADEA6AEA78728536BCF760ED68E3FD95DECAB522845' || '') }}
         run: |
-          $extraArgs = @()
+          $params = @{
+            PreviousVersion = $env:PREVIOUS_VERSION
+            TargetVersion   = $env:TARGET_VERSION
+          }
           if ($env:TARGET_SHA256) {
-            $extraArgs += @('-TargetSha256', $env:TARGET_SHA256)
+            $params['TargetSha256'] = $env:TARGET_SHA256
           }
-          if ('${{ inputs.require_no_distros }}' -eq 'true' -or ('${{ inputs.runner }}' -eq 'windows-latest' -and '${{ github.event_name }}' -ne 'workflow_dispatch')) {
-            $extraArgs += '-RequireNoDistros'
+          if ('${{ inputs.require_no_distros }}' -eq 'true' -or ('${{ inputs.runner }}' -ne 'self-hosted')) {
+            $params['RequireNoDistros'] = $true
           }
-          ./scripts/release-lifecycle-smoke.ps1 `
-            -PreviousVersion $env:PREVIOUS_VERSION `
-            -TargetVersion $env:TARGET_VERSION `
-            @extraArgs
+          ./scripts/release-lifecycle-smoke.ps1 @params
