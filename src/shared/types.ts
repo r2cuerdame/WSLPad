@@ -456,6 +456,26 @@ export interface PackageUpdateCenterResult {
   checkedAt: string
 }
 
+/** USB-over-IP inventory (issue #92). Read-only until the user copies a command. */
+export type UsbDeviceState = 'available' | 'bound' | 'attached' | 'windows-only' | 'unknown'
+
+export interface UsbDeviceInfo {
+  busId: string
+  vidPid: string
+  device: string
+  state: UsbDeviceState
+  /** usbipd's own state text, retained so new versions never become silent guesses. */
+  rawState: string
+}
+
+export interface UsbInventory {
+  installed: boolean
+  version: string | null
+  devices: UsbDeviceInfo[]
+  error: string | null
+  checkedAt: string
+}
+
 export interface HermesProcessInfo {
   pid: number
   command: string

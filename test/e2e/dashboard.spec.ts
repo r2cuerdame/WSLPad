@@ -29,6 +29,7 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
       'tools',
       'discover',
       'update-center',
+      'usb',
       'processes',
       'ports',
       'warnings'

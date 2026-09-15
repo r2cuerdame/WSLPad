@@ -165,6 +165,17 @@ export const PlugIcon = icon(
   </>
 )
 
+export const UsbIcon = icon(
+  <>
+    <path d="M8 14V3" />
+    <path d="M8 3L6.2 4.8M8 3l1.8 1.8" />
+    <path d="M8 8H5.2a2 2 0 0 1-2-2V5" />
+    <circle cx="3.2" cy="4.2" r=".8" />
+    <path d="M8 10h2.8a2 2 0 0 0 2-2V7" />
+    <rect x="12" y="5.5" width="1.6" height="1.6" />
+  </>
+)
+
 export const UserIcon = icon(
   <>
     <circle cx="8" cy="5" r="2.8" />

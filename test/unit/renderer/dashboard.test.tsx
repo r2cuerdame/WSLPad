@@ -30,6 +30,7 @@ const SECTION_LABELS: ReadonlyArray<[string, string]> = [
   ['tools', 'Installed tools'],
   ['discover', 'Discover'],
   ['update-center', 'Update Center'],
+  ['usb', 'USB Devices'],
   ['docker', 'Docker'],
   ['hermes', 'Hermes'],
   ['openclaw', 'OpenClaw'],

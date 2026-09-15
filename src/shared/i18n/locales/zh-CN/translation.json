@@ -1224,6 +1224,33 @@
     "created": "Confirmed at",
     "verification": "Verification"
   },
+  "usb": {
+    "title": "USB Devices",
+    "intro": "Inspect Windows USB devices through usbipd for the selected WSL distribution: {{distro}}.",
+    "safety": "Scanning is read-only. Bind usually requires Administrator. Attach transfers control from Windows to WSL. WSLPad only copies commands; it never runs bind, attach, or detach automatically.",
+    "scan": "Scan USB devices",
+    "refresh": "Refresh devices",
+    "idle": "Run a scan to read the current usbipd device inventory.",
+    "loading": "Reading usbipd device inventory?",
+    "missing": "usbipd-win is not installed or could not be found.",
+    "find": "Find usbipd with Discover",
+    "version": "usbipd version {{version}}",
+    "empty": "usbipd reported no connected USB devices.",
+    "busId": "BUSID",
+    "vidPid": "VID:PID",
+    "device": "Device",
+    "state": "State",
+    "bind": "Copy bind",
+    "attach": "Copy attach",
+    "detach": "Copy detach",
+    "states": {
+      "available": "Available",
+      "bound": "Bound",
+      "attached": "Attached to WSL",
+      "windows-only": "Windows-only",
+      "unknown": "Unknown"
+    }
+  },
   "profiles": {
     "title": "Developer Profiles",
     "intro": "Recommended tool sets for common developer workflows. Shows installed and missing tools from the current environment. Missing tools can be searched through Discover; install commands are placed in Console for review only, never executed automatically.",

@@ -46,6 +46,10 @@ const api: WslPadApi = {
     run: () => ipcRenderer.invoke(IpcChannels.doctorRun)
   },
 
+  usb: {
+    inventory: () => ipcRenderer.invoke(IpcChannels.usbInventory)
+  },
+
   explorer: {
     list: (path, opts) => ipcRenderer.invoke(IpcChannels.explorerList, path, opts),
     tree: (path) => ipcRenderer.invoke(IpcChannels.explorerTree, path),

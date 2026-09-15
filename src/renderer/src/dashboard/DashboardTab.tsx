@@ -22,6 +22,7 @@ import ToolsCard, { effectiveAppendWindowsPath } from './ToolsCard'
 import ProfilesCard from './ProfilesCard'
 import DiscoverCard from './DiscoverCard'
 import UpdateCenterCard from './UpdateCenterCard'
+import UsbCard from './UsbCard'
 import HermesCard from './HermesCard'
 import DockerCard from './DockerCard'
 import OpenClawCard, { findOpenClaw } from './OpenClawCard'
@@ -261,6 +262,16 @@ export default function DashboardTab(): React.JSX.Element {
         return <DiscoverCard distro={dash.distro.name} initialQuery={discoverQuery} />
       case 'update-center':
         return <UpdateCenterCard />
+      case 'usb':
+        return (
+          <UsbCard
+            distro={dash.distro.name}
+            onDiscover={(query) => {
+              setDiscoverQuery(query)
+              selectSection('discover')
+            }}
+          />
+        )
       case 'openclaw':
         return <OpenClawCard openclaw={findOpenClaw(dash.tools)} />
       case 'docker':
