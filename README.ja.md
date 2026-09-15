@@ -1,4 +1,4 @@
-# WSLPad
+# WSLPad — Windows 向け WSL GUI・ダッシュボード・トラブルシューティングツール
 
 [English](README.md) · [한국어](README.ko.md) · **日本語** · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português (Brasil)](README.pt-BR.md)
 
@@ -8,13 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
-> WSL のための小さな Windows コンパニオン。
+> **WSL が実際に何をしているのか、なぜ問題が起きているのかを確認できます。**
 
-WSLPad は Windows トレイに常駐しながら WSL 環境の目に見えない部分を可視化する
-アプリです。どのディストリビューションが動いているか、ツールがどこにある
-か、どのポートで何が待ち受けているか — そこに本物の 2 ペイン式ファイルマネージャー、
-対話型コンソール、安全な VHDX 移行ウィザード、そして LLM ツールが環境を参照する
-だけで決して変更できない **読み取り専用の MCP サーバー** が加わります。
+WSLPad は Windows 10/11 向けのオープンソース **WSL GUI・WSL ダッシュボード・トラブルシューティングツール**です。実行中のディストリビューション、CPU とメモリ、`ext4.vhdx`、`.wslconfig` と `wsl.conf`、ポート、ネットワーク、DNS、systemd サービス、Docker、開発ツール、ファイルパスなど、Windows Subsystem for Linux の見えにくい状態を一か所で確認できます。
+
+さらに **Windows ↔ WSL の2ペイン式ファイルマネージャー**、実際の対話型ターミナル、診断・復旧ツール、安全な VHDX 移行、Claude や Codex が環境を変更せずに参照できる **読み取り専用 WSL MCP サーバー**を備えています。
 
 ![WSLPad ダッシュボード](docs/screenshots/dashboard.png)
 

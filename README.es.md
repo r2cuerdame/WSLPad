@@ -1,4 +1,4 @@
-# WSLPad
+# WSLPad — GUI, panel y herramienta de diagnóstico de WSL para Windows
 
 [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · **Español** · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português (Brasil)](README.pt-BR.md)
 
@@ -8,14 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
-> Un pequeño compañero de Windows para WSL.
+> **Mira qué está haciendo realmente WSL y por qué falla.**
 
-WSLPad es una aplicación que reside en la bandeja del sistema de Windows y
-hace visible lo que suele quedar oculto en WSL: qué distribuciones están en
-ejecución, dónde viven tus herramientas, qué escucha en cada puerto; y además
-un explorador de archivos de doble panel de verdad, una consola interactiva,
-un asistente seguro de migración VHDX y un **servidor MCP de solo lectura** para
-que tus herramientas LLM puedan inspeccionar (nunca modificar) tu entorno.
+WSLPad es una **GUI, panel y herramienta de diagnóstico de WSL** de código abierto para Windows 10/11. Reúne en un solo lugar el estado que Windows Subsystem for Linux suele ocultar: distribuciones activas, CPU y memoria, `ext4.vhdx`, `.wslconfig` y `wsl.conf`, puertos, red, DNS, servicios systemd, Docker, herramientas de desarrollo y rutas de archivos.
+
+También incluye un **gestor de archivos de doble panel Windows ↔ WSL**, una terminal interactiva real, herramientas de diagnóstico y recuperación, migración segura de VHDX y un **servidor MCP de WSL de solo lectura** para Claude, Codex y otros LLM.
 
 ![Dashboard de WSLPad](docs/screenshots/dashboard.png)
 

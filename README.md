@@ -66,7 +66,7 @@ It covers:
 - Windows Terminal profile state
 - warnings for common WSL problems
 
-### WSL network and port troubleshooting
+### WSL network, localhost and port forwarding troubleshooting
 
 A port being “open” inside Linux does not mean Windows or another machine can reach it.
 
@@ -84,7 +84,7 @@ Each listener gets a reachability verdict such as **LAN reachable**, **this PC o
 
 ![Ports](docs/screenshots/ports.png)
 
-### `.wslconfig` and `wsl.conf` diagnostics
+### `.wslconfig` and `wsl.conf` changes not applying
 
 WSL configuration is split across Windows and Linux, and many changes only apply after restarting the WSL VM.
 
@@ -92,7 +92,7 @@ WSLPad shows the configured value next to the effective value and classifies the
 
 ![WSL settings](docs/screenshots/wslconfig.png)
 
-### WSL disk, VHDX and storage analysis
+### WSL disk space, `ext4.vhdx` and VHDX storage analysis
 
 `df` inside Linux does not tell you how much space the WSL virtual disk is consuming on Windows.
 
@@ -117,7 +117,7 @@ Both panes have navigation history, breadcrumbs, path bars, search, sorting, fil
 
 Cross-filesystem transfers are copy-only by design, show progress and can be cancelled. Text files can be opened in the built-in editor with line numbers, search, save and JSON formatting.
 
-### Interactive WSL terminal
+### Interactive WSL terminal for Windows
 
 WSLPad includes a real PTY-backed shell per distro with bash/zsh, colors, Ctrl+C, tab completion, vim, htop and SSH support.
 
@@ -147,7 +147,7 @@ A session-only diagnostic timeline connects sleep/resume, distro responsiveness,
 
 For VS Code Remote / WSL failures, WSLPad identifies only proven VS Code Server processes and keeps the recovery ladder least-destructive first: reload the editor, restart measured server processes, terminate one distro, then use `wsl --shutdown` only as a last resort.
 
-### Docker and developer tool visibility
+### Docker in WSL and developer tool visibility
 
 WSLPad detects developer tooling inside the selected distro and shows where each command really resolves.
 

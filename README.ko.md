@@ -1,4 +1,4 @@
-# WSLPad
+# WSLPad — Windows용 WSL GUI, 대시보드 및 문제 해결 도구
 
 [English](README.md) · **한국어** · [日本語](README.ja.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português (Brasil)](README.pt-BR.md)
 
@@ -8,13 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
-> WSL을 위한 작은 Windows 컴패니언.
+> **WSL이 실제로 무엇을 하고 있는지, 왜 문제가 생겼는지 확인하세요.**
 
-WSLPad는 Windows 트레이에 상주하면서 WSL 환경의 보이지 않던 부분을 드러내는
-앱입니다. 어떤 배포판이 실행 중인지, 도구가 어디에 설치되어 있는지, 어떤 포트에서
-무엇이 대기 중인지 — 여기에 진짜 이중 패널 파일 관리자와 대화형 셸, 데이터 유실 없는
-VHDX 이전 마법사, 그리고 LLM 도구가 환경을 살펴보기만 할 뿐 절대 건드릴 수 없는
-**읽기 전용 MCP 서버**까지 더했습니다.
+WSLPad는 Windows 10/11용 오픈 소스 **WSL GUI, WSL 대시보드 및 WSL 문제 해결 도구**입니다. 실행 중인 배포판, CPU와 메모리, `ext4.vhdx` 디스크 사용량, `.wslconfig`와 `wsl.conf`, 포트, 네트워크, DNS, systemd 서비스, Docker, 개발 도구와 파일 경로처럼 Windows Subsystem for Linux의 보이지 않는 상태를 한곳에서 보여줍니다.
+
+또한 **Windows ↔ WSL 이중 패널 파일 관리자**, 실제 대화형 터미널, 진단·복구 도구, 안전한 VHDX 이전 흐름, Claude·Codex 같은 LLM이 환경을 변경하지 않고 살펴볼 수 있는 **읽기 전용 WSL MCP 서버**를 제공합니다.
 
 ![WSLPad 대시보드](docs/screenshots/dashboard.png)
 

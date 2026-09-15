@@ -1,4 +1,4 @@
-# WSLPad
+# WSLPad — Windows 的 WSL GUI、仪表板与故障排查工具
 
 [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · **简体中文** · [繁體中文](README.zh-TW.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português (Brasil)](README.pt-BR.md)
 
@@ -8,12 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
-> 为 WSL 打造的小巧 Windows 伴侣。
+> **看清 WSL 实际在做什么，以及为什么会出问题。**
 
-WSLPad 是一个常驻 Windows 托盘的应用，把 WSL 环境里原本看不见的部分显示出来：
-哪些发行版在运行、工具装在哪里、哪个端口上有谁在监听 —— 另外还有一个真正的
-双窗格文件管理器、一个可交互的控制台、一个带安全防护的 VHDX 迁移向导，以及
-一个**只读 MCP 服务器**，让你的 LLM 工具能够查看（但永远无法修改）你的环境。
+WSLPad 是面向 Windows 10/11 的开源 **WSL GUI、WSL 仪表板和故障排查工具**。它把 Windows Subsystem for Linux 中不易看见的状态集中展示出来，包括正在运行的发行版、CPU 和内存、`ext4.vhdx`、`.wslconfig` 与 `wsl.conf`、端口、网络、DNS、systemd 服务、Docker、开发工具和文件路径。
+
+它还提供 **Windows ↔ WSL 双栏文件管理器**、真正的交互式终端、诊断与恢复工具、安全的 VHDX 迁移流程，以及供 Claude、Codex 等 LLM 只读检查环境的 **WSL MCP 服务器**。
 
 ![WSLPad Dashboard](docs/screenshots/dashboard.png)
 

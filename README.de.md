@@ -1,4 +1,4 @@
-# WSLPad
+# WSLPad — WSL-GUI, Dashboard und Fehlerdiagnose für Windows
 
 [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Español](README.es.md) · [Français](README.fr.md) · **Deutsch** · [Português (Brasil)](README.pt-BR.md)
 
@@ -8,14 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
-> Ein kleiner Windows-Begleiter für WSL.
+> **Sieh, was WSL tatsächlich macht – und warum etwas nicht funktioniert.**
 
-WSLPad ist eine Windows-Tray-App, die dauerhaft im Hintergrund läuft und die
-unsichtbaren Teile Ihrer WSL-Umgebung sichtbar macht: welche Distributionen
-laufen, wo Ihre Tools liegen, was auf welchem Port lauscht — dazu ein echter
-Datei-Explorer, eine interaktive Console, ein sicherer Umzugsassistent für
-Distributionen (Relocation Wizard) und ein **MCP-Server mit Nur-Lese-Zugriff**,
-damit Ihre LLM-Tools Ihre Umgebung inspizieren (und niemals verändern) können.
+WSLPad ist eine quelloffene **WSL-GUI, ein WSL-Dashboard und ein Diagnosewerkzeug** für Windows 10/11. Es macht sonst schwer sichtbare Zustände von Windows Subsystem for Linux sichtbar: laufende Distributionen, CPU und Arbeitsspeicher, `ext4.vhdx`, `.wslconfig` und `wsl.conf`, Ports, Netzwerk, DNS, systemd-Dienste, Docker, Entwicklerwerkzeuge und Dateipfade.
+
+Dazu kommen ein **Windows ↔ WSL Dateimanager mit zwei Fenstern**, ein echtes interaktives Terminal, Diagnose- und Wiederherstellungswerkzeuge, sichere VHDX-Migration und ein **schreibgeschützter WSL-MCP-Server** für Claude, Codex und andere LLMs.
 
 ![WSLPad Dashboard](docs/screenshots/dashboard.png)
 
