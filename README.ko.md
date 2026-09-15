@@ -1,4 +1,4 @@
-# WSLPad — Windows용 WSL GUI, 대시보드 및 문제 해결 도구
+# WSLPad — Windows용 WSL GUI, 대시보드, 파일 관리자 및 문제 해결 도구
 
 [English](README.md) · **한국어** · [日本語](README.ja.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português (Brasil)](README.pt-BR.md)
 
@@ -8,415 +8,315 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
-> **WSL이 실제로 무엇을 하고 있는지, 왜 문제가 생겼는지 확인하세요.**
+> **WSL이 실제로 무엇을 하고 있는지, 그리고 왜 실패하는지 확인하세요.**
 
-WSLPad는 Windows 10/11용 오픈 소스 **WSL GUI, WSL 대시보드 및 WSL 문제 해결 도구**입니다. 실행 중인 배포판, CPU와 메모리, `ext4.vhdx` 디스크 사용량, `.wslconfig`와 `wsl.conf`, 포트, 네트워크, DNS, systemd 서비스, Docker, 개발 도구와 파일 경로처럼 Windows Subsystem for Linux의 보이지 않는 상태를 한곳에서 보여줍니다.
+WSLPad는 오픈 소스 **Windows 10/11용 WSL GUI, WSL 대시보드 및 WSL 문제 해결 도구**입니다. 기본적인 WSL 관리자와 달리, 이미 사용 중인 환경을 살펴보고 설명하는 데 집중합니다. 실행 중인 배포판, CPU와 메모리, `ext4.vhdx` 디스크 사용량, `.wslconfig`와 `wsl.conf`, 포트, 네트워킹, Hyper-V 방화벽 상태, DNS, systemd 서비스, 설치된 개발 도구, Docker, 파일 경로 등 Windows Subsystem for Linux의 보이지 않는 부분을 눈에 보이게 만듭니다.
 
-또한 **Windows ↔ WSL 이중 패널 파일 관리자**, 실제 대화형 터미널, 진단·복구 도구, 안전한 VHDX 이전 흐름, Claude·Codex 같은 LLM이 환경을 변경하지 않고 살펴볼 수 있는 **읽기 전용 WSL MCP 서버**를 제공합니다.
+또한 **Windows ↔ WSL 이중 패널 파일 관리자**, 실제 대화형 터미널, 환경 진단, 복구 도구, USB/usbipd 가시성, 안전한 VHDX 이전 워크플로, 그리고 **Claude, Codex 및 기타 LLM 도구를 위한 읽기 전용 WSL MCP 서버**를 포함합니다.
 
 ![WSLPad 대시보드](docs/screenshots/dashboard.png)
 
-## 왜 필요한가
+## WSL 문제 해결: WSLPad가 해결을 돕는 문제들
 
-WSL 안에 Hermes, Codex, Claude, Docker, Node, Python을 설치하고 나면 Windows
-쪽에서는 아무것도 보이지 않게 됩니다. 설치 경로, 설정 파일, 환경 변수, 서비스,
-포트, systemd 상태, Linux 경로가 Windows 경로로 어떻게 이어지는지까지 전부요.
-WSLPad는 그 모든 것을 Dashboard(대시보드)와 Explorer(탐색기), Relocation(이전 마법사),
-그리고 MCP 인터페이스로 정리해 보여줍니다 — 시스템을 몰래 바꾸는 일 없이.
+WSLPad는 WSL 사용자가 반복해서 손으로 디버깅하게 되는 질문들을 중심으로 만들어졌습니다:
 
-## 핵심 화면
+- **WSL이 왜 느릴까?** — 프로젝트나 터미널이 네이티브 Linux 파일 시스템이 아닌 `/mnt/c` 아래에서 실행되고 있는 순간을 확인하고, 메모리 압박을 살펴보고, 디스크를 차지하는 주범을 찾아냅니다.
+- **Windows나 내 LAN에서 왜 WSL 포트에 접근할 수 없을까?** — 리스너, 바인드 주소, 유효 네트워킹 모드, Windows 노출 여부, Hyper-V 방화벽 상태, 도달 가능성 판정을 한꺼번에 확인합니다.
+- **`.wslconfig`나 `wsl.conf`가 왜 적용되지 않았을까?** — 선언된 값과 실제로 활성화된 값을 비교하고, 다시 시작이 필요한지, 키가 지원되지 않는지, 섹션이 잘못됐는지, 아니면 단순히 설정이 적용되지 않은 상태인지 확인합니다.
+- **`ext4.vhdx`는 어디에 있고, 왜 이렇게 클까?** — 이미지 경로, 할당된 크기, Linux 파일 시스템 사용량, 회수 가능한 공간을 확인합니다.
+- **내 WSL 디스크 공간은 어디로 갔을까?** — `df`만으로 추측하는 대신 패키지 캐시, 저널, 빌드 캐시, 휴지통, Docker 저장소를 살펴봅니다.
+- **어떤 프로세스가 포트 3000 / 5173 / 8080을 잡고 있을까?** — WSL과 Windows 리스너를 포트나 프로세스로 필터링하고 해당 포트가 도달 가능한지 확인합니다.
+- **도구가 WSL에 설치돼 있을까, 아니면 실수로 Windows 쪽으로 연결되고 있을까?** — 100개 이상의 개발 도구와 그 경로, 버전, 설치 방식, 파일 시스템 쪽을 살펴봅니다.
+- **Windows와 WSL 사이에서 파일을 깔끔하게 복사하려면?** — 권한, 심볼릭 링크, 탐색 기록, 검색, 취소 가능한 전송을 갖춘 실제 이중 패널 Windows/WSL 파일 관리자를 사용합니다.
+- **절전, VPN 또는 네트워크 변경 후 WSL이 왜 응답을 멈췄을까?** — 파괴적인 작업을 마지막으로 미루는 진단 및 복구 안내를 사용합니다.
+- **Claude나 Codex가 내 WSL 환경을 안전하게 살펴볼 수 있을까?** — 모델에 실행, 쓰기, 종료, 삭제 권한을 주지 않고 읽기 전용 MCP 도구를 노출합니다.
 
-### Dashboard — 읽기 전용 상태를 섹션 단위로
+## 왜 다른 WSL 관리자 대신 WSLPad인가?
 
-왼쪽에서 섹션을 고르면 오른쪽에서 읽습니다. 개요부터 경고까지 열일곱 개입니다. 표는
-비좁은 카드 대신 창 전체를 쓰고, 목록에는 실시간 배지가 붙습니다. 전체 목록은
-[아래](#실제로-볼-수-있는-것)에 있습니다. 그중 다섯 섹션은 WSL 자신이 답해 주지 않는
-질문에 답하기 때문에 따로 짚어 둘 만합니다.
+많은 WSL GUI 도구는 배포판 수명 주기 작업, 즉 배포판의 설치, 시작, 중지, 내보내기, 등록 해제에 집중합니다. WSLPad는 의도적으로 다릅니다.
 
-**디스크 이미지** — 배포판의 `ext4.vhdx`는 커지기만 하고 절대 줄어들지 않으며,
-Linux 안의 `df`는 실제와 다른 최댓값을 보고합니다. WSLPad는 이미지가 실제로 어디에
-있는지, Windows 디스크를 얼마나 차지하는지, 배포판이 안에서 실제로 쓰는 용량은
-얼마인지, 그리고 얼마나 회수 가능한지를 보여줍니다.
+WSLPad의 주된 역할은 **이미 사용 중인 환경을 살펴보고, 설명하고, 문제를 해결하는 것**입니다.
 
-![디스크 이미지](docs/screenshots/disk.png)
+이는 WSL이 평소 Windows, Linux, 구성 파일, 레지스트리, 네트워킹 계층, 명령줄 도구에 흩어 놓는 사실들을 한곳에 모으고, 원시 상태만 보여주는 대신 무언가가 **왜** 느리거나, 도달할 수 없거나, 오래됐거나, 잘못 구성됐거나, 일관되지 않은지를 말해 준다는 뜻입니다.
 
-**WSL 설정** — WSL은 설정 파일을 받아들이고는 그중 절반을 조용히 무시합니다.
-`.wslconfig`와 `wsl.conf`의 모든 키를 선언된 값, 실제 값, 그리고 판정과 함께
-보여줍니다. 적용됨, 다시 시작 필요, 잘못된 섹션, 알 수 없는 키, 이 빌드에서 지원되지
-않음. 요청한 네트워킹 모드와 실제로 받은 모드까지 포함해서요. 두 파일은 서로 다른
-기계에 있고 고치는 곳도 다르므로 한 번에 하나씩 읽습니다 — 전환 버튼에는 파일마다
-선언한 항목 수와, 확인이 필요한 값이 있는지가 함께 표시됩니다.
+WSLPad는 시스템을 조용히 "고치지" 않습니다. 시스템을 변경하는 작업은 검토를 위해 Console에 준비되거나 명령으로 복사되며, 실행 여부는 사용자가 결정합니다.
 
-![WSL 설정](docs/screenshots/wslconfig.png)
+## 핵심 기능
 
-**네트워크** — Windows 방화벽 창에는 결코 나타나지 않는 Hyper-V 방화벽. 기본적으로
-켜져 있으면서 WSL로 들어오는 트래픽을 조용히 차단합니다. 여기에 `/etc/resolv.conf`와
-`generateResolvConf`, DNS 터널링, Windows 어댑터가 알려 주는 서버를 나란히 놓는 이름
-확인 블록까지 — 그래서 "Temporary failure in name resolution"을 들여다볼 곳이 한
-군데로 정해집니다.
+### WSL 대시보드 및 환경 검사
 
-**포트** — WSL 쪽에서 대기 중인 포트는 `WSL`로 표시되고, Windows에서 실제로 접근
-가능하면 `WSL + Windows`로 표시됩니다. 그리고 이제 각 포트에는 **도달 범위 판정**이
-붙습니다: LAN에서 도달 가능, 이 PC에서만 도달 가능, WSL 내부에서만 도달 가능, 도달
-불가 — 바인드 주소, 유효 네트워킹 모드, 방화벽에서 도출한 이유와 함께요. 사실을
-읽을 수 없을 때 WSLPad는 추측하는 대신 *알 수 없음*이라고 말합니다. 바쁜 기계는
-수백 개의 대기 포트를 나열하므로 포트 범위와 프로세스 이름 필터가 있습니다 — "누가
-5173을 잡고 있는가"는 스크롤 노동이 아니라 질문이어야 하니까요.
+Dashboard는 PowerShell, Linux, 네트워킹 명령을 줄줄이 기억하지 않아도 WSL 상태를 보여줍니다.
+
+다루는 항목:
+
+- 배포판 상태, WSL/커널 버전, 호스트 이름, 사용자, 셸, 가동 시간
+- CPU, 메모리, 스왑, 프로세스 수, 디스크 사용량
+- `ext4.vhdx` 위치, 할당량, 스파스 상태, 회수 가능한 공간
+- `.wslconfig`와 `/etc/wsl.conf`의 선언된 값과 실제 값
+- 중요한 Linux 및 Windows 경로
+- 비밀처럼 보이는 값이 마스킹된 환경 변수
+- systemd 서비스 및 서비스 로그
+- WSL 및 Windows 프로세스
+- 대기 중인 포트와 도달 가능성
+- 네트워킹 모드, DNS, Hyper-V 방화벽 상태
+- Windows 포트 포워딩 규칙과 오래된 대상
+- Docker 엔진/클라이언트, 이미지, 컨테이너, 빌드 캐시, 데이터 루트
+- 설치된 AI CLI, 런타임, 패키지 관리자, 컴파일러, 클라우드 도구, 유틸리티
+- Windows 다운로드 표시 파일(`Zone.Identifier`)
+- Windows Terminal 프로필 상태
+- 흔한 WSL 문제에 대한 경고
+
+### WSL 네트워크, localhost 및 포트 포워딩 문제 해결
+
+Linux 안에서 포트가 "열려" 있다고 해서 Windows나 다른 컴퓨터가 그 포트에 접근할 수 있다는 뜻은 아닙니다.
+
+WSLPad는 다음을 연관 지어 보여줍니다:
+
+- WSL 리스너 주소와 포트
+- 소유 프로세스
+- Windows 쪽 노출 여부
+- NAT 대 mirrored 네트워킹
+- Hyper-V 방화벽 상태
+- 포트 포워딩 규칙
+- DNS 구성
+
+각 리스너에는 **LAN 도달 가능**, **이 PC만**, **WSL만**, **도달 불가**, **알 수 없음** 같은 도달 가능성 판정이 붙으며, 이유는 추측이 아니라 그대로 표시됩니다.
 
 ![포트](docs/screenshots/ports.png)
 
-**진단 & 원격 복구** — 절전과 복제(resume), 배포판 응답성, DNS와 네트워킹 모드
-변경, Console 복구, 명시적 네트워크 점검을 세션 전용 인시던트 타임라인으로 엮습니다.
-같은 점검이 검증된 VS Code Server 프로세스를 식별하고 가장 파괴적이지 않은 복구
-사다리를 제시하며, `wsl --shutdown`은 가장 마지막 수단으로 남깁니다. 백그라운드에서
-네트워크를 찔러보는 일도, 복구 명령을 자동으로 실행하는 일도 없습니다. 진단 내보내기는
-저장 전에 프라이버시 민감 항목을 미리 보여줍니다.
+### `.wslconfig`와 `wsl.conf` 변경 사항이 적용되지 않을 때
 
-![진단](docs/screenshots/diagnostics.png)
+WSL 구성은 Windows와 Linux에 나뉘어 있으며, 많은 변경 사항은 WSL VM을 다시 시작해야만 적용됩니다.
 
-Dashboard는 아무것도 직접 실행하지 않습니다. *종료*, *서비스 다시 시작*, *sudoedit*
-같은 버튼은 명령을 Console 입력란에 **준비**하기만 할 뿐입니다 — 검토하고 수정한 뒤
-Enter를 누르는 것은 사용자입니다.
+WSLPad는 구성된 값을 실제 값 옆에 나란히 보여주고, 결과를 적용됨, 다시 시작 필요, 설정 안 됨, 지원되지 않음, 알 수 없는 키, 잘못된 섹션으로 분류합니다. 또한 요청한 네트워킹 모드와 실제로 실행 중인 모드를 함께 보여줍니다.
 
-*LLM용 복사*와 *JSON 내보내기*는 지금 보고 있는 섹션이 아니라 스냅샷 **전체**를
-대상으로 하므로, 각 섹션 제목줄이 아니라 개요에 있습니다.
+![WSL 설정](docs/screenshots/wslconfig.png)
 
-### Explorer — 왼쪽은 Windows, 오른쪽은 WSL
+### WSL 디스크 공간, `ext4.vhdx` 및 VHDX 저장소 분석
+
+Linux 안의 `df`는 WSL 가상 디스크가 Windows에서 얼마나 많은 공간을 차지하는지 알려주지 않습니다.
+
+WSLPad는 다음을 보여줍니다:
+
+- 실제 `ext4.vhdx` 위치
+- 논리적 이미지 크기와 할당된 이미지 크기
+- 이미지가 스파스인지 여부
+- 배포판 안의 파일 시스템 사용량
+- 회수 가능한 공간
+- 패키지 캐시, 저널, 빌드 캐시, 휴지통, Docker 같은 주요 디스크 소비 항목
+
+![디스크 이미지](docs/screenshots/disk.png)
+
+### Windows ↔ WSL 파일 관리자
 
 ![탐색기](docs/screenshots/explorer.png)
 
-진짜 이중 패널 파일 관리자입니다. 왼쪽에는 **Windows** 드라이브, 오른쪽에는 선택한
-**WSL 배포판**, 그 사이에는 드래그로 크기를 조절하는 분할선이 있습니다. 핵심은 이
-둘 사이의 복사입니다 — 끌어다 놓거나 *반대쪽 패널로 복사*를 누르면 되고, 모든
-전송은 진행률을 보여주며 취소할 수 있습니다. 전송이 원본을 지우는 일은 없습니다.
+Explorer는 실제 이중 패널 파일 관리자입니다: **왼쪽에는 Windows 드라이브, 오른쪽에는 선택한 WSL 배포판**이 있습니다.
 
-각 패널에는 자체 탐색 기록, 이동 경로 표시줄, 경로 입력줄, 검색, 선택적 지연 로딩
-폴더 트리, 정렬 가능한 목록, 새 파일/폴더, 인라인 이름 바꾸기(F2),
-복사/잘라내기/붙여넣기, 그리고 Delete → 휴지통(Shift+Delete는 영구 삭제)이
-있습니다. WSL 패널은 여기에 더해 소유자/그룹/Linux 권한과 심볼릭 링크 대상을
-보여주고, 네 가지 경로 복사 방식을 제공합니다. 권한이 필요한 작업을 sudo로 슬쩍
-처리하지는 않습니다 — 대신 알맞은 명령을 Console에 준비해 둡니다. 어느 쪽이든
-텍스트 파일을 더블클릭하면 내장 편집기 오버레이가 열립니다(줄 번호, 찾기, Ctrl+S,
-JSON 정리).
+두 패널 모두 탐색 기록, 이동 경로 표시줄, 경로 입력줄, 검색, 정렬, 파일/폴더 만들기, 이름 바꾸기, 복사/잘라내기/붙여넣기, 휴지통을 갖추고 있습니다. WSL 패널은 Linux 소유자/그룹, 권한, 심볼릭 링크 대상도 보여줍니다.
 
-### Console — 언제나 손 닿는 곳에 있는 진짜 셸
+파일 시스템을 넘나드는 전송은 설계상 복사만 하며, 진행률을 보여주고 취소할 수 있습니다. 텍스트 파일은 줄 번호, 검색, 저장, JSON 정리 기능을 갖춘 내장 편집기에서 열 수 있습니다.
 
-배포판마다 진짜 대화형 PTY 세션(bash/zsh, 컬러, Ctrl+C, 탭 자동 완성, vim/htop/ssh
-모두 동작)이 모든 탭 아래쪽에 붙어 있습니다. 오른쪽 클릭은 붙여넣기 — 선택 영역이
-있으면 복사 — 로, 다른 터미널이 하는 그대로 동작합니다. Explorer의 WSL 패널에서
-폴더를 옮겨 다니면 Console도 같은 디렉터리로 따라갑니다. 눈에 보이는 `cd` 없이,
-셸 기록도 더럽히지 않고요. 기록에 남는 것은 **사용자가** 실행한 명령뿐이며,
-WSLPad 내부 조회는 별도의 숨은 러너가 실행합니다.
+### Windows용 대화형 WSL 터미널
 
-콘솔은 스스로 회복하기도 합니다. WSLPad가 Windows와 함께 시작할 때 WSL은 아직 바쁜
-경우가 많은데, 셸을 시작하지 못한 상태는 이제 "배포판 중지됨"이라는 오해가 아니라
-있는 그대로 — **이유와 함께** — 보고됩니다. 배포판이 실행 중으로 확인되면 콘솔은
-시키지 않아도 다시 시도하고, 그래도 안 되면 다시 연결 버튼이 남습니다. 앱을 다시
-시작해야 하는 일은 없습니다.
+WSLPad에는 배포판마다 bash/zsh, 컬러, Ctrl+C, 탭 자동 완성, vim, htop, SSH를 지원하는 실제 PTY 기반 셸이 포함되어 있습니다.
 
-### 이전 마법사 (Relocation Wizard) — 데이터 유실 없는 안전한 드라이브 이전
+WSL 파일 패널에서 폴더를 옮겨 다니면 Console도 눈에 보이는 `cd` 명령을 셸 기록에 추가하지 않고 같은 디렉터리로 따라갑니다. WSLPad 내부 조회는 별도의 숨은 러너를 사용하므로, 터미널 기록에는 사용자가 실제로 실행한 명령만 남습니다.
 
-WSL 때문에 C 드라이브 용량이 부족하신가요? 단계별 안전 이전 마법사를 통해 VHDX 가상 디스크를
-D 드라이브 등 보조 드라이브로 안전하게 내보내고(export) 가져올(import) 수 있습니다.
-용량 검증, 백업 무결성 확인, 기본 사용자 계정 복원 팁까지 단계마다 검증을 거치며 안내하며,
-위험한 명령을 절대 임의로 실행하지 않습니다.
+### Environment Doctor와 Developer Profiles
 
-## MCP 서버 (읽기 전용)
+Environment Doctor는 흔한 WSL 작업 공간 상태 문제를 점검하고, 컴퓨터를 자동으로 변경하지 않은 채 결과를 보여줍니다.
 
-WSLPad가 트레이에 떠 있는 동안 `http://127.0.0.1:4923/mcp`에서 MCP를 제공합니다
-(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 40개의 `Get*` —
-`GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
-`GetPortOwner`, `GetCommandResolution`, … 쓰기/실행/종료 도구는 의도적으로 두지 않았고, 비밀 값과 개인
-키는 MCP 경계를 넘지 않습니다. Claude Desktop(stdio 브리지), Codex, Hermes는 클릭
-한 번으로 등록할 수 있으며, `Copy for LLM`(LLM용 복사)을 누르면 마스킹된 Markdown
-상태 요약이 클립보드에 담깁니다.
-자세한 내용: [docs/MCP.md](docs/MCP.md).
+Developer Profiles는 흔한 **Web, Python, Rust, AI, 컨테이너/Kubernetes** 워크플로를 각각 보통 필요로 하는 도구 중심으로 묶고, WSLPad의 기존 탐지 모델을 사용해 무엇이 설치되어 있고 무엇이 빠져 있는지 보여줍니다.
 
-## 실제로 볼 수 있는 것
+### 복구, 백업, 복제 및 이전
 
-아래 항목은 모두 이 컴퓨터에서 읽어 와 있는 그대로 보여 주는 것들입니다. 여기서
-무언가가 바뀌는 일은 없습니다. 동작이 있는 경우에도 Console에 명령을 적어 둘 뿐,
-실행하는 것은 사용자입니다.
+Recovery 작업 공간은 백업, 복원, 복제, 이전, 검증 기록을 명시적인 안전 장치와 함께 다룹니다.
 
-**개요** — 배포판 이름, 상태, WSL 버전, 기본 배포판 표시, OS 이름, 커널, 호스트
-이름, 사용자, `$HOME`, 로그인 셸, 가동 시간, systemd 활성 여부, 배포판 IP,
-Windows에서 쓰는 `\\wsl.localhost\…` 경로, 그리고 Windows와 배포판 사이의 시계
-차이 — 호스트가 절전에서 깨어난 뒤 apt와 TLS가 갑자기 실패하는, 눈에 보이지
-않는 원인입니다.
-그리고 배포판이 아직 응답하는지도 함께 봅니다. `wsl --list`는 응답이
-끊긴뒤에도 몇 시간이고 실행 중이라고 말하므로, 프로브가 답을 못 받으면
-배지를**실행 중 — 응답 없음**으로 바꾸고 마지막 응답 시각을 밝힙니다. 그
-시점부터여기의 모든 값은 새 값이 아니라 마지막 정상값이기 때문입니다.
+이전 워크플로는 대상 여유 공간, 백업 무결성, 기본 Linux 사용자를 확인하면서 WSL 배포판을 가득 찬 C: 드라이브에서 옮기도록 돕습니다. WSLPad는 기존 배포판을 절대 조용히 등록 해제하거나, 삭제하거나, 덮어쓰지 않습니다.
 
-**리소스** — 실시간 CPU %, 메모리 사용량/전체, 스왑, `/`와 `/home`, `/mnt/c`의
-디스크 사용량, 평균 부하, 프로세스 수, 그리고 숫자 하나로 "지금 올라가는 중인가?"에
-답할 수 있게 해 주는 추세 스파크라인. 여기에 **메모리 대조**까지: Windows 메모리,
-WSL 메모리 상한(직접 지정한 값인지 WSL이 계산한 기본값인지도), 지금 Windows가 이
-VM에 붙잡아 두고 있는 양, 그리고 게스트 안의 Linux 사용 중 / 캐시 / 여유 / 스왑
-구분 — 그래서 "vmmem이 7 GB를 먹고 있다"가 "그중 대부분은 회수 가능한 페이지
-캐시다"로 정리됩니다.
+### USB / usbipd 가시성
 
-**디스크 이미지** — `ext4.vhdx`가 Windows 디스크의 어디에 실제로 놓여 있는지,
-이미지 크기, 디스크에 실제로 할당된 용량, 스파스 파일 여부, 배포판 안에서 본 파일
-시스템 크기와 사용량, 그리고 얼마나 회수 가능한지.
+WSLPad는 USB/usbipd 장치 상태를 살펴보고 bind, attach, detach 명령을 검토용으로 준비할 수 있습니다. 장치가 Windows에서 자동으로 분리되는 일은 없습니다.
 
-**WSL 설정** — 먼저 `wsl --version`이 보고하는 WSL 앱·커널·WSLg·MSRDC·Direct3D·
-DXCore·Windows 빌드. 아래의 "이 빌드에서 지원되지 않음" 판정은 전부 그 숫자에 대한
-주장이기 때문입니다. 이어서 `.wslconfig`와 `/etc/wsl.conf`의 모든 키를 선언된 값, 실제 값, 설정
-주체(직접 작성한 파일인지, WSL 기본값인지, 하드웨어에서 계산된 값인지), 그리고
-판정과 함께: 적용됨, 다시 시작 필요, 기본값, 알 수 없는 키(오타), 잘못된 섹션, 이
-빌드에서 지원되지 않음. 요청한 네트워킹 모드와 실제로 돌고 있는 모드도 포함하며,
-마지막 편집보다 VM이 먼저 시작된 경우에는 배너가 뜹니다.
-그리고 WSL이 두 기계에 나눠 놓은 답 두 가지: `[interop] enabled=`가 요청한
-interop 등록이 커널에 실제로 있는지 — 이 파일은 배포판이 시작할 때 한 번만
-읽히므로 나중에 고쳐도 `wsl --shutdown` 전까지는 아무 변화가 없습니다 — 그리고
-어느 사용자로 로그인하는지. 후자는 Windows 레지스트리의 `DefaultUid`가
-`/etc/wsl.conf`의 `[user] default=`를 조용히 이깁니다.
+### 진단 및 원격 복구
 
-**중요 경로** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`, `~/.config`,
-`~/.cache`, `~/.ssh`, `~/.hermes`, Linux에서 본 Windows 사용자 프로필 — 각각의 존재
-여부, Linux·Windows 양쪽 표기, 그리고 파일 시스템 경계의 어느 쪽에 있는지(네이티브
-ext4인 Linux 디스크인지, 느린 Windows 드라이브 마운트 건너편인지).
-그리고 그 아래 Windows 드라이브가 실제로 어떻게 마운트됐는지도 함께 봅니다.
-놀라움의 대부분은 옵션 하나에서 옵니다. `metadata`가 없으면 `/mnt/c`에서
-`chmod`와 `chown`이 성공했다고 말하고 아무것도 저장하지 않습니다 — 권한은 읽을
-때마다 umask로 다시 만들어지므로 다음 `ls` 전에 이미 사라집니다. 스크립트는
-실행 권한 없이 남고, 어디에서도 에러가 나오지 않습니다.
+![진단](docs/screenshots/diagnostics.png)
 
-**구성 파일** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`, `~/.bashrc`,
-`~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: 각 파일이 어디에 있는지,
-그리고 존재하는지, 읽을 수 있는지, 쓸 수 있는지.
+세션 전용 진단 타임라인이 절전/재개, 배포판 응답성, DNS 변경, 네트워킹 모드 변경, Console 복구 이벤트를 연결합니다.
 
-**설치된 도구** — 11개 분류에 걸친 111개 도구(AI CLI, 런타임, 패키지 관리자, 버전
-관리, 컨테이너, 클라우드 및 원격, 빌드 도구, 데이터베이스, 편집기 및 셸, 미디어,
-유틸리티). 각각 설치 여부, 확인된 경로, 버전, 설치 방식(apt / snap / nvm /
-npm-global / pipx / uv / Windows interop / …), 설정 경로, 실행 중인 프로세스 수,
-파일 시스템 경계의 어느 쪽에서 실행되는지, 그리고 — 이게 중요한데 — 그 명령이
-배포판에 설치된 것이 아니라 `/mnt/c` 아래의 **Windows** 실행 파일로 연결되지는
-않는지.
+VS Code Remote / WSL 장애의 경우 WSLPad는 검증된 VS Code Server 프로세스만 식별하고, 복구 사다리를 가장 덜 파괴적인 것부터 유지합니다: 편집기 다시 로드, 측정된 서버 프로세스 다시 시작, 배포판 하나 종료, 그리고 최후의 수단으로만 `wsl --shutdown`을 사용합니다.
 
-**Docker** — 자체 섹션: 엔진·클라이언트 버전, 컨텍스트, 데이터 루트, 이미지와
-컨테이너, 그리고 `docker system df` 분해 — 어떤 목록에도 안 나오면서 보통 이
-기계에서 가장 큰 **빌드 캐시**까지. Docker Desktop이면 그 용량이 실제로 어느
-배포판의 가상 디스크에 있는지도 말해 줍니다. 지금 보고 있는 배포판이 아니거든요.
-읽기 전용이고, 그 방식도 조심스럽습니다: 데몬이 **이미 떠 있는 것이 확인될 때만**
-접촉합니다. 소켓 활성화 구성에서는 접속하는 행위 자체가 데몬을 띄우고, 재시작으로
-설정된 컨테이너까지 전부 올라오기 때문입니다. 활성 컨텍스트가 원격 엔진을 가리키면
-폴링으로 남의 운영 호스트에 접속하지 않고 그대로 둡니다. 받지도, 켜거나 끄지도,
-정리하지도 않으며 prune 명령은 콘솔에 준비만 합니다.
+### WSL 안의 Docker와 개발 도구 가시성
+
+WSLPad는 선택한 배포판 안의 개발 도구를 감지하고 각 명령이 실제로 어디로 연결되는지 보여줍니다.
+
+Docker는 엔진/클라이언트 버전, 컨텍스트, 데이터 루트, 이미지, 컨테이너, 그리고 빌드 캐시를 포함한 `docker system df`를 위한 자체 검사 화면을 갖습니다. 원격 Docker 컨텍스트에는 자동으로 접속하지 않습니다.
 
 ![Docker](docs/screenshots/docker.png)
 
-**Hermes** — 실행 파일, 데이터 디렉터리, 가상 환경, 설정, 게이트웨이 상태,
-**실제로 어떤 메신저에 연결돼 있는지**, 흔히 에이전트라 부르는 프로필 목록(현재
-프로필 표시), 활성 세션, 예약 작업, 대시보드 상태와 주소, MCP 서버 수, 포트, 사용자
-서비스와 로그 경로. 메신저와 프로필은 Hermes 자신의 읽기 전용 CLI에서 읽으며, 물어볼
-수 없었을 때는 "설정 없음"이 아니라 *알 수 없음*이라고 적습니다. 웹 대시보드가 떠
-있지 않다면 실행 명령을 콘솔에 준비해 둡니다.
+WSLPad는 Hermes와 OpenClaw 같은 도구가 있을 때 이를 위한 전용 가시성도 제공합니다.
 
-![Hermes](docs/screenshots/hermes.png)
+## Claude와 Codex를 위한 읽기 전용 WSL MCP 서버
 
-**OpenClaw** — Hermes 옆의 자체 섹션: 실행 파일, 데이터 디렉터리, 버전, 설치 방식,
-파일시스템 경계의 어느 쪽에 있는지, 실행 중인지. 다른 도구와 같은 카탈로그 검사로
-감지하며, 물어보려고 OpenClaw를 실행하지 않습니다.
+WSLPad가 실행 중인 동안 다음 주소에서 로컬로 MCP를 제공합니다:
 
-**환경 변수** — 모든 변수와 그 길이, 플래그(PATH 계열, Windows에서 전달됨). 비밀처럼
-보이는 이름은 마스킹되며, 표시하려면 직접 눌러야 합니다.
+```text
+http://127.0.0.1:4923/mcp
+```
 
-**프로세스** — PID, 사용자, CPU %, 메모리 %, 경과 시간, 전체 명령줄.
+서버는 Streamable HTTP, localhost 전용 바인딩, Bearer 토큰 인증을 사용합니다. 환경 스냅샷, 포트, 설치된 도구, 명령 해석, 텍스트 파일 검사를 포함한 **40개의 읽기 전용 `Get*` 도구**를 노출합니다.
 
-**서비스** — 모든 systemd 유닛의 범위, load/active/sub 상태, 활성화 여부, 설명 —
-그리고 잘 알려진 유닛 약 71개에 대해서는 그것이 무엇이고 평소에 실행되는 것인지를
-쉬운 말로 설명합니다.
+의도적으로 **MCP 쓰기, 실행, 종료, 삭제 도구는 없습니다**. 개인 키와 비밀 값은 MCP 경계를 넘어 노출되지 않습니다.
 
-**포트** — 프로토콜, 주소, 포트, PID, 프로세스, 대기 상태, 출처(`WSL`, `Windows`,
-`WSL + Windows`), 그리고 이유가 함께 붙은 도달 범위 판정: 네트워크에서 닿음, 이
-PC까지만, WSL 내부까지만, 어디에서도 닿지 않음, 알 수 없음. 포트 범위와 프로세스
-이름으로 걸러 볼 수 있으며, 이름 검색은 WSL 쪽 프로세스와 같은 포트를 잡고 있는
-Windows 프로세스를 모두 봅니다.
+Claude Desktop, Codex, Hermes에 대해 원클릭 등록을 사용할 수 있습니다. `Copy for LLM`은 현재 WSL 환경의 마스킹된 Markdown 요약을 만듭니다.
 
-**네트워크** — WSL 가상 머신에 적용되는 Hyper-V 방화벽 상태(켜짐 여부, 기본
-인바운드·아웃바운드 동작, 루프백 예외, 규칙 수)와 이름 확인: `/etc/resolv.conf`가
-WSL이 생성한 심볼릭 링크인지 손으로 고친 파일인지, 실제 `generateResolvConf` 값,
-DNS 터널링, 사용 중인 네임서버, 그리고 Windows 어댑터가 알려 주는 서버. 여기에 Windows **포트 포워딩** 규칙까지: NAT에서는 WSL을 다시 시작할 때마다 배포판 주소가 새로 배정되므로, 한 번 만들어 둔 `netsh portproxy` 규칙이 어느 순간부터 조용히 허공으로 전달합니다. WSLPad는 각 규칙을 지금 배포판 주소와 나란히 놓고 어느 것이 죽었는지 말해 줍니다.
+도구 목록과 프로토콜 세부 사항은 [docs/MCP.md](docs/MCP.md)를 참고하세요.
 
-**진단과 원격 연결 복구** — 이번 실행 중 절전·재개, 배포판, DNS, 네트워크 모드,
-Console 상태 변화를 기록하고, 사용자가 직접 실행한 검사로 VS Code Server·배포판·
-네트워크 문제를 구분합니다. `.vscode-server` 경로가 확인된 프로세스만 편집기 서버로
-판별하며, 창 다시 로드 → 측정된 서버 프로세스만 종료 → 선택한 배포판 종료 → WSL 전체
-종료 순으로 영향이 작은 복구 방법부터 제시합니다. 모든 명령은 검토할 수 있게 준비만
-하며 자동 실행하지 않습니다. 진단 JSON은 포함할 로컬 경로·호스트 정보·네트워크 주소를
-저장 전에 알립니다.
+## 안전 모델
 
-**경고** — 중지된 배포판, 꺼진 systemd, 부족한 디스크 공간, 실패한 유닛, 포트 충돌,
-백그라운드 조회 실패, MCP 문제.
+WSLPad는 시스템 변경에 대해 의도적으로 보수적입니다.
 
-**Explorer** — 파일마다 이름, 크기, 수정한 날짜, 그리고 WSL 쪽에서는 소유자, 그룹,
-Linux 권한, 심볼릭 링크 대상. Windows 쪽에서는 드라이브마다 사용 가능 공간과 전체
-공간.
+- Dashboard 검사는 읽기 전용입니다.
+- MCP는 구조상 읽기 전용입니다.
+- 위험한 작업은 조용히 실행되지 않습니다.
+- 서비스 다시 시작, 권한이 필요한 편집, 정리, USB 변경, 복구 단계 같은 작업은 Console에 준비되거나 검토용으로 복사됩니다.
+- 알 수 없는 상태는 추측하지 않고 **알 수 없음**으로 표시됩니다.
 
-**Console** — 배포판, 현재 디렉터리, 그리고 셸 상태(준비됨, 실행 중, 입력 대기 중,
-sudo 암호 대기 중, 연결 끊김, 배포판 중지됨, 시작하지 못함 — 마지막 상태는 이유와
-함께).
+목표는 사용자 모르게 컴퓨터를 바꾸는 또 하나의 백그라운드 도구가 되지 않으면서 WSL을 더 이해하기 쉽게 만드는 것입니다.
 
-**Windows 다운로드 표시 파일** — Windows에서 복사해 온 파일마다 그 옆에
-`:Zone.Identifier` 파일이 영영 남습니다. 몇 개인지, 어느 폴더에 있는지 보여주고
-정리 명령을 준비합니다.
+## Windows에 WSLPad 설치하기
 
-**Windows 터미널** — 이 배포판을 열 프로필이 있는지, 숨겨져 있는지 보여주고,
-없으면 붙여 넣을 JSON을 제시합니다. settings.json은 직접 쓰지 않습니다.
+### 직접 다운로드
 
-**휴지통** — Explorer가 휴지통으로 보낸 것과 각 파일이 원래 있던 자리를 보여주고
-되돌립니다. 되돌릴 자리에 이미 무언가 있으면 멈춥니다. 파일을 지우는 되돌리기는
-되돌리기가 아닙니다.
+[GitHub Releases](https://github.com/r2cuerdame/WSLPad/releases/latest)에서 최신 `WSLPad-Setup-<version>.exe`를 내려받아 실행하세요.
 
-**용량이 어디로 갔나** — 이미지 크기와 실제 사용량의 차이를 무엇이 채우고
-있는지 이름으로 말합니다. 패키지 캐시, systemd 저널, 빌드 캐시, 휴지통,
-Docker 저장소, 각각 정리 명령까지. 이 앱을 만든 기계에서는 아무도 몰랐던
-1.2 GB였습니다.
+- Windows 10/11 x64
+- `%LOCALAPPDATA%\Programs\WSLPad\` 아래 사용자별 설치
+- 일반 설치에는 관리자 권한이 필요 없음
+- Windows 시작 시 실행을 선택할 수 있는 트레이 앱
+- GitHub Releases를 통한 자동 업데이트 확인
 
-**서비스 로그를 그 자리에서** — 셸을 열지 않고 유닛 저널의 마지막 줄들을
-봅니다. ISO 타임스탬프를 쓰고, 비어 있는 저널과 **읽을 권한이 없는 저널**을
-구분해서 말합니다 — 다른 어떤 도구도 하지 않는 구분입니다.
+> **Windows SmartScreen:** 현재 설치 프로그램은 서명되어 있지 않으므로, Windows가 첫 실행 시 "알 수 없는 게시자" 경고를 표시할 수 있습니다. 이 저장소의 공식 Releases 페이지에서 설치 프로그램을 내려받은 경우에만 **추가 정보 → 실행**을 사용하세요.
 
-**느린 경로는 그 자리에서** — 콘솔이 `/mnt` 아래에 앉아 있으면 표시합니다.
-거기서 도는 빌드는 파일마다 Windows 경계를 넘습니다. "WSL이 느리다"의 최대
-원인인데, 프롬프트는 똑같이 생겼습니다.
-
-**MCP로** — 위의 모든 것을 40개의 읽기 전용 `Get*` 도구로.
-[docs/MCP.md](docs/MCP.md)
-
-## Settings(설정) & 언어
-
-오른쪽 위 톱니바퀴(항상 있습니다)를 누르면 모달 설정 서랍이 열립니다(상단 탭 공간을
-차지하지 않는 서랍 형태): 언어, 테마(시스템/라이트/다크), Windows 시작 시 실행,
-모니터링 일시 중지 + 빠름/중간/느림 폴링 주기, Explorer 기본값, Console 글꼴/스크롤백,
-업데이트 확인 — 확인 중·사용 가능·다운로드 진행률·설치 준비됨(다시 시작 버튼 포함)·실패
-사유를 그 자리에 계속 보여줍니다 —, 전체 초기화 — 그리고 **MCP 패널** 전체: 상태,
-엔드포인트 복사, 설정 JSON 복사, Codex / Claude Desktop / Hermes 원클릭 등록,
-연결 테스트, 토큰 재생성.
-
-WSLPad는 **9개 언어** — 한국어, English, 日本語, 简体中文, 繁體中文, Español,
-Français, Deutsch, Português do Brasil — 의 UI 번역을 완전히 갖추고 있으며,
-Windows 언어를 자동으로 감지하고 없으면 English로 대체합니다. Linux 명령과 경로,
-기술 용어는 절대 번역하지 않습니다. 로케일 번들은 오프라인으로 동봉되며 키 일치를
-강제합니다.
-
-## 설치 & CLI
-
-### 직접 다운로드 (권장)
-
-[Releases](https://github.com/r2cuerdame/WSLPad/releases)에서
-`WSLPad-Setup-<version>.exe`를 내려받아 실행하세요 — 관리자 권한은 필요 없습니다
-(사용자별 설치, `%LOCALAPPDATA%\Programs\WSLPad\` 경로).
-
-WSLPad는 기본적으로 Windows와 함께 시작하고(로그인 항목의 `--hidden` 플래그, 트레이나
-Settings에서 전환), 트레이에 상주하며, GitHub Releases에서 자동으로 업데이트합니다.
-창을 닫으면 트레이로 숨겨지고, 트레이 메뉴의 *종료*를 누르면 프로세스가 완전히 끝납니다.
-
-> **Windows SmartScreen 안내**: 현재 릴리스는 서명되어 있지 않으므로 최초 실행 시
-> SmartScreen 경고가 표시됩니다("추가 정보" → "실행").
-
-요구 사항: Windows 10/11 x64. WSL은 선택입니다 — 없어도 WSLPad는 죽지 않고 설치
-안내를 보여줍니다.
+WSL 자체는 시작 시 선택 사항입니다. 사용할 수 있는 배포판이 없으면 WSLPad는 충돌하는 대신 설정 안내를 보여줍니다.
 
 ### WinGet
 
-공식 패키지 매니페스트는 `packaging/winget/manifests/`에 유지되며 Windows Package Manager
-커뮤니티 저장소에 제출되어 있습니다 (PR [microsoft/winget-pkgs#422317](https://github.com/microsoft/winget-pkgs/pull/422317), 머지 대기 중).
+WinGet 패키지 제출은 [microsoft/winget-pkgs#422317](https://github.com/microsoft/winget-pkgs/pull/422317)에서 추적되고 있습니다. 커뮤니티 저장소 항목이 현재 릴리스를 따라잡을 때까지는 GitHub Releases가 최신 버전을 설치하는 권장 방법입니다.
 
-업스트림 머지 전까지는 저장소에 동봉된 매니페스트로 로컬 설치와 검증이 가능합니다:
-
-```powershell
-winget install --manifest packaging/winget/manifests/r/r2cuerdame/WSLPad/1.0.1
-```
-
-커뮤니티 저장소 PR이 머지되면 일반적인 WinGet 명령어로 바로 설치할 수 있습니다:
+패키지가 커뮤니티 저장소에서 사용 가능해지면:
 
 ```powershell
 winget install r2cuerdame.WSLPad
 ```
 
-### CLI 플래그 & 백그라운드 동작
+### CLI 플래그
 
-- `WSLPad.exe` — 앱 GUI 실행(또는 단일 인스턴스 잠금을 통해 이미 실행 중인 창으로 포커스).
-- `WSLPad.exe --hidden` — Windows 트레이로 최소화된 상태로 시작(Windows 부팅 시 자동 시작에서 사용).
-- `WSLPad.exe --mcp-stdio` — Claude Desktop 등의 로컬 MCP 클라이언트를 위한 stdio 브리지 모드. 백그라운드 트레이 앱의 HTTP 서버(`http://127.0.0.1:4923/mcp`)로 표준 입출력을 중계합니다.
+```text
+WSLPad.exe              Launch or focus the GUI
+WSLPad.exe --hidden     Launch directly into the system tray
+WSLPad.exe --mcp-stdio  Stdio bridge for local MCP clients
+```
+
+## 언어
+
+WSLPad는 **9개 언어**의 완전한 UI 번역을 제공합니다:
+
+- English
+- 한국어
+- 日本語
+- 简体中文
+- 繁體中文
+- Español
+- Français
+- Deutsch
+- Português do Brasil
+
+Windows 언어 감지는 자동이며 English로 대체됩니다. Linux 명령, 경로, 기술 용어는 번역하지 않습니다.
+
+## 프라이버시 및 텔레메트리
+
+WSLPad에는 계정 시스템이 없으며 WSL 검사 기능에 클라우드 의존성이 없습니다. 환경 데이터, 파일 경로, 터미널 명령, 포트, 구성 내용, MCP 데이터는 사용자가 명시적으로 내보내거나 복사하지 않는 한 로컬에 남습니다.
+
+패키징된 프로덕션 빌드는 활성 설치 수를 추정하기 위해 **로컬 기준 하루에 최대 한 번 최소한의 PurplePulse 하트비트**를 보냅니다. 페이로드에는 다음이 포함됩니다:
+
+- 무작위로 생성된 영구 설치 ID
+- WSLPad 버전
+- OS(`windows`)
+- 플랫폼(`electron`)
+
+개발 및 QA 실행은 프로덕션 텔레메트리를 보내지 않습니다. 하트비트에는 WSL 내용, 파일 경로, 환경 변수, 터미널 명령, IP 주소, 포트, 배포판 이름, 프로젝트 이름, 비밀 값이 **포함되지 않습니다**.
+
+더 넓은 보안 모델은 [docs/SECURITY.md](docs/SECURITY.md)를 참고하세요.
 
 ## 개발
 
 ```bash
-npm install          # 또는 npm ci (의존성 설치)
-npm run dev          # electron-vite dev (HMR 지원)
-npm run typecheck    # node 및 web 엄격 타입 검사
-npm run lint         # ESLint 9
-npm run test         # vitest 단위 및 통합 테스트 (90개 파일, 1,534개 테스트)
-npm run build        # electron-vite 프로덕션 빌드
-npm run test:e2e     # Playwright Electron E2E (픽스처 모드: WSLPAD_FIXTURE_MODE=1)
-npm run dist         # release/ 폴더로 NSIS 설치 파일 및 blockmap 빌드
+npm install          # or npm ci
+npm run dev          # electron-vite development build
+npm run typecheck    # strict TypeScript checks
+npm run lint         # ESLint
+npm run test         # unit + integration tests
+npm run build        # production build
+npm run test:e2e     # Playwright Electron E2E
+npm run dist         # NSIS installer + blockmap
 ```
 
-클린 Windows 환경 릴리스 수명주기 스모크 테스트(설치, 실행, 업데이트 감지/적용, 삭제, 재설치) 검증:
+v1.1.1 릴리스는 다음으로 검증되었습니다:
 
-```powershell
-./scripts/release-lifecycle-smoke.ps1 -TargetVersion 1.0.1 -TargetSha256 <SHA256>
-```
+- TypeScript typecheck: 통과
+- ESLint: 통과
+- 단위/통합 테스트: **1,614개 통과**
+- Playwright E2E: **52개 통과**
+- 설치 프로그램 수명 주기 스모크 테스트: 설치, 실행, 제거, 재설치 통과
+- WinGet 매니페스트 검증: 통과
 
-`WSLPAD_FIXTURE_MODE=1`을 켜면 앱 전체가 결정적인 인메모리 WSL 환경 위에서
-돌아갑니다 — CI와 E2E가 쓰는 방식입니다.
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)와
-[docs/RELEASING.md](docs/RELEASING.md)를 참고하세요.
+`WSLPAD_FIXTURE_MODE=1`은 CI 및 E2E 테스트를 위해 결정적인 인메모리 WSL 환경 위에서 애플리케이션을 실행합니다.
 
-## 프라이버시 & 보안
+아키텍처 및 릴리스 세부 사항:
 
-로컬 우선입니다. 클라우드도, 계정도, 텔레메트리도 없습니다. MCP는 토큰 인증과 함께
-localhost에만 바인딩되며 구조상 읽기 전용입니다. 사용자가 Enter를 누르지 않으면
-아무것도 실행되지 않습니다. 전체 원칙: [docs/SECURITY.md](docs/SECURITY.md).
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/RELEASING.md](docs/RELEASING.md)
 
 ## 하지 않는 것
 
-WSLPad는 배포판 관리자나 마켓플레이스가 _아니고_, Docker Desktop도 아니고, IDE도
-아닙니다. Git UI도 디버거도 LSP도 없고, 클라우드 동기화도, AI 채팅도, 자동 수정도
-없습니다. 정체성은 **Dashboard + Explorer + Console + Relocation Wizard + 읽기 전용 MCP** — 그게
-전부입니다.
+WSLPad는 IDE, Docker Desktop 대체품, Git 클라이언트, AI 채팅 애플리케이션, 자율 시스템 수정 도구가 **아닙니다**.
 
-## 현재 제한 사항 (v1.0.1)
+또한 주된 용도가 배포판 마켓플레이스도 아닙니다. 배포판을 설치/시작/중지하는 버튼만 필요하다면 일반적인 WSL 관리자가 더 잘 맞을 수 있습니다.
 
-- Windows x64 전용이며, 설치 프로그램은 서명되어 있지 않습니다(SmartScreen 경고)
-- 디스크 이미지 수치에는 Windows 레지스트리와 `fsutil`이 필요합니다. 둘 중 하나라도
-  읽을 수 없으면 이 섹션은 추측하는 대신 그렇다고 말합니다
-- 실제 네트워킹 모드를 알려면 `wslinfo`(WSL 2.0.4+)가 필요합니다. 그 이전 빌드에서는
-  알 수 없음으로 표시됩니다
-- Hyper-V 방화벽 계층은 최근 Windows 빌드에만 있습니다. 그 계층이 없는 환경에서
-  WSLPad는 "꺼짐"이라고 하지 않고 알 수 없음으로 보고합니다
-- 이전 마법사(Relocation Wizard)는 대상 드라이브의 충분한 여유 공간(임시 tar 내보내기 및 vhdx 임포트를 위해 1.5배 권장)과 사용자의 안내된 CLI 명령어 실행을 필요로 합니다
-- 추세 스파크라인은 메모리에만 남습니다. 앱을 닫으면 기록이 초기화되며, 이는 의도한
-  것입니다. 트레이 컴패니언은 모니터링 에이전트가 아닙니다
-- Console의 작업 디렉터리 동기화는 기본 셸이 bash 또는 zsh여야 동작합니다(다른
-  셸도 쓸 수 있지만 자동 경로 동기화는 되지 않습니다)
-- 패널 *사이*의 복사는 절대 이동이 아닙니다. 파일 시스템을 넘나드는 전송은 설계상
-  복사만 하므로, 전송이 실패해도 지워지는 것은 없습니다
-- 바깥의 Windows 탐색기 창에서 끌어오는 방식은 Electron이 파일 경로를 노출하는지에
-  달려 있습니다. 대신 왼쪽 패널(또는 가져오기 메뉴)을 사용하세요
-- MCP stdio 브리지는 트레이 앱이 실행 중이어야 동작합니다
+WSLPad의 정체성은 다음과 같습니다:
+
+**WSL 대시보드 + 문제 해결 + Windows/WSL 파일 관리자 + 터미널 + 복구 도구 + 읽기 전용 MCP.**
+
+## 현재 제한 사항 (v1.1.1)
+
+- Windows x64 전용이며, 설치 프로그램은 현재 서명되어 있지 않습니다.
+- 일부 디스크 이미지 정보는 Windows 레지스트리와 `fsutil`에 대한 접근이 필요합니다.
+- 유효 네트워킹 모드 감지에는 `wslinfo`가 있는 최신 WSL 빌드가 필요합니다. 이전 빌드에서는 알 수 없음으로 보고될 수 있습니다.
+- Hyper-V 방화벽 정보는 해당 계층을 노출하는 Windows 빌드에서만 사용할 수 있습니다.
+- 추세 기록은 메모리에 보관되며 WSLPad를 종료하면 초기화됩니다.
+- Console의 자동 cwd 동기화는 현재 bash와 zsh를 대상으로 합니다.
+- 패널 간 Windows ↔ WSL 전송은 설계상 복사만 합니다.
+- 외부 Windows 탐색기에서 끌어다 놓는 방식은 Electron이 파일 경로를 노출하는지에 달려 있습니다. 내장 Windows 패널과 가져오기 흐름이 신뢰할 수 있는 경로입니다.
+- MCP stdio 브리지는 트레이 애플리케이션이 실행 중이어야 합니다.
 
 ## 로드맵
 
-다음 차례: VHDX 축소·확장 명령 콘솔 준비, ARM64 빌드, 그리고 서명된 설치 프로그램.
+현재 방향은 다음과 같습니다:
+
+- Console용으로 안전하게 준비되는 VHDX 축소/확장 명령
+- ARM64 빌드
+- 서명된 Windows 설치 프로그램
 
 ## 커뮤니티
 
-질문, 아이디어, "이게 이렇게 보이는 게 맞나?" 하는 의문은
-[Discussions](https://github.com/r2cuerdame/WSLPad/discussions)에서 다룹니다. WSLPad가 지원하는 아홉 개 언어 중 어느 것으로
-써도 됩니다. 버그는 [이슈 트래커](https://github.com/r2cuerdame/WSLPad/issues/new/choose)로, 보안 문제는
-[비공개 어드바이저리](https://github.com/r2cuerdame/WSLPad/security/advisories/new)로 보내주세요.
+질문과 아이디어는 [GitHub Discussions](https://github.com/r2cuerdame/WSLPad/discussions)에서 다룹니다. 버그는 [이슈 트래커](https://github.com/r2cuerdame/WSLPad/issues/new/choose)에 보고하고, 보안 문제는 [비공개 보안 권고](https://github.com/r2cuerdame/WSLPad/security/advisories/new)를 통해 보고할 수 있습니다.
 
-- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — 어떻게 하는지, 왜 그렇게 보이는지
-- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — 다음에 무엇을 보여줄지
-- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — 당신의 기계에서 무엇이 나왔는지
-
-[CONTRIBUTING](.github/CONTRIBUTING.md)에 풀 리퀘스트가 절대 깨뜨리면 안 되는 네 가지 규칙이
-있습니다.
+- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a)
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas)
+- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell)
+- [CONTRIBUTING](.github/CONTRIBUTING.md)
 
 ## 라이선스
 

@@ -1,4 +1,4 @@
-# WSLPad — WSL-GUI, Dashboard und Fehlerdiagnose für Windows
+# WSLPad — WSL-GUI, Dashboard, Dateimanager & Fehlerdiagnose-Tool für Windows
 
 [English](README.md) · [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Español](README.es.md) · [Français](README.fr.md) · **Deutsch** · [Português (Brasil)](README.pt-BR.md)
 
@@ -8,428 +8,315 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Sponsor](https://img.shields.io/badge/%E2%99%A5_Sponsor-ea4aaa)](https://github.com/sponsors/r2cuerdame)
 
-> **Sieh, was WSL tatsächlich macht – und warum etwas nicht funktioniert.**
+> **Sehen Sie, was WSL tatsächlich tut — und warum es fehlschlägt.**
 
-WSLPad ist eine quelloffene **WSL-GUI, ein WSL-Dashboard und ein Diagnosewerkzeug** für Windows 10/11. Es macht sonst schwer sichtbare Zustände von Windows Subsystem for Linux sichtbar: laufende Distributionen, CPU und Arbeitsspeicher, `ext4.vhdx`, `.wslconfig` und `wsl.conf`, Ports, Netzwerk, DNS, systemd-Dienste, Docker, Entwicklerwerkzeuge und Dateipfade.
+WSLPad ist eine quelloffene **WSL-GUI, ein WSL-Dashboard und ein WSL-Fehlerdiagnose-Tool für Windows 10/11**. Anders als ein einfacher WSL-Manager konzentriert es sich darauf, die Umgebung zu untersuchen und zu erklären, die Sie bereits verwenden. Es macht die unsichtbaren Teile von Windows Subsystem for Linux sichtbar: laufende Distributionen, CPU und Arbeitsspeicher, `ext4.vhdx`-Datenträgernutzung, `.wslconfig` und `wsl.conf`, Ports, Netzwerk, Zustand der Hyper-V-Firewall, DNS, systemd-Dienste, installierte Entwicklerwerkzeuge, Docker, Dateipfade und mehr.
 
-Dazu kommen ein **Windows ↔ WSL Dateimanager mit zwei Fenstern**, ein echtes interaktives Terminal, Diagnose- und Wiederherstellungswerkzeuge, sichere VHDX-Migration und ein **schreibgeschützter WSL-MCP-Server** für Claude, Codex und andere LLMs.
+Dazu kommen ein **Windows ↔ WSL Dateimanager mit zwei Bereichen**, ein echtes interaktives Terminal, Umgebungsdiagnose, Wiederherstellungswerkzeuge, USB/usbipd-Sichtbarkeit, ein sicherer Workflow zum Verschieben der VHDX und ein **schreibgeschützter WSL-MCP-Server für Claude, Codex und andere LLM-Tools**.
 
 ![WSLPad Dashboard](docs/screenshots/dashboard.png)
 
-## Warum
+## WSL-Fehlerdiagnose: was WSLPad Ihnen lösen hilft
 
-Installieren Sie Hermes, Codex, Claude, Docker, Node oder Python in WSL, und
-plötzlich ist von Windows aus nichts mehr sichtbar: Installationspfade,
-Konfigurationsdateien, Umgebungsvariablen, Dienste, Ports, der systemd-Status
-oder wie Linux-Pfade auf Windows-Pfade abgebildet werden. WSLPad bringt all das
-in ein Dashboard, einen Explorer, einen Relocation Wizard und eine MCP-Oberfläche —
-ohne jemals hinter Ihrem Rücken etwas an Ihrem System zu ändern.
+WSLPad ist um die Fragen herum gebaut, die WSL-Nutzer immer wieder von Hand debuggen müssen:
 
-## Kernbereiche
+- **Warum ist WSL langsam?** — Sehen Sie, wann ein Projekt oder Terminal unter `/mnt/c` statt im nativen Linux-Dateisystem läuft, prüfen Sie den Speicherdruck und finden Sie die Speicherplatzfresser.
+- **Warum erreichen Windows oder mein LAN einen WSL-Port nicht?** — Sehen Sie Listener, Bind-Adresse, wirksamen Netzwerkmodus, Sichtbarkeit unter Windows, Zustand der Hyper-V-Firewall und ein Erreichbarkeitsurteil zusammen an einer Stelle.
+- **Warum hat `.wslconfig` oder `wsl.conf` keine Wirkung?** — Vergleichen Sie deklarierte Werte mit dem, was tatsächlich aktiv ist, und sehen Sie, ob ein Neustart nötig ist, der Schlüssel nicht unterstützt wird, der Abschnitt falsch ist oder die Einstellung schlicht nicht wirksam ist.
+- **Wo liegt `ext4.vhdx`, und warum ist sie so groß?** — Sehen Sie den Pfad des Abbilds, die belegte Größe, die Nutzung des Linux-Dateisystems und den rückgewinnbaren Speicherplatz.
+- **Wo ist mein WSL-Speicherplatz geblieben?** — Untersuchen Sie Paket-Caches, Journale, Build-Caches, Papierkorb und Docker-Speicher, statt allein aus `df` zu raten.
+- **Welcher Prozess hält Port 3000 / 5173 / 8080?** — Filtern Sie WSL- und Windows-Listener nach Port oder Prozess und sehen Sie, ob der Port erreichbar ist.
+- **Ist ein Tool in WSL installiert oder wird es versehentlich auf Windows aufgelöst?** — Untersuchen Sie über 100 Entwicklerwerkzeuge mit Pfaden, Versionen, Installationsarten und Dateisystemseite.
+- **Wie kopiere ich Dateien sauber zwischen Windows und WSL?** — Nutzen Sie einen echten Windows/WSL-Dateimanager mit zwei Bereichen, Berechtigungen, Symlinks, Verlauf, Suche und abbrechbaren Übertragungen.
+- **Warum reagiert WSL nach Ruhezustand, VPN oder einer Netzwerkänderung nicht mehr?** — Nutzen Sie Diagnose- und Wiederherstellungshinweise, die destruktive Aktionen an den Schluss stellen.
+- **Kann Claude oder Codex meine WSL-Umgebung sicher untersuchen?** — Stellen Sie schreibgeschützte MCP-Tools bereit, ohne dem Modell Fähigkeiten zum Ausführen, Schreiben, Beenden oder Löschen zu geben.
 
-### Dashboard — Zustand nur lesend, Bereich für Bereich
+## Warum WSLPad statt eines anderen WSL-Managers?
 
-Links einen Bereich wählen, rechts lesen — siebzehn davon, von der Übersicht
-bis zu den Warnungen. Tabellen bekommen das ganze Fenster statt einer beengten
-Karte, und die Liste trägt Live-Badges. Die vollständige Aufstellung steht
-[weiter unten](#was-sie-wirklich-sehen); vier Bereiche verdienen eine eigene
-Erwähnung, weil sie Fragen beantworten, die WSL selbst offenlässt:
+Viele WSL-GUI-Tools konzentrieren sich auf den Lebenszyklus von Distributionen: eine Distribution installieren, starten, stoppen, exportieren oder abmelden. WSLPad ist bewusst anders.
 
-**Datenträgerabbild** — die `ext4.vhdx` Ihrer Distribution wächst und schrumpft
-nie wieder, und `df` innerhalb von Linux meldet ein fiktives Maximum. WSLPad
-zeigt, wo das Abbild wirklich liegt, was es auf Ihrem Windows-Datenträger
-belegt, was die Distribution darin tatsächlich nutzt und wie viel davon
-rückgewinnbar ist.
+Seine Hauptaufgabe ist es, **die Umgebung zu untersuchen, zu erklären und zu diagnostizieren, die Sie bereits verwenden**.
 
-![Datenträgerabbild](docs/screenshots/disk.png)
+Das bedeutet, Fakten, die WSL normalerweise über Windows, Linux, Konfigurationsdateien, die Registry, Netzwerkschichten und Befehlszeilentools verstreut, an einem Ort zusammenzuführen — und zu sagen, **warum** etwas langsam, unerreichbar, veraltet, falsch konfiguriert oder inkonsistent ist, statt nur den Rohzustand anzuzeigen.
 
-**WSL-Einstellungen** — WSL nimmt eine Konfiguration entgegen und ignoriert
-stillschweigend die Hälfte davon. Jeder Schlüssel aus `.wslconfig` und
-`wsl.conf` wird mit seinem deklarierten Wert, dem tatsächlich wirksamen Wert
-und einem Urteil angezeigt: übernommen, Neustart nötig, falscher Abschnitt,
-unbekannter Schlüssel oder auf diesem Build nicht unterstützt. Einschließlich
-des Netzwerkmodus, den Sie angefordert haben, gegenüber dem, den Sie bekommen
-haben. Die beiden Dateien liegen auf zwei verschiedenen Maschinen und werden an zwei verschiedenen Stellen bearbeitet, also liest man sie einzeln — der Umschalter zeigt, wie viele Schlüssel jede Datei deklariert, und markiert die, die Aufmerksamkeit braucht.
+WSLPad „repariert“ Ihr System nicht stillschweigend. Systemverändernde Aktionen werden zur Prüfung in der Console vorbereitet oder als Befehle kopiert; Sie entscheiden, ob Sie sie ausführen.
 
-![WSL-Einstellungen](docs/screenshots/wslconfig.png)
+## Kernfunktionen
 
-**Netzwerk** — die Hyper-V-Firewall, die das Fenster der Windows-Firewall nie
-zeigt, die standardmäßig aktiv ist und eingehenden Datenverkehr zu WSL
-stillschweigend verwirft, dazu ein Block zur Namensauflösung, der
-`/etc/resolv.conf`, `generateResolvConf`, DNS-Tunneling und die Server des
-Windows-Adapters nebeneinanderstellt — damit „Temporary failure in name
-resolution“ eine einzige Stelle zum Nachsehen hat.
+### WSL-Dashboard und Umgebungsinspektion
 
-**Ports** — ein WSL-Listener wird mit `WSL` markiert, oder mit `WSL + Windows`,
-wenn er von Windows aus tatsächlich erreichbar ist, und jeder trägt jetzt ein
-**Erreichbarkeitsurteil**: reicht ins Netzwerk, nur bis zu diesem PC, nur
-innerhalb von WSL oder nirgendwohin — samt Begründung, hergeleitet aus der
-Bind-Adresse, dem wirksamen Netzwerkmodus und der Firewall. Wenn die Fakten
-nicht lesbar sind, sagt WSLPad _unbekannt_, statt zu raten. Auf einer beschäftigten Maschine lauschen Hunderte von Ports, deshalb gibt es einen Portbereich und einen Prozessnamen-Filter — „wer hält 5173" ist eine Frage und keine Scroll-Übung.
+Das Dashboard zeigt den WSL-Zustand, ohne dass Sie sich eine Kette von PowerShell-, Linux- und Netzwerkbefehlen merken müssen.
+
+Es umfasst:
+
+- Distributionsstatus, WSL-/Kernel-Versionen, Hostname, Benutzer, Shell und Laufzeit
+- CPU, Arbeitsspeicher, Swap, Prozessanzahl und Datenträgernutzung
+- Speicherort, Belegung, Sparse-Zustand und rückgewinnbaren Speicherplatz von `ext4.vhdx`
+- deklarierte vs. wirksame Werte aus `.wslconfig` und `/etc/wsl.conf`
+- wichtige Linux- und Windows-Pfade
+- Umgebungsvariablen, wobei Werte, die nach Secrets aussehen, maskiert werden
+- systemd-Dienste und Dienstprotokolle
+- WSL- und Windows-Prozesse
+- lauschende Ports und Erreichbarkeit
+- Netzwerkmodus, DNS und Zustand der Hyper-V-Firewall
+- Windows-Portweiterleitungsregeln und veraltete Ziele
+- Docker-Engine/-Client, Images, Container, Build-Cache und Datenverzeichnis
+- installierte KI-CLIs, Laufzeitumgebungen, Paketmanager, Compiler, Cloud-Tools und Dienstprogramme
+- Windows-Downloadmarkierungen (`Zone.Identifier`)
+- Zustand des Windows-Terminal-Profils
+- Warnungen bei häufigen WSL-Problemen
+
+### Fehlerdiagnose für WSL-Netzwerk, localhost und Portweiterleitung
+
+Dass ein Port innerhalb von Linux „offen“ ist, heißt nicht, dass Windows oder ein anderer Rechner ihn erreichen kann.
+
+WSLPad setzt in Beziehung:
+
+- Adresse und Port des WSL-Listeners
+- den besitzenden Prozess
+- Sichtbarkeit auf der Windows-Seite
+- NAT- vs. Mirrored-Netzwerk
+- Zustand der Hyper-V-Firewall
+- Portweiterleitungsregeln
+- DNS-Konfiguration
+
+Jeder Listener erhält ein Erreichbarkeitsurteil wie **LAN-erreichbar**, **nur dieser PC**, **nur WSL**, **unerreichbar** oder **unbekannt**, mit angezeigter statt geratener Begründung.
 
 ![Ports](docs/screenshots/ports.png)
 
-Das Dashboard führt nie etwas aus. Schaltflächen wie _kill_, _Dienst neu
-starten_ oder _sudoedit_ **bereiten** den Befehl lediglich in der Eingabezeile
-der Console (Konsole) vor — Sie prüfen, bearbeiten und drücken Enter.
+### Änderungen an `.wslconfig` und `wsl.conf` greifen nicht
 
-### Explorer — Windows links, WSL rechts
+Die WSL-Konfiguration ist auf Windows und Linux verteilt, und viele Änderungen gelten erst nach einem Neustart der WSL-VM.
+
+WSLPad zeigt den konfigurierten Wert neben dem wirksamen Wert und klassifiziert das Ergebnis als übernommen, Neustart nötig, nicht gesetzt, nicht unterstützt, unbekannter Schlüssel oder falscher Abschnitt. Es zeigt außerdem den von Ihnen angeforderten Netzwerkmodus gegenüber dem tatsächlich laufenden Modus.
+
+![WSL-Einstellungen](docs/screenshots/wslconfig.png)
+
+### WSL-Speicherplatz, `ext4.vhdx` und VHDX-Speicheranalyse
+
+`df` innerhalb von Linux verrät nicht, wie viel Speicherplatz die virtuelle WSL-Festplatte unter Windows belegt.
+
+WSLPad zeigt:
+
+- den tatsächlichen Speicherort von `ext4.vhdx`
+- logische und belegte Größe des Abbilds
+- ob das Abbild eine Sparse-Datei ist
+- die Dateisystemnutzung innerhalb der Distribution
+- rückgewinnbaren Speicherplatz
+- große Speicherplatzverbraucher wie Paket-Caches, Journale, Build-Caches, Papierkorb und Docker
+
+![Datenträgerabbild](docs/screenshots/disk.png)
+
+### Windows ↔ WSL Dateimanager
 
 ![Explorer](docs/screenshots/explorer.png)
 
-Ein echter Dateimanager mit zwei Bereichen: links Ihre **Windows**-Laufwerke,
-rechts die ausgewählte **WSL-Distribution**, dazwischen ein verschiebbarer
-Trenner. Das Kopieren zwischen beiden ist der eigentliche Zweck — ziehen Sie
-Dateien hinüber oder klicken Sie auf _In den anderen Bereich kopieren_ — und
-jede Übertragung meldet ihren Fortschritt und lässt sich abbrechen. Eine
-Übertragung löscht niemals ihre Quelle.
+Der Explorer ist ein echter Dateimanager mit zwei Bereichen: **Windows-Laufwerke links, die ausgewählte WSL-Distribution rechts**.
 
-Jeder Bereich hat seinen eigenen Verlauf, Breadcrumb, seine Pfadleiste, Suche,
-einen optionalen, nachladenden Ordnerbaum, eine sortierbare Liste, Neue Datei/
-Neuer Ordner, Umbenennen direkt in der Liste (F2), Kopieren/Ausschneiden/
-Einfügen sowie Entf → Papierkorb, mit Umschalt+Entf zum endgültigen Löschen.
-Der WSL-Bereich zeigt zusätzlich Besitzer/Gruppe/Linux-Berechtigungen und
-Linkziele und bietet die vier Varianten zum Kopieren des Pfads; privilegierte
-Operationen werden nicht mit sudo vorgetäuscht — stattdessen wird der passende
-Befehl in der Console vorbereitet. Ein Doppelklick auf eine Textdatei öffnet
-auf beiden Seiten den eingebauten Editor als Overlay (Zeilennummern, Suchen,
-Strg+S, JSON formatieren).
+Beide Bereiche haben Navigationsverlauf, Breadcrumbs, Pfadleisten, Suche, Sortierung, Erstellen von Dateien/Ordnern, Umbenennen, Kopieren/Ausschneiden/Einfügen und Papierkorb. Der WSL-Bereich zeigt zusätzlich Linux-Besitzer/-Gruppe, Berechtigungen und Symlink-Ziele.
 
-### Console — eine echte Shell, immer griffbereit
+Übertragungen über Dateisystemgrenzen hinweg sind bewusst reine Kopiervorgänge, zeigen ihren Fortschritt und lassen sich abbrechen. Textdateien lassen sich im eingebauten Editor mit Zeilennummern, Suche, Speichern und JSON-Formatierung öffnen.
 
-Eine echte interaktive PTY-Sitzung pro Distribution (bash/zsh, Farben, Strg+C,
-Tab-Vervollständigung, vim/htop/ssh funktionieren alle), angedockt am unteren
-Rand jedes Tabs. Ein Rechtsklick fügt ein — oder kopiert die Auswahl, wenn es
-eine gibt —, genau so, wie sich jedes andere Terminal auch verhält. Wenn Sie im
-WSL-Bereich des Explorers navigieren, folgt die Console in dasselbe
-Verzeichnis — ohne sichtbares `cd`, ohne Ihren Shell-Verlauf zuzumüllen. Nur
-Befehle, die **Sie** ausführen, erscheinen im Mitschnitt; die internen Abfragen
-von WSLPad laufen über einen separaten, verborgenen Runner.
+### Interaktives WSL-Terminal für Windows
 
-Sie erholt sich außerdem von selbst. WSL ist oft noch beschäftigt, wenn WSLPad mit Windows startet, und eine Shell, die nicht gestartet werden konnte, wird jetzt genau so gemeldet — **mit dem Grund** — statt als irreführendes „Distribution gestoppt". Sobald die Distribution als laufend gilt, versucht es die Konsole ungefragt erneut, und wenn es weiterhin nicht klappt, bleibt eine Schaltfläche zum erneuten Verbinden stehen. Die App neu zu starten ist nie die Antwort.
+WSLPad enthält eine echte PTY-gestützte Shell pro Distribution mit Unterstützung für bash/zsh, Farben, Strg+C, Tab-Vervollständigung, vim, htop und SSH.
 
-### Relocation Wizard — Distributionen sicher umziehen
+Wenn Sie im WSL-Dateibereich navigieren, folgt die Console in dasselbe Verzeichnis, ohne sichtbare `cd`-Befehle in Ihren Shell-Verlauf einzufügen. Interne WSLPad-Abfragen laufen über einen separaten, verborgenen Runner, sodass Ihr Terminal-Mitschnitt nur Befehle enthält, die Sie tatsächlich ausgeführt haben.
 
-Ist Ihr Laufwerk `C:` wegen WSL voll? Der schrittweise **Relocation Wizard** (Umzugsassistent) führt Sie sicher durch den Export und das Verschieben der VHDX Ihrer Distribution auf ein sekundäres Laufwerk (wie `D:\`), ohne Risiko von Datenverlust:
-- Klare Zielauswahl und automatische Berechnung des freien Speicherplatzes
-- Vorab-Prüfung und sauberer Stopp der Distribution (`wsl --terminate`)
-- Bereitstellung der `tar`-Export-, Abmelde- und Reimport-Befehle direkt in der Konsole
-- Garantierte Wiederherstellung des Standardbenutzers in `/etc/wsl.conf`
-- Validierung nach dem Umzug zur Bestätigung der Integrität der Distribution
+### Environment Doctor und Entwicklerprofile
 
-## MCP-Server (nur lesend)
+Der Environment Doctor prüft häufige Gesundheitsprobleme eines WSL-Arbeitsbereichs und präsentiert die Befunde, ohne den Rechner automatisch zu verändern.
 
-Solange WSLPad im Tray sitzt, stellt es MCP unter `http://127.0.0.1:4923/mcp`
-bereit (Streamable HTTP, nur localhost, Authentifizierung per Bearer-Token) mit
-40 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
-`GetTextFile`, `GetPortOwner`, `GetCommandResolution`, … Tools zum Schreiben, Ausführen oder Beenden
-gibt es bewusst nicht; Secrets und private Schlüssel überschreiten die
-MCP-Grenze nie. Registrierung per Klick für Claude Desktop (stdio-Bridge),
-Codex und Hermes, dazu `Für LLM kopieren`, das eine maskierte
-Markdown-Zusammenfassung des Zustands in Ihre Zwischenablage legt.
-Details: [docs/MCP.md](docs/MCP.md).
+Entwicklerprofile gruppieren gängige **Web-, Python-, Rust-, KI- und Container/Kubernetes**-Workflows um die Tools, die sie normalerweise benötigen, und nutzen dabei das bestehende Erkennungsmodell von WSLPad, um zu zeigen, was installiert ist und was fehlt.
 
-## Was Sie wirklich sehen
+### Wiederherstellung, Backup, Klonen und Verschieben
 
-Jeder Punkt unten wird von Ihrem Rechner gelesen und unverändert angezeigt.
-Nichts davon ändert etwas; wo es eine Aktion gibt, wird sie in die Console
-geschrieben, damit Sie sie ausführen.
+Der Recovery-Arbeitsbereich umfasst Backup, Wiederherstellung, Klonen, Verschieben und den Verifikationsverlauf mit expliziten Sicherheitsschranken.
 
-**Übersicht** — Name der Distribution, Status, WSL-Version, Kennzeichnung als
-Standard, Anzeigename des Betriebssystems, Kernel, Hostname, Benutzer,
-`$HOME`, Login-Shell, Laufzeit, ob systemd aktiv ist, die IP der Distribution,
-der `\\wsl.localhost\…`-Pfad für Windows und die Abweichung der Uhr zwischen
-Windows und der Distribution — die unsichtbare Ursache plötzlicher apt- und
-TLS-Fehler, nachdem der Host im Ruhezustand war.
-Und ob die Distribution überhaupt noch antwortet: `wsl --list` meldet
-stundenlang weiter Running, nachdem eine Distribution aufgehört hat zu
-reagieren. Bekommt die Sonde nichts zurück, sagt das Abzeichen **Läuft —
-antwortet nicht** und nennt die letzte Antwort — ab da ist jeder Wert hier der
-letzte gute, kein frischer.
+Der Workflow zum Verschieben hilft dabei, eine WSL-Distribution von einem vollen Laufwerk C: wegzubewegen, und prüft dabei den freien Platz am Ziel, die Integrität des Backups und den Linux-Standardbenutzer. WSLPad meldet eine bestehende Distribution niemals stillschweigend ab, löscht oder überschreibt sie nicht.
 
-**Ressourcen** — CPU-Auslastung in Echtzeit, belegter/gesamter
-Arbeitsspeicher, Swap, Datenträgernutzung für `/`, `/home` und `/mnt/c`,
-Durchschnittslast, Anzahl der Prozesse und Verlaufs-Sparklines, damit eine Zahl
-die Frage „steigt das gerade?“ beantwortet. Dazu der **Speicherabgleich**:
-Windows-Arbeitsspeicher, das WSL-Speicherlimit (und ob Sie es gesetzt haben
-oder WSL es berechnet hat), wie viel Windows gerade für die VM hält, und die
-Aufteilung in Linux nach belegt / Cache / frei / Swap — damit sich „vmmem
-frisst 7 GB“ in „das meiste davon ist rückgewinnbarer Seitencache“ auflöst.
+### USB-/usbipd-Sichtbarkeit
 
-**Datenträgerabbild** — wo die `ext4.vhdx` auf Ihrem Windows-Datenträger
-tatsächlich liegt, ihre logische Größe, wie viel davon wirklich belegt ist, ob
-sie eine Sparse-Datei ist, Größe und Belegung des Dateisystems innerhalb der
-Distribution und wie viel rückgewinnbar ist.
+WSLPad kann den Zustand von USB-/usbipd-Geräten untersuchen und Bind-, Attach- und Detach-Befehle zur Prüfung vorbereiten. Geräte werden Windows nie automatisch entzogen.
 
-**WSL-Einstellungen** — zuerst der WSL-Build, der Kernel, WSLg, MSRDC,
-Direct3D, DXCore und die Windows-Version aus `wsl --version`, denn jedes Urteil
-„auf diesem Build nicht unterstützt" ist eine Aussage über genau diese Zahlen.
-Danach jeder Schlüssel aus `.wslconfig` und `/etc/wsl.conf`
-mit seinem deklarierten Wert, dem tatsächlich wirksamen Wert, seiner Herkunft
-(von Ihnen gesetzt, WSL-Standard oder aus Ihrer Hardware berechnet) und einem
-Urteil: übernommen, Neustart nötig, nicht gesetzt, unbekannter Schlüssel
-(Tippfehler), falscher Abschnitt oder auf diesem Build nicht unterstützt.
-Einschließlich des tatsächlich laufenden Netzwerkmodus gegenüber dem
-angeforderten und eines Banners, wenn die VM älter ist als Ihre letzte
-Änderung.
-Dann zwei Antworten, die WSL auf zwei Maschinen verteilt: ob der Kernel
-wirklich die Interop-Registrierung hat, die `[interop] enabled=` verlangt hat —
-diese Datei wird einmal beim Start der Distribution gelesen, eine spätere
-Änderung bewirkt bis `wsl --shutdown` nichts — und als welcher Benutzer sich
-die Distribution anmeldet, wo `DefaultUid` in der Windows-Registry `[user] default=`
-in `/etc/wsl.conf` stillschweigend schlägt.
+### Diagnose und Remote-Wiederherstellung
 
-**Wichtige Pfade** — `$HOME`, `/etc`, `/usr/local/bin`, `~/.local/bin`,
-`~/.config`, `~/.cache`, `~/.ssh`, `~/.hermes`, das Windows-Benutzerprofil aus
-Linux-Sicht — jeweils mit der Angabe, ob es existiert, in Linux- wie in
-Windows-Schreibweise und auf welcher Seite der Grenze zum Windows-Dateisystem
-es liegt (nativ auf ext4 oder jenseits der langsamen Windows-Einbindung).
-Und wie die Windows-Laufwerke darunter wirklich eingehängt sind. Fast die ganze
-Überraschung steckt in einer Option: ohne `metadata` melden `chmod` und `chown`
-unter `/mnt/c` Erfolg und speichern nichts — der Modus wird bei jedem Lesen aus
-der umask neu gebildet, die Änderung ist also vor dem nächsten `ls` wieder weg.
-Skripte bleiben nicht ausführbar, und nirgends erscheint ein Fehler.
+![Diagnose](docs/screenshots/diagnostics.png)
 
-**Konfigurationsdateien** — `.wslconfig`, `/etc/wsl.conf`, `/etc/fstab`,
-`~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.config`, `/etc/environment`: wo
-jede Datei liegt und ob sie existiert, lesbar und beschreibbar ist.
+Eine nur für die Sitzung geltende Diagnose-Zeitleiste verbindet Ruhezustand/Fortsetzen, Reaktionsfähigkeit der Distribution, DNS-Änderungen, Wechsel des Netzwerkmodus und Wiederherstellungsereignisse der Console.
 
-**Installierte Tools** — 111 Tools in 11 Kategorien (KI-CLIs,
-Laufzeitumgebungen, Paketmanager, Versionsverwaltung, Container, Cloud,
-Build-Tools, Datenbanken, Editoren und Shells, Medien, Dienstprogramme),
-jeweils mit Installationsstatus, aufgelöstem Pfad, Version, Installationsart,
-Konfigurationspfaden, Anzahl laufender Prozesse, auf welcher Seite der Grenze
-zum Windows-Dateisystem es liegt und — wichtig — ob der Befehl tatsächlich auf
-ein **Windows**-Programm unter `/mnt/c` auflöst statt auf eines, das in der
-Distribution installiert ist.
+Bei Fehlern von VS Code Remote / WSL identifiziert WSLPad nur nachweislich zugehörige VS-Code-Server-Prozesse und hält die Wiederherstellungsleiter in der Reihenfolge „am wenigsten destruktiv zuerst“: Editor neu laden, gemessene Serverprozesse neu starten, eine Distribution beenden und `wsl --shutdown` nur als letzten Ausweg verwenden.
 
-**Docker** — ein eigener Abschnitt: Engine- und Client-Version, Kontext,
-Datenverzeichnis, Images und Container sowie die Aufschlüsselung von
-`docker system df` — einschließlich des **Build-Cache**, den keine Liste zeigt
-und der regelmäßig das Größte auf der Maschine ist. Unter Docker Desktop nennt
-er außerdem die Distribution, auf deren virtueller Festplatte dieser Platz
-wirklich liegt, denn es ist nicht die betrachtete. Nur lesend: nichts wird
-geholt, gestartet, gestoppt oder bereinigt — die Prune-Befehle werden in der
-Konsole vorbereitet.
+### Docker in WSL und Sichtbarkeit von Entwicklerwerkzeugen
+
+WSLPad erkennt Entwicklerwerkzeuge innerhalb der ausgewählten Distribution und zeigt, wohin jeder Befehl tatsächlich aufgelöst wird.
+
+Docker bekommt eine eigene Inspektionsoberfläche für Engine-/Client-Versionen, Kontext, Datenverzeichnis, Images, Container und `docker system df` — einschließlich Build-Cache. Remote-Docker-Kontexte werden nicht automatisch kontaktiert.
 
 ![Docker](docs/screenshots/docker.png)
 
-**Hermes** — Programmdatei, Datenverzeichnis, virtuelle Umgebung, Konfiguration, Status des Gateways, **mit welchen Messengern es tatsächlich verbunden ist**, die Profile, die man Agenten nennen würde (das aktuelle markiert), aktive Sitzungen, geplante Aufgaben, Status und Adresse des Dashboards, Anzahl der MCP-Server, Ports, Benutzerdienste und Pfade der Protokolle. Messenger und Profile stammen aus Hermes' eigener, nur lesender CLI; lässt sie sich nicht befragen, steht dort _unbekannt_ und nicht „nichts konfiguriert". Das Web-Dashboard läuft nicht? Der Befehl zum Starten wird in der Konsole vorbereitet.
+WSLPad bietet außerdem eine eigene Sichtbarkeit für Tools wie Hermes und OpenClaw, wenn sie vorhanden sind.
 
-**OpenClaw** — ein eigener Abschnitt neben Hermes: Programmdatei,
-Datenverzeichnis, Version, Installationsweg, auf welcher Seite der
-Dateisystemgrenze es liegt und ob es läuft. Erkannt im selben Katalogdurchlauf
-wie jedes andere Werkzeug — WSLPad startet OpenClaw nie, um es zu befragen.
+## Schreibgeschützter WSL-MCP-Server für Claude und Codex
 
-![Hermes](docs/screenshots/hermes.png)
+Solange WSLPad läuft, stellt es MCP lokal bereit unter:
 
-**Umgebungsvariablen** — jede Variable mit ihrer Länge und ihren Merkmalen
-(PATH-artig, von Windows übernommen). Namen, die nach einem Secret aussehen,
-werden maskiert; das Anzeigen ist ein bewusster Klick.
+```text
+http://127.0.0.1:4923/mcp
+```
 
-**Prozesse** — PID, Benutzer, CPU %, RAM %, verstrichene Zeit, vollständige
-Befehlszeile.
+Der Server verwendet Streamable HTTP, bindet ausschließlich an localhost und authentifiziert per Bearer-Token. Er stellt **40 schreibgeschützte `Get*`-Tools** bereit, darunter Umgebungs-Snapshots, Ports, installierte Tools, Befehlsauflösung und die Inspektion von Textdateien.
 
-**Dienste** — jede systemd-Unit mit Bereich, Load-/Active-/Sub-Status,
-Aktivierungszustand und Beschreibung — und für rund 71 bekannte Units eine
-Erklärung in normaler Sprache, was sie ist und ob sie normalerweise läuft.
+Es gibt bewusst **keine MCP-Tools zum Schreiben, Ausführen, Beenden oder Löschen**. Private Schlüssel und geheime Werte werden nicht über die MCP-Grenze hinweg offengelegt.
 
-**Ports** — Protokoll, Adresse, Port, PID, Prozess, Lauschstatus, die Quelle
-(`WSL`, `Windows`, `WSL + Windows`) und ein Erreichbarkeitsurteil samt
-Begründung: reicht ins Netzwerk, nur bis zu diesem PC, nur innerhalb von WSL,
-nirgendwohin oder unbekannt. Filtern nach Portbereich und Prozessname — die Namenssuche sieht sowohl den WSL-Prozess als auch den Windows-Prozess an, der denselben Port hält.
+Die Registrierung per Klick ist für Claude Desktop, Codex und Hermes verfügbar. `Copy for LLM` erstellt eine maskierte Markdown-Zusammenfassung der aktuellen WSL-Umgebung.
 
-**Netzwerk** — der Zustand der Hyper-V-Firewall für die virtuelle WSL-Maschine
-(aktiviert, Standardaktion für eingehenden und ausgehenden Datenverkehr,
-Loopback-Ausnahme, Anzahl der Regeln) und die Namensauflösung: ob
-`/etc/resolv.conf` der erzeugte Symlink oder von Hand bearbeitet ist, das
-wirksame `generateResolvConf`, DNS-Tunneling, die verwendeten Nameserver und
-das, was der Windows-Adapter verteilt. Dazu die **Portweiterleitungs**-Regeln von Windows: Unter NAT bekommt die Distribution bei jedem WSL-Neustart eine neue Adresse, sodass eine einmal angelegte `netsh portproxy`-Regel unbemerkt ins Leere weiterleitet. WSLPad stellt jede Regel neben die aktuelle Adresse und sagt, welche tot sind.
+Die Tool-Liste und Protokolldetails finden Sie in [docs/MCP.md](docs/MCP.md).
 
-**Warnungen** — gestoppte Distribution, systemd aus, wenig Speicherplatz,
-fehlgeschlagene Units, Portkonflikte, fehlgeschlagene Hintergrundabfragen,
-MCP-Probleme.
+## Sicherheitsmodell
 
-**Explorer** — pro Datei: Name, Größe, Änderungszeit und auf der WSL-Seite
-Besitzer, Gruppe, Linux-Berechtigungen und Linkziele. Pro Laufwerk auf der
-Windows-Seite: freier und gesamter Speicherplatz.
+WSLPad ist bei Systemänderungen bewusst konservativ.
 
-**Console** — die Distribution, das aktuelle Verzeichnis und der Zustand der Shell (bereit, wird ausgeführt, wartet auf Eingabe, wartet auf ein sudo-Passwort, getrennt, Distribution gestoppt oder Start fehlgeschlagen — Letzteres mit dem Grund).
+- Die Inspektion im Dashboard ist schreibgeschützt.
+- MCP ist von der Konstruktion her schreibgeschützt.
+- Gefährliche Operationen werden nicht stillschweigend ausgeführt.
+- Aktionen wie Neustarts von Diensten, privilegierte Bearbeitungen, Bereinigung, USB-Änderungen oder Wiederherstellungsschritte werden in der Console vorbereitet oder zur Prüfung kopiert.
+- Unbekannter Zustand wird als **unbekannt** angezeigt statt geraten.
 
-**Windows-Downloadmarkierungen** — jede aus Windows kopierte Datei hinterlässt
-daneben eine `:Zone.Identifier`-Datei, für immer. WSLPad zählt sie, nennt die
-Ordner, in denen sie liegen, und bereitet den Aufräumbefehl vor.
+Das Ziel ist, WSL leichter verständlich zu machen, ohne ein weiteres Hintergrundtool zu werden, das Ihren Rechner hinter Ihrem Rücken verändert.
 
-**Windows Terminal** — ob diese Distribution überhaupt ein Profil hat, ob es
-ausgeblendet ist, und das JSON zum Hinzufügen, wenn keines da ist. WSLPad
-schreibt settings.json nie.
+## WSLPad unter Windows installieren
 
-**Papierkorb** — was der Explorer dorthin geschickt hat, woher jede Datei kam,
-und ein Wiederherstellen, das sie zurücklegt. Liegt am Ziel schon etwas, bricht
-es ab: ein Rückgängig, das eine Datei zerstört, ist kein Rückgängig.
+### Direkter Download
 
-**Wo der Platz geblieben ist** — der Disk-Abschnitt benennt, was die Lücke
-zwischen Imagegröße und tatsächlicher Nutzung füllt: Paket-Caches, das
-systemd-Journal, Build-Caches, der Papierkorb, Dockers Speicher, jeweils mit dem
-Befehl, der ihn leeren würde. Auf dem Rechner, auf dem das entstand: 1,2 GB, von
-denen niemand wusste.
+Laden Sie die neueste `WSLPad-Setup-<version>.exe` von [GitHub Releases](https://github.com/r2cuerdame/WSLPad/releases/latest) herunter und führen Sie sie aus.
 
-**Dienstprotokolle, an Ort und Stelle** — die letzten Zeilen eines Unit-Journals,
-ohne eine Shell zu öffnen. ISO-Zeitstempel, und es unterscheidet ein leeres
-Journal von einem, das dieser Benutzer nicht lesen darf.
+- Windows 10/11 x64
+- Installation pro Benutzer unter `%LOCALAPPDATA%\Programs\WSLPad\`
+- keine Administratorrechte für die normale Installation erforderlich
+- Tray-App mit optionalem Windows-Autostart
+- automatische Updateprüfung über GitHub Releases
 
-**Langsame Pfade, dort benannt, wo sie kosten** — eine Konsole unter `/mnt` wird
-markiert. Jede Datei, die ein Build dort anfasst, überquert die Windows-Grenze:
-der häufigste Grund für "WSL ist langsam", und die Eingabeaufforderung sieht
-exakt gleich aus.
+> **Windows SmartScreen:** Aktuelle Installer sind nicht signiert, daher kann Windows beim ersten Start eine Warnung „Unbekannter Herausgeber“ anzeigen. Verwenden Sie **Weitere Informationen → Trotzdem ausführen** nur, wenn Sie den Installer von der offiziellen Releases-Seite dieses Repositorys heruntergeladen haben.
 
-**Über MCP** — alles davon über 40 `Get*`-Tools mit Nur-Lese-Zugriff.
-[docs/MCP.md](docs/MCP.md)
-
-## Einstellungen & Sprachen
-
-Das Zahnrad (oben rechts, immer verfügbar) öffnet eine modal eingeblendete
-Settings-Leiste (Einstellungen), ohne Platz in den Haupt-Tabs zu belegen:
-Sprache, Design (System/Hell/Dunkel), Mit Windows starten, Überwachung anhalten +
-schnelle/mittlere/langsame Abfrageintervalle, Explorer-Standardwerte,
-Schriftart/Scrollback der Console, Updateprüfung — mit sichtbarem Zustand:
-Prüfung läuft, verfügbar, Download-Fortschritt, installationsbereit (mit
-Neustart-Schaltfläche) oder warum es fehlschlug —, alles zurücksetzen — und das
-vollständige **MCP-Panel**: Status, Endpunkt kopieren, Konfigurations-JSON
-kopieren, Registrierung per Klick für Codex / Claude Desktop / Hermes,
-Verbindungstest und Token-Neugenerierung.
-
-WSLPad bringt vollständige UI-Übersetzungen für **9 Sprachen** mit — 한국어,
-English, 日本語, 简体中文, 繁體中文, Español, Français, Deutsch, Português do
-Brasil — mit automatischer Erkennung der Windows-Sprache und Rückfall auf
-Englisch. Linux-Befehle, Pfade und technische Bezeichnungen werden nie
-übersetzt; die Sprachpakete liegen offline bei, mit erzwungener
-Schlüsselgleichheit.
-
-## Installation & CLI
-
-### Direkter Download (Empfohlen)
-
-Laden Sie `WSLPad-Setup-<version>.exe` von den
-[Releases](https://github.com/r2cuerdame/WSLPad/releases) herunter und führen
-Sie die Datei aus — Administratorrechte sind nicht nötig (Benutzerinstallation in
-`%LOCALAPPDATA%\Programs\WSLPad\`).
-
-WSLPad startet standardmäßig mit Windows (Flag `--hidden` im Autostart,
-umschaltbar im Tray oder in den Einstellungen), verbleibt im Tray und
-aktualisiert sich automatisch über GitHub Releases. Das Schließen des Fensters
-minimiert es in den Tray; _Beenden_ im Tray-Menü beendet die App vollständig.
-
-> **Hinweis zu Windows SmartScreen**: Aktuelle Builds sind nicht signiert —
-> SmartScreen fragt beim ersten Start nach („Weitere Informationen“ → „Trotzdem ausführen“).
-
-Voraussetzungen: Windows 10/11 x64. WSL ist optional — ohne WSL zeigt WSLPad
-einen Einrichtungshinweis, statt abzustürzen.
+WSL selbst ist beim Start optional; ist keine Distribution verfügbar, zeigt WSLPad eine Einrichtungsanleitung, statt abzustürzen.
 
 ### WinGet
 
-Das offizielle Paketmanifest wird unter `packaging/winget/manifests/` gepflegt
-und wurde beim Windows Package Manager Community-Repository eingereicht
-(PR [microsoft/winget-pkgs#422317](https://github.com/microsoft/winget-pkgs/pull/422317), wartet auf Merge).
+Die Einreichung des WinGet-Pakets wird in [microsoft/winget-pkgs#422317](https://github.com/microsoft/winget-pkgs/pull/422317) verfolgt. Bis der Eintrag im Community-Repository mit den aktuellen Releases gleichzieht, sind GitHub Releases der empfohlene Weg, die neueste Version zu installieren.
 
-Während der offizielle Merge noch aussteht, können Sie die Installation lokal über das beiliegende Manifest durchführen:
-
-```powershell
-winget install --manifest packaging/winget/manifests/r/r2cuerdame/WSLPad/1.0.1
-```
-
-Sobald der PR im Upstream-Repository zusammengeführt wurde, steht der reguläre Befehl zur Verfügung:
+Sobald das Paket im Community-Repository verfügbar ist:
 
 ```powershell
 winget install r2cuerdame.WSLPad
 ```
 
-### Befehlszeilenoptionen & Hintergrundverhalten
+### CLI-Flags
 
-- `WSLPad.exe` — Startet die grafische Oberfläche (bzw. fokussiert das bestehende Fenster über die Einzelinstanz-Sperre).
-- `WSLPad.exe --hidden` — Startet minimiert direkt im Infobereich der Taskleiste (für den Windows-Autostart).
-- `WSLPad.exe --mcp-stdio` — Stdio-Bridge-Modus für lokale MCP-Clients (wie Claude Desktop). Leitet Standard-I/O an den lokalen MCP-HTTP-Server der App weiter (`http://127.0.0.1:4923/mcp`).
+```text
+WSLPad.exe              Launch or focus the GUI
+WSLPad.exe --hidden     Launch directly into the system tray
+WSLPad.exe --mcp-stdio  Stdio bridge for local MCP clients
+```
+
+## Sprachen
+
+WSLPad liefert vollständige UI-Übersetzungen für **9 Sprachen** mit:
+
+- English
+- 한국어
+- 日本語
+- 简体中文
+- 繁體中文
+- Español
+- Français
+- Deutsch
+- Português do Brasil
+
+Die Erkennung der Windows-Sprache erfolgt automatisch mit Rückfall auf Englisch. Linux-Befehle, Pfade und technische Bezeichnungen bleiben unübersetzt.
+
+## Datenschutz und Telemetrie
+
+WSLPad hat kein Kontosystem und keine Cloud-Abhängigkeit für seine WSL-Inspektionsfunktionen. Umgebungsdaten, Dateipfade, Terminalbefehle, Ports, Konfigurationsinhalte und MCP-Daten bleiben lokal, sofern Sie sie nicht ausdrücklich exportieren oder kopieren.
+
+Paketierte Produktions-Builds senden **höchstens einmal pro lokalem Tag einen minimalen PurplePulse-Heartbeat**, um die Zahl aktiver Installationen zu schätzen. Die Nutzlast enthält:
+
+- eine zufällige, dauerhafte Installations-ID
+- die WSLPad-Version
+- das Betriebssystem (`windows`)
+- die Plattform (`electron`)
+
+Entwicklungs- und QA-Läufe senden keine Produktionstelemetrie. Der Heartbeat enthält **keine** WSL-Inhalte, Dateipfade, Umgebungsvariablen, Terminalbefehle, IP-Adressen, Ports, Distributionsnamen, Projektnamen oder Secrets.
+
+Das umfassendere Sicherheitsmodell finden Sie in [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Entwicklung
 
 ```bash
-npm install          # oder npm ci (Abhängigkeiten)
-npm run dev          # electron-vite dev mit HMR
-npm run typecheck    # strikte TypeScript-Prüfung für Node und Web
-npm run lint         # ESLint 9
-npm run test         # vitest Unit- und Integrationstests (90 Dateien, 1534 Tests)
-npm run build        # Produktions-Build mit electron-vite
-npm run test:e2e     # Playwright Electron E2E (Fixture-Modus: WSLPAD_FIXTURE_MODE=1)
-npm run dist         # NSIS-Installer und Blockmap in release/
+npm install          # or npm ci
+npm run dev          # electron-vite development build
+npm run typecheck    # strict TypeScript checks
+npm run lint         # ESLint
+npm run test         # unit + integration tests
+npm run build        # production build
+npm run test:e2e     # Playwright Electron E2E
+npm run dist         # NSIS installer + blockmap
 ```
 
-Smoke-Test für den vollständigen Release-Lebenszyklus in einer sauberen Windows-Umgebung (Installation, Start, Update, Deinstallation, Neuinstallation):
+Das Release v1.1.1 wurde verifiziert mit:
 
-```powershell
-./scripts/release-lifecycle-smoke.ps1 -TargetVersion 1.0.1 -TargetSha256 <SHA256>
-```
+- TypeScript-Typecheck: bestanden
+- ESLint: bestanden
+- Unit-/Integrationstests: **1.614 bestanden**
+- Playwright E2E: **52 bestanden**
+- Smoke-Test des Installer-Lebenszyklus: Installation, Start, Deinstallation und Neuinstallation bestanden
+- Validierung des WinGet-Manifests: bestanden
 
-`WSLPAD_FIXTURE_MODE=1` lässt die komplette App gegen eine deterministische
-WSL-Welt im Arbeitsspeicher laufen — genau das nutzen CI und E2E. Siehe
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) und
-[docs/RELEASING.md](docs/RELEASING.md).
+`WSLPAD_FIXTURE_MODE=1` lässt die Anwendung für CI- und E2E-Tests gegen eine deterministische WSL-Welt im Arbeitsspeicher laufen.
 
-## Datenschutz & Sicherheit
+Details zu Architektur und Release:
 
-Local-first: keine Cloud, keine Konten, keine Telemetrie. MCP bindet an
-localhost, ist per Token abgesichert und schon von der Konstruktion her nur
-lesend. Nichts wird ausgeführt, ohne dass Sie Enter drücken. Alle Grundsätze:
-[docs/SECURITY.md](docs/SECURITY.md).
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/RELEASING.md](docs/RELEASING.md)
 
 ## Nicht-Ziele
 
-WSLPad ist _kein_ Distributionsmanager und kein Marktplatz, kein Docker
-Desktop, keine IDE, keine Git-Oberfläche, kein Debugger, kein LSP, keine
-Cloud-Synchronisierung, kein KI-Chat, keine Selbstreparatur. Identität:
-**Dashboard + Explorer + Console + Relocation Wizard + MCP nur lesend** — sonst nichts.
+WSLPad ist **keine** IDE, kein Ersatz für Docker Desktop, kein Git-Client, keine KI-Chat-Anwendung und kein autonomer Systemreparierer.
 
-## Aktuelle Einschränkungen (v1.0.1)
+Es ist auch nicht in erster Linie ein Distributions-Marktplatz. Wenn Sie nur eine Schaltfläche zum Installieren/Starten/Stoppen von Distributionen brauchen, passt ein herkömmlicher WSL-Manager vielleicht besser.
 
-- Nur Windows x64; der Installer ist nicht signiert (SmartScreen-Warnung)
-- Die Zahlen zum Datenträgerabbild brauchen die Windows-Registry und `fsutil`;
-  ist eines von beidem nicht lesbar, sagt der Bereich das, statt zu raten
-- Der wirksame Netzwerkmodus braucht `wslinfo` (WSL 2.0.4+); ältere Builds
-  zeigen ihn als unbekannt
-- Die Hyper-V-Firewall-Schicht gibt es nur auf neueren Windows-Builds; wo sie
-  fehlt, meldet WSLPad unbekannt statt „deaktiviert“
-- Der Relocation Wizard erfordert ausreichend freien Speicherplatz auf dem Ziellaufwerk
-  (empfohlen 1,5x für den temporären tar-Export und vhdx-Import) sowie die geführte Ausführung von CLI-Befehlen durch den Benutzer
-- Verlaufs-Sparklines liegen nur im Arbeitsspeicher — der Verlauf beginnt neu,
-  wenn Sie die App schließen, und das mit Absicht: Ein Tray-Begleiter ist kein
-  Monitoring-Agent
-- Die cwd-Synchronisierung der Console setzt bash oder zsh als Standard-Shell
-  voraus (andere Shells funktionieren, nur eben ohne automatische
-  Pfadsynchronisierung)
-- Das Kopieren _zwischen_ den Bereichen verschiebt nie: Übertragungen über
-  Dateisystemgrenzen hinweg sind bewusst reine Kopiervorgänge, damit bei einem
-  Fehlschlag nichts gelöscht wird
-- Das Hineinziehen aus einem externen Fenster des Windows-Explorers hängt
-  davon ab, ob Electron die Dateipfade preisgibt; nutzen Sie stattdessen den
-  linken Bereich (oder das Import-Menü)
-- Die stdio-Bridge für MCP setzt voraus, dass die Tray-App läuft
+Die Identität von WSLPad ist:
+
+**WSL-Dashboard + Fehlerdiagnose + Windows/WSL-Dateimanager + Terminal + Wiederherstellungswerkzeuge + schreibgeschütztes MCP.**
+
+## Aktuelle Einschränkungen (v1.1.1)
+
+- Nur Windows x64; der Installer ist derzeit nicht signiert.
+- Einige Informationen zum Datenträgerabbild erfordern Zugriff auf die Windows-Registry und `fsutil`.
+- Die Erkennung des wirksamen Netzwerkmodus erfordert moderne WSL-Builds mit `wslinfo`; ältere Builds melden möglicherweise unbekannt.
+- Informationen zur Hyper-V-Firewall sind nur auf Windows-Builds verfügbar, die diese Schicht offenlegen.
+- Der Verlauf der Trends wird im Arbeitsspeicher gehalten und beim Beenden von WSLPad zurückgesetzt.
+- Die automatische cwd-Synchronisierung der Console zielt derzeit auf bash und zsh.
+- Windows ↔ WSL Übertragungen zwischen den Bereichen sind bewusst reine Kopiervorgänge.
+- Das Hineinziehen aus dem externen Windows-Explorer hängt davon ab, ob Electron die Dateipfade offenlegt; der eingebaute Windows-Bereich und der Import-Ablauf sind der zuverlässige Weg.
+- Die MCP-stdio-Bridge setzt voraus, dass die Tray-Anwendung läuft.
 
 ## Roadmap
 
-Nächste Schritte: ARM64-Build, signierter Installer und erweiterte Live-Diagnose.
+Aktuelle Richtungen umfassen:
+
+- VHDX-Befehle zum Verkleinern/Vergrößern, sicher für die Console vorbereitet
+- ARM64-Builds
+- signierter Windows-Installer
 
 ## Community
 
-Fragen, Ideen und „soll das wirklich so aussehen?“ gehören in die
-[Discussions](https://github.com/r2cuerdame/WSLPad/discussions) — in jeder der neun Sprachen, die WSLPad spricht.
-Fehler gehören in den [Issue-Tracker](https://github.com/r2cuerdame/WSLPad/issues/new/choose), Sicherheitsfragen in ein
-[privates Advisory](https://github.com/r2cuerdame/WSLPad/security/advisories/new).
+Fragen und Ideen gehören in die [GitHub Discussions](https://github.com/r2cuerdame/WSLPad/discussions). Fehler gehören in den [Issue-Tracker](https://github.com/r2cuerdame/WSLPad/issues/new/choose), und Sicherheitsbedenken können über ein [privates Security Advisory](https://github.com/r2cuerdame/WSLPad/security/advisories/new) gemeldet werden.
 
-- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a) — wie geht das, und warum steht da das
-- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas) — was WSLPad als Nächstes zeigen soll, basierend auf Community-Rückmeldungen
-- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell) — was es auf deinem Rechner gefunden hat
-
-[CONTRIBUTING](.github/CONTRIBUTING.md) nennt die vier Regeln, die ein Pull Request nicht
-brechen darf.
+- [Q&A](https://github.com/r2cuerdame/WSLPad/discussions/categories/q-a)
+- [Ideas](https://github.com/r2cuerdame/WSLPad/discussions/categories/ideas)
+- [Show and tell](https://github.com/r2cuerdame/WSLPad/discussions/categories/show-and-tell)
+- [CONTRIBUTING](.github/CONTRIBUTING.md)
 
 ## Lizenz
 
