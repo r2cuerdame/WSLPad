@@ -63,7 +63,8 @@ export async function sendPurplePulseHeartbeat(): Promise<void> {
           install_id: state.installId,
           version: app.getVersion(),
           os: process.platform === 'win32' ? 'windows' : process.platform,
-          platform: 'electron'
+          platform: 'electron',
+          schema_version: 2
         }),
         signal: controller.signal
       })
