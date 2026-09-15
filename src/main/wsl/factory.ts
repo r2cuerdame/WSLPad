@@ -19,6 +19,7 @@ import {
   LivePackageDiscoveryService,
   type PackageDiscoveryService
 } from '../tools/service'
+import { FixtureUsbService, LiveUsbService, type UsbService } from '../usb/service'
 
 export interface Backends {
   provider: WslProvider
@@ -28,6 +29,7 @@ export interface Backends {
   consoleFactory: ConsoleBackendFactory
   runner: DistroRunner | null
   packageDiscovery: PackageDiscoveryService
+  usb: UsbService
   fixtureMode: boolean
 }
 
@@ -42,6 +44,7 @@ export function createBackends(): Backends {
       consoleFactory: new FixtureConsoleFactory(explorer.fs),
       runner: null,
       packageDiscovery: new FixturePackageDiscoveryService(),
+      usb: new FixtureUsbService(),
       fixtureMode: true
     }
   }
@@ -53,6 +56,7 @@ export function createBackends(): Backends {
     consoleFactory: createRealConsoleFactory(runner),
     runner,
     packageDiscovery: new LivePackageDiscoveryService(runner),
+    usb: new LiveUsbService(runner),
     fixtureMode: false
   }
 }

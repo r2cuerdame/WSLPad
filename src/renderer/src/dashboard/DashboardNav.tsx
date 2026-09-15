@@ -18,6 +18,7 @@ import {
   ServerIcon,
   SlidersIcon,
   UserIcon,
+  UsbIcon,
   WarningIcon,
   type IconProps
 } from '../components/Icons'
@@ -37,6 +38,7 @@ export type DashboardSectionId =
   | 'tools'
   | 'discover'
   | 'update-center'
+  | 'usb'
   | 'docker'
   | 'hermes'
   | 'openclaw'
@@ -69,6 +71,7 @@ export const DASHBOARD_SECTIONS: readonly DashboardSection[] = [
   { id: 'tools', titleKey: 'dashboard.tools.title', Icon: PackageIcon },
   { id: 'discover', titleKey: 'dashboard.discover.title', Icon: SearchIcon },
   { id: 'update-center', titleKey: 'dashboard.updateCenter.title', Icon: BoltIcon },
+  { id: 'usb', titleKey: 'usb.title', Icon: UsbIcon },
   { id: 'docker', titleKey: 'dashboard.docker.title', Icon: DockerMark },
   { id: 'hermes', titleKey: 'dashboard.hermes.title', Icon: HermesMark },
   { id: 'openclaw', titleKey: 'dashboard.openclaw.title', Icon: OpenClawMark },

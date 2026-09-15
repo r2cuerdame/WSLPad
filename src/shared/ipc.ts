@@ -24,6 +24,7 @@ import type {
   TextFileContent,
   TrashEntry,
   UpdateStatus,
+  UsbInventory,
   WindowsPlace,
   WslPadSnapshot
 } from './types'
@@ -51,6 +52,7 @@ export const IpcChannels = {
   packageDiscover: 'wslpad:packages:discover',
   packageUpdates: 'wslpad:packages:updates',
   doctorRun: 'wslpad:doctor:run',
+  usbInventory: 'wslpad:usb:inventory',
 
   // explorer
   explorerList: 'wslpad:explorer:list',
@@ -194,6 +196,11 @@ export interface WslPadApi {
   /** Environment Doctor: derive verdicts from the existing snapshot (issue #89). */
   doctor: {
     run(): Promise<DoctorReport>
+  }
+
+  /** USB-over-IP inventory is explicit/on-demand only (issue #92). */
+  usb: {
+    inventory(): Promise<UsbInventory>
   }
 
   explorer: {

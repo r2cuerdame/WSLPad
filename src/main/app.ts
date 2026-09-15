@@ -137,6 +137,7 @@ export class WslPadApp {
       updater: this.updater,
       diagnostics: this.diagnostics,
       packageDiscovery: this.backends.packageDiscovery,
+      usb: this.backends.usb,
       runner: this.backends.runner,
       getWindow: () => this.window,
       applySettingsPatch: (patch) => this.applySettingsPatch(patch),

@@ -31,6 +31,7 @@ import type { DiagnosticsService } from '../state/diagnostics'
 import { runDoctor } from '@shared/doctor'
 import { diagnosticBundleToJson } from '../state/diagnostic-bundle'
 import type { PackageDiscoveryService } from '../tools/service'
+import type { UsbService } from '../usb/service'
 
 export interface IpcDeps {
   store: SnapshotStore
@@ -43,6 +44,7 @@ export interface IpcDeps {
   updater: AppUpdater
   diagnostics: DiagnosticsService
   packageDiscovery: PackageDiscoveryService
+  usb: UsbService
   runner: DistroRunner | null
   getWindow(): BrowserWindow | null
   applySettingsPatch(patch: SettingsPatch): Promise<void>
@@ -176,6 +178,9 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     if (!snap?.dashboard) throw new Error('No dashboard snapshot available')
     return runDoctor(snap.dashboard)
   })
+
+  // --- USB / usbipd inventory (issue #92; explicit read-only query) -------
+  handle(IpcChannels.usbInventory, () => deps.usb.inventory())
 
   // --- LLM export (goal.md §12) ------------------------------------------
   handle(IpcChannels.llmCopyMarkdown, (preset) => {
