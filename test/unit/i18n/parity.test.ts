@@ -90,3 +90,48 @@ describe('locale bundle key parity', () => {
     })
   }
 })
+
+const LOCALIZED_FEATURE_PREFIXES = [
+  'dashboard.discover.',
+  'dashboard.updateCenter.',
+  'dashboard.packages.',
+  'doctor.',
+  'profiles.',
+  'recovery.',
+  'usb.',
+  'migration.step5',
+  'migration.cleanupHint',
+  'migration.completed',
+  'tabs.recovery'
+] as const
+
+const INTENTIONALLY_IDENTICAL_FEATURE_KEYS: Partial<Record<LocaleCode, ReadonlySet<string>>> = {
+  es: new Set(['dashboard.packages.state.error', 'doctor.verdict.error']),
+  fr: new Set(['dashboard.packages.version', 'recovery.source']),
+  de: new Set(['dashboard.packages.version', 'profiles.status', 'profiles.container.name']),
+  'pt-BR': new Set(['profiles.status'])
+}
+
+const UNIVERSALLY_IDENTICAL_FEATURE_KEYS = new Set([
+  'dashboard.packages.side.wsl',
+  'dashboard.packages.side.windows',
+  'usb.busId',
+  'usb.vidPid'
+])
+
+describe('locale bundle translation coverage', () => {
+  for (const locale of otherLocales) {
+    it(`${locale} does not leave feature UI copy identical to English`, () => {
+      const leaves = leavesOf(locale).leaves
+      const copied = [...en.leaves.entries()]
+        .filter(([key, enValue]) =>
+          LOCALIZED_FEATURE_PREFIXES.some((prefix) => key.startsWith(prefix)) &&
+          !UNIVERSALLY_IDENTICAL_FEATURE_KEYS.has(key) &&
+          !INTENTIONALLY_IDENTICAL_FEATURE_KEYS[locale]?.has(key) &&
+          leaves.get(key) === enValue
+        )
+        .map(([key]) => key)
+      expect(copied, `English UI copy remains in ${locale}:\n${copied.join('\n')}`).toEqual([])
+    })
+  }
+})
