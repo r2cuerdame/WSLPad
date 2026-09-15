@@ -165,11 +165,13 @@ WSLPad 运行期间会在本地以如下地址提供 MCP 服务：
 http://127.0.0.1:4923/mcp
 ```
 
-该服务器使用 Streamable HTTP、仅绑定本机以及 Bearer 令牌认证。它暴露 **40 个只读 `Get*` 工具**，包括环境快照、端口、已安装工具、命令解析和文本文件检查。
+该服务器使用 Streamable HTTP、仅绑定本机以及 Bearer 令牌认证。它暴露 **42 个只读 `Get*` 工具**，包括环境快照、端口、已安装工具、命令解析和文本文件检查。
 
 这里刻意**没有任何 MCP 写入、运行、终止或删除工具**。私钥和密钥值不会越过 MCP 边界暴露出去。
 
 支持一键注册到 Claude Desktop、Codex 和 Hermes。`Copy for LLM` 会生成当前 WSL 环境的脱敏 Markdown 摘要。
+
+`GetDeveloperEnvironmentContext` 是代理的起点：一份带版本、有上限的文档——发行版、工作目录与 Windows ↔ WSL 边界、运行时与工具、PATH 与 interop、DNS、Docker、服务、端口、磁盘余量、配置、Environment Doctor 的判定以及仍未知的内容。它与 `Copy for LLM → Agent context` 为 CLAUDE.md / AGENTS.md 放入剪贴板的内容逐字节一致；`GetEnvironmentDoctor` 只返回健康检查。
 
 工具列表和协议细节见 [docs/MCP.md](docs/MCP.md)。
 

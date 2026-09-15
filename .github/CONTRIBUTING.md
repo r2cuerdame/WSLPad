@@ -45,7 +45,7 @@ npm install
 npm run dev          # electron-vite dev
 npm run typecheck    # both tsconfigs, strict
 npm run lint
-npm test             # vitest unit & integration tests (91 files, ~1,540+ tests)
+npm test             # vitest unit & integration tests (92 files, ~1,560+ tests)
 npm run test:e2e     # playwright E2E in fixture mode (WSLPAD_FIXTURE_MODE=1)
 npm run dist         # electron-builder --win
 ```

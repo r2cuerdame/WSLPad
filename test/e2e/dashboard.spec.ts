@@ -153,12 +153,21 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
 
   test('the agent-context preset produces a compact masked block', async () => {
     const { page, app } = launched
+    // The slow tier fills tools, settings and Docker; wait for it before copying.
+    const detail = page.getByTestId('dashboard-detail')
+    await expect(detail).toContainText('6.6.36-microsoft-standard-WSL2', { timeout: 15000 })
     await page.getByRole('button', { name: 'Copy for LLM' }).first().click()
     await page.getByRole('menuitem', { name: /Agent context/i }).click()
     await expect
       .poll(async () => app.evaluate(({ clipboard }) => clipboard.readText()), { timeout: 10000 })
       .toContain('Ubuntu-24.04')
     const clip = await app.evaluate(({ clipboard }) => clipboard.readText())
+    expect(clip).toContain('## WSL environment — Ubuntu-24.04')
+    expect(clip).toContain('Developer environment context v1')
+    expect(clip).toContain('### Environment doctor')
+    expect(clip).toContain('### Provenance')
+    expect(clip).toContain('The distro clock is 47s behind Windows')
+    expect(clip.length).toBeLessThan(9000)
     expect(clip).not.toContain('super-secret-fixture-value')
     expect(clip).not.toContain('hunter2')
   })

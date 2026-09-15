@@ -5,7 +5,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import type { McpStatus } from '@shared/types'
 import { McpServerHost } from '../../src/main/mcp/server'
 import { MCP_TOOL_NAMES } from '../../src/main/mcp/tools'
-import { makeDeps, makeSnapshot } from '../unit/mcp/fixture'
+import { makeDeps, makeSnapshot, RAW_SECRET } from '../unit/mcp/fixture'
 
 const TOKEN = 'wslpad-test-token-1234567890'
 /** Derived, not copied: a hand-kept number drifts every time a tool is added. */
@@ -76,6 +76,38 @@ describe('McpServerHost', () => {
       const status = host.status()
       expect(status.connectedClients).toBeGreaterThanOrEqual(1)
       expect(status.lastRequestAt).not.toBeNull()
+    } finally {
+      await client.close()
+    }
+  })
+
+  it('serves the developer environment context and the doctor over authenticated HTTP', async () => {
+    const { client, transport } = makeClient(endpoint, TOKEN)
+    try {
+      await client.connect(transport)
+      const context = (await client.callTool({ name: 'GetDeveloperEnvironmentContext' })) as {
+        content: Array<{ type: string; text: string }>
+        structuredContent?: { context?: Record<string, any> }
+        isError?: boolean
+      }
+      expect(context.isError).not.toBe(true)
+      const ctx = context.structuredContent?.context
+      expect(ctx?.schemaVersion).toBe(1)
+      expect(ctx?.distro?.name).toBe('Ubuntu-24.04')
+      expect(ctx?.provenance?.readOnly).toBe(true)
+      expect(ctx?.provenance?.secretsMasked).toBe(true)
+      expect(context.content[0].text).toContain('## WSL environment — Ubuntu-24.04')
+      expect(JSON.stringify(context)).not.toContain(RAW_SECRET)
+
+      const doctor = (await client.callTool({ name: 'GetEnvironmentDoctor' })) as {
+        structuredContent?: { doctor?: { overall: string; checks: unknown[] } }
+        isError?: boolean
+      }
+      expect(doctor.isError).not.toBe(true)
+      expect(['ok', 'attention', 'problem', 'unknown']).toContain(
+        doctor.structuredContent?.doctor?.overall
+      )
+      expect(doctor.structuredContent?.doctor?.checks.length).toBeGreaterThan(5)
     } finally {
       await client.close()
     }
