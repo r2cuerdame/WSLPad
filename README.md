@@ -134,12 +134,17 @@ preserves your default Linux user, and never runs destructive commands automatic
 ## MCP server (read-only)
 
 While WSLPad sits in the tray it serves MCP at `http://127.0.0.1:4923/mcp`
-(Streamable HTTP, localhost-only, Bearer-token auth) with 40 `Get*` tools —
+(Streamable HTTP, localhost-only, Bearer-token auth) with 42 `Get*` tools —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPortOwner`, `GetCommandResolution`, … There are deliberately no write/run/kill tools; secrets
-and private keys never cross the MCP boundary. One-click registration for
-Claude Desktop (stdio bridge), Codex and Hermes, plus `Copy for LLM` which
-puts a masked Markdown state summary on your clipboard.
+and private keys never cross the MCP boundary. `GetDeveloperEnvironmentContext`
+is the place an agent starts: one versioned, bounded document — distro,
+working directory and the Windows ↔ WSL boundary, runtimes and tools, PATH
+and interop, DNS, Docker, services, ports, disk headroom, configs, the
+Environment Doctor's verdicts and what is still unknown — and it is byte for
+byte the block `Copy for LLM → Agent context` puts on your clipboard for a
+CLAUDE.md / AGENTS.md. One-click registration for Claude Desktop (stdio
+bridge), Codex and Hermes.
 Details: [docs/MCP.md](docs/MCP.md).
 
 ## What you can actually see
@@ -304,7 +309,7 @@ is not allowed to read, which nothing else does.
 marked as such. Every file a build touches there crosses the Windows boundary,
 which is the most common reason "WSL is slow", and the prompt looks identical.
 
-**Over MCP** — all of the above through 40 read-only `Get*` tools.
+**Over MCP** — all of the above through 42 read-only `Get*` tools.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings & languages

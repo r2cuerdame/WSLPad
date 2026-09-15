@@ -29,6 +29,43 @@ export const POLL_BOUNDS = {
   slowMs: { min: 15000, max: 600000 }
 } as const
 
+/**
+ * Developer Environment Context (shared by MCP and Copy for LLM). The schema
+ * version is bumped whenever a field changes meaning or disappears; adding a
+ * field does not bump it. The caps keep the context bounded on a busy machine:
+ * every capped list carries its own omitted count so nothing is silently cut.
+ */
+export const DEV_ENV_CONTEXT_SCHEMA_VERSION = 1 as const
+export const DEV_ENV_CONTEXT_LIMITS = {
+  otherDistros: 8,
+  importantPaths: 10,
+  runtimes: 12,
+  packageManagers: 12,
+  tools: 20,
+  pathEntries: 16,
+  windowsBinaries: 8,
+  nameservers: 4,
+  containers: 6,
+  failedUnits: 8,
+  notableServices: 8,
+  ports: 12,
+  windowsPorts: 6,
+  filesystems: 8,
+  drives: 6,
+  caches: 5,
+  settings: 16,
+  configFiles: 10,
+  toolConfigs: 8,
+  checks: 32,
+  warnings: 12
+} as const
+/**
+ * The agent-context Markdown must stay under this on any machine (~2.2k
+ * tokens). The fixture world, where every trap is armed at once, sits just
+ * under it; a real machine with a few findings is far shorter.
+ */
+export const AGENT_CONTEXT_MAX_CHARS = 9000
+
 export const MCP_DEFAULT_PORT = 4923
 export const MCP_PORT_BOUNDS = { min: 1024, max: 65535 } as const
 

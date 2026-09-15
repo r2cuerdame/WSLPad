@@ -94,7 +94,7 @@ WSL 导致 C 盘空间告急？分步安全迁移向导会引导你将发行版�
 ## MCP 服务器（只读）
 
 只要 WSLPad 还在托盘里，它就会在 `http://127.0.0.1:4923/mcp` 上提供 MCP 服务
-（Streamable HTTP，仅限本机，Bearer 令牌认证），带 40 个 `Get*` 工具 ——
+（Streamable HTTP，仅限本机，Bearer 令牌认证），带 42 个 `Get*` 工具 ——
 `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、`GetTextFile`、
 `GetPortOwner`, `GetCommandResolution`…… 这里刻意没有任何写入/执行/终止类的工具；密钥和私钥绝不会
 越过 MCP 边界。支持一键注册到 Claude Desktop（stdio 桥接）、Codex 和 Hermes，
@@ -217,7 +217,7 @@ WSL 回环例外、提到 WSL 的规则数），以及名称解析：`/etc/resol
 构建时每碰一个文件都要跨越 Windows 边界，这是「WSL 慢」最常见的原因，而提示符
 看起来一模一样。
 
-**通过 MCP** —— 以上全部内容，都可以通过 40 个只读 `Get*` 工具拿到。
+**通过 MCP** —— 以上全部内容，都可以通过 42 个只读 `Get*` 工具拿到。
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings（设置）与语言

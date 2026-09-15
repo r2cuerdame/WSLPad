@@ -89,10 +89,61 @@ at-a-glance status badge):
 | `GetServiceLog` | The tail of one unit journal (`{ unit, scope? }`), ISO timestamps, bounded; explains an empty system journal the user may not read |
 | `GetExplorerContext` | Path currently open in the Explorer tab |
 | `GetConsoleContext` | Console distro/cwd/status |
+| `GetDeveloperEnvironmentContext` | The canonical Developer Environment Context (below): one versioned, bounded document, as Markdown and as JSON |
+| `GetEnvironmentDoctor` | The Environment Doctor alone: every check with its verdict (`ok`, `attention`, `problem`, `unknown`) and any command it would suggest, prepared and never run |
 
 There are deliberately **no** Run/Execute/Write/Delete/Copy/Move/Install/
 Restart/Kill/Set/Apply/Fix tools (goal.md §11.3). An LLM can read state and
 *propose* commands; only the user can run them, in the Console.
+
+## Developer Environment Context
+
+`GetDeveloperEnvironmentContext` is the place to start. It is the same object
+the Dashboard copies as **Agent context (CLAUDE.md / AGENTS.md)**, built by
+one pure function (`src/shared/dev-env-context.ts`) from the cached snapshot,
+so what an agent reads in a file and what it gets over MCP never disagree.
+
+- **Versioned.** `schemaVersion` (currently 1) is bumped when a field changes
+  meaning or disappears; adding a field does not bump it.
+- **Bounded.** Every list has a cap (`DEV_ENV_CONTEXT_LIMITS`) and carries its
+  own `omitted` count; `provenance.truncated` names each list that was cut.
+  The Markdown form stays under `AGENT_CONTEXT_MAX_CHARS` on any machine.
+- **Unknown, never zero.** A section the snapshot has not read is `null` with
+  its count `null`, and `provenance.notCollected` lists it. Queries whose last
+  run failed appear in `provenance.staleQueries`; their section holds the last
+  good value.
+- **Masked by construction.** No environment value is included except `PATH`
+  and `WSLENV` (a directory list and variable names). A WSL setting whose key
+  looks like a credential is masked with the same rule the collectors use.
+  Secret variables are counted, never named.
+
+Sections: `distro` (name, OS, WSL version, liveness, kernel, user/uid, shell,
+systemd, IP, UNC path, WSL platform, other distros), `workspace` (Console cwd
+and Explorer path with their filesystem side, the cwd as Windows reaches it,
+the automount root, well-known path mappings, boundary notes), `runtimes` /
+`packageManagers` / `tools` (installed, grouped by the tool catalog),
+`path` (PATH entries and how many are Windows directories, interop and
+`appendWindowsPath`, Windows binaries that win on PATH, `WSLENV`, environment
+counts), `network` (networking mode declared vs effective, IP,
+`localhostForwarding`, DNS, firewall, port-forwarding rule verdicts),
+`docker` (status, Desktop or engine, endpoint, versions, where the data
+really lives, images/containers, reclaimable and build-cache bytes),
+`services` (systemd, unit counts, failed and notable units), `ports`
+(listeners with reachability, Windows-only listeners), `storage`
+(filesystems with side and headroom, the disk image, drive mounts and
+metadata, memory and VM limit, known caches, download markers, Defender
+coverage, inotify limits), `configs` (.wslconfig / wsl.conf, declared
+settings with verdicts, present config files, tool config paths, the Windows
+Terminal profile), `doctor` and `provenance`.
+
+The **Environment Doctor** judges what was already collected: distro
+liveness, clock skew, DNS, pending and ignored WSL settings, networking mode,
+interop, the login user, drive metadata, Defender, file-watch limits, disk
+headroom and image bloat, Docker, failed services, stale port forwarding,
+Windows binaries on PATH, the working-directory boundary, download markers,
+failed background queries and the MCP server itself. `unknown` means the
+check could not run — Defender's exclusion list without elevation is the
+canonical case — and must never be read as a pass.
 
 ## GetTextFile limits
 

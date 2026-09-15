@@ -94,7 +94,7 @@ WSL 導致 C 槽空間不足？逐步安全遷移精靈引導你將發行版的 
 ## MCP 伺服器（唯讀）
 
 只要 WSLPad 還待在系統匣裡，它就會在 `http://127.0.0.1:4923/mcp` 提供 MCP 服務
-（Streamable HTTP、僅限 localhost、Bearer 權杖驗證），共 40 個 `Get*` 工具 ——
+（Streamable HTTP、僅限 localhost、Bearer 權杖驗證），共 42 個 `Get*` 工具 ——
 `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、`GetTextFile`、
 `GetPortOwner`, `GetCommandResolution`、……刻意不提供任何寫入／執行／終止類工具；機密與私鑰絕不會越過
 MCP 邊界。可一鍵註冊到 Claude Desktop（stdio 橋接）、Codex 與 Hermes，另外還有
@@ -217,7 +217,7 @@ Linux 權限與符號連結目標。Windows 這側則是每個磁碟機的可用
 建置時每碰一個檔案都要跨越 Windows 邊界，這是「WSL 慢」最常見的原因，而提示字元
 看起來一模一樣。
 
-**透過 MCP** —— 以上全部，都能透過 40 個唯讀的 `Get*` 工具取得。
+**透過 MCP** —— 以上全部，都能透過 42 個唯讀的 `Get*` 工具取得。
 [docs/MCP.md](docs/MCP.md)
 
 ## 設定與語言

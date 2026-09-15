@@ -122,7 +122,7 @@ A unidade `C:` está cheia por causa do WSL? O **Relocation Wizard** (Assistente
 
 Enquanto o WSLPad fica na bandeja, ele serve MCP em
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, apenas localhost, autenticação
-por token Bearer) com 40 ferramentas `Get*` — `GetDashboardSnapshot`,
+por token Bearer) com 42 ferramentas `Get*` — `GetDashboardSnapshot`,
 `GetInstalledTools`, `GetPorts`, `GetTextFile`, `GetPortOwner`, `GetCommandResolution`, … Não existem,
 de propósito, ferramentas de escrita/execução/kill; segredos e chaves privadas
 nunca cruzam a fronteira do MCP. Registro em um clique para Claude Desktop
@@ -280,7 +280,7 @@ usuário não tem permissão para ler.
 marcado. Cada arquivo que um build toca ali cruza a fronteira do Windows: o
 motivo mais comum de "o WSL está lento", e o prompt é idêntico.
 
-**Pelo MCP** — tudo isso acima por meio de 40 ferramentas `Get*` somente leitura.
+**Pelo MCP** — tudo isso acima por meio de 42 ferramentas `Get*` somente leitura.
 [docs/MCP.md](docs/MCP.md)
 
 ## Configurações e idiomas

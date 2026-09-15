@@ -80,6 +80,15 @@ the last good section and surface as warnings — the store never throws into
 the UI. Polling is tiered (3 s / 15 s / 60 s by default, user-adjustable within
 bounds) and fully stops when monitoring is paused.
 
+The **Developer Environment Context** (`src/shared/dev-env-context.ts`) is a
+pure, versioned, bounded projection of that snapshot. The MCP tools
+`GetDeveloperEnvironmentContext` / `GetEnvironmentDoctor` and the Copy-for-LLM
+*Agent context* preset both build it from the same function and render it with
+the same Markdown (`src/shared/dev-env-context-markdown.ts`), so an agent
+reading a CLAUDE.md block and an agent calling the tool see identical facts,
+caps and doctor verdicts. Nothing is collected inside it; secrets cannot enter
+it (see [docs/MCP.md](MCP.md)).
+
 Diagnostics deliberately sits beside, rather than inside, that stable snapshot
 contract. `DiagnosticsService` derives meaningful transitions from snapshots,
 keeps at most 100 incidents in memory for the current app session, and runs
@@ -117,6 +126,7 @@ place (`src/main/wsl/factory.ts`); fixture data cannot leak into real mode.
 | Area | Path |
 | --- | --- |
 | Shared contracts (types, IPC, schemas, i18n, masking) | `src/shared/` |
+| Developer Environment Context builder + Markdown (MCP and Copy for LLM) | `src/shared/dev-env-context*.ts` |
 | Hidden runner + parsers + detectors | `src/main/wsl/` |
 | Snapshot store, polling, warnings, diagnostics, LLM export | `src/main/state/` |
 | On-demand WSL/Windows network probes | `src/main/wsl/network-check.ts` |

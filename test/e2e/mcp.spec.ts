@@ -26,7 +26,9 @@ async function mcpCall(
   })
   const text = await res.text()
   let json: JsonRpcResponse | null = null
-  if (text.includes('data:')) {
+  // Decide by the transport's own header: a JSON body can legitimately carry
+  // the substring "data:" inside a tool's text (a Docker data root, a note).
+  if ((res.headers.get('content-type') ?? '').includes('text/event-stream')) {
     const dataLine = text.split('\n').find((l) => l.startsWith('data:'))
     if (dataLine) json = JSON.parse(dataLine.slice(5).trim())
   } else if (text.trim()) {
@@ -84,6 +86,58 @@ test.describe('mcp server (goal.md §18.3: 12)', () => {
     const payload = JSON.stringify(call.json?.result ?? {})
     expect(payload).toContain('Ubuntu-24.04')
     expect(payload).not.toContain('super-secret-fixture-value')
+  })
+
+  test('GetDeveloperEnvironmentContext serves the masked, versioned context', async () => {
+    await mcpCall(port, token, initReq)
+    const call = await mcpCall(port, token, {
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'tools/call',
+      params: { name: 'GetDeveloperEnvironmentContext', arguments: {} }
+    })
+    expect(call.status).toBe(200)
+    const result = call.json?.result ?? {}
+    const context = result.structuredContent?.context ?? {}
+    expect(context.schemaVersion).toBe(1)
+    expect(context.distro?.name).toBe('Ubuntu-24.04')
+    expect(context.distro?.osName).toBe('Ubuntu 24.04.2 LTS')
+    expect(context.provenance?.readOnly).toBe(true)
+    expect(context.provenance?.secretsMasked).toBe(true)
+    expect(context.path?.entryCount).toBe(9)
+    expect(context.path?.secretVariableCount).toBe(2)
+    expect(context.docker?.status).toBe('running')
+    expect(context.doctor?.overall).toBe('problem')
+    const ids = (context.doctor?.checks ?? []).map((c: { id: string }) => c.id)
+    expect(ids).toContain('clock-skew')
+    expect(ids).toContain('defender')
+    // The text half is the same block the Dashboard copies for a CLAUDE.md.
+    const text: string = result.content?.[0]?.text ?? ''
+    expect(text).toContain('## WSL environment — Ubuntu-24.04')
+    expect(text).toContain('### Environment doctor — problem')
+    const payload = JSON.stringify(result)
+    expect(payload).not.toContain('super-secret-fixture-value')
+    expect(payload).not.toContain('hunter2')
+  })
+
+  test('GetEnvironmentDoctor reports verdicts without ever running anything', async () => {
+    await mcpCall(port, token, initReq)
+    const call = await mcpCall(port, token, {
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'tools/call',
+      params: { name: 'GetEnvironmentDoctor', arguments: {} }
+    })
+    expect(call.status).toBe(200)
+    const doctor = call.json?.result?.structuredContent?.doctor ?? {}
+    expect(doctor.overall).toBe('problem')
+    const byId = new Map(
+      (doctor.checks ?? []).map((c: { id: string; status: string }) => [c.id, c.status])
+    )
+    expect(byId.get('clock-skew')).toBe('problem')
+    expect(byId.get('services')).toBe('problem')
+    expect(byId.get('defender')).toBe('unknown')
+    expect(byId.get('login-user')).toBe('attention')
   })
 
   test('rejects a missing or wrong token', async () => {

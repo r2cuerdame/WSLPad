@@ -126,7 +126,7 @@ D 드라이브 등 보조 드라이브로 안전하게 내보내고(export) 가�
 ## MCP 서버 (읽기 전용)
 
 WSLPad가 트레이에 떠 있는 동안 `http://127.0.0.1:4923/mcp`에서 MCP를 제공합니다
-(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 40개의 `Get*` —
+(Streamable HTTP, localhost 전용, Bearer 토큰 인증). 도구는 42개의 `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPortOwner`, `GetCommandResolution`, … 쓰기/실행/종료 도구는 의도적으로 두지 않았고, 비밀 값과 개인
 키는 MCP 경계를 넘지 않습니다. Claude Desktop(stdio 브리지), Codex, Hermes는 클릭
@@ -285,7 +285,7 @@ Docker 저장소, 각각 정리 명령까지. 이 앱을 만든 기계에서는 
 거기서 도는 빌드는 파일마다 Windows 경계를 넘습니다. "WSL이 느리다"의 최대
 원인인데, 프롬프트는 똑같이 생겼습니다.
 
-**MCP로** — 위의 모든 것을 40개의 읽기 전용 `Get*` 도구로.
+**MCP로** — 위의 모든 것을 42개의 읽기 전용 `Get*` 도구로.
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings(설정) & 언어

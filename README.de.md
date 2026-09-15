@@ -124,7 +124,7 @@ Ist Ihr Laufwerk `C:` wegen WSL voll? Der schrittweise **Relocation Wizard** (Um
 
 Solange WSLPad im Tray sitzt, stellt es MCP unter `http://127.0.0.1:4923/mcp`
 bereit (Streamable HTTP, nur localhost, Authentifizierung per Bearer-Token) mit
-40 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
+42 `Get*`-Tools — `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`,
 `GetTextFile`, `GetPortOwner`, `GetCommandResolution`, … Tools zum Schreiben, Ausführen oder Beenden
 gibt es bewusst nicht; Secrets und private Schlüssel überschreiten die
 MCP-Grenze nie. Registrierung per Klick für Claude Desktop (stdio-Bridge),
@@ -286,7 +286,7 @@ markiert. Jede Datei, die ein Build dort anfasst, überquert die Windows-Grenze:
 der häufigste Grund für "WSL ist langsam", und die Eingabeaufforderung sieht
 exakt gleich aus.
 
-**Über MCP** — alles davon über 40 `Get*`-Tools mit Nur-Lese-Zugriff.
+**Über MCP** — alles davon über 42 `Get*`-Tools mit Nur-Lese-Zugriff.
 [docs/MCP.md](docs/MCP.md)
 
 ## Einstellungen & Sprachen

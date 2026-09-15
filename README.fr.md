@@ -126,7 +126,7 @@ Votre disque `C:` est saturé à cause de WSL ? L'**Assistant de relocalisation*
 
 Tant que WSLPad reste dans la zone de notification, il sert MCP sur
 `http://127.0.0.1:4923/mcp` (Streamable HTTP, localhost uniquement,
-authentification par jeton Bearer) avec 40 outils `Get*` —
+authentification par jeton Bearer) avec 42 outils `Get*` —
 `GetDashboardSnapshot`, `GetInstalledTools`, `GetPorts`, `GetTextFile`,
 `GetPortOwner`, `GetCommandResolution`, … Il n'y a délibérément aucun outil d'écriture, d'exécution
 ou de kill ; les secrets et les clés privées ne franchissent jamais la
@@ -290,7 +290,7 @@ est marquée. Chaque fichier qu'une compilation y touche traverse la frontière
 Windows : la raison la plus fréquente d'un « WSL lent », et l'invite est
 strictement identique.
 
-**Via MCP** — tout ce qui précède à travers 40 outils `Get*` en lecture seule.
+**Via MCP** — tout ce qui précède à travers 42 outils `Get*` en lecture seule.
 [docs/MCP.md](docs/MCP.md)
 
 ## Paramètres et langues

@@ -300,7 +300,7 @@ vacío de uno que este usuario no tiene permiso para leer.
 queda marcada. Cada archivo que toca una compilación ahí cruza la frontera de
 Windows: la razón más común de que "WSL vaya lento", y el prompt es idéntico.
 
-**Por MCP** — todo lo anterior a través de 40 herramientas `Get*` de solo
+**Por MCP** — todo lo anterior a través de 42 herramientas `Get*` de solo
 lectura. [docs/MCP.md](docs/MCP.md)
 
 ## Settings e idiomas

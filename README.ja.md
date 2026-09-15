@@ -108,7 +108,7 @@ WSL のせいで C ドライブの空き容量が不足していませんか？�
 ## MCP サーバー（読み取り専用）
 
 WSLPad がトレイにいるあいだ、`http://127.0.0.1:4923/mcp` で MCP を提供します
-（Streamable HTTP、localhost のみ、Bearer トークン認証）。ツールは 40 個の
+（Streamable HTTP、localhost のみ、Bearer トークン認証）。ツールは 42 個の
 `Get*` — `GetDashboardSnapshot`、`GetInstalledTools`、`GetPorts`、
 `GetTextFile`、`GetPortOwner`, `GetCommandResolution`、… 書き込み / 実行 / kill 系のツールは意図的に
 置いていません。シークレットや秘密鍵が MCP の境界を越えることもありません。
@@ -257,7 +257,7 @@ prune コマンドはコンソールに用意するだけです。
 そこでのビルドは触るファイルごとに Windows の境界を越えます。「WSL が遅い」の
 最大の原因ですが、プロンプトの見た目は同じです。
 
-**MCP 経由** — 上記のすべてを、40 個の読み取り専用 `Get*` ツールで。
+**MCP 経由** — 上記のすべてを、42 個の読み取り専用 `Get*` ツールで。
 [docs/MCP.md](docs/MCP.md)
 
 ## Settings（設定）と言語
