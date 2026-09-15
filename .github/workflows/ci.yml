@@ -4,6 +4,15 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner environment (self-hosted or windows-latest)'
+        required: false
+        default: 'windows-latest'
+        type: choice
+        options:
+          - windows-latest
+          - self-hosted
 
 permissions:
   contents: read
@@ -15,7 +24,7 @@ concurrency:
 jobs:
   verify:
     name: Build, lint, and test
-    runs-on: windows-latest
+    runs-on: ${{ inputs.runner || (vars.RUNS_ON || 'windows-latest') }}
     timeout-minutes: 30
     env:
       WSLPAD_FIXTURE_MODE: '1'

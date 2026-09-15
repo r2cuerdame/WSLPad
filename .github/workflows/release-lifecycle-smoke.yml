@@ -6,15 +6,28 @@ on:
       previous_version:
         description: Previously supported version to upgrade from
         required: true
-        default: 1.0.0
+        default: 1.1.1
       target_version:
         description: Public release version under verification
         required: true
-        default: 1.0.1
+        default: 1.1.2
       target_sha256:
         description: Expected SHA-256 for the public target installer
-        required: true
-        default: 10890A27E3D3582E916961CC20F96BF798277F9749728606AD1ACBAC1B7E768F
+        required: false
+        default: ''
+      runner:
+        description: Runner environment (self-hosted or windows-latest)
+        required: false
+        default: windows-latest
+        type: choice
+        options:
+          - windows-latest
+          - self-hosted
+      require_no_distros:
+        description: Enforce zero registered WSL distros precondition
+        required: false
+        type: boolean
+        default: false
   pull_request:
     paths:
       - .github/workflows/release-lifecycle-smoke.yml
@@ -26,7 +39,7 @@ permissions:
 jobs:
   lifecycle:
     name: Install, launch, update, uninstall, and reinstall
-    runs-on: windows-latest
+    runs-on: ${{ inputs.runner || (vars.RUNS_ON || 'windows-latest') }}
     timeout-minutes: 20
 
     steps:
@@ -43,12 +56,18 @@ jobs:
       - name: Exercise public installer lifecycle
         shell: pwsh
         env:
-          PREVIOUS_VERSION: ${{ inputs.previous_version || '1.0.0' }}
-          TARGET_VERSION: ${{ inputs.target_version || '1.0.1' }}
-          TARGET_SHA256: ${{ inputs.target_sha256 || '10890A27E3D3582E916961CC20F96BF798277F9749728606AD1ACBAC1B7E768F' }}
+          PREVIOUS_VERSION: ${{ inputs.previous_version || '1.1.1' }}
+          TARGET_VERSION: ${{ inputs.target_version || '1.1.2' }}
+          TARGET_SHA256: ${{ inputs.target_sha256 }}
         run: |
+          $extraArgs = @()
+          if ($env:TARGET_SHA256) {
+            $extraArgs += @('-TargetSha256', $env:TARGET_SHA256)
+          }
+          if ('${{ inputs.require_no_distros }}' -eq 'true' -or ('${{ inputs.runner }}' -eq 'windows-latest' -and '${{ github.event_name }}' -ne 'workflow_dispatch')) {
+            $extraArgs += '-RequireNoDistros'
+          }
           ./scripts/release-lifecycle-smoke.ps1 `
             -PreviousVersion $env:PREVIOUS_VERSION `
             -TargetVersion $env:TARGET_VERSION `
-            -TargetSha256 $env:TARGET_SHA256 `
-            -RequireNoDistros
+            @extraArgs
