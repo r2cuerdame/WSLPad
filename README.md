@@ -1,4 +1,4 @@
-# WSLPad — WSL GUI, Dashboard & Troubleshooting Tool for Windows
+# WSLPad — WSL GUI, Dashboard, File Manager & Troubleshooting Tool for Windows
 
 **English** · [한국어](README.ko.md) · [日本語](README.ja.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português (Brasil)](README.pt-BR.md)
 
@@ -10,13 +10,13 @@
 
 > **See what WSL is actually doing — and why it is failing.**
 
-WSLPad is an open-source **WSL GUI and troubleshooting dashboard for Windows 10/11**. It makes the invisible parts of Windows Subsystem for Linux visible: running distributions, CPU and memory, `ext4.vhdx` disk usage, `.wslconfig` and `wsl.conf`, ports, networking, Hyper-V firewall state, DNS, systemd services, installed developer tools, Docker, file paths, and more.
+WSLPad is an open-source **WSL GUI, WSL dashboard and WSL troubleshooting tool for Windows 10/11**. Unlike a basic WSL manager, it focuses on inspecting and explaining the environment you already use. It makes the invisible parts of Windows Subsystem for Linux visible: running distributions, CPU and memory, `ext4.vhdx` disk usage, `.wslconfig` and `wsl.conf`, ports, networking, Hyper-V firewall state, DNS, systemd services, installed developer tools, Docker, file paths, and more.
 
-It also includes a **Windows ↔ WSL dual-pane file manager**, a real interactive terminal, environment diagnostics, recovery tools, USB/usbipd visibility, a safe VHDX relocation workflow, and a **read-only MCP server for Claude, Codex and other LLM tools**.
+It also includes a **Windows ↔ WSL dual-pane file manager**, a real interactive terminal, environment diagnostics, recovery tools, USB/usbipd visibility, a safe VHDX relocation workflow, and a **read-only WSL MCP server for Claude, Codex and other LLM tools**.
 
 ![WSLPad Dashboard](docs/screenshots/dashboard.png)
 
-## What WSLPad helps you solve
+## WSL troubleshooting: what WSLPad helps you solve
 
 WSLPad is built around the questions WSL users repeatedly end up debugging by hand:
 
@@ -157,7 +157,7 @@ Docker gets its own inspection surface for engine/client versions, context, data
 
 WSLPad also has dedicated visibility for tools such as Hermes and OpenClaw when they are present.
 
-## Read-only MCP server for WSL
+## Read-only WSL MCP server for Claude and Codex
 
 While WSLPad is running it serves MCP locally at:
 
@@ -185,7 +185,7 @@ WSLPad is intentionally conservative around system changes.
 
 The goal is to make WSL easier to understand without becoming another background tool that changes your machine behind your back.
 
-## Install WSLPad
+## Install WSLPad on Windows
 
 ### Direct download
 
