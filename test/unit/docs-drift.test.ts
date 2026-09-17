@@ -35,11 +35,11 @@ describe('documentation and contract drift checks', () => {
     expect(sectionIds).toHaveLength(22)
   })
 
-  it('MCP tool roster matches expected count (40 tools)', () => {
-    expect(MCP_TOOL_NAMES).toHaveLength(40)
+  it('MCP tool roster matches expected count (42 tools)', () => {
+    expect(MCP_TOOL_NAMES).toHaveLength(42)
   })
 
-  it('all 40 MCP tools are documented in docs/MCP.md', () => {
+  it('all 42 MCP tools are documented in docs/MCP.md', () => {
     const mcpDocPath = path.join(ROOT, 'docs', 'MCP.md')
     expect(fs.existsSync(mcpDocPath)).toBe(true)
     const mcpDocContent = fs.readFileSync(mcpDocPath, 'utf8')

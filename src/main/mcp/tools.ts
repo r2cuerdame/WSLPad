@@ -5,6 +5,8 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import packageJson from '../../../package.json'
 import { MASKED_VALUE, MAX_TEXT_FILE_BYTES } from '@shared/constants'
+import { buildDevEnvContext } from '@shared/dev-env-context'
+import { devEnvContextToMarkdown } from '@shared/dev-env-context-markdown'
 import type {
   DashboardSnapshot,
   EnvironmentVariableInfo,
@@ -64,7 +66,9 @@ export const MCP_TOOL_NAMES = [
   'GetInotifyLimits',
   'GetServiceLog',
   'GetExplorerContext',
-  'GetConsoleContext'
+  'GetConsoleContext',
+  'GetDeveloperEnvironmentContext',
+  'GetEnvironmentDoctor'
 ] as const
 
 interface DirectoryTreeNode {
@@ -990,6 +994,63 @@ export function createMcpServer(deps: McpDeps): McpServer {
         )
       })
     )
+  )
+
+  server.registerTool(
+    'GetDeveloperEnvironmentContext',
+    {
+      description:
+        'The canonical developer environment context: one versioned, bounded document ' +
+        'covering the selected distro, the working directory and its Windows ↔ WSL ' +
+        'boundary, runtimes, package managers and tools, PATH and interop, DNS and ' +
+        'networking, Docker, systemd services, ports, mounts and disk headroom, the ' +
+        'relevant configuration files, the Environment Doctor verdicts, and provenance ' +
+        '(when it was collected, what is unknown, what was truncated). It is the same ' +
+        'object WSLPad copies as "Agent context" for CLAUDE.md / AGENTS.md, so the two ' +
+        'never disagree. Read from the cached snapshot; secrets are masked and no ' +
+        'environment value other than PATH and WSLENV is included. Start here before ' +
+        'calling the narrower Get* tools.',
+      annotations: readOnly
+    },
+    guard(() => {
+      const snap = deps.getSnapshot()
+      const context = buildDevEnvContext(snap, {
+        appVersion: SERVER_VERSION,
+        now: new Date().toISOString()
+      })
+      // The text half is the Markdown an agent would paste into CLAUDE.md;
+      // the structured half is the same context as JSON.
+      return {
+        content: [text(devEnvContextToMarkdown(context))],
+        structuredContent: { context }
+      }
+    })
+  )
+
+  server.registerTool(
+    'GetEnvironmentDoctor',
+    {
+      description:
+        'The Environment Doctor: every check WSLPad can judge from what it has already ' +
+        'collected — distro liveness, clock skew, DNS, WSL settings in effect vs declared, ' +
+        'interop, the login user, drive metadata, Defender, file-watch limits, disk ' +
+        'headroom, Docker, failed services, stale port forwarding, Windows binaries on ' +
+        'PATH, the working directory boundary and download markers — each with a ' +
+        'verdict of ok, attention, problem or unknown. Unknown means the check could not ' +
+        'run, never that it passed. Suggested commands are prepared for the user to ' +
+        'review; nothing here runs anything.',
+      annotations: readOnly
+    },
+    guard(() => {
+      const snap = deps.getSnapshot()
+      const { doctor } = buildDevEnvContext(snap, { appVersion: SERVER_VERSION })
+      const c = doctor.counts
+      return ok(
+        `environment doctor: ${doctor.overall} — ${c.problem} problem, ${c.attention} attention, ` +
+          `${c.unknown} unknown, ${c.ok} ok`,
+        { doctor }
+      )
+    })
   )
 
   server.registerTool(

@@ -1,23 +1,23 @@
 import type { LlmPreset } from '@shared/ipc'
 import type {
   DashboardSnapshot,
-  DiskUsage,
-  PortReachability,
   SettingOrigin,
   ToolInfo,
   WslPadSnapshot,
   WslSettingInfo
 } from '@shared/types'
-import { defenderCoverage } from '@shared/defender-coverage'
-import { watchesAreLow } from '@shared/inotify'
+import { buildDevEnvContext } from '@shared/dev-env-context'
+import { devEnvContextToMarkdown, fmtBytesPlain as fmtBytes } from '@shared/dev-env-context-markdown'
+import packageJson from '../../../package.json'
 import { maskTextFileContent } from '../mcp/masking'
-import { classifyPathSide } from '../wsl/contracts'
 
 /**
  * Copy-for-LLM exports (goal.md §12). The snapshot is masked by construction,
  * and the Markdown additionally exposes environment variable NAMES only —
- * values never appear here, secret or not. That holds for every preset: no
- * export in this file ever prints an environment variable value.
+ * values never appear here, secret or not. That holds for every preset, with
+ * one deliberate exception: the agent context prints PATH and WSLENV, which
+ * are directory lists and variable names, never credentials, and are the
+ * facts an agent most needs. No other environment value is ever printed.
  */
 
 const LLM_FOOTER = [
@@ -25,18 +25,6 @@ const LLM_FOOTER = [
   '시스템을 변경할 명령이 필요하면 자동 실행하지 말고,',
   '사용자가 검토할 수 있도록 명령어와 이유를 함께 제안하라.'
 ].join('\n')
-
-function fmtBytes(bytes: number | null): string {
-  if (bytes === null) return 'unknown'
-  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
-  let value = bytes
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit++
-  }
-  return unit === 0 ? `${Math.round(value)} B` : `${value.toFixed(1)} ${units[unit]}`
-}
 
 function yesNo(value: boolean | null): string {
   return value === null ? 'unknown' : value ? 'yes' : 'no'
@@ -514,223 +502,21 @@ function bugReportMarkdown(s: WslPadSnapshot): string {
 // Preset 2 — agent context block (issue #30)
 // ---------------------------------------------------------------------------
 
-// A block that bloats CLAUDE.md gets deleted, so every list is capped and only
-// facts a shell inside the distro cannot answer for itself earn their tokens.
-const AGENT_TOOL_LIMIT = 24
-const AGENT_PATH_LIMIT = 8
-const AGENT_PORT_LIMIT = 12
-/** Below this the two clocks are the same clock for every practical purpose. */
-const CLOCK_SKEW_NOTICE_SECONDS = 5
-
-function agentHeader(lines: string[], s: WslPadSnapshot, dash: DashboardSnapshot): void {
-  const d = dash.distro
-  const os = d.osName === null ? '' : ` (${d.osName})`
-  lines.push(`## WSL environment — ${d.name}`, '')
-  lines.push(`Collected by WSLPad from the Windows side at ${s.generatedAt}.`, '')
-  lines.push(`- Distro: ${d.name}${os}, WSL ${d.wslVersion}, ${d.state}`)
-  if (dash.system.systemdEnabled !== null) {
-    lines.push(`- systemd: ${dash.system.systemdEnabled ? 'enabled' : 'disabled'}`)
-  }
-  if (dash.system.kernel !== null) lines.push(`- Kernel: ${dash.system.kernel}`)
-  if (dash.system.shell !== null) lines.push(`- Login shell: ${dash.system.shell}`)
-  lines.push(`- This distro from Windows: ${d.uncPath}`)
-  if (dash.system.windowsUserProfileLinux !== null) {
-    lines.push(`- Windows user profile from Linux: ${dash.system.windowsUserProfileLinux}`)
-  }
-  lines.push('')
-}
-
-function agentToolLine(tool: ToolInfo): string {
-  const version = tool.version === null ? '' : ` ${tool.version}`
-  const where = tool.executablePath ?? 'path unknown'
-  if (tool.shadowedByWindows)
-    return `- ${tool.id}${version} — ${where} (Windows binary wins on PATH)`
-  if (tool.side === 'windows-mount') return `- ${tool.id}${version} — ${where} (on a Windows mount)`
-  return `- ${tool.id}${version} — ${where}`
-}
-
-function agentTools(lines: string[], dash: DashboardSnapshot): void {
-  const installed = dash.tools.filter((t) => t.installed)
-  if (installed.length === 0) return
-  lines.push('### Tools on PATH', '')
-  for (const tool of installed.slice(0, AGENT_TOOL_LIMIT)) lines.push(agentToolLine(tool))
-  if (installed.length > AGENT_TOOL_LIMIT) {
-    lines.push(`- … and ${installed.length - AGENT_TOOL_LIMIT} more`)
-  }
-  lines.push('')
-}
-
-function mountLine(disk: DiskUsage): string {
-  if (!disk.exists) return `- ${disk.mountPoint} — not mounted`
-  const side = classifyPathSide(disk.mountPoint)
-  const kind =
-    side === 'windows-mount'
-      ? 'Windows drive, slow for many small files'
-      : side === 'ext4'
-        ? 'distro disk'
-        : 'mount'
-  const used = disk.usePercent === null ? '' : `, ${disk.usePercent}% used`
-  const free = disk.availableBytes === null ? '' : `, ${fmtBytes(disk.availableBytes)} free`
-  return `- ${disk.mountPoint} — ${kind}${used}${free}`
-}
-
-function agentMounts(lines: string[], dash: DashboardSnapshot): void {
-  if (dash.resources.disks.length === 0) return
-  lines.push('### Mounts', '')
-  for (const disk of dash.resources.disks) lines.push(mountLine(disk))
-  lines.push('')
-}
-
-function agentPaths(lines: string[], dash: DashboardSnapshot): void {
-  const present = dash.paths.filter((p) => p.exists !== false && p.windowsPath !== null)
-  if (present.length === 0) return
-  lines.push('### Windows ↔ Linux paths', '')
-  for (const p of present.slice(0, AGENT_PATH_LIMIT)) {
-    const mount = p.side === 'windows-mount' ? ' (Windows mount)' : ''
-    lines.push(`- ${p.linuxPath} ↔ ${p.windowsPath}${mount}`)
-  }
-  lines.push('')
-}
-
-/** Typed by the union so a new reachability value cannot silently print blank. */
-const REACHABILITY_TEXT: Record<PortReachability, string> = {
-  lan: 'reachable from the LAN',
-  'windows-only': 'reachable from Windows',
-  'loopback-only': 'only inside the distro',
-  unreachable: 'not accepting connections',
-  unknown: 'reachability unknown'
-}
-
-function agentPorts(lines: string[], dash: DashboardSnapshot): void {
-  const listening = dash.ports.filter((p) => p.listening)
-  if (listening.length === 0) return
-  lines.push('### Ports in use', '')
-  for (const port of listening.slice(0, AGENT_PORT_LIMIT)) {
-    const proc = port.processName ?? 'unknown process'
-    lines.push(`- ${port.port}/${port.protocol} ${proc} — ${REACHABILITY_TEXT[port.reachability]}`)
-  }
-  if (listening.length > AGENT_PORT_LIMIT) {
-    lines.push(`- … and ${listening.length - AGENT_PORT_LIMIT} more`)
-  }
-  lines.push('')
-}
-
-/** Only the traps that are actually armed on this machine get a line. */
-function agentGotchas(lines: string[], dash: DashboardSnapshot): void {
-  const notes: string[] = []
-  const skew = dash.clock?.skewSeconds ?? null
-  if (skew !== null && Math.abs(skew) >= CLOCK_SKEW_NOTICE_SECONDS) {
-    const direction = skew < 0 ? 'behind' : 'ahead of'
-    notes.push(
-      `- The distro clock is ${Math.abs(skew)}s ${direction} Windows — TLS handshakes and ` +
-        'package signatures can fail for no visible reason.'
-    )
-  }
-  const wsl = dash.wslSettings
-  if (wsl?.restartPending === true) {
-    notes.push('- A declared WSL setting is not in effect yet; `wsl --shutdown` applies it.')
-  }
-  if (
-    wsl !== null &&
-    wsl.networkingModeDeclared !== null &&
-    wsl.networkingModeEffective !== null &&
-    wsl.networkingModeDeclared !== wsl.networkingModeEffective
-  ) {
-    notes.push(
-      `- Networking mode ${wsl.networkingModeDeclared} was declared but ` +
-        `${wsl.networkingModeEffective} is in effect.`
-    )
-  }
-  // Both files are read when the distribution starts, so an edit made since
-  // then is invisible to everything except a comparison like this one.
-  const interop = wsl?.interop ?? null
-  if (
-    interop !== null &&
-    interop.declared !== null &&
-    interop.binfmt !== null &&
-    interop.declared !== (interop.binfmt === 'enabled')
-  ) {
-    notes.push(
-      `- /etc/wsl.conf declares interop enabled=${interop.declared}, but the running kernel ` +
-        `has the binfmt registration ${interop.binfmt}; \`wsl --shutdown\` applies the file.`
-    )
-  }
-  const who = wsl?.defaultUser ?? null
-  if (who !== null && who.effectiveUid === 0) {
-    notes.push(
-      '- This distribution starts as root — every file created without sudo is root-owned, ' +
-        'and `sudo` is a no-op here.'
-    )
-  }
-  if (
-    who !== null &&
-    who.declaredName !== null &&
-    who.effectiveName !== null &&
-    who.declaredName !== who.effectiveName
-  ) {
-    const uid = who.registryUid === null ? '' : ` (registry DefaultUid ${who.registryUid})`
-    notes.push(
-      `- /etc/wsl.conf asks for user ${who.declaredName}, but the distribution starts as ` +
-        `${who.effectiveName}${uid} — the Windows registry value wins.`
-    )
-  }
-  // A fix that chmods a script under /mnt/c looks like it worked and did not.
-  const bare = (dash.driveMounts?.drives ?? []).filter((d) => !d.metadata).map((d) => d.point)
-  if (bare.length > 0) {
-    notes.push(
-      `- ${bare.join(', ')} ${bare.length === 1 ? 'is' : 'are'} mounted without the metadata ` +
-        'option: chmod and chown there report success and store nothing. Work on the ' +
-        "distribution's own filesystem when a permission bit has to stick."
-    )
-  }
-  const defender = dash.defender
-  if (defender !== null && defender.realtimeEnabled === true) {
-    const coverage = defenderCoverage(defender, dash.disk)
-    if (coverage === 'not-covered') {
-      notes.push(
-        "- Defender real-time protection is scanning this distro's disk image; expect " +
-          'slow file I/O until the image folder is excluded.'
-      )
-    }
-  }
-  if (watchesAreLow(dash.inotify)) {
-    notes.push(
-      `- fs.inotify.max_user_watches is ${dash.inotify?.maxUserWatches ?? 'unknown'}. A file ` +
-        'watcher that runs out returns ENOSPC, which tools print as "no space left on ' +
-        'device" while the disk is not full.'
-    )
-  }
-  if (dash.dns?.generateResolvConf === false) {
-    notes.push(
-      '- /etc/resolv.conf is hand-managed (generateResolvConf=false); WSL never updates it.'
-    )
-  }
-  const shadowed = dash.tools.filter((t) => t.installed && t.shadowedByWindows).length
-  if (shadowed > 0) {
-    const verb = shadowed === 1 ? 'is a Windows binary' : 'are Windows binaries'
-    notes.push(`- ${plural(shadowed, 'command')} on PATH ${verb}, marked above.`)
-  }
-  if (notes.length === 0) return
-  lines.push('### Gotchas', '', ...notes, '')
-}
-
+/**
+ * The block for a CLAUDE.md / AGENTS.md is the Developer Environment Context
+ * rendered as Markdown — the very object the MCP tool of the same name
+ * serves, so an agent reading the file and an agent calling the tool see the
+ * same facts, the same caps and the same doctor verdicts.
+ */
 function agentContextMarkdown(s: WslPadSnapshot): string {
-  const dash = s.dashboard
-  if (dash === null) {
+  if (s.dashboard === null) {
     const name = s.selectedDistro ?? 'none selected'
     return (
       `## WSL environment — ${name}\n\n` +
       'WSLPad collected no environment data, so there is nothing here an agent could rely on.\n'
     )
   }
-  const lines: string[] = []
-  agentHeader(lines, s, dash)
-  agentTools(lines, dash)
-  agentMounts(lines, dash)
-  agentPaths(lines, dash)
-  agentPorts(lines, dash)
-  agentGotchas(lines, dash)
-  return lines.join('\n').trimEnd() + '\n'
+  return devEnvContextToMarkdown(buildDevEnvContext(s, { appVersion: packageJson.version }))
 }
 
 /**

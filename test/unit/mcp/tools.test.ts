@@ -7,6 +7,9 @@ import { maskTextFileContent } from '../../../src/main/mcp/masking'
 import type { McpDeps } from '../../../src/main/mcp/server'
 import { createMcpServer } from '../../../src/main/mcp/tools'
 import { makeDeps, makeSnapshot, PRIVATE_KEY_CONTENT, RAW_SECRET } from './fixture'
+import { buildDevEnvContext } from '@shared/dev-env-context'
+import { devEnvContextToMarkdown } from '@shared/dev-env-context-markdown'
+import { snapshotToMarkdown } from '../../../src/main/state/llm-markdown'
 
 /** Exactly the goal.md §11.2 roster, in spec order. */
 const GOAL_TOOLS = [
@@ -49,7 +52,9 @@ const GOAL_TOOLS = [
   'GetInotifyLimits',
   'GetServiceLog',
   'GetExplorerContext',
-  'GetConsoleContext'
+  'GetConsoleContext',
+  'GetDeveloperEnvironmentContext',
+  'GetEnvironmentDoctor'
 ]
 
 // Mutation verbs as camel-case words: catches InstallPackage/RunCommand/… but
@@ -454,5 +459,70 @@ describe('the disk and journal tools', () => {
     const result = await call(client, 'GetServiceLog', { unit: 'app.service' })
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain('not available')
+  })
+})
+
+describe('the developer environment context tools', () => {
+  it('serves the same context as Copy for LLM, as Markdown and as JSON', async () => {
+    const snapshot = makeSnapshot()
+    const client = await connect(makeDeps({ snapshot }))
+    const result = await call(client, 'GetDeveloperEnvironmentContext')
+    expect(result.isError).toBeFalsy()
+
+    const context = result.structuredContent?.context as ReturnType<typeof buildDevEnvContext>
+    expect(context.schemaVersion).toBe(1)
+    expect(context.distro.name).toBe('Ubuntu-24.04')
+    expect(context.provenance.readOnly).toBe(true)
+    // The tool is told the time, so the age is a number; the copy preset is
+    // not, and that is the only field the two may differ in.
+    expect(context.provenance.ageSeconds).toEqual(expect.any(Number))
+    const viaCopy = buildDevEnvContext(snapshot, { appVersion: context.provenance.appVersion })
+    expect({ ...context, provenance: { ...context.provenance, ageSeconds: null } }).toEqual(viaCopy)
+    expect(result.content[0].text).toBe(devEnvContextToMarkdown(context))
+    expect(result.content[0].text.replace(/\d+s old when rendered; /, '')).toBe(
+      snapshotToMarkdown(snapshot, 'agent-context')
+    )
+  })
+
+  it('never lets a raw secret into the context, even from a slipped collector', async () => {
+    const client = await connect(makeDeps())
+    const result = await call(client, 'GetDeveloperEnvironmentContext')
+    const json = JSON.stringify(result)
+    expect(json).not.toContain(RAW_SECRET)
+    expect(json).not.toContain('API_TOKEN')
+    const context = result.structuredContent?.context as { path: { secretVariableCount: number } }
+    expect(context.path.secretVariableCount).toBe(1)
+  })
+
+  it('still answers, with unknowns, when no dashboard has been collected', async () => {
+    const client = await connect(makeDeps({ snapshot: makeSnapshot({ dashboard: null }) }))
+    const result = await call(client, 'GetDeveloperEnvironmentContext')
+    expect(result.isError).toBeFalsy()
+    const context = result.structuredContent?.context as {
+      docker: { status: string }
+      provenance: { notCollected: string[] }
+    }
+    expect(context.docker.status).toBe('unknown')
+    expect(context.provenance.notCollected).toContain('tools')
+  })
+
+  it('runs the doctor and never claims a check passed when it could not run', async () => {
+    const client = await connect(makeDeps())
+    const result = await call(client, 'GetEnvironmentDoctor')
+    expect(result.isError).toBeFalsy()
+    const doctor = result.structuredContent?.doctor as {
+      overall: string
+      checks: Array<{ id: string; status: string; suggestedCommand: string | null }>
+      counts: Record<string, number>
+    }
+    expect(result.content[0].text).toContain(`environment doctor: ${doctor.overall}`)
+    const defender = doctor.checks.find((c) => c.id === 'defender')
+    expect(defender?.status).toBe('unknown')
+    const state = doctor.checks.find((c) => c.id === 'distro-state')
+    expect(state?.status).not.toBe('problem')
+    // Anything it suggests is text for the user; nothing here has a run path.
+    for (const c of doctor.checks) {
+      expect(typeof c.suggestedCommand === 'string' || c.suggestedCommand === null).toBe(true)
+    }
   })
 })

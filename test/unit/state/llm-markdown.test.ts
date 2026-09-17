@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { MASKED_VALUE } from '@shared/constants'
+import { AGENT_CONTEXT_MAX_CHARS, DEV_ENV_CONTEXT_LIMITS, MASKED_VALUE } from '@shared/constants'
+import { buildDevEnvContext } from '@shared/dev-env-context'
+import { devEnvContextToMarkdown } from '@shared/dev-env-context-markdown'
+import packageJson from '../../../package.json'
 import type {
   DiskUsage,
   PortInfo,
@@ -253,6 +256,14 @@ describe('snapshotToMarkdown bug-report preset', () => {
 })
 
 describe('snapshotToMarkdown agent-context preset', () => {
+  it('is the Developer Environment Context rendered, so it matches MCP exactly', () => {
+    const snap = makeSnapshot({ dashboard: makeDashboard({ clock: clock(), dns: dns() }) })
+    const md = snapshotToMarkdown(snap, 'agent-context')
+    expect(md).toBe(
+      devEnvContextToMarkdown(buildDevEnvContext(snap, { appVersion: packageJson.version }))
+    )
+  })
+
   it('states the host-side facts an agent cannot read from inside the distro', () => {
     const dashboard = makeDashboard({
       resources: makeDashboard().resources,
@@ -276,13 +287,16 @@ describe('snapshotToMarkdown agent-context preset', () => {
     expect(md).toContain('- systemd: enabled')
     expect(md).toContain('- This distro from Windows: \\\\wsl.localhost\\Ubuntu-24.04')
     expect(md).toContain('- Windows user profile from Linux: /mnt/c/Users/dev')
-    expect(md).toContain('- node 20.11.0 — /usr/bin/node')
+    expect(md).toContain('- node 20.11.0 — /usr/bin/node (apt)')
     expect(md).toContain(
       '- python 3.12.1 — /mnt/c/Python312/python.exe (Windows binary wins on PATH)'
     )
     expect(md).toContain('- /home/dev ↔ \\\\wsl.localhost\\Ubuntu-24.04\\home\\dev')
     expect(md).toContain('- 8080/tcp node — reachability unknown')
-    expect(md).toContain('- 1 command on PATH is a Windows binary, marked above.')
+    expect(md).toContain('- 1 command on PATH is a Windows binary: python')
+    expect(md).toContain('- PATH (2 entries')
+    expect(md).toContain('### Environment doctor')
+    expect(md).toContain('### Provenance')
   })
 
   it('labels each mount by the filesystem it really is', () => {
@@ -300,14 +314,16 @@ describe('snapshotToMarkdown agent-context preset', () => {
     expect(md).toContain('- /mnt/d — not mounted')
   })
 
-  it('lists a gotcha only when that trap is actually armed', () => {
+  it('gives a doctor line only to a trap that is actually armed', () => {
     const quiet = snapshotToMarkdown(
       makeSnapshot({
         dashboard: makeDashboard({ clock: clock({ skewSeconds: 1 }), wslSettings: wslConfig() })
       }),
       'agent-context'
     )
-    expect(quiet).not.toContain('### Gotchas')
+    expect(quiet).not.toContain('[problem]')
+    expect(quiet).not.toContain('- [attention] The distro clock')
+    expect(quiet).not.toContain('- [ok]')
 
     const noisy = snapshotToMarkdown(
       makeSnapshot({
@@ -319,8 +335,8 @@ describe('snapshotToMarkdown agent-context preset', () => {
       }),
       'agent-context'
     )
-    expect(noisy).toContain('The distro clock is 47s behind Windows')
-    expect(noisy).toContain('`wsl --shutdown` applies it')
+    expect(noisy).toContain('[problem] The distro clock is 47s behind Windows')
+    expect(noisy).toContain('Prepared, not run: `wsl.exe --shutdown`')
     expect(noisy).toContain('Networking mode mirrored was declared but nat is in effect.')
     expect(noisy).toContain('generateResolvConf=false')
   })
@@ -333,10 +349,10 @@ describe('snapshotToMarkdown agent-context preset', () => {
     const dashboard = makeDashboard({ tools, ports, clock: clock(), dns: dns() })
     const md = snapshotToMarkdown(makeSnapshot({ dashboard }), 'agent-context')
 
-    // ~1000 tokens at four characters a token: past this the block gets deleted.
-    expect(md.length).toBeLessThan(4000)
-    expect(md).toContain('- … and 36 more')
-    expect(md).toContain('- … and 28 more')
+    // Past this the block gets deleted from a CLAUDE.md; every list is capped.
+    expect(md.length).toBeLessThan(AGENT_CONTEXT_MAX_CHARS)
+    expect(md).toContain(`- … and ${60 - DEV_ENV_CONTEXT_LIMITS.tools} more`)
+    expect(md).toContain(`- … and ${40 - DEV_ENV_CONTEXT_LIMITS.ports} more`)
   })
 
   it('says so plainly when there is nothing an agent could rely on', () => {

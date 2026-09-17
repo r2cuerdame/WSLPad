@@ -165,11 +165,13 @@ While WSLPad is running it serves MCP locally at:
 http://127.0.0.1:4923/mcp
 ```
 
-The server uses Streamable HTTP, localhost-only binding and Bearer-token authentication. It exposes **40 read-only `Get*` tools**, including environment snapshots, ports, installed tools, command resolution and text-file inspection.
+The server uses Streamable HTTP, localhost-only binding and Bearer-token authentication. It exposes **42 read-only `Get*` tools**, including environment snapshots, ports, installed tools, command resolution and text-file inspection.
 
 There are deliberately **no MCP write, run, kill or delete tools**. Private keys and secret values are not exposed across the MCP boundary.
 
 One-click registration is available for Claude Desktop, Codex and Hermes. `Copy for LLM` creates a masked Markdown summary of the current WSL environment.
+
+`GetDeveloperEnvironmentContext` is the place an agent starts: one versioned, bounded document — distro, working directory and the Windows ↔ WSL boundary, runtimes and tools, PATH and interop, DNS, Docker, services, ports, disk headroom, configs, the Environment Doctor's verdicts and what is still unknown. It is byte for byte the block `Copy for LLM → Agent context` puts on your clipboard for a CLAUDE.md / AGENTS.md, and `GetEnvironmentDoctor` returns the health checks alone.
 
 See [docs/MCP.md](docs/MCP.md) for the tool list and protocol details.
 

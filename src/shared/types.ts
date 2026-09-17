@@ -1254,6 +1254,394 @@ export interface WslPadSnapshot {
 }
 
 // ---------------------------------------------------------------------------
+// Developer Environment Context
+// ---------------------------------------------------------------------------
+//
+// One canonical, versioned, bounded description of the developer environment,
+// derived purely from a WslPadSnapshot and shared by the MCP server and the
+// Copy-for-LLM agent-context preset. Nothing here is collected on its own:
+// every value is a reading the snapshot already holds, so the two consumers
+// can never disagree, and a value that was never read stays null.
+
+/** One verdict of the Environment Doctor. 'unknown' means the check could not run, never that it passed. */
+export type DevEnvVerdict = 'ok' | 'attention' | 'problem' | 'unknown'
+
+export interface DevEnvCheck {
+  id: string
+  status: DevEnvVerdict
+  /** One English sentence: the fact, not a diagnosis. */
+  summary: string
+  detail: string | null
+  /** Prepared for the user to review in the Console; never run by WSLPad or by an agent. */
+  suggestedCommand: string | null
+}
+
+export interface DevEnvWarning {
+  id: string
+  severity: WarningSeverity
+  message: string
+}
+
+export interface DevEnvDoctor {
+  /** Worst verdict among the checks; 'unknown' when nothing could be checked. */
+  overall: DevEnvVerdict
+  counts: Record<DevEnvVerdict, number>
+  checks: DevEnvCheck[]
+  /** The snapshot's own warnings, bounded. */
+  warnings: DevEnvWarning[]
+  warningsOmitted: number
+}
+
+export interface DevEnvDistro {
+  name: string | null
+  osName: string | null
+  wslVersion: 1 | 2 | null
+  state: DistroState | null
+  isDefault: boolean | null
+  /** Whether the distro is answering probes — not the same as being listed as Running. */
+  answering: boolean | null
+  kernel: string | null
+  hostname: string | null
+  user: string | null
+  uid: number | null
+  home: string | null
+  shell: string | null
+  systemd: boolean | null
+  ip: string | null
+  uptimeSeconds: number | null
+  /** \\wsl.localhost\<name>, null when no distro is selected. */
+  uncPath: string | null
+  windowsUserProfileLinux: string | null
+  /** WSL app version, Windows build and whether it is the Store build. */
+  platform: { wsl: string | null; windows: string | null; storeBuild: boolean | null } | null
+  installedDistroCount: number
+  /** The other registered distros, bounded. */
+  otherDistros: string[]
+  otherDistrosOmitted: number
+}
+
+export interface DevEnvWorkspace {
+  /** Where the Console shell sits; null when no console is open. */
+  cwd: string | null
+  cwdSide: PathSide
+  /** The same directory as Windows reaches it; null when it cannot be derived. */
+  cwdWindowsPath: string | null
+  /** True when file-heavy work in cwd crosses the 9P/DrvFs boundary. */
+  cwdCrossesBoundary: boolean | null
+  consoleStatus: ConsoleStatus | null
+  explorerPath: string | null
+  explorerSide: PathSide
+  /** [automount] root in force — where Windows drives appear, e.g. /mnt/. */
+  automountRoot: string
+  /** Well-known paths with the Windows notation that reaches them, bounded. */
+  paths: Array<{
+    label: string
+    linuxPath: string
+    windowsPath: string | null
+    side: PathSide
+    exists: boolean | null
+  }>
+  pathsOmitted: number
+  /** Prose facts about the boundary that hold on this machine. */
+  boundaryNotes: string[]
+}
+
+export interface DevEnvTool {
+  id: string
+  name: string
+  version: string | null
+  path: string | null
+  installMethod: string | null
+  side: PathSide
+  shadowedByWindows: boolean
+}
+
+export interface DevEnvToolGroup {
+  /** Tools of this group WSLPad knows how to detect. */
+  knownCount: number
+  installedCount: number
+  /** Installed tools, bounded, in catalog order. */
+  items: DevEnvTool[]
+  omitted: number
+}
+
+export interface DevEnvPath {
+  /** PATH entries in order, bounded; empty with entryCount null when PATH was not read. */
+  entries: string[]
+  entryCount: number | null
+  omitted: number
+  /** Entries under the automount root — Windows directories on PATH. */
+  windowsEntryCount: number | null
+  /** [interop] appendWindowsPath as in force. */
+  appendWindowsPath: boolean | null
+  interop: InteropInfo | null
+  /** Names of installed commands whose PATH winner is a Windows binary, bounded. */
+  windowsBinaries: string[]
+  windowsBinaryCount: number | null
+  /** WSLENV: which variables cross between Windows and Linux. Names and flags only. */
+  wslenv: string | null
+  environmentVariableCount: number | null
+  /** Variables whose values are masked; names only ever leave the collector. */
+  secretVariableCount: number | null
+  windowsOriginatedVariableCount: number | null
+}
+
+export interface DevEnvDns {
+  resolvConfPath: string
+  nameservers: string[]
+  nameserverCount: number
+  generateResolvConf: boolean | null
+  isGeneratedSymlink: boolean | null
+  dnsTunneling: boolean | null
+  windowsAdapterDns: string[]
+  /** True when /etc/resolv.conf is hand-managed and WSL no longer updates it. */
+  handManaged: boolean | null
+  error: string | null
+}
+
+export interface DevEnvNetwork {
+  networkingModeDeclared: string | null
+  networkingModeEffective: string | null
+  ip: string | null
+  localhostForwarding: boolean | null
+  dns: DevEnvDns | null
+  firewall: {
+    enabled: boolean | null
+    defaultInbound: string | null
+    loopbackEnabled: boolean | null
+  } | null
+  portProxy: {
+    ruleCount: number
+    live: number
+    stale: number
+    elsewhere: number
+    unknown: number
+  } | null
+}
+
+export type DevEnvDockerStatus =
+  | 'not-installed'
+  | 'installed-not-running'
+  | 'running'
+  | 'not-probed'
+  | 'error'
+  | 'unknown'
+
+export interface DevEnvDocker {
+  status: DevEnvDockerStatus
+  cliInstalled: boolean | null
+  cliPath: string | null
+  dockerDesktop: boolean | null
+  daemonRunning: boolean | null
+  endpoint: string | null
+  localEndpoint: boolean | null
+  context: string | null
+  serverVersion: string | null
+  clientVersion: string | null
+  /** Distribution whose virtual disk really holds the data; null when unknown. */
+  storageDistro: string | null
+  composeInstalled: boolean | null
+  imageCount: number | null
+  containerCount: number | null
+  runningContainerCount: number | null
+  /** Running containers, bounded. */
+  runningContainers: Array<{ name: string; image: string; ports: string }>
+  runningContainersOmitted: number
+  reclaimableBytes: number | null
+  buildCacheBytes: number | null
+  error: string | null
+}
+
+export interface DevEnvServiceRef {
+  name: string
+  scope: ServiceScope
+  activeState: string
+  subState: string
+}
+
+export interface DevEnvServices {
+  systemd: boolean | null
+  /** null when the unit list was not collected (or systemd is off). */
+  total: number | null
+  active: number | null
+  failed: number | null
+  failedUnits: string[]
+  failedUnitsOmitted: number
+  /** Units worth naming: failed ones, ones a detected tool owns, user-scope units. Bounded. */
+  notable: DevEnvServiceRef[]
+  notableOmitted: number
+}
+
+export interface DevEnvPort {
+  port: number
+  protocol: PortProtocol
+  process: string | null
+  pid: number | null
+  reachability: PortReachability
+  windowsBound: boolean | null
+  url: string | null
+}
+
+export interface DevEnvPorts {
+  listeningCount: number
+  items: DevEnvPort[]
+  omitted: number
+  /** Listeners Windows has that no WSL listener explains; null when the Windows table was not read. */
+  windowsOnlyCount: number | null
+  windowsOnly: Array<{ port: number; protocol: PortProtocol; process: string | null }>
+  windowsOnlyOmitted: number
+}
+
+export interface DevEnvFilesystem {
+  mountPoint: string
+  side: PathSide
+  exists: boolean
+  totalBytes: number | null
+  availableBytes: number | null
+  usePercent: number | null
+}
+
+export interface DevEnvStorage {
+  filesystems: DevEnvFilesystem[]
+  filesystemsOmitted: number
+  /** Free space on / — the headroom a build or an install actually has. */
+  rootAvailableBytes: number | null
+  rootUsePercent: number | null
+  image: {
+    vhdxPath: string | null
+    vhdxBytes: number | null
+    fsUsedBytes: number | null
+    reclaimableBytes: number | null
+    sparse: boolean | null
+  } | null
+  /** Windows drives as really mounted; null when the mount table was not read. */
+  windowsDrives: Array<{
+    point: string
+    source: string | null
+    metadata: boolean
+    caseSensitivity: string | null
+  }> | null
+  windowsDrivesOmitted: number
+  drivesWithoutMetadata: string[]
+  memory: {
+    totalBytes: number | null
+    usedBytes: number | null
+    availableBytes: number | null
+    swapTotalBytes: number | null
+    swapUsedBytes: number | null
+    vmLimitBytes: number | null
+    vmLimitSource: MemoryReconciliation['vmLimitSource'] | null
+  }
+  cpuCount: number | null
+  /** Known caches measured inside the image; null when unmeasured. */
+  knownCachesBytes: number | null
+  knownCachesPartial: boolean | null
+  topCaches: Array<{ id: string; path: string; bytes: number }>
+  zoneIdentifierCount: number | null
+  defender: { realtimeEnabled: boolean | null; imageCoverage: DefenderCoverageVerdict } | null
+  inotify: { maxUserWatches: number | null; maxUserInstances: number | null; low: boolean } | null
+}
+
+/** Mirrors shared/defender-coverage so the context can be typed without importing it. */
+export type DefenderCoverageVerdict = 'covered' | 'not-covered' | 'unknown'
+
+export interface DevEnvSetting {
+  key: string
+  section: string
+  scope: 'windows' | 'linux'
+  /** Masked when the key looks like a secret. */
+  declaredValue: string | null
+  effectiveValue: string | null
+  verdict: SettingVerdict
+}
+
+export interface DevEnvConfigs {
+  wslconfig: { path: string | null; exists: boolean | null }
+  wslConf: { path: string | null; exists: boolean | null }
+  restartPending: boolean | null
+  vmStartedAt: string | null
+  /** User-declared settings only, bounded; defaults are not listed. */
+  settings: DevEnvSetting[]
+  settingsOmitted: number
+  /** Well-known files that exist, bounded. */
+  files: Array<{ label: string; path: string; writable: boolean | null }>
+  filesOmitted: number
+  /** Config paths detected tools own, bounded. */
+  toolConfigs: Array<{ tool: string; path: string }>
+  toolConfigsOmitted: number
+  terminalProfile: {
+    installed: boolean | null
+    profileName: string | null
+    hasProfile: boolean | null
+  } | null
+}
+
+export type DevEnvSectionId =
+  | 'system'
+  | 'resources'
+  | 'disk'
+  | 'wslSettings'
+  | 'memoryDetail'
+  | 'paths'
+  | 'configuration'
+  | 'tools'
+  | 'hermes'
+  | 'docker'
+  | 'zoneIdentifier'
+  | 'diskConsumers'
+  | 'driveMounts'
+  | 'defender'
+  | 'inotify'
+  | 'terminalProfiles'
+  | 'environment'
+  | 'processes'
+  | 'firewall'
+  | 'portProxy'
+  | 'clock'
+  | 'dns'
+
+export interface DevEnvProvenance {
+  source: 'wslpad'
+  appVersion: string | null
+  snapshotSchemaVersion: number
+  /** When the snapshot the context was built from was assembled. */
+  collectedAt: string
+  /** Seconds between that instant and the build; null when the builder was not told the time. */
+  ageSeconds: number | null
+  /** Every reading is a poll: it is the last good value, never a live query. */
+  polled: true
+  distroAnswering: boolean | null
+  lastAliveAt: string | null
+  /** Sections no collector has filled this session — unknown, not empty. */
+  notCollected: DevEnvSectionId[]
+  /** Background queries whose last run failed; their section keeps the last good value. */
+  staleQueries: string[]
+  /** Lists cut to their cap; each carries its own omitted count. */
+  truncated: string[]
+  secretsMasked: true
+  readOnly: true
+}
+
+export interface DevEnvContext {
+  schemaVersion: 1
+  generatedAt: string
+  distro: DevEnvDistro
+  workspace: DevEnvWorkspace
+  runtimes: DevEnvToolGroup
+  packageManagers: DevEnvToolGroup
+  tools: DevEnvToolGroup
+  path: DevEnvPath
+  network: DevEnvNetwork
+  docker: DevEnvDocker
+  services: DevEnvServices
+  ports: DevEnvPorts
+  storage: DevEnvStorage
+  configs: DevEnvConfigs
+  doctor: DevEnvDoctor
+  provenance: DevEnvProvenance
+}
+
+// ---------------------------------------------------------------------------
 // Settings (goal.md §5.4)
 // ---------------------------------------------------------------------------
 
