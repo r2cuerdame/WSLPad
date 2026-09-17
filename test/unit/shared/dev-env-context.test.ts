@@ -117,7 +117,7 @@ describe('buildDevEnvContext over the fixture world', () => {
     expect(ctx.path.appendWindowsPath).toBe(false)
     expect(ctx.path.interop).toEqual({ binfmt: 'enabled', binfmtLate: 'enabled', declared: false })
     expect(ctx.path.windowsBinaries).toEqual(['code'])
-    expect(ctx.path.environmentVariableCount).toBe(9)
+    expect(ctx.path.environmentVariableCount).toBe(10)
     expect(ctx.path.secretVariableCount).toBe(2)
     const json = JSON.stringify(ctx)
     expect(json).not.toContain('super-secret-fixture-value')
