@@ -1104,6 +1104,8 @@ export interface DashboardSnapshot {
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
   services: ServiceInfo[]
+  /** True once the service collector has completed successfully for this distro. */
+  servicesCollected?: boolean
   ports: PortInfo[]
   /** Listeners on the Windows host, so both sides of a port are visible. */
   windowsPorts: WindowsPortInfo[]
@@ -1359,7 +1361,7 @@ export interface DevEnvTool {
 export interface DevEnvToolGroup {
   /** Tools of this group WSLPad knows how to detect. */
   knownCount: number
-  installedCount: number
+  installedCount: number | null
   /** Installed tools, bounded, in catalog order. */
   items: DevEnvTool[]
   omitted: number
@@ -1483,7 +1485,7 @@ export interface DevEnvPort {
 }
 
 export interface DevEnvPorts {
-  listeningCount: number
+  listeningCount: number | null
   items: DevEnvPort[]
   omitted: number
   /** Listeners Windows has that no WSL listener explains; null when the Windows table was not read. */
@@ -1595,6 +1597,8 @@ export type DevEnvSectionId =
   | 'terminalProfiles'
   | 'environment'
   | 'processes'
+  | 'services'
+  | 'ports'
   | 'firewall'
   | 'portProxy'
   | 'clock'

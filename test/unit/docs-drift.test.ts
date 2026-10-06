@@ -66,36 +66,42 @@ describe('documentation and contract drift checks', () => {
     }
   })
 
-  it('winget manifests exist for current package.json version', () => {
-    const version = packageJson.version
-    const manifestDir = path.join(
+  it('committed winget manifests are complete and do not exceed the package version', () => {
+    const manifestsRoot = path.join(
       ROOT,
       'packaging',
       'winget',
       'manifests',
       'r',
       'r2cuerdame',
-      'WSLPad',
-      version
+      'WSLPad'
     )
+    const versions = fs.readdirSync(manifestsRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^\d+\.\d+\.\d+$/.test(entry.name))
+      .map((entry) => entry.name)
 
-    expect(
-      fs.existsSync(manifestDir),
-      `WinGet manifest directory for version ${version} must exist at ${manifestDir}`
-    ).toBe(true)
+    expect(versions.length, 'At least one published WinGet manifest must exist').toBeGreaterThan(0)
 
-    const requiredFiles = [
-      `r2cuerdame.WSLPad.yaml`,
-      `r2cuerdame.WSLPad.installer.yaml`,
-      `r2cuerdame.WSLPad.locale.en-US.yaml`
-    ]
-
-    for (const file of requiredFiles) {
-      const filePath = path.join(manifestDir, file)
+    for (const version of versions) {
+      const manifestDir = path.join(manifestsRoot, version)
       expect(
-        fs.existsSync(filePath),
-        `WinGet manifest file ${file} must exist in ${manifestDir}`
+        version.localeCompare(packageJson.version, undefined, { numeric: true }) <= 0,
+        `WinGet manifest ${version} must not be newer than package ${packageJson.version}`
       ).toBe(true)
+
+      const requiredFiles = [
+        `r2cuerdame.WSLPad.yaml`,
+        `r2cuerdame.WSLPad.installer.yaml`,
+        `r2cuerdame.WSLPad.locale.en-US.yaml`
+      ]
+
+      for (const file of requiredFiles) {
+        const filePath = path.join(manifestDir, file)
+        expect(
+          fs.existsSync(filePath),
+          `WinGet manifest file ${file} must exist in ${manifestDir}`
+        ).toBe(true)
+      }
     }
   })
 

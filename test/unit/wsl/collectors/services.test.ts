@@ -105,11 +105,19 @@ describe('collectServices', () => {
     expect(services.every((s) => s.scope === 'system')).toBe(true)
   })
 
-  it('returns [] when the runner fails', async () => {
+  it('reports a failed query instead of treating it as an empty service list', async () => {
     const runner = fakeRunner(() => {
       throw new Error('boom')
     })
-    expect(await collectServices(runner, 'Ubuntu-24.04', true)).toEqual([])
+    await expect(collectServices(runner, 'Ubuntu-24.04', true)).rejects.toThrow('boom')
+    const exitFailure = fakeRunner(() => ok('', 1))
+    await expect(collectServices(exitFailure, 'Ubuntu-24.04', true)).rejects.toThrow(
+      'systemctl service query failed'
+    )
+    const incomplete = fakeRunner(() => ok(''))
+    await expect(collectServices(incomplete, 'Ubuntu-24.04', true)).rejects.toThrow(
+      'systemctl service query returned incomplete output'
+    )
   })
 
   it('passes WslNotAvailableError through', async () => {

@@ -15,6 +15,7 @@ import {
   dns,
   envVar,
   makeDashboard,
+  makeProvider,
   makeSnapshot,
   port,
   svc,
@@ -228,6 +229,94 @@ describe('buildDevEnvContext over the fixture world', () => {
 })
 
 describe('buildDevEnvContext on sparse and empty snapshots', () => {
+  it('keeps tool and port counts unknown until their partial-dashboard queries succeed', async () => {
+    const provider = makeProvider()
+    const store = new SnapshotStore(provider)
+    await store.initialize()
+
+    const pending = buildDevEnvContext(store.get())
+    expect(store.get().dashboard).not.toBeNull()
+    expect(pending.runtimes.installedCount).toBeNull()
+    expect(pending.packageManagers.installedCount).toBeNull()
+    expect(pending.tools.installedCount).toBeNull()
+    expect(pending.ports.listeningCount).toBeNull()
+    expect(pending.provenance.notCollected).toContain('tools')
+    expect(pending.provenance.notCollected).toContain('ports')
+
+    provider.getTools.mockRejectedValueOnce(new Error('tools failed'))
+    provider.getPorts.mockRejectedValueOnce(new Error('ports failed'))
+    await Promise.all([store.refreshFast(), store.refreshSlow()])
+    const failed = buildDevEnvContext(store.get())
+    expect(failed.tools.installedCount).toBeNull()
+    expect(failed.ports.listeningCount).toBeNull()
+    expect(failed.provenance.notCollected).toEqual(expect.arrayContaining(['tools', 'ports']))
+    expect(failed.provenance.staleQueries).toEqual(expect.arrayContaining(['tools', 'ports']))
+
+    provider.getPorts.mockResolvedValueOnce([])
+    await store.refreshFast()
+    const partial = buildDevEnvContext(store.get())
+    expect(partial.tools.installedCount).toBeNull()
+    expect(partial.ports.listeningCount).toBe(0)
+    expect(partial.provenance.notCollected).toContain('tools')
+    expect(partial.provenance.notCollected).not.toContain('ports')
+
+    provider.getTools.mockResolvedValueOnce([])
+    await store.refreshSlow()
+    const empty = buildDevEnvContext(store.get())
+    expect(empty.runtimes.installedCount).toBe(0)
+    expect(empty.packageManagers.installedCount).toBe(0)
+    expect(empty.tools.installedCount).toBe(0)
+    expect(empty.ports.listeningCount).toBe(0)
+    expect(empty.provenance.notCollected).not.toContain('tools')
+    expect(empty.provenance.notCollected).not.toContain('ports')
+
+    provider.getTools.mockRejectedValueOnce(new Error('tools failed again'))
+    provider.getPorts.mockRejectedValueOnce(new Error('ports failed again'))
+    await Promise.all([store.refreshFast(), store.refreshSlow()])
+    const stale = buildDevEnvContext(store.get())
+    expect(stale.tools.installedCount).toBe(0)
+    expect(stale.ports.listeningCount).toBe(0)
+    expect(stale.provenance.staleQueries).toEqual(expect.arrayContaining(['tools', 'ports']))
+    store.dispose()
+  })
+
+  it('keeps services unknown before the first query and after a failed first query', async () => {
+    const provider = makeProvider()
+    const store = new SnapshotStore(provider)
+    await store.initialize()
+    await store.refreshSlow()
+
+    const before = buildDevEnvContext(store.get())
+    expect(before.services.total).toBeNull()
+    expect(before.services.failed).toBeNull()
+    expect(before.doctor.checks.find((c) => c.id === 'services')?.status).toBe('unknown')
+    expect(before.provenance.notCollected).toContain('services')
+
+    provider.getServices.mockRejectedValueOnce(new Error('systemctl failed'))
+    await store.refreshMedium()
+    const failed = buildDevEnvContext(store.get())
+    expect(failed.services.total).toBeNull()
+    expect(failed.services.failed).toBeNull()
+    expect(failed.doctor.checks.find((c) => c.id === 'services')?.status).toBe('unknown')
+    expect(failed.provenance.notCollected).toContain('services')
+    expect(failed.provenance.staleQueries).toContain('services')
+
+    provider.getServices.mockResolvedValueOnce([])
+    await store.refreshMedium()
+    const empty = buildDevEnvContext(store.get())
+    expect(empty.services.total).toBe(0)
+    expect(empty.services.failed).toBe(0)
+    expect(empty.doctor.checks.find((c) => c.id === 'services')?.status).toBe('ok')
+    expect(empty.provenance.notCollected).not.toContain('services')
+
+    provider.getServices.mockRejectedValueOnce(new Error('systemctl failed again'))
+    await store.refreshMedium()
+    const stale = buildDevEnvContext(store.get())
+    expect(stale.doctor.checks.find((c) => c.id === 'services')?.status).toBe('unknown')
+    expect(stale.provenance.staleQueries).toContain('services')
+    store.dispose()
+  })
+
   it('turns a snapshot with no dashboard into unknowns, not zeroes', () => {
     const ctx = buildDevEnvContext(makeSnapshot({ dashboard: null }))
     expect(ctx.distro.name).toBe('Ubuntu-24.04')
@@ -236,11 +325,20 @@ describe('buildDevEnvContext on sparse and empty snapshots', () => {
     expect(ctx.path.environmentVariableCount).toBeNull()
     expect(ctx.docker.status).toBe('unknown')
     expect(ctx.services.total).toBeNull()
+    expect(ctx.runtimes.installedCount).toBeNull()
+    expect(ctx.packageManagers.installedCount).toBeNull()
+    expect(ctx.tools.installedCount).toBeNull()
+    expect(ctx.ports.listeningCount).toBeNull()
     expect(ctx.ports.windowsOnlyCount).toBeNull()
     expect(ctx.storage.rootUsePercent).toBeNull()
     expect(ctx.configs.restartPending).toBeNull()
     expect(ctx.provenance.notCollected).toContain('system')
     expect(ctx.provenance.notCollected).toContain('docker')
+    expect(ctx.provenance.notCollected).toContain('ports')
+    const markdown = devEnvContextToMarkdown(ctx)
+    expect(markdown).toContain('Not collected yet (unknown, not empty):')
+    expect(markdown).not.toContain('Nothing is listening inside the distro')
+    expect(markdown).not.toContain('null of')
     expect(ctx.doctor.overall).toBe('unknown')
     expect(ctx.doctor.checks).toHaveLength(1)
   })

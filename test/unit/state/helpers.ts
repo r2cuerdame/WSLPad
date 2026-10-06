@@ -268,6 +268,7 @@ export function makeDashboard(over: Partial<DashboardSnapshot> = {}): DashboardS
     environment: [envVar('PATH', '/usr/bin:/usr/local/bin')],
     processes: [proc()],
     services: [svc()],
+    servicesCollected: true,
     ports: [port()],
     windowsPorts: [],
     portProxy: null,

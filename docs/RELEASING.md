@@ -66,6 +66,11 @@ Releases are Windows NSIS installers published to GitHub Releases;
    winget install --manifest <manifest-directory>
    ```
 
+   A release-preparation branch may have a newer `package.json` version than
+   the committed WinGet manifests. Do not add a manifest for the new version
+   until its published installer URL and SHA-256 can be verified. The manifest
+   completeness test checks committed versions during that interval.
+
    Keep each WinGet pull request to one package version. The installer URL must
    be version-specific; do not use the mutable `releases/latest` URL.
 
