@@ -229,6 +229,57 @@ describe('buildDevEnvContext over the fixture world', () => {
 })
 
 describe('buildDevEnvContext on sparse and empty snapshots', () => {
+  it('keeps tool and port counts unknown until their partial-dashboard queries succeed', async () => {
+    const provider = makeProvider()
+    const store = new SnapshotStore(provider)
+    await store.initialize()
+
+    const pending = buildDevEnvContext(store.get())
+    expect(store.get().dashboard).not.toBeNull()
+    expect(pending.runtimes.installedCount).toBeNull()
+    expect(pending.packageManagers.installedCount).toBeNull()
+    expect(pending.tools.installedCount).toBeNull()
+    expect(pending.ports.listeningCount).toBeNull()
+    expect(pending.provenance.notCollected).toContain('tools')
+    expect(pending.provenance.notCollected).toContain('ports')
+
+    provider.getTools.mockRejectedValueOnce(new Error('tools failed'))
+    provider.getPorts.mockRejectedValueOnce(new Error('ports failed'))
+    await Promise.all([store.refreshFast(), store.refreshSlow()])
+    const failed = buildDevEnvContext(store.get())
+    expect(failed.tools.installedCount).toBeNull()
+    expect(failed.ports.listeningCount).toBeNull()
+    expect(failed.provenance.notCollected).toEqual(expect.arrayContaining(['tools', 'ports']))
+    expect(failed.provenance.staleQueries).toEqual(expect.arrayContaining(['tools', 'ports']))
+
+    provider.getPorts.mockResolvedValueOnce([])
+    await store.refreshFast()
+    const partial = buildDevEnvContext(store.get())
+    expect(partial.tools.installedCount).toBeNull()
+    expect(partial.ports.listeningCount).toBe(0)
+    expect(partial.provenance.notCollected).toContain('tools')
+    expect(partial.provenance.notCollected).not.toContain('ports')
+
+    provider.getTools.mockResolvedValueOnce([])
+    await store.refreshSlow()
+    const empty = buildDevEnvContext(store.get())
+    expect(empty.runtimes.installedCount).toBe(0)
+    expect(empty.packageManagers.installedCount).toBe(0)
+    expect(empty.tools.installedCount).toBe(0)
+    expect(empty.ports.listeningCount).toBe(0)
+    expect(empty.provenance.notCollected).not.toContain('tools')
+    expect(empty.provenance.notCollected).not.toContain('ports')
+
+    provider.getTools.mockRejectedValueOnce(new Error('tools failed again'))
+    provider.getPorts.mockRejectedValueOnce(new Error('ports failed again'))
+    await Promise.all([store.refreshFast(), store.refreshSlow()])
+    const stale = buildDevEnvContext(store.get())
+    expect(stale.tools.installedCount).toBe(0)
+    expect(stale.ports.listeningCount).toBe(0)
+    expect(stale.provenance.staleQueries).toEqual(expect.arrayContaining(['tools', 'ports']))
+    store.dispose()
+  })
+
   it('keeps services unknown before the first query and after a failed first query', async () => {
     const provider = makeProvider()
     const store = new SnapshotStore(provider)

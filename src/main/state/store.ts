@@ -58,6 +58,8 @@ interface DashboardSections {
   paths: ImportantPathInfo[]
   configuration: ConfigurationFileInfo[]
   tools: ToolInfo[]
+  /** Status of usable tool data; a later failed refresh retains a successful last-good read. */
+  toolsCollectionStatus: 'pending' | 'succeeded' | 'failed'
   hermes: HermesInfo | null
   docker: DockerInfo | null
   zoneIdentifier: ZoneIdentifierInfo | null
@@ -71,6 +73,8 @@ interface DashboardSections {
   services: ServiceInfo[]
   servicesCollected: boolean
   ports: PortInfo[]
+  /** Status of usable port data; a later failed refresh retains a successful last-good read. */
+  portsCollectionStatus: 'pending' | 'succeeded' | 'failed'
   windowsPorts: WindowsPortInfo[]
   firewall: FirewallInfo | null
   portProxy: PortProxyInfo | null
@@ -137,6 +141,7 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     paths: [],
     configuration: [],
     tools: [],
+    toolsCollectionStatus: 'pending',
     hermes: null,
     docker: null,
     zoneIdentifier: null,
@@ -150,6 +155,7 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     services: [],
     servicesCollected: false,
     ports: [],
+    portsCollectionStatus: 'pending',
     windowsPorts: [],
     firewall: null,
     portProxy: null,
@@ -274,6 +280,10 @@ export class SnapshotStore {
               () => this.provider.getPorts(distro),
               (v) => {
                 s.ports = v
+                s.portsCollectionStatus = 'succeeded'
+              },
+              () => {
+                if (s.portsCollectionStatus !== 'succeeded') s.portsCollectionStatus = 'failed'
               }
             ),
             this.collectMemoryDetail(distro, s),
@@ -367,6 +377,10 @@ export class SnapshotStore {
             () => this.provider.getTools(distro),
             (v) => {
               s.tools = v
+              s.toolsCollectionStatus = 'succeeded'
+            },
+            () => {
+              if (s.toolsCollectionStatus !== 'succeeded') s.toolsCollectionStatus = 'failed'
             }
           ),
           this.collect(
@@ -725,12 +739,14 @@ export class SnapshotStore {
   private async collect<T>(
     command: string,
     fn: () => Promise<T>,
-    apply: (value: T) => void
+    apply: (value: T) => void,
+    onFailure?: () => void
   ): Promise<void> {
     try {
       apply(await fn())
       this.clearRunnerFailure(command)
     } catch {
+      onFailure?.()
       this.noteRunnerFailure(command)
     }
   }

@@ -72,6 +72,17 @@ const CATEGORY_BY_TOOL_ID = new Map(TOOL_SPECS.map((spec) => [spec.id, spec.cate
 
 type ToolGroupKey = 'runtimes' | 'packageManagers' | 'tools'
 
+/** Older snapshots lack collector status; nonempty data still proves a completed read. */
+function collectionSucceeded(dash: DashboardSnapshot | null, section: 'tools' | 'ports'): boolean {
+  if (dash === null) return false
+  const tracked = dash as DashboardSnapshot & {
+    toolsCollectionStatus?: 'pending' | 'succeeded' | 'failed'
+    portsCollectionStatus?: 'pending' | 'succeeded' | 'failed'
+  }
+  const status = section === 'tools' ? tracked.toolsCollectionStatus : tracked.portsCollectionStatus
+  return status === 'succeeded' || (status === undefined && dash[section].length > 0)
+}
+
 function groupOf(id: string): ToolGroupKey {
   const category = CATEGORY_BY_TOOL_ID.get(id)
   if (category === 'runtime') return 'runtimes'
@@ -237,7 +248,7 @@ function buildToolGroups(
   const known: Record<ToolGroupKey, number> = { runtimes: 0, packageManagers: 0, tools: 0 }
   for (const spec of TOOL_SPECS) known[groupOf(spec.id)]++
   const installed: Record<ToolGroupKey, DevEnvTool[]> = { runtimes: [], packageManagers: [], tools: [] }
-  for (const tool of dash?.tools ?? []) {
+  for (const tool of collectionSucceeded(dash, 'tools') ? (dash?.tools ?? []) : []) {
     if (!tool.installed) continue
     installed[groupOf(tool.id)].push(toDevEnvTool(tool))
   }
@@ -245,7 +256,7 @@ function buildToolGroups(
     const cut = b.cap(key, installed[key], limit)
     return {
       knownCount: known[key],
-      installedCount: dash === null ? null : installed[key].length,
+      installedCount: collectionSucceeded(dash, 'tools') ? installed[key].length : null,
       items: cut.items,
       omitted: cut.omitted
     }
@@ -287,7 +298,7 @@ function buildPath(dash: DashboardSnapshot | null, automountRoot: string, b: Bou
     appendWindowsPath: parseBool(settingValue(dash, 'interop', 'appendWindowsPath')),
     interop: dash?.wslSettings?.interop ?? null,
     windowsBinaries: binaries.items,
-    windowsBinaryCount: dash === null || dash.tools.length === 0 ? null : shadowed.length,
+    windowsBinaryCount: collectionSucceeded(dash, 'tools') ? shadowed.length : null,
     wslenv: plainEnvValue(dash, 'WSLENV'),
     environmentVariableCount: envKnown ? env.length : null,
     secretVariableCount: envKnown
@@ -480,7 +491,7 @@ function buildPorts(dash: DashboardSnapshot | null, b: Bounder): DevEnvPorts {
     LIMITS.windowsPorts
   )
   return {
-    listeningCount: dash === null ? null : listening.length,
+    listeningCount: collectionSucceeded(dash, 'ports') ? listening.length : null,
     items: cut.items,
     omitted: cut.omitted,
     windowsOnlyCount: windowsKnown ? own.length : null,
@@ -1077,7 +1088,7 @@ function buildChecks(s: WslPadSnapshot, dash: DashboardSnapshot | null): DevEnvC
   }
 
   // Windows binaries on PATH
-  if (dash.tools.length === 0) {
+  if (!collectionSucceeded(dash, 'tools')) {
     out.push(check('windows-binaries', 'unknown', 'Tool detection has not run.'))
   } else {
     const shadowed = dash.tools.filter((t) => t.installed && t.shadowedByWindows)
@@ -1227,7 +1238,8 @@ function notCollectedSections(dash: DashboardSnapshot | null): DevEnvSectionId[]
   if (dash.resources.cpuCount === null && dash.resources.memTotalBytes === null) out.push('resources')
   if (dash.paths.length === 0) out.push('paths')
   if (dash.configuration.length === 0) out.push('configuration')
-  if (dash.tools.length === 0) out.push('tools')
+  if (!collectionSucceeded(dash, 'tools')) out.push('tools')
+  if (!collectionSucceeded(dash, 'ports')) out.push('ports')
   if (dash.environment.length === 0) out.push('environment')
   if (dash.processes.length === 0) out.push('processes')
   if (dash.servicesCollected !== true || dash.system.systemdEnabled === false) out.push('services')
