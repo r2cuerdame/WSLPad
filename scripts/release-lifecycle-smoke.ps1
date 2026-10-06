@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-  [string]$PreviousVersion = '1.1.1',
-  [string]$TargetVersion = '1.1.2',
+  [string]$PreviousVersion = '1.1.2',
+  [string]$TargetVersion = '1.2.0',
   [ValidatePattern('^([0-9A-Fa-f]{64})?$')]
   [string]$TargetSha256 = '',
   [string]$Repository = 'r2cuerdame/WSLPad',
