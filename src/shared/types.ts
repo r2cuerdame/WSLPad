@@ -1104,6 +1104,8 @@ export interface DashboardSnapshot {
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
   services: ServiceInfo[]
+  /** True once the service collector has completed successfully for this distro. */
+  servicesCollected?: boolean
   ports: PortInfo[]
   /** Listeners on the Windows host, so both sides of a port are visible. */
   windowsPorts: WindowsPortInfo[]
@@ -1595,6 +1597,7 @@ export type DevEnvSectionId =
   | 'terminalProfiles'
   | 'environment'
   | 'processes'
+  | 'services'
   | 'firewall'
   | 'portProxy'
   | 'clock'

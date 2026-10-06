@@ -15,6 +15,7 @@ import {
   dns,
   envVar,
   makeDashboard,
+  makeProvider,
   makeSnapshot,
   port,
   svc,
@@ -228,6 +229,43 @@ describe('buildDevEnvContext over the fixture world', () => {
 })
 
 describe('buildDevEnvContext on sparse and empty snapshots', () => {
+  it('keeps services unknown before the first query and after a failed first query', async () => {
+    const provider = makeProvider()
+    const store = new SnapshotStore(provider)
+    await store.initialize()
+    await store.refreshSlow()
+
+    const before = buildDevEnvContext(store.get())
+    expect(before.services.total).toBeNull()
+    expect(before.services.failed).toBeNull()
+    expect(before.doctor.checks.find((c) => c.id === 'services')?.status).toBe('unknown')
+    expect(before.provenance.notCollected).toContain('services')
+
+    provider.getServices.mockRejectedValueOnce(new Error('systemctl failed'))
+    await store.refreshMedium()
+    const failed = buildDevEnvContext(store.get())
+    expect(failed.services.total).toBeNull()
+    expect(failed.services.failed).toBeNull()
+    expect(failed.doctor.checks.find((c) => c.id === 'services')?.status).toBe('unknown')
+    expect(failed.provenance.notCollected).toContain('services')
+    expect(failed.provenance.staleQueries).toContain('services')
+
+    provider.getServices.mockResolvedValueOnce([])
+    await store.refreshMedium()
+    const empty = buildDevEnvContext(store.get())
+    expect(empty.services.total).toBe(0)
+    expect(empty.services.failed).toBe(0)
+    expect(empty.doctor.checks.find((c) => c.id === 'services')?.status).toBe('ok')
+    expect(empty.provenance.notCollected).not.toContain('services')
+
+    provider.getServices.mockRejectedValueOnce(new Error('systemctl failed again'))
+    await store.refreshMedium()
+    const stale = buildDevEnvContext(store.get())
+    expect(stale.doctor.checks.find((c) => c.id === 'services')?.status).toBe('unknown')
+    expect(stale.provenance.staleQueries).toContain('services')
+    store.dispose()
+  })
+
   it('turns a snapshot with no dashboard into unknowns, not zeroes', () => {
     const ctx = buildDevEnvContext(makeSnapshot({ dashboard: null }))
     expect(ctx.distro.name).toBe('Ubuntu-24.04')

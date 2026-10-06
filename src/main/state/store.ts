@@ -69,6 +69,7 @@ interface DashboardSections {
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
   services: ServiceInfo[]
+  servicesCollected: boolean
   ports: PortInfo[]
   windowsPorts: WindowsPortInfo[]
   firewall: FirewallInfo | null
@@ -147,6 +148,7 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     environment: [],
     processes: [],
     services: [],
+    servicesCollected: false,
     ports: [],
     windowsPorts: [],
     firewall: null,
@@ -315,6 +317,7 @@ export class SnapshotStore {
               () => this.provider.getServices(distro, s.system.systemdEnabled),
               (v) => {
                 s.services = v
+                s.servicesCollected = true
               }
             ),
             this.collect(

@@ -426,9 +426,7 @@ function serviceRef(svc: ServiceInfo): DevEnvServiceRef {
 function buildServices(dash: DashboardSnapshot | null, b: Bounder): DevEnvServices {
   const systemd = dash?.system.systemdEnabled ?? null
   const list = dash?.services ?? []
-  // An empty unit list is a fact only when systemd is known to be on; off, or
-  // never asked, it says nothing about the units.
-  const collected = list.length > 0 || systemd === true
+  const collected = dash?.servicesCollected === true && systemd !== false
   const failed = list.filter((s) => s.activeState === 'failed')
   const owned = new Set((dash?.tools ?? []).flatMap((t) => (t.installed ? t.services : [])))
   const seen = new Set<string>()
@@ -1025,6 +1023,13 @@ function buildChecks(s: WslPadSnapshot, dash: DashboardSnapshot | null): DevEnvC
     )
   } else if (dash.system.systemdEnabled === null) {
     out.push(check('services', 'unknown', 'Whether systemd is enabled has not been read.'))
+  } else if (
+    dash.servicesCollected !== true ||
+    s.warnings.some((w) => w.id === 'runner-failed-services')
+  ) {
+    out.push(
+      check('services', 'unknown', 'Systemd services have not been read successfully on the latest query.')
+    )
   } else {
     const failed = dash.services.filter((x) => x.activeState === 'failed')
     if (failed.length > 0) {
@@ -1208,6 +1213,7 @@ function notCollectedSections(dash: DashboardSnapshot | null): DevEnvSectionId[]
       'terminalProfiles',
       'environment',
       'processes',
+      'services',
       'firewall',
       'portProxy',
       'clock',
@@ -1223,6 +1229,7 @@ function notCollectedSections(dash: DashboardSnapshot | null): DevEnvSectionId[]
   if (dash.tools.length === 0) out.push('tools')
   if (dash.environment.length === 0) out.push('environment')
   if (dash.processes.length === 0) out.push('processes')
+  if (dash.servicesCollected !== true || dash.system.systemdEnabled === false) out.push('services')
   const nullable: Array<[DevEnvSectionId, unknown]> = [
     ['disk', dash.disk],
     ['wslSettings', dash.wslSettings],

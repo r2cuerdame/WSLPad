@@ -1,14 +1,14 @@
 import { RUNNER_TIMEOUT_MS } from '@shared/constants'
 import type { ServiceInfo } from '@shared/types'
-import { WslNotAvailableError, type DistroRunner } from './contracts'
+import type { DistroRunner } from './contracts'
 import { SECTION_MARKER, splitSections } from './system'
 
-// Four systemctl views in one round-trip; a failing scope (e.g. no user
-// manager) just leaves its section empty.
+// Four systemctl views in one round-trip. The system scope must succeed;
+// a missing user manager may leave only the user sections empty.
 const SERVICES_SCRIPT = [
-  'systemctl list-units --type=service --all --plain --no-legend --no-pager 2>/dev/null || true',
+  'systemctl list-units --type=service --all --plain --no-legend --no-pager 2>/dev/null || exit $?',
   `printf '\\n${SECTION_MARKER}\\n'`,
-  'systemctl list-unit-files --type=service --plain --no-legend --no-pager 2>/dev/null || true',
+  'systemctl list-unit-files --type=service --plain --no-legend --no-pager 2>/dev/null || exit $?',
   `printf '\\n${SECTION_MARKER}\\n'`,
   'systemctl --user list-units --type=service --all --plain --no-legend --no-pager 2>/dev/null || true',
   `printf '\\n${SECTION_MARKER}\\n'`,
@@ -58,14 +58,11 @@ export async function collectServices(
 ): Promise<ServiceInfo[]> {
   // Without systemd there is nothing to query — do not spawn systemctl at all.
   if (systemdEnabled === false) return []
-  try {
-    const res = await runner.runInDistro(distro, SERVICES_SCRIPT, { timeoutMs: RUNNER_TIMEOUT_MS })
-    const s = splitSections(res.stdout)
-    const system = mergeEnabled(parseListUnits(s[0] ?? '', 'system'), parseUnitFiles(s[1] ?? ''))
-    const user = mergeEnabled(parseListUnits(s[2] ?? '', 'user'), parseUnitFiles(s[3] ?? ''))
-    return [...system, ...user]
-  } catch (err) {
-    if (err instanceof WslNotAvailableError) throw err
-    return []
-  }
+  const res = await runner.runInDistro(distro, SERVICES_SCRIPT, { timeoutMs: RUNNER_TIMEOUT_MS })
+  if (res.code !== 0 || res.timedOut) throw new Error('systemctl service query failed')
+  const s = splitSections(res.stdout)
+  if (s.length !== 4) throw new Error('systemctl service query returned incomplete output')
+  const system = mergeEnabled(parseListUnits(s[0], 'system'), parseUnitFiles(s[1]))
+  const user = mergeEnabled(parseListUnits(s[2], 'user'), parseUnitFiles(s[3]))
+  return [...system, ...user]
 }
