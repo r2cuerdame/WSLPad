@@ -143,7 +143,7 @@ function toolLine(tool: DevEnvTool): string {
 }
 
 function toolGroup(lines: string[], title: string, group: DevEnvToolGroup): void {
-  if (group.installedCount === 0) return
+  if (group.installedCount === null || group.installedCount === 0) return
   lines.push(`### ${title} (${group.installedCount} of ${group.knownCount} known)`, '')
   for (const tool of group.items) lines.push(toolLine(tool))
   more(lines, group.omitted)
@@ -303,6 +303,7 @@ function servicesSection(lines: string[], ctx: DevEnvContext): void {
 
 function portsSection(lines: string[], ctx: DevEnvContext): void {
   const p = ctx.ports
+  if (p.listeningCount === null && p.windowsOnlyCount === null) return
   if (p.listeningCount === 0 && p.windowsOnlyCount === null) return
   lines.push('### Ports in use', '')
   if (p.listeningCount === 0) {

@@ -245,7 +245,7 @@ function buildToolGroups(
     const cut = b.cap(key, installed[key], limit)
     return {
       knownCount: known[key],
-      installedCount: installed[key].length,
+      installedCount: dash === null ? null : installed[key].length,
       items: cut.items,
       omitted: cut.omitted
     }
@@ -480,7 +480,7 @@ function buildPorts(dash: DashboardSnapshot | null, b: Bounder): DevEnvPorts {
     LIMITS.windowsPorts
   )
   return {
-    listeningCount: listening.length,
+    listeningCount: dash === null ? null : listening.length,
     items: cut.items,
     omitted: cut.omitted,
     windowsOnlyCount: windowsKnown ? own.length : null,
@@ -1214,6 +1214,7 @@ function notCollectedSections(dash: DashboardSnapshot | null): DevEnvSectionId[]
       'environment',
       'processes',
       'services',
+      'ports',
       'firewall',
       'portProxy',
       'clock',
