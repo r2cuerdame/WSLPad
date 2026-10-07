@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IpcChannels, type WslPadApi } from '@shared/ipc'
 import type {
   DiagnosticsState,
+  PerformanceState,
   FileOpProgress,
   McpStatus,
   Settings,
@@ -16,6 +17,11 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
   ipcRenderer.on(channel, listener)
   return () => ipcRenderer.removeListener(channel, listener)
 }
+
+// The reply runs when the renderer's main thread can handle an IPC message.
+ipcRenderer.on(IpcChannels.evPerformancePing, (_event, id: number) => {
+  ipcRenderer.invoke(IpcChannels.performancePong, id).catch(() => {})
+})
 
 const api: WslPadApi = {
   listDistros: () => ipcRenderer.invoke(IpcChannels.distrosList),
@@ -35,6 +41,14 @@ const api: WslPadApi = {
     runRecoveryCheck: (port) => ipcRenderer.invoke(IpcChannels.diagnosticsRecoveryCheck, port),
     exportBundle: () => ipcRenderer.invoke(IpcChannels.diagnosticsExport),
     onChange: (cb) => subscribe<DiagnosticsState>(IpcChannels.evDiagnostics, cb)
+  },
+
+  performance: {
+    get: () => ipcRenderer.invoke(IpcChannels.performanceGet),
+    setEnabled: (enabled) => ipcRenderer.invoke(IpcChannels.performanceSet, enabled),
+    record: (kind, durationMs) => ipcRenderer.invoke(IpcChannels.performanceRecord, kind, durationMs),
+    exportLog: () => ipcRenderer.invoke(IpcChannels.performanceExport),
+    onChange: (cb) => subscribe<PerformanceState>(IpcChannels.evPerformance, cb)
   },
 
   tools: {

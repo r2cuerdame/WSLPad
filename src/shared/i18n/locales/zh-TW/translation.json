@@ -1026,6 +1026,16 @@
     }
   },
   "diagnostics": {
+    "performance": {
+    "title": "本機延遲記錄",
+    "description": "預設關閉。僅將延遲及應用程式 CPU、記憶體資料記錄到本機檔案，不傳送資料。",
+    "start": "開始記錄",
+    "stop": "停止記錄",
+    "export": "匯出記錄",
+    "writeError": "本機檔案寫入失敗，記錄已停止。{{count}} 筆樣本仍保存在記憶體中。請勿關閉 WSLPad，選擇「匯出記錄」重試。",
+    "slow": "緩慢時段",
+    "empty": "尚無超過閾值的時段。"
+    },
     "title": "診斷",
     "intro": "記錄本次工作階段中重要的 WSL 變化。網路檢查只會在您要求時執行，不屬於背景輪詢。",
     "port": "Windows localhost 連接埠",

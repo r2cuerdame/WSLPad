@@ -18,6 +18,8 @@ import { AppUpdater, createPendingInstallStore } from './updater'
 import { McpServerHost } from './mcp/server'
 import { resolveCommand } from './wsl/resolve-command'
 import { DiagnosticsService } from './state/diagnostics'
+import { PerformanceDiagnostics } from './state/performance-diagnostics'
+import { WslRunner } from './wsl/runner'
 
 /** Composition root: wires settings, backends, store, polling, console, MCP, tray, updater. */
 export class WslPadApp {
@@ -33,6 +35,7 @@ export class WslPadApp {
   private mcp!: McpServerHost
   private updater!: AppUpdater
   private diagnostics!: DiagnosticsService
+  private performanceDiagnostics!: PerformanceDiagnostics
   private readonly onSuspend = (): void => this.diagnostics?.recordPower('suspend')
   private readonly onResume = (): void => this.diagnostics?.recordPower('resume')
   private updateStatus: UpdateStatus = {
@@ -52,6 +55,34 @@ export class WslPadApp {
     this.i18n = createI18n(this.resolveLocale(this.settings.get()))
 
     this.backends = createBackends()
+    this.performanceDiagnostics = new PerformanceDiagnostics(
+      join(app.getPath('userData'), 'performance-diagnostics'),
+      () => {
+        try {
+          const metrics = app.getAppMetrics()
+          return {
+            cpuPercent: metrics.reduce((sum, item) => sum + item.cpu.percentCPUUsage, 0),
+            memoryBytes: metrics.reduce((sum, item) => sum + item.memory.workingSetSize * 1024, 0)
+          }
+        } catch {
+          return null
+        }
+      },
+      undefined,
+      (id) => {
+        if (!this.window || this.window.isDestroyed()) return false
+        this.send(IpcChannels.evPerformancePing, id)
+        return true
+      }
+    )
+    this.performanceDiagnostics.subscribe((state) => {
+      this.send(IpcChannels.evPerformance, state)
+      if (this.backends.runner instanceof WslRunner) {
+        this.backends.runner.setTimingObserver(
+          state.enabled ? (ms) => this.performanceDiagnostics.record('wsl', ms) : null
+        )
+      }
+    })
     this.store = new SnapshotStore(this.backends.provider)
     this.diagnostics = new DiagnosticsService(
       this.backends.runner,
@@ -136,6 +167,7 @@ export class WslPadApp {
       mcp: this.mcp,
       updater: this.updater,
       diagnostics: this.diagnostics,
+      performanceDiagnostics: this.performanceDiagnostics,
       packageDiscovery: this.backends.packageDiscovery,
       usb: this.backends.usb,
       runner: this.backends.runner,
@@ -316,7 +348,8 @@ export class WslPadApp {
     app.quit()
   }
 
-  dispose(): void {
+  async dispose(): Promise<void> {
+    const diagnosticsFlush = this.performanceDiagnostics?.dispose()
     removeIpcHandlers()
     powerMonitor.off('suspend', this.onSuspend)
     powerMonitor.off('resume', this.onResume)
@@ -328,5 +361,6 @@ export class WslPadApp {
     this.updater?.dispose()
     this.tray?.dispose()
     this.tray = null
+    await diagnosticsFlush
   }
 }

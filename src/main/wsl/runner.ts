@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'child_process'
+import { performance } from 'perf_hooks'
 import {
   RUNNER_MAX_OUTPUT_BYTES,
   RUNNER_TIMEOUT_MS
@@ -44,8 +45,13 @@ interface SpawnSpec {
 export class WslRunner implements DistroRunner {
   private children = new Set<ChildProcess>()
   private wslMissing = false
+  private timingObserver: ((durationMs: number) => void) | null = null
 
   constructor(private wslExe: string = 'wsl.exe') {}
+
+  setTimingObserver(observer: ((durationMs: number) => void) | null): void {
+    this.timingObserver = observer
+  }
 
   runWsl(args: string[], opts: RunOptions = {}): Promise<RunResult> {
     return this.spawnAndCollect({ file: this.wslExe, args }, { encoding: 'utf16le', ...opts })
@@ -78,6 +84,10 @@ export class WslRunner implements DistroRunner {
     const timeoutMs = opts.timeoutMs ?? RUNNER_TIMEOUT_MS
     const maxBytes = opts.maxOutputBytes ?? RUNNER_MAX_OUTPUT_BYTES
     const encoding = opts.encoding ?? 'auto'
+    const started = missingMeansWslUnavailable && this.timingObserver ? performance.now() : null
+    const observe = (): void => {
+      if (started !== null) this.timingObserver?.(performance.now() - started)
+    }
 
     return new Promise<RunResult>((resolve, reject) => {
       let child: ChildProcess
@@ -87,6 +97,7 @@ export class WslRunner implements DistroRunner {
           stdio: ['pipe', 'pipe', 'pipe']
         })
       } catch (err) {
+        observe()
         reject(err)
         return
       }
@@ -113,6 +124,7 @@ export class WslRunner implements DistroRunner {
         settled = true
         clearTimeout(timer)
         this.children.delete(child)
+        observe()
         resolve({
           stdout: decodeWslOutput(Buffer.concat(outChunks), encoding),
           stderr: decodeWslOutput(Buffer.concat(errChunks), encoding),
@@ -137,6 +149,7 @@ export class WslRunner implements DistroRunner {
         settled = true
         clearTimeout(timer)
         this.children.delete(child)
+        observe()
         if (err.code === 'ENOENT' && missingMeansWslUnavailable) {
           this.wslMissing = true
           reject(new WslNotAvailableError())
