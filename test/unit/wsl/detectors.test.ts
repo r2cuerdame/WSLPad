@@ -4,6 +4,7 @@ import { TOOL_CATEGORIES, TOOL_SPECS } from '@shared/constants'
 import type { ToolInfo } from '@shared/types'
 import type { DistroRunner, RunResult } from '../../../src/main/wsl/contracts'
 import { detectHermes, detectTools, toolDetectors } from '../../../src/main/wsl/detectors/index'
+import { liveWslTestsEnabled, reportLiveWslSkip } from '../../support/live-wsl'
 import {
   TOOL_SCRIPT_SPECS,
   USER_SERVICES_SCRIPT,
@@ -263,33 +264,47 @@ function toolCall(script: string, id: string): string {
 }
 
 /**
- * Parse the script with a real POSIX sh when one is reachable. A local sh is
- * tried first (fast, no side effects); wsl.exe is the fallback so a machine
- * with no Unix shell on PATH still gets a real verdict.
+ * Parse the script with a local POSIX sh when one is reachable. The live WSL
+ * parser check is a separate opt-in test below.
  */
 function shSyntaxCheck(script: string): { ran: boolean; ok: boolean; message: string } {
-  const candidates: ReadonlyArray<[string, string[]]> = [
-    // Feed the program over stdin: Windows sh launchers often inherit cmd's
-    // 8191-character argv ceiling, below wsl.exe's real 32767-character cap.
-    ['sh', ['-n']],
-    ['wsl.exe', ['--exec', '/bin/sh', '-n']]
-  ]
-  for (const [file, args] of candidates) {
-    const res = spawnSync(file, args, { input: script, timeout: 20000, windowsHide: true })
-    if (res.error) continue
-    // wsl.exe speaks UTF-16LE; dropping NULs decodes both it and sh's UTF-8.
-    const message = `${res.stdout?.toString('utf8') ?? ''}${res.stderr?.toString('utf8') ?? ''}`
-      .replace(/\0/g, '')
-      .trim()
-    if (res.status === 0) return { ran: true, ok: true, message }
-    // A non-syntax failure (no WSL distro, a shim that cannot exec) is not a
-    // verdict on the script — keep looking.
-    if (/syntax error|unexpected|parse error/i.test(message)) {
-      return { ran: true, ok: false, message }
-    }
+  // Feed the program over stdin: Windows sh launchers may inherit cmd's
+  // 8191-character argv ceiling.
+  const res = spawnSync('sh', ['-n'], { input: script, timeout: 20000, windowsHide: true })
+  if (res.error) return { ran: false, ok: false, message: '' }
+  const message = `${res.stdout?.toString('utf8') ?? ''}${res.stderr?.toString('utf8') ?? ''}`.trim()
+  if (res.status === 0) return { ran: true, ok: true, message }
+  if (/syntax error|unexpected|parse error/i.test(message)) {
+    return { ran: true, ok: false, message }
   }
   return { ran: false, ok: false, message: '' }
 }
+
+reportLiveWslSkip('live WSL shell syntax check')
+describe('live WSL shell syntax check', () => {
+  it.skipIf(!liveWslTestsEnabled)('parses the tools script with WSL sh', (ctx) => {
+    const script = buildToolsScript(TOOL_SCRIPT_SPECS)
+    const res = spawnSync('wsl.exe', ['--exec', '/bin/sh', '-n'], {
+      input: script,
+      timeout: 20000,
+      windowsHide: true
+    })
+    if (res.error) {
+      console.info(`live WSL shell syntax check skipped: wsl.exe unavailable: ${res.error.message}`)
+      ctx.skip()
+    }
+    // wsl.exe may emit UTF-16LE diagnostics.
+    const message = `${res.stdout?.toString('utf8') ?? ''}${res.stderr?.toString('utf8') ?? ''}`
+      .replace(/\0/g, '')
+      .trim()
+    if (res.status !== 0 && !/syntax error|unexpected|parse error/i.test(message)) {
+      console.info(`live WSL shell syntax check skipped: WSL shell unavailable: ${message || `exit ${res.status}`}`)
+      ctx.skip()
+    }
+    expect(message).toBe('')
+    expect(res.status).toBe(0)
+  })
+})
 
 describe('buildToolsScript', () => {
   it('probes catalog entries in catalog order with matching display names', () => {

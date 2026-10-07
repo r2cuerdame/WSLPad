@@ -52,6 +52,11 @@ npm run dist         # electron-builder --win
 
 Requires Windows with WSL installed, and Node 20+.
 
+`npm test` skips tests that launch a live WSL distribution and prints the skip
+reason. To run those tests deliberately on a suitable host, set
+`WSLPAD_LIVE_WSL_TESTS=1` for that command. The CI and E2E fixture paths do not
+enable live WSL tests.
+
 Before you open a PR: `npm run typecheck && npm run lint && npm test` must all
 be green. A red test is never shipped, and never "fixed" by deleting the test.
 
