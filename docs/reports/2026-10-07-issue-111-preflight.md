@@ -1,24 +1,48 @@
-# Issue #111: full-app A/B preflight (blocked)
+# Issue #111: isolated full-app A/B preflight — blocked
 
-Date: 2026-10-07 UTC. This is a resource and method checkpoint, **not a measurement result**.
+Date: 2026-10-07 UTC. This is a read-only resource and method assessment, **not an A/B measurement or QA pass**. The operating harness was checked against `r2cuerdame/LoopOffice` `skills/luna/SKILL.md` v17 (SHA-256 `65772ce5a2078d776af050ee3ebe5a6a968cb2e9ef44d18da91fc9f6854ba597`).
 
-## Evidence and boundary
+## Previous job `e77d9d89`: exact live WSL path
 
-- The only RDCX device exposed to this worker is `recuerdame-win` (`RECUERDAME`), the user's Windows host. No dedicated Windows+WSL test device is exposed.
-- `Get-VM` on that host returned "permission required". DevHotel is running, but its published Windows Room support is Preview: guest execution and file ingress are planned, and agents cannot create Windows Rooms through its API. A Web Room cannot run this Windows Electron/WSL comparison.
-- PR #110 for #109 compares collectors at base `c06b065d5bd4127fdce32b115677494761782a64` and candidate `6ae91e328c1608c103a4f7fac5c6c264a43f507f`. Its fixture-mode app substitutes the real WSL provider. Neither result measures full-app on/off or the reported host slowdown.
-- Open issue preflight found #109 (the collector fix) and #111 (this full-app comparison); no other open WSLPad issue covers this full-app A/B scope.
-- No full WSLPad application or VM was started, and no Windows setting was changed for the experiment. No app-level CPU/RAM/latency values were obtained.
-- Verification mistake: after `npm ci`, I ran the repository-wide `npm test` on `RECUERDAME`. It passed 99 files / 1,642 tests, but includes `test/integration/terminal-real.test.ts` (which spawned a shell against live WSL) and live collector tests. I did not establish whether the distribution was running beforehand, so I cannot rule out an implicit distribution start. This test run is **not** an isolated A/B measurement. Do not rerun the live tests on this host for this Issue. `npm run build` passed.
+The previous job recorded running **`npm test`**, the repository's default test script, after `npm ci` at branch baseline `c06b065d5bd4127fdce32b115677494761782a64`. It was not a separate manual `wsl.exe` command. At that commit, `package.json` maps `test` to `vitest run`. Two tests in the default suite contain live calls:
 
-## Measurement method once an isolated device is available
+- `test/integration/terminal-real.test.ts`: top-level `wslAvailable()` calls `execFileSync('wsl.exe', ['--exec', '/bin/sh', '-c', 'true'])` even if its suite is then skipped. When available, the test creates a real console session for `Ubuntu-24.04`.
+- `test/unit/wsl/escape.test.ts`: the round-trip test calls the same `wsl.exe` probe, then calls `wsl.exe --exec /bin/sh -c <printf script>` for each fixture when available.
 
-Use a dedicated, worker-controlled Windows 11 x64 device with WSL2 **already running**, its own test distribution and data, a separate interactive guest session, and remote guest command and UI automation. It must have no user WSL distributions or user apps in the experiment. Confirm CPU/RAM capacity and verify the test session has no access to the user's desktop. Keep the test distribution running for the entire experiment; toggle **only WSLPad**, never WSL or Windows settings. Use two immutable app builds, one from each exact commit above, with separate test-only user-data directories and disabled auto-update in the prepared image. Record build hashes and the process tree for each run.
+Running this default suite on the user's host was an **execution judgment error**. The prior job recorded 99 test files / 1,642 tests passed and `npm run build` passed, but these are not isolated A/B results. Whether the live probes or shell **implicitly started a distribution is unknown**: the job did not establish its prior state. The live-test opt-in fix belongs to #112; this Issue makes no test-code change. This execution made **zero** live WSL calls, started **zero** distributions/VMs/apps, and did **not** rerun the full suite.
 
-Run repeated interleaved OFF/ON/OFF windows for each build, with the same WSL workload, window layout, sampling interval, warmup, and measurement duration. Record wall-clock and monotonic timestamps, trial order, background activity and any failed samples. Preserve raw per-sample host total CPU, WSLPad process-tree CPU, committed/available RAM, WSL VM memory, WSL request/response latency, and latency of an independently controlled companion window in the guest. Keep the WSL probe resident throughout so a latency sample cannot start a distribution. The companion window must be driven inside the isolated guest, not through the user's host foreground input. Report medians, tails, run-to-run spread, and ON-minus-neighboring-OFF deltas for base and candidate; include raw CSV/JSON and scripts with the final receipt.
+## Existing HOME resources and isolation decision
 
-If the slowdown recurs, compare host-wide, WSL, WSLPad main/renderer, and collector timing in the same time windows to identify the affected boundary. If the cause is outside the collector fix, propose a separate bug Issue; do not label collector-only improvements as full-app resolution. Independent Suah QA must repeat or inspect the exact-head experiment before completion. No QA exemption is requested.
+| Resource verified for this task | Evidence and suitability |
+| --- | --- |
+| `recuerdame-win` / `RECUERDAME`, user's Windows x64 host | RDCX `list_devices` exposed exactly this one online device (16 logical CPUs, 63,063 MB total RAM). It hosts user WSL and apps. Spare CPU/RAM capacity is not isolation; full-app on/off here can affect them. |
+| Issue workspace and canonical checkout on the same host | They separate Git files, not host CPU, RAM, WSL, or the interactive desktop. The canonical checkout is not touched. |
+| DevHotel Web/Android Rooms | Published DevHotel README says these providers are supported, but neither supplies an isolated Windows desktop with WSL2 for this experiment. |
+| DevHotel Windows Room | The published README marks it Preview, desktop setup only, not creatable through the agent API; guest execution and file ingress are planned. It is not an available automation target. |
+| WSLPad project configuration | LoopOffice `config/loopoffice.yaml` at main has `testEnvironment: null` and `devices: []` for WSLPad. No separate Windows+WSL test host is allocated there. |
 
-## Missing resource
+The previous `Get-VM` attempt returned “permission required.” It did **not** establish that a suitable VM already exists. This job did not repeat it. No identified existing physical device needs `physical_access`; such a claim would be unsupported. The verified HOME resources therefore **cannot perform a user-isolated full-app A/B**. Open WSLPad issues were checked: #109 owns the collector change, #112 owns live-test opt-in, and no other open issue duplicates #111's full-app comparison.
 
-A dedicated isolated Windows+WSL device with guest execution and UI observation is not available to this worker. Running the experiment on `RECUERDAME` would consume the user's CPU/RAM and risk affecting their WSL and apps; a full-app on/off there would violate this Issue's isolation condition. A suitable already-approved HOME device must be physically made available and exposed to the worker. Human host class: `device=dedicated isolated Windows 11 x64 WSL2 test host`, `action=physical_access`. No purchase or subscription is requested.
+## Measurement contract when an isolated Windows+WSL guest exists
+
+Compare base `c06b065d5bd4127fdce32b115677494761782a64` with candidate `6ae91e328c1608c103a4f7fac5c6c264a43f507f` from PR #110. Use an independent Windows x64 interactive guest with WSL2 and its own already-running test distribution; verify the guest cannot reach user distributions or desktop input. Keep its distribution and WSL settings fixed. Toggle only WSLPad, using immutable builds and separate test-only user-data directories. Record build hashes and the full process trees.
+
+For each build, interleave repeated OFF/ON/OFF windows at fixed warmup, sampling interval and duration under the same WSL workload and window layout. Preserve timestamps, trial order, background activity, failures and raw per-sample host CPU, WSLPad process CPU, host available/committed RAM, WSL VM memory, WSL request/response latency, and an independently driven companion-window response latency. Keep the WSL probe resident throughout to avoid starting a distribution as part of a latency sample. Report median/tails, trial spread and ON-minus-neighboring-OFF deltas. Distinguish host-wide, WSL, main/renderer and collector load if slowdown recurs; propose a separate bug if its cause is outside the collector. Suah must independently compare the exact head. No QA exemption is sought.
+
+## Actual result and unmet conditions
+
+| Required observation | Raw samples this job |
+| --- | ---: |
+| Full-app host CPU on/off | 0 |
+| Full-app host and WSL RAM on/off | 0 |
+| WSL response latency on/off | 0 |
+| Other-window responsiveness on/off | 0 |
+| Independent Suah QA comparisons | 0 |
+
+The owner's slowdown, its impact boundary and the full-app effect of #109 remain **unconfirmed**. Collector-only measurements in PR #110 are not evidence that the user symptom is resolved. The Issue's measurement and independent QA conditions are unmet; automated full-suite tests are deliberately not repeated on the user host.
+
+## Resource needed; proposed human spending decision
+
+An isolated Windows+WSL guest with independent interactive control and telemetry must be supplied. One concrete option is a **new, time-limited Microsoft Azure** `Standard_D4s_v3` Windows Server 2022 Desktop Experience VM in East US, Standard security type, with WSL2, a test-only distribution, guest command/UI access and a 128 GiB disk. Microsoft documents WSL on Server 2022 and nested virtualization for this VM family. The Azure Retail Prices API returned **USD 0.38/hour** for the Windows `D4s v3` compute meter in East US on 2026-10-07; 100 powered-on hours cost USD 38 for compute before disk/network/taxes. This is a proposed environment, not a provisioned or approved one. Server versus the user's Windows 11 is an external-validity limit and must be disclosed with results. See [Azure VM family](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dv3-series), [nested virtualization](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/enable-nested-virtualization), [WSL on Server](https://learn.microsoft.com/en-us/windows/wsl/install-on-server), and [retail price API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices).
+
+Human need: `spending`, with `amountUsd=75` (one-time maximum including compute, disk and network), `payee=Microsoft Azure`, `recurring=false`. No purchase, subscription, VM setup or account action was taken. If Luna identifies an already-approved, genuinely isolated Windows+WSL guest with remote UI/control, that resource can satisfy the need without spending; its identity and isolation must be verified first.
