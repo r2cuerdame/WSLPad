@@ -1,0 +1,59 @@
+name: Issue 115 isolated full-app A/B
+
+on:
+  push:
+    branches: [issue/115]
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install isolated test WSL2 distro
+        shell: pwsh
+        run: |
+          wsl.exe --install --distribution Ubuntu-24.04 --no-launch
+          if ($LASTEXITCODE -ne 0) { throw "Test distro install failed: $LASTEXITCODE" }
+          wsl.exe --distribution Ubuntu-24.04 --exec /bin/true
+          if ($LASTEXITCODE -ne 0) { throw "Test distro launch failed: $LASTEXITCODE" }
+      - name: Preserve measurement scripts for single-checkout baseline comparison
+        shell: pwsh
+        run: |
+          Copy-Item scripts/issue-115-full-app-ab.ps1 "$env:RUNNER_TEMP/issue-115-full-app-ab.ps1"
+          Copy-Item scripts/issue-115-companion.ps1 "$env:RUNNER_TEMP/issue-115-companion.ps1"
+      - name: Build and measure pre-collector base
+        shell: pwsh
+        run: |
+          git switch --detach c06b065d5bd4127fdce32b115677494761782a64
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw 'Baseline npm ci failed' }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Baseline build failed' }
+          & "$env:RUNNER_TEMP/issue-115-full-app-ab.ps1" -Label base -Commit (git rev-parse HEAD) -OutputDir "$env:RUNNER_TEMP/issue-115-raw" -CompanionScript "$env:RUNNER_TEMP/issue-115-companion.ps1"
+      - name: Build and measure exact branch head
+        shell: pwsh
+        run: |
+          git switch --detach $env:GITHUB_SHA
+          npm ci
+          if ($LASTEXITCODE -ne 0) { throw 'Head npm ci failed' }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Head build failed' }
+          & "$env:RUNNER_TEMP/issue-115-full-app-ab.ps1" -Label head -Commit (git rev-parse HEAD) -OutputDir "$env:RUNNER_TEMP/issue-115-raw" -CompanionScript "$env:RUNNER_TEMP/issue-115-companion.ps1"
+      - name: Upload complete raw A/B rows
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: issue-115-full-app-raw
+          path: ${{ runner.temp }}/issue-115-raw/*.csv
+          if-no-files-found: warn
+          retention-days: 14
