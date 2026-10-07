@@ -10,6 +10,7 @@ import RecoveryTab from './recovery/RecoveryTab'
 import ConsolePanel from './console/ConsolePanel'
 import SettingsDrawer from './settings/SettingsDrawer'
 import { Toasts } from './components/Toasts'
+import { startRenderGapRecording } from './render-gap'
 
 initRendererI18n(detectLocale([...navigator.languages]))
 
@@ -33,17 +34,9 @@ function Shell(): React.JSX.Element {
 
   useEffect(() => {
     if (!recordingPerformance) return
-    let frame = 0
-    let last = 0
-    const measure = (now: number): void => {
-      if (document.visibilityState === 'visible' && last > 0 && now - last >= 100) {
-        void window.wslpad.performance.record('render', now - last).catch(() => {})
-      }
-      last = document.visibilityState === 'visible' ? now : 0
-      frame = requestAnimationFrame(measure)
-    }
-    frame = requestAnimationFrame(measure)
-    return () => cancelAnimationFrame(frame)
+    return startRenderGapRecording((durationMs) => {
+      void window.wslpad.performance.record('render', durationMs).catch(() => {})
+    })
   }, [recordingPerformance])
 
   useEffect(() => {

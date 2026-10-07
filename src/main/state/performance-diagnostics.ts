@@ -23,6 +23,7 @@ export class PerformanceDiagnostics {
   private pingId = 0
   private pingAt = 0
   private pendingWrite: Promise<void> = Promise.resolve()
+  private exportReady: Promise<string | null> | null = null
   private buffer: string[] = []
   private subscribers = new Set<(state: PerformanceState) => void>()
 
@@ -49,6 +50,7 @@ export class PerformanceDiagnostics {
       this.path = join(this.directory, `slowdown-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}.jsonl`)
       await writeFile(this.path, '', { flag: 'wx' })
       this.intervals = []
+      this.exportReady = null
       this.enabled = true
       this.pingAt = 0
       this.expected = this.now() + 1000
@@ -121,11 +123,25 @@ export class PerformanceDiagnostics {
       .catch(() => { /* Diagnostics must not disrupt the app. */ })
   }
 
-  async readyToExport(): Promise<string | null> {
-    if (this.enabled) return null
-    this.flush()
-    await this.pendingWrite
-    return this.path
+  readyToExport(): Promise<string | null> {
+    if (this.enabled) return Promise.resolve(null)
+    if (!this.path) return Promise.resolve(null)
+    if (!this.exportReady) {
+      const path = this.path
+      const intervals = this.get().intervals
+      this.exportReady = (async () => {
+        this.flush()
+        await this.pendingWrite
+        await appendFile(path, JSON.stringify({
+          type: 'slowIntervalsSummary',
+          formatVersion: 1,
+          thresholdsMs: PERFORMANCE_THRESHOLDS_MS,
+          intervals
+        }) + '\n', 'utf8')
+        return path
+      })()
+    }
+    return this.exportReady
   }
 
   private emit(): void {
@@ -135,5 +151,7 @@ export class PerformanceDiagnostics {
 
   async dispose(): Promise<void> {
     await this.setEnabled(false)
+    this.flush()
+    await this.pendingWrite
   }
 }

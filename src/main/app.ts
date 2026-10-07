@@ -348,12 +348,12 @@ export class WslPadApp {
     app.quit()
   }
 
-  dispose(): void {
+  async dispose(): Promise<void> {
+    const diagnosticsFlush = this.performanceDiagnostics?.dispose()
     removeIpcHandlers()
     powerMonitor.off('suspend', this.onSuspend)
     powerMonitor.off('resume', this.onResume)
     this.polling?.stop()
-    void this.performanceDiagnostics?.dispose()
     this.terminals?.disposeAll()
     void this.mcp?.stop()
     this.backends?.windowsFs?.dispose()
@@ -361,5 +361,6 @@ export class WslPadApp {
     this.updater?.dispose()
     this.tray?.dispose()
     this.tray = null
+    await diagnosticsFlush
   }
 }

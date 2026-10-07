@@ -126,7 +126,25 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
       })
     }, exported)
     await detail.getByRole('button', { name: 'Export recording' }).click()
-    await expect.poll(() => readFileSync(exported, 'utf8')).toBe(afterStop)
+    await expect.poll(() => readFileSync(exported, 'utf8')).toContain('"type":"slowIntervalsSummary"')
+    const exportedText = readFileSync(exported, 'utf8')
+    expect(exportedText.startsWith(afterStop)).toBe(true)
+    const summary = JSON.parse(exportedText.trim().split('\n').at(-1)!)
+    expect(summary.intervals.some((interval: { kind: string }) => interval.kind === 'render')).toBe(true)
+  })
+
+  test('flushes the last slowdown sample before normal app quit', async () => {
+    const { page, app } = launched
+    await page.getByTestId('dashboard-nav-diagnostics').click()
+    await page.getByTestId('dashboard-detail').getByRole('button', { name: 'Start recording' }).click()
+    const path = await page.evaluate(async () => {
+      await window.wslpad.performance.record('render', 432)
+      return (await window.wslpad.performance.get()).path
+    })
+    const exited = new Promise<void>((resolve) => app.on('close', () => resolve()))
+    await app.evaluate(({ app: electronApp }) => { setImmediate(() => electronApp.quit()) })
+    await exited
+    expect(readFileSync(path!, 'utf8')).toContain('"kind":"render","value":432')
   })
 
   test('keeps enabled recording under the 2 ms per sample overhead budget through IPC', async () => {

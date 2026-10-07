@@ -54,6 +54,23 @@ describe('opt-in performance diagnostics', () => {
     expect(before.trim().split('\n')).toHaveLength(1)
   })
 
+  it('includes the slow-interval summary exactly once in the exported JSONL', async () => {
+    const { service } = await recorder()
+    await service.setEnabled(true)
+    service.record('wsl', 1200)
+    service.record('wsl', 1500)
+    service.record('cpu', 42)
+    await service.setEnabled(false)
+    const source = await service.readyToExport()
+    expect(await service.readyToExport()).toBe(source)
+    const lines = (await readFile(source!, 'utf8')).trim().split('\n').map((line) => JSON.parse(line))
+    expect(lines.filter((line) => line.type === 'slowIntervalsSummary')).toHaveLength(1)
+    expect(lines.at(-1)).toMatchObject({
+      type: 'slowIntervalsSummary',
+      intervals: [{ kind: 'wsl', count: 2, peakMs: 1500 }]
+    })
+  })
+
   it('uses local file output with no external transmission', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch')
     const httpRequest = vi.spyOn(http, 'request')
