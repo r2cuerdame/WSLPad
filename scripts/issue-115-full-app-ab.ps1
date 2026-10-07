@@ -2,7 +2,8 @@ param(
   [Parameter(Mandatory)][string]$Label,
   [Parameter(Mandatory)][string]$Commit,
   [Parameter(Mandatory)][string]$OutputDir,
-  [Parameter(Mandatory)][string]$CompanionScript
+  [Parameter(Mandatory)][string]$CompanionScript,
+  [Parameter(Mandatory)][string]$LoadScript
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,6 +20,8 @@ public static class WindowPing {
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 $raw = [System.Collections.Generic.List[object]]::new()
 $companion = Start-Process pwsh -ArgumentList @('-NoProfile', '-File', $CompanionScript) -PassThru
+$load = $null
+$loadCycles = 0
 $app = $null
 $priorAppCpu = 0.0
 $priorAt = $null
@@ -80,6 +83,18 @@ function Get-Sample {
 }
 
 try {
+  $wslLoadScript = (& wsl.exe --distribution Ubuntu-24.04 --exec wslpath -a $LoadScript).Trim()
+  if ($LASTEXITCODE -ne 0 -or !$wslLoadScript) { throw 'Cannot resolve isolated WSL load script' }
+  $load = Start-Process wsl.exe -ArgumentList @('--distribution', 'Ubuntu-24.04', '--exec', 'python3', $wslLoadScript) -PassThru
+  $loadReady = $false
+  for ($i = 0; $i -lt 60; $i++) {
+    $load.Refresh()
+    if ($load.HasExited) { throw "WSL load exited during startup: $($load.ExitCode)" }
+    & wsl.exe --distribution Ubuntu-24.04 --exec test -f /tmp/wslpad-issue-115-load/ready 2>$null
+    if ($LASTEXITCODE -eq 0) { $loadReady = $true; break }
+    Start-Sleep -Seconds 1
+  }
+  if (!$loadReady) { throw 'WSL load did not become ready' }
   for ($i = 0; $i -lt 30; $i++) {
     $companion.Refresh()
     if ($companion.HasExited) { throw 'Companion exited before measurement' }
@@ -114,9 +129,16 @@ try {
       }
     }
   }
+  $loadCycles = [int](& wsl.exe --distribution Ubuntu-24.04 --exec cat /tmp/wslpad-issue-115-load/progress).Trim()
+  if ($LASTEXITCODE -ne 0 -or $loadCycles -lt 5) { throw "WSL file I/O load stalled: $loadCycles cycles" }
 } finally {
   if ($app) { & taskkill.exe /PID $app.Id /T /F | Out-Null }
   if ($companion -and !$companion.HasExited) { Stop-Process -Id $companion.Id -Force }
+  if ($load) {
+    & wsl.exe --distribution Ubuntu-24.04 --exec touch /tmp/wslpad-issue-115-load/stop | Out-Null
+    $load.WaitForExit(10000) | Out-Null
+    if (!$load.HasExited) { Stop-Process -Id $load.Id -Force }
+  }
   if ($raw.Count -gt 0) {
     $raw | Export-Csv -Path (Join-Path $OutputDir "$Label-raw.csv") -NoTypeInformation
   }
@@ -126,4 +148,4 @@ if ($raw.Count -ne 72) { throw "Incomplete raw samples: $($raw.Count) of 72" }
 if (@($raw | Where-Object { !$_.companion_ok -or $_.wsl_exit_code -ne 0 }).Count -gt 0) {
   throw 'Companion or live WSL probe failed; inspect raw CSV'
 }
-Write-Host "Recorded $($raw.Count) full-app raw samples for $Label at $Commit"
+Write-Host "Recorded $($raw.Count) full-app raw samples for $Label at $Commit; WSL load file cycles: $loadCycles"

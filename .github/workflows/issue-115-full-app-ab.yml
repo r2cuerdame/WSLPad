@@ -10,7 +10,7 @@ permissions:
 jobs:
   measure:
     runs-on: windows-2025
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -31,6 +31,7 @@ jobs:
         run: |
           Copy-Item scripts/issue-115-full-app-ab.ps1 "$env:RUNNER_TEMP/issue-115-full-app-ab.ps1"
           Copy-Item scripts/issue-115-companion.ps1 "$env:RUNNER_TEMP/issue-115-companion.ps1"
+          Copy-Item scripts/issue-115-wsl-load.py "$env:RUNNER_TEMP/issue-115-wsl-load.py"
       - name: Build and measure pre-collector base
         shell: pwsh
         run: |
@@ -39,7 +40,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Baseline npm ci failed' }
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Baseline build failed' }
-          & "$env:RUNNER_TEMP/issue-115-full-app-ab.ps1" -Label base -Commit (git rev-parse HEAD) -OutputDir "$env:RUNNER_TEMP/issue-115-raw" -CompanionScript "$env:RUNNER_TEMP/issue-115-companion.ps1"
+          & "$env:RUNNER_TEMP/issue-115-full-app-ab.ps1" -Label base -Commit (git rev-parse HEAD) -OutputDir "$env:RUNNER_TEMP/issue-115-raw" -CompanionScript "$env:RUNNER_TEMP/issue-115-companion.ps1" -LoadScript "$env:RUNNER_TEMP/issue-115-wsl-load.py"
       - name: Build and measure exact branch head
         shell: pwsh
         run: |
@@ -48,7 +49,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Head npm ci failed' }
           npm run build
           if ($LASTEXITCODE -ne 0) { throw 'Head build failed' }
-          & "$env:RUNNER_TEMP/issue-115-full-app-ab.ps1" -Label head -Commit (git rev-parse HEAD) -OutputDir "$env:RUNNER_TEMP/issue-115-raw" -CompanionScript "$env:RUNNER_TEMP/issue-115-companion.ps1"
+          & "$env:RUNNER_TEMP/issue-115-full-app-ab.ps1" -Label head -Commit (git rev-parse HEAD) -OutputDir "$env:RUNNER_TEMP/issue-115-raw" -CompanionScript "$env:RUNNER_TEMP/issue-115-companion.ps1" -LoadScript "$env:RUNNER_TEMP/issue-115-wsl-load.py"
       - name: Upload complete raw A/B rows
         if: always()
         uses: actions/upload-artifact@v7
