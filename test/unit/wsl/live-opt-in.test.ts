@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { stripVTControlCharacters } from 'node:util'
 import { describe, expect, it } from 'vitest'
 
 describe('default test suite host safety', () => {
@@ -31,12 +32,13 @@ describe('default test suite host safety', () => {
         }
       )
       const attempts = existsSync(log) ? readFileSync(log, 'utf8') : ''
+      const output = stripVTControlCharacters(result.stdout)
       expect(attempts, `WSL spawn attempts:\n${attempts}\n${result.stdout}\n${result.stderr}`).toBe('')
       expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0)
-      expect(result.stdout).toContain('detectors.test.ts')
-      expect(result.stdout).toMatch(/Tests\s+[1-9]\d* passed/i)
-      expect(result.stdout).toMatch(/Tests\s+.*skipped/i)
-      expect(result.stdout).toContain('skipped: set WSLPAD_LIVE_WSL_TESTS=1')
+      expect(output).toContain('detectors.test.ts')
+      expect(output).toMatch(/Tests\s+[1-9]\d* passed/i)
+      expect(output).toMatch(/Tests\s+.*skipped/i)
+      expect(output).toContain('skipped: set WSLPAD_LIVE_WSL_TESTS=1')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
