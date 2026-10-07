@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { PortInfo, WindowsPortInfo } from '@shared/types'
 import {
   correlatePorts,
@@ -142,12 +142,32 @@ describe('parseTasklistCsv', () => {
 })
 
 describe('createWindowsPortCollector', () => {
+  it('bounds idle host-wide netstat scans while retaining a fresh listener view', async () => {
+    vi.useFakeTimers()
+    let netstat = NETSTAT_OUTPUT
+    const { run, calls } = makeRunner(() => netstat, () => TASKLIST_OUTPUT)
+    const collector = createWindowsPortCollector(run)
+
+    try {
+      for (let tick = 0; tick <= 20; tick++) {
+        vi.setSystemTime(tick * 3000)
+        if (tick === 5) netstat = '  TCP    0.0.0.0:9000   0.0.0.0:0   LISTENING   4321'
+        const ports = await collector.collect()
+        if (tick === 5) expect(ports.map((p) => p.port)).toEqual([9000])
+      }
+
+      expect(calls.filter((call) => call === 'netstat')).toHaveLength(5)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('resolves process names with a single cached tasklist call', async () => {
     const { run, calls } = makeRunner(
       () => NETSTAT_OUTPUT,
       () => TASKLIST_OUTPUT
     )
-    const collector = createWindowsPortCollector(run)
+    const collector = createWindowsPortCollector(run, { ttlMs: 0 })
 
     const first = await collector.collect()
     expect(first.map((p) => p.processName)).toEqual([
@@ -169,7 +189,7 @@ describe('createWindowsPortCollector', () => {
       () => netstat,
       () => tasklist
     )
-    const collector = createWindowsPortCollector(run)
+    const collector = createWindowsPortCollector(run, { ttlMs: 0 })
     await collector.collect()
 
     netstat = '  TCP    0.0.0.0:9000   0.0.0.0:0   LISTENING   4321'

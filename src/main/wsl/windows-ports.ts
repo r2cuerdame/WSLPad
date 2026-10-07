@@ -213,9 +213,21 @@ export interface WindowsPortCollector {
   collect(): Promise<WindowsPortInfo[]>
 }
 
+export interface WindowsPortCollectorOptions {
+  /** A host-wide socket scan is expensive; 15 seconds matches the medium tier. */
+  ttlMs?: number
+  now?: () => number
+}
+
 export function createWindowsPortCollector(
-  run: HostCommandRunner = runHostCommand
+  run: HostCommandRunner = runHostCommand,
+  options: WindowsPortCollectorOptions = {}
 ): WindowsPortCollector {
+  const ttlMs = options.ttlMs ?? 15000
+  const now = options.now ?? Date.now
+  let cached: WindowsPortInfo[] | null = null
+  let cachedAt = 0
+  let inFlight: Promise<WindowsPortInfo[]> | null = null
   // pid → image name for the life of the collector; an unknown pid triggers
   // exactly one refresh, since Windows reuses pids over time.
   const nameByPid = new Map<number, string>()
@@ -238,16 +250,29 @@ export function createWindowsPortCollector(
 
   return {
     async collect(): Promise<WindowsPortInfo[]> {
-      const ports = parseNetstat(await run('netstat', ['-ano'], NETSTAT_TIMEOUT_MS))
-      const pids = ports.map((p) => p.pid).filter((pid): pid is number => pid !== null)
-      if (pids.some((pid) => !nameByPid.has(pid) && !unnamedPids.has(pid))) {
-        await refreshNames()
-        for (const pid of pids) if (!nameByPid.has(pid)) unnamedPids.add(pid)
+      if (cached !== null && now() - cachedAt < ttlMs) return cached
+      if (inFlight !== null) return inFlight
+      const pending = (async (): Promise<WindowsPortInfo[]> => {
+        const ports = parseNetstat(await run('netstat', ['-ano'], NETSTAT_TIMEOUT_MS))
+        const pids = ports.map((p) => p.pid).filter((pid): pid is number => pid !== null)
+        if (pids.some((pid) => !nameByPid.has(pid) && !unnamedPids.has(pid))) {
+          await refreshNames()
+          for (const pid of pids) if (!nameByPid.has(pid)) unnamedPids.add(pid)
+        }
+        return ports.map((p) => ({
+          ...p,
+          processName: p.pid === null ? null : (nameByPid.get(p.pid) ?? null)
+        }))
+      })()
+      inFlight = pending
+      try {
+        const ports = await pending
+        cached = ports
+        cachedAt = now()
+        return ports
+      } finally {
+        inFlight = null
       }
-      return ports.map((p) => ({
-        ...p,
-        processName: p.pid === null ? null : (nameByPid.get(p.pid) ?? null)
-      }))
     }
   }
 }
