@@ -1026,6 +1026,15 @@
     }
   },
   "diagnostics": {
+    "performance": {
+    "title": "Registro local de lentidão",
+    "description": "Desativado por padrão. Registra tempos e CPU/memória do app apenas em arquivo local. Nenhum dado é enviado.",
+    "start": "Iniciar registro",
+    "stop": "Parar registro",
+    "export": "Exportar registro",
+    "slow": "Intervalos lentos",
+    "empty": "Ainda não há intervalos acima dos limites."
+    },
     "title": "Diagnóstico",
     "intro": "Esta linha do tempo da sessão registra mudanças importantes do WSL. As verificações de rede só são executadas quando solicitadas e nunca fazem parte da sondagem em segundo plano.",
     "port": "Porta localhost do Windows",

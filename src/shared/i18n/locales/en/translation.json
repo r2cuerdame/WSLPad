@@ -1026,6 +1026,15 @@
     }
   },
   "diagnostics": {
+    "performance": {
+    "title": "Local slowdown recording",
+    "description": "Off by default. Records timing and app CPU/memory in a local file only. No data is sent.",
+    "start": "Start recording",
+    "stop": "Stop recording",
+    "export": "Export recording",
+    "slow": "Slow intervals",
+    "empty": "No intervals over the thresholds yet."
+    },
     "title": "Diagnostics",
     "intro": "This session-only timeline records meaningful WSL changes. Recovery checks run only when you ask and never execute a recovery command.",
     "port": "Windows localhost port",

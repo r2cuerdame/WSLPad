@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { detectLocale } from '@shared/i18n'
 import type { LocaleCode } from '@shared/types'
 import { AppStoreProvider, useApp } from './store'
@@ -20,6 +20,31 @@ function resolveTheme(theme: string): 'light' | 'dark' {
 
 function Shell(): React.JSX.Element {
   const { settings, tab } = useApp()
+  const [recordingPerformance, setRecordingPerformance] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    void window.wslpad.performance.get().then((state) => {
+      if (mounted) setRecordingPerformance(state.enabled)
+    })
+    const off = window.wslpad.performance.onChange((state) => setRecordingPerformance(state.enabled))
+    return () => { mounted = false; off() }
+  }, [])
+
+  useEffect(() => {
+    if (!recordingPerformance) return
+    let frame = 0
+    let last = 0
+    const measure = (now: number): void => {
+      if (document.visibilityState === 'visible' && last > 0 && now - last >= 100) {
+        void window.wslpad.performance.record('render', now - last).catch(() => {})
+      }
+      last = document.visibilityState === 'visible' ? now : 0
+      frame = requestAnimationFrame(measure)
+    }
+    frame = requestAnimationFrame(measure)
+    return () => cancelAnimationFrame(frame)
+  }, [recordingPerformance])
 
   useEffect(() => {
     if (!settings) return

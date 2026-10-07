@@ -10,6 +10,7 @@ import type {
   McpRegisterResult,
   McpStatus,
   DiagnosticsState,
+  PerformanceState,
   NetworkCheckResult,
   PackageDiscoverResult,
   PackageUpdateCenterResult,
@@ -49,6 +50,11 @@ export const IpcChannels = {
   diagnosticsNetworkCheck: 'wslpad:diagnostics:network-check',
   diagnosticsRecoveryCheck: 'wslpad:diagnostics:recovery-check',
   diagnosticsExport: 'wslpad:diagnostics:export',
+  performanceGet: 'wslpad:performance:get',
+  performanceSet: 'wslpad:performance:set',
+  performanceRecord: 'wslpad:performance:record',
+  performancePong: 'wslpad:performance:pong',
+  performanceExport: 'wslpad:performance:export',
   packageDiscover: 'wslpad:packages:discover',
   packageUpdates: 'wslpad:packages:updates',
   doctorRun: 'wslpad:doctor:run',
@@ -138,6 +144,8 @@ export const IpcChannels = {
   evUpdate: 'wslpad:ev:update',
   evMcp: 'wslpad:ev:mcp',
   evDiagnostics: 'wslpad:ev:diagnostics',
+  evPerformance: 'wslpad:ev:performance',
+  evPerformancePing: 'wslpad:ev:performance-ping',
   evNavigateSettings: 'wslpad:ev:navigate-settings'
 } as const
 
@@ -185,6 +193,14 @@ export interface WslPadApi {
     /** Privacy-previewed JSON bundle containing the masked snapshot and session diagnostics. */
     exportBundle(): Promise<string | null>
     onChange(cb: (state: DiagnosticsState) => void): () => void
+  }
+
+  performance: {
+    get(): Promise<PerformanceState>
+    setEnabled(enabled: boolean): Promise<PerformanceState>
+    record(kind: 'render', durationMs: number): Promise<void>
+    exportLog(): Promise<string | null>
+    onChange(cb: (state: PerformanceState) => void): () => void
   }
 
   /** Explicit, read-only provider queries. Commands returned here are drafts only. */

@@ -1026,6 +1026,15 @@
     }
   },
   "diagnostics": {
+    "performance": {
+    "title": "Lokale Aufzeichnung von Verlangsamungen",
+    "description": "Standardmäßig aus. Zeitwerte und CPU/Speicher der App werden nur lokal gespeichert. Es werden keine Daten gesendet.",
+    "start": "Aufzeichnung starten",
+    "stop": "Aufzeichnung stoppen",
+    "export": "Aufzeichnung exportieren",
+    "slow": "Langsame Intervalle",
+    "empty": "Noch keine Intervalle über den Grenzwerten."
+    },
     "title": "Diagnose",
     "intro": "Diese sitzungsbezogene Zeitleiste zeichnet wichtige WSL-Änderungen auf. Netzwerkprüfungen laufen nur auf Anforderung und nie als Teil der Hintergrundabfrage.",
     "port": "Windows-Localhost-Port",

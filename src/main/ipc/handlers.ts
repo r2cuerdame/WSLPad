@@ -1,5 +1,5 @@
 import { BrowserWindow, app, clipboard, dialog, ipcMain, shell } from 'electron'
-import { writeFile } from 'fs/promises'
+import { copyFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { release } from 'os'
 import { z } from 'zod'
@@ -28,6 +28,7 @@ import { buildMcpConfigJson, registerClient, testMcpConnection } from '../mcp/re
 import type { AppUpdater } from '../updater'
 import { resourcePath } from '../resources'
 import type { DiagnosticsService } from '../state/diagnostics'
+import type { PerformanceDiagnostics } from '../state/performance-diagnostics'
 import { runDoctor } from '@shared/doctor'
 import { diagnosticBundleToJson } from '../state/diagnostic-bundle'
 import type { PackageDiscoveryService } from '../tools/service'
@@ -43,6 +44,7 @@ export interface IpcDeps {
   mcp: McpServerHost
   updater: AppUpdater
   diagnostics: DiagnosticsService
+  performanceDiagnostics: PerformanceDiagnostics
   packageDiscovery: PackageDiscoveryService
   usb: UsbService
   runner: DistroRunner | null
@@ -234,6 +236,34 @@ export function registerIpcHandlers(deps: IpcDeps): void {
       osRelease: release()
     })
     await writeFile(result.filePath, json, 'utf8')
+    return result.filePath
+  })
+
+  handle(IpcChannels.performanceGet, () => deps.performanceDiagnostics.get())
+  handle(IpcChannels.performanceSet, (enabled) =>
+    deps.performanceDiagnostics.setEnabled(boolSchema.parse(enabled))
+  )
+  handle(IpcChannels.performanceRecord, (kind, durationMs) => {
+    if (kind !== 'render') throw new Error('Invalid performance metric')
+    if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs < 0 || durationMs > 60000)
+      throw new Error('Invalid duration')
+    deps.performanceDiagnostics.record('render', durationMs)
+  })
+  handle(IpcChannels.performancePong, (id) => {
+    if (typeof id !== 'number' || !Number.isInteger(id)) throw new Error('Invalid ping')
+    deps.performanceDiagnostics.replyToPing(id)
+  })
+  handle(IpcChannels.performanceExport, async () => {
+    const source = await deps.performanceDiagnostics.readyToExport()
+    if (!source) return null
+    const win = deps.getWindow()
+    const parent = win ?? new BrowserWindow({ show: false })
+    const result = await dialog.showSaveDialog(parent, {
+      defaultPath: join(app.getPath('documents'), 'wslpad-slowdown.jsonl'),
+      filters: [{ name: 'JSON Lines', extensions: ['jsonl'] }]
+    })
+    if (result.canceled || !result.filePath) return null
+    await copyFile(source, result.filePath)
     return result.filePath
   })
 

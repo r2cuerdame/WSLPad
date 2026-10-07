@@ -1026,6 +1026,15 @@
     }
   },
   "diagnostics": {
+    "performance": {
+    "title": "Enregistrement local des ralentissements",
+    "description": "Désactivé par défaut. Les délais et le CPU/la mémoire de l’application restent dans un fichier local. Aucune donnée n’est envoyée.",
+    "start": "Démarrer l’enregistrement",
+    "stop": "Arrêter l’enregistrement",
+    "export": "Exporter l’enregistrement",
+    "slow": "Périodes lentes",
+    "empty": "Aucune période au-dessus des seuils."
+    },
     "title": "Diagnostic",
     "intro": "Cette chronologie de session enregistre les changements WSL importants. Les tests réseau ne s’exécutent qu’à votre demande et ne font jamais partie de la surveillance en arrière-plan.",
     "port": "Port localhost Windows",
