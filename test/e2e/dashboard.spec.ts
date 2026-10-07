@@ -3,7 +3,7 @@
 // for this file alone keeps them out of everything else.
 /// <reference lib="dom" />
 import { expect, test } from '@playwright/test'
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { closeApp, consoleText, launchWslPad, type LaunchedApp } from './_helpers'
 
@@ -126,6 +126,7 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
       })
     }, exported)
     await detail.getByRole('button', { name: 'Export recording' }).click()
+    await expect.poll(() => existsSync(exported)).toBe(true)
     await expect.poll(() => readFileSync(exported, 'utf8')).toContain('"type":"slowIntervalsSummary"')
     const exportedText = readFileSync(exported, 'utf8')
     expect(exportedText.startsWith(afterStop)).toBe(true)
