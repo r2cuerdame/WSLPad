@@ -312,11 +312,13 @@ function makeApi(snapshot: WslPadSnapshot) {
       onChange: vi.fn(() => () => undefined)
     },
     performance: {
-      get: vi.fn(async () => ({ enabled: false, path: null, intervals: [] })),
+      get: vi.fn(async () => ({ enabled: false, path: null as string | null, intervals: [], writeError: false, unsavedSamples: 0 })),
       setEnabled: vi.fn(async (enabled: boolean) => ({
         enabled,
         path: enabled ? 'C:\\local\\slowdown.jsonl' : 'C:\\local\\slowdown.jsonl',
-        intervals: []
+        intervals: [],
+        writeError: false,
+        unsavedSamples: 0
       })),
       record: vi.fn(async () => undefined),
       exportLog: vi.fn(async () => null),
@@ -591,6 +593,7 @@ describe('DashboardTab master–detail', () => {
   it('lets the user start and stop local slowdown recording', async () => {
     await renderDashboard()
     fireEvent.click(navItem('diagnostics'))
+    await flush()
     const detail = screen.getByTestId('dashboard-detail')
     expect(api.performance.setEnabled).not.toHaveBeenCalled()
     fireEvent.click(within(detail).getByRole('button', { name: 'Start recording' }))
@@ -599,6 +602,23 @@ describe('DashboardTab master–detail', () => {
     fireEvent.click(within(detail).getByRole('button', { name: 'Stop recording' }))
     await flush()
     expect(api.performance.setEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it('warns about unsaved samples and offers an export retry after a write failure', async () => {
+    api.performance.get.mockResolvedValueOnce({
+      enabled: false,
+      path: 'recording.jsonl',
+      intervals: [],
+      writeError: true,
+      unsavedSamples: 2
+    })
+    await renderDashboard()
+    fireEvent.click(navItem('diagnostics'))
+    await flush()
+    const detail = screen.getByTestId('dashboard-detail')
+    expect(within(detail).getByRole('alert').textContent).toContain('2 samples are still in memory')
+    expect((within(detail).getByRole('button', { name: 'Start recording' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((within(detail).getByRole('button', { name: 'Export recording' }) as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('shows the least-destructive recovery step and only prepares its command', async () => {

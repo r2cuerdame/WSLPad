@@ -1032,6 +1032,7 @@
     "start": "Iniciar registro",
     "stop": "Parar registro",
     "export": "Exportar registro",
+    "writeError": "O registro foi interrompido porque a gravação do arquivo local falhou. {{count}} amostras ainda estão na memória. Mantenha o WSLPad aberto e escolha Exportar registro para tentar novamente.",
     "slow": "Intervalos lentos",
     "empty": "Ainda não há intervalos acima dos limites."
     },

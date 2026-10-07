@@ -1032,6 +1032,7 @@
     "start": "Aufzeichnung starten",
     "stop": "Aufzeichnung stoppen",
     "export": "Aufzeichnung exportieren",
+    "writeError": "Die Aufzeichnung wurde gestoppt, weil die lokale Datei nicht geschrieben werden konnte. {{count}} Messwerte sind noch im Speicher. Lassen Sie WSLPad geöffnet und wählen Sie Aufzeichnung exportieren, um es erneut zu versuchen.",
     "slow": "Langsame Intervalle",
     "empty": "Noch keine Intervalle über den Grenzwerten."
     },

@@ -1032,6 +1032,7 @@
     "start": "Démarrer l’enregistrement",
     "stop": "Arrêter l’enregistrement",
     "export": "Exporter l’enregistrement",
+    "writeError": "L’enregistrement s’est arrêté : l’écriture du fichier local a échoué. {{count}} échantillons restent en mémoire. Gardez WSLPad ouvert et choisissez Exporter l’enregistrement pour réessayer.",
     "slow": "Périodes lentes",
     "empty": "Aucune période au-dessus des seuils."
     },

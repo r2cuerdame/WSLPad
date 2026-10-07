@@ -1032,6 +1032,7 @@
     "start": "Iniciar registro",
     "stop": "Detener registro",
     "export": "Exportar registro",
+    "writeError": "Se detuvo el registro porque falló la escritura del archivo local. Quedan {{count}} muestras en memoria. Mantén WSLPad abierto y elige Exportar registro para reintentar.",
     "slow": "Intervalos lentos",
     "empty": "Aún no hay intervalos sobre los umbrales."
     },

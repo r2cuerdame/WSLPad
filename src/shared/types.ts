@@ -25,6 +25,8 @@ export interface PerformanceState {
   enabled: boolean
   path: string | null
   intervals: SlowInterval[]
+  writeError: boolean
+  unsavedSamples: number
 }
 
 export interface DistroSummary {

@@ -25,6 +25,7 @@ export class PerformanceDiagnostics {
   private pendingWrite: Promise<void> = Promise.resolve()
   private exportReady: Promise<string | null> | null = null
   private buffer: string[] = []
+  private writeError = false
   private subscribers = new Set<(state: PerformanceState) => void>()
 
   constructor(
@@ -35,7 +36,13 @@ export class PerformanceDiagnostics {
   ) {}
 
   get(): PerformanceState {
-    return { enabled: this.enabled, path: this.path, intervals: [...this.intervals] }
+    return {
+      enabled: this.enabled,
+      path: this.path,
+      intervals: [...this.intervals],
+      writeError: this.writeError,
+      unsavedSamples: this.buffer.length
+    }
   }
 
   subscribe(cb: (state: PerformanceState) => void): () => void {
@@ -46,6 +53,7 @@ export class PerformanceDiagnostics {
   async setEnabled(enabled: boolean): Promise<PerformanceState> {
     if (enabled === this.enabled) return this.get()
     if (enabled) {
+      if (this.writeError) throw new Error('Export the unsaved recording before starting another')
       await mkdir(this.directory, { recursive: true })
       this.path = join(this.directory, `slowdown-${new Date().toISOString().replace(/[:.]/g, '-')}-${randomUUID().slice(0, 8)}.jsonl`)
       await writeFile(this.path, '', { flag: 'wx' })
@@ -59,8 +67,7 @@ export class PerformanceDiagnostics {
       this.enabled = false
       if (this.timer) clearInterval(this.timer)
       this.timer = null
-      this.flush()
-      await this.pendingWrite
+      await this.flush()
     }
     this.emit()
     return this.get()
@@ -113,14 +120,30 @@ export class PerformanceDiagnostics {
     this.flush()
   }
 
-  private flush(): void {
-    if (!this.path || this.buffer.length === 0) return
-    const lines = this.buffer.join('')
+  private flush(): Promise<void> {
+    if (!this.path || this.buffer.length === 0) return this.pendingWrite
     const target = this.path
-    this.buffer = []
     this.pendingWrite = this.pendingWrite
-      .then(() => appendFile(target, lines, 'utf8'))
-      .catch(() => { /* Diagnostics must not disrupt the app. */ })
+      .then(async () => {
+        if (this.buffer.length === 0) return
+        const count = this.buffer.length
+        try {
+          await appendFile(target, this.buffer.slice(0, count).join(''), 'utf8')
+          this.buffer.splice(0, count)
+          if (this.writeError) {
+            this.writeError = false
+            this.emit()
+          }
+        } catch {
+          // Keep the batch for export retry, and stop sampling before memory grows.
+          this.writeError = true
+          this.enabled = false
+          if (this.timer) clearInterval(this.timer)
+          this.timer = null
+          this.emit()
+        }
+      })
+    return this.pendingWrite
   }
 
   readyToExport(): Promise<string | null> {
@@ -130,16 +153,29 @@ export class PerformanceDiagnostics {
       const path = this.path
       const intervals = this.get().intervals
       this.exportReady = (async () => {
-        this.flush()
-        await this.pendingWrite
-        await appendFile(path, JSON.stringify({
-          type: 'slowIntervalsSummary',
-          formatVersion: 1,
-          thresholdsMs: PERFORMANCE_THRESHOLDS_MS,
-          intervals
-        }) + '\n', 'utf8')
-        return path
-      })()
+        await this.flush()
+        if (this.buffer.length > 0) throw new Error('Recording has unsaved samples')
+        try {
+          await appendFile(path, JSON.stringify({
+            type: 'slowIntervalsSummary',
+            formatVersion: 1,
+            thresholdsMs: PERFORMANCE_THRESHOLDS_MS,
+            intervals
+          }) + '\n', 'utf8')
+          if (this.writeError) {
+            this.writeError = false
+            this.emit()
+          }
+          return path
+        } catch (error) {
+          this.writeError = true
+          this.emit()
+          throw error
+        }
+      })().catch((error: unknown) => {
+        this.exportReady = null
+        throw error
+      })
     }
     return this.exportReady
   }
@@ -151,7 +187,6 @@ export class PerformanceDiagnostics {
 
   async dispose(): Promise<void> {
     await this.setEnabled(false)
-    this.flush()
-    await this.pendingWrite
+    await this.flush()
   }
 }

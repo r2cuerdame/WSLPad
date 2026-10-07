@@ -20,7 +20,9 @@ const EMPTY: DiagnosticsState = {
   lastRecoveryCheck: null
 }
 
-const EMPTY_PERFORMANCE: PerformanceState = { enabled: false, path: null, intervals: [] }
+const EMPTY_PERFORMANCE: PerformanceState = {
+  enabled: false, path: null, intervals: [], writeError: false, unsavedSamples: 0
+}
 
 const PROBE_KEYS: Record<NetworkProbeResult['id'], string> = {
   distro: 'diagnostics.probe.distro',
@@ -211,7 +213,7 @@ export default function DiagnosticsCard(): React.JSX.Element {
           {t('diagnostics.performance.description', { defaultValue: 'Off by default. Records timing and app CPU/memory in a local file only. No data is sent.' })}
         </p>
         <div className="diagnostics-actions">
-          <button type="button" className="btn" disabled={performanceBusy} onClick={() => void togglePerformance()}>
+          <button type="button" className="btn" disabled={performanceBusy || performanceState.writeError} onClick={() => void togglePerformance()}>
             {performanceState.enabled
               ? t('diagnostics.performance.stop', { defaultValue: 'Stop recording' })
               : t('diagnostics.performance.start', { defaultValue: 'Start recording' })}
@@ -220,6 +222,14 @@ export default function DiagnosticsCard(): React.JSX.Element {
             {t('diagnostics.performance.export', { defaultValue: 'Export recording' })}
           </button>
         </div>
+        {performanceState.writeError && (
+          <p role="alert" className="diag-validation">
+            {t('diagnostics.performance.writeError', {
+              count: performanceState.unsavedSamples,
+              defaultValue: 'Recording stopped: local file write failed. {{count}} samples are still in memory. Keep WSLPad open and choose Export recording to retry.'
+            })}
+          </p>
+        )}
         {performanceState.path && <p className="dim mono diag-performance-path">{performanceState.path}</p>}
         <h4 className="diag-heading">{t('diagnostics.performance.slow', { defaultValue: 'Slow intervals' })}</h4>
         {performanceState.intervals.length === 0 ? (

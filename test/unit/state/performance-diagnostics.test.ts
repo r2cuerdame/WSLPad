@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm } from 'fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { performance } from 'perf_hooks'
 import http from 'http'
@@ -22,7 +22,7 @@ afterEach(async () => {
 describe('opt-in performance diagnostics', () => {
   it('starts and stops recording, then summarizes only intervals above the thresholds', async () => {
     const { service } = await recorder()
-    expect(service.get()).toEqual({ enabled: false, path: null, intervals: [] })
+    expect(service.get()).toEqual({ enabled: false, path: null, intervals: [], writeError: false, unsavedSamples: 0 })
     const on = await service.setEnabled(true)
     expect(on.enabled).toBe(true)
     service.record('wsl', 1200)
@@ -69,6 +69,45 @@ describe('opt-in performance diagnostics', () => {
       type: 'slowIntervalsSummary',
       intervals: [{ kind: 'wsl', count: 2, peakMs: 1500 }]
     })
+  })
+
+  it('keeps failed writes visible and retries every unsaved sample before export', async () => {
+    const { service } = await recorder()
+    const on = await service.setEnabled(true)
+    await rm(on.path!)
+    await mkdir(on.path!)
+    service.record('wsl', 1200)
+    service.record('cpu', 42)
+    const stopped = await service.setEnabled(false)
+    expect(stopped.writeError).toBe(true)
+    expect(stopped.unsavedSamples).toBe(2)
+    service.record('ui', 500)
+    expect(service.get().unsavedSamples).toBe(2)
+    await expect(service.setEnabled(true)).rejects.toThrow('Export the unsaved recording')
+    await expect(service.readyToExport()).rejects.toThrow()
+    expect(service.get().unsavedSamples).toBe(2)
+    await rm(on.path!, { recursive: true })
+    await writeFile(on.path!, '')
+    expect(await service.readyToExport()).toBe(on.path)
+    const lines = (await readFile(on.path!, 'utf8')).trim().split('\n').map((line) => JSON.parse(line))
+    expect(lines.map((line) => line.kind ?? line.type)).toEqual(['wsl', 'cpu', 'slowIntervalsSummary'])
+    expect(service.get()).toMatchObject({ writeError: false, unsavedSamples: 0 })
+  })
+
+  it('stops active sampling when a timer flush cannot write the local file', async () => {
+    vi.useFakeTimers()
+    const { service } = await recorder()
+    const on = await service.setEnabled(true)
+    await rm(on.path!)
+    await mkdir(on.path!)
+    service.record('wsl', 1200)
+    await vi.advanceTimersByTimeAsync(1000)
+    vi.useRealTimers()
+    await vi.waitFor(() => expect(service.get()).toMatchObject({ enabled: false, writeError: true }))
+    expect(service.get().unsavedSamples).toBeGreaterThan(0)
+    const count = service.get().unsavedSamples
+    service.record('wsl', 1600)
+    expect(service.get().unsavedSamples).toBe(count)
   })
 
   it('uses local file output with no external transmission', async () => {

@@ -1032,6 +1032,7 @@
     "start": "Start recording",
     "stop": "Stop recording",
     "export": "Export recording",
+    "writeError": "Recording stopped: local file write failed. {{count}} samples are still in memory. Keep WSLPad open and choose Export recording to retry.",
     "slow": "Slow intervals",
     "empty": "No intervals over the thresholds yet."
     },
