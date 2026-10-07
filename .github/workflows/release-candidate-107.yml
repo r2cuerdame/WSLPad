@@ -7,7 +7,8 @@ on:
       - .github/workflows/release-candidate-107.yml
 
 permissions:
-  contents: read
+  # Viewing an unpublished draft requires repository write access.
+  contents: write
 
 jobs:
   candidate-lifecycle:
@@ -93,8 +94,6 @@ jobs:
           $releaseResponse = Invoke-WebRequest -Uri "https://api.github.com/repos/r2cuerdame/WSLPad/releases/$($manifest.draftRelease.id)" -Headers $headers -SkipHttpErrorCheck
           Write-Host "release=$($manifest.draftRelease.id) HTTP=$([int]$releaseResponse.StatusCode)"
           if ([int]$releaseResponse.StatusCode -ne 200) { throw "Release GET HTTP $([int]$releaseResponse.StatusCode)" }
-          # This dispatch records only the independent asset preflight and release GET.
-          return
           $release = $releaseResponse.Content | ConvertFrom-Json
           if (-not $release.draft -or $release.tag_name -ne 'v1.2.0') { throw 'Release is not the v1.2.0 draft' }
           New-Item -ItemType Directory -Path candidate | Out-Null
@@ -126,7 +125,6 @@ jobs:
           Write-Host "latest.yml sha512=$sha512; candidate version=1.2.0; signing=$($manifest.signing.candidateStatus)"
 
       - name: Run isolated 1.1.2 to original 1.2.0 lifecycle
-        if: ${{ false }} # Preflight-only dispatch; lifecycle needs a separate decision.
         shell: pwsh
         run: |
           Write-Host "run=$env:GITHUB_RUN_ID job=$env:GITHUB_JOB runner=$env:RUNNER_NAME os=$env:RUNNER_OS"
