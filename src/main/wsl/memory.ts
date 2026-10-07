@@ -188,6 +188,12 @@ export function createMemoryCollector(options: MemoryCollectorOptions = {}): Mem
   const run = options.run ?? runHostCommand
   const wslconfigPath = options.wslconfigPath ?? join(homedir(), '.wslconfig')
   const hostTotal = options.hostTotalBytes ?? totalmem
+  // A full tasklist snapshot is host-wide and takes substantially longer than
+  // reading /proc/meminfo. The VM working set need not change every 3 seconds.
+  const vmTtlMs = 15000
+  let vmCached: number | null | undefined
+  let vmCachedAt = 0
+  let vmInFlight: Promise<number | null> | null = null
 
   const readGuest = async (runner: DistroRunner, distro: string): Promise<string> => {
     try {
@@ -199,12 +205,26 @@ export function createMemoryCollector(options: MemoryCollectorOptions = {}): Mem
     }
   }
 
-  const readVmProcess = async (): Promise<number | null> => {
+  const fetchVmProcess = async (): Promise<number | null> => {
     try {
       return parseVmProcessMemory(await run('tasklist', ['/fo', 'csv', '/nh'], TASKLIST_TIMEOUT_MS))
     } catch {
       // No Windows process view — the VM figure stays unknown, never zero.
       return null
+    }
+  }
+
+  const readVmProcess = async (): Promise<number | null> => {
+    if (vmCached !== undefined && Date.now() - vmCachedAt < vmTtlMs) return vmCached
+    if (vmInFlight !== null) return vmInFlight
+    const pending = fetchVmProcess()
+    vmInFlight = pending
+    try {
+      vmCached = await pending
+      vmCachedAt = Date.now()
+      return vmCached
+    } finally {
+      vmInFlight = null
     }
   }
 
