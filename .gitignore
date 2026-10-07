@@ -8,6 +8,7 @@ test-results/
 .loop/
 playwright-report/
 *.log
+__pycache__/
 .vite/
 .DS_Store
 Thumbs.db

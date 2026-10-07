@@ -48,13 +48,44 @@ The first sample of each phase often includes WSL startup (up to seconds). The f
 
 All 144 live WSL probes and companion pings succeeded. Every ON segment had Electron processes; every OFF segment had none. CI and the measurement workflow passed at `b1d7425`. The idle runner did **not** reproduce severe host-wide slowness or a meaningful companion-window response penalty. This does not prove the owner's symptom is resolved: it lacks their workload and Windows 11 environment, and base and head ran sequentially while background runner load varied. The affected subsystem and cause remain unknown. No product fix or baseline-failing regression assertion is justified from these samples. #109's collector-only measurement, #112's test guard and #111's not-planned closure remain insufficient evidence of symptom resolution. No QA waiver is requested.
 
+## Loaded follow-up directed by Luna
+
+Decision `luna-turn:DLG-20261007-087:2` rejects an idle Server 2025 non-reproduction as a closure reason. The same zero-cost, isolated runner now runs the following fixed workload in its *test* Ubuntu 24.04 distro during both the pre-collector base and branch-head OFF/ON/OFF trials:
+
+| Workload | Fixed action |
+| --- | --- |
+| WSL execution | A Python load process remains active inside the runner-owned distro for each 72-sample build. Readiness and progress are checked; the process receives a stop marker after each build. |
+| CPU | A separate guest process repeatedly hashes an 8 MiB block. |
+| RAM | The guest commits and touches 1 GiB of memory, retaining it through the measurements. |
+| File I/O | The guest repeatedly writes and syncs a 64 MiB file under its home directory, reads it, and removes it. The loop counter must advance at least five cycles. |
+| Concurrent WSLPad path | The real Electron app uses the same Ubuntu distro through its normal polling while the load runs under that distro's home directory. No fixture provider is enabled. |
+
+The host counters, live `wsl.exe` round trip, and independent companion-window message-loop latency use the same 3 × OFF/ON/OFF × 8-sample method as the idle run. This is a loaded synthetic workload, not the owner's Windows 11 workload. It does not exercise user clicks, terminal interaction or visual redraw, and its file path may be outside the exact paths the owner was using. No user's WSL distro or host was touched.
+
+The [loaded run](https://github.com/r2cuerdame/WSLPad/actions/runs/37615701234) passed on Windows Server 2025. Its log reports 407 completed 64 MiB file cycles for base `c06b065d5bd4127fdce32b115677494761782a64` and 344 for head `cd24164c09756eaffca55235cd250200cd5ee24a`. The [base raw CSV](issue-115/raw-run-37615701234/base-raw.csv) and [head raw CSV](issue-115/raw-run-37615701234/head-raw.csv) each contain 72 timestamped full-app samples. The same [analyzer](../../scripts/issue-115-analyze.py) verified all 144 rows: all ON groups had Electron processes, all OFF groups had none, and all live WSL probes and companion pings succeeded. It excludes the first sample of each segment from the stable median but retains those rows in the files.
+
+| Stable median ON minus neighboring OFF | Pre-collector base | Measured head |
+| --- | ---: | ---: |
+| Host CPU | +8.252 percentage points | +15.256 percentage points |
+| Host available RAM | -257.2 MiB | -304.0 MiB |
+| Electron working set | +382.3 MiB | +380.9 MiB |
+| WSL VM working set | +28.3 MiB | +31.7 MiB |
+| Live WSL round trip | +3.324 ms | +4.186 ms |
+| Other window message-loop response | +0.019 ms | +0.005 ms |
+
+The guest load raised host CPU and RAM use, but the other window's median response remained sub-millisecond with the app ON. The live WSL round trip increased by only a few milliseconds in both builds. The three head host-CPU trial deltas varied widely (+15.256, +1.519, +28.062 percentage points), so they do not support attributing extra host CPU load to an app regression. The severe user-reported slowdown was **not reproduced under this specified loaded scenario**. Its root cause and any product fix remain unknown. This result cannot close the symptom as fixed or eliminate a Windows 11, longer-session, interactive-workload or owner-specific cause.
+
+### Local opt-in trace for a later ordinary-use capture
+
+Setting `WSLPAD_PERF_TRACE_PATH` to an absolute local `.jsonl` path before launching WSLPad records each fast, medium and slow polling call's UTC time, elapsed milliseconds and success/error outcome. With the variable absent or relative, it writes nothing. The directory must already exist. This trace contains no distro name, path or snapshot and makes no network request. It runs during ordinary app use; the Worker did not enable it on the owner's PC. It can help match a future slowdown time to polling durations, but it is not itself full-app host A/B evidence and cannot identify a cause alone. The loaded run above predates this opt-in code; its variable was off.
+
 ## Proposed $75 spending settlement; approval and execution zero
 
 The isolated hosted runner required no Azure spending. The former Azure proposal is retained only as a contingency, not a request to purchase it. Its proposed resource is a time-limited Microsoft Azure Windows Server 2022 Desktop Experience `Standard_D4s_v3` VM in East US with nested virtualization/WSL2, one 128 GiB Standard SSD E10 LRS OS disk, and one Standard static IPv4 only if guest access requires it. Microsoft's [exact retail meter query](https://prices.azure.com/api/retail/prices?api-version=2023-01-01-preview&%24filter=armSkuName%20eq%20%27Standard_D4s_v3%27%20and%20armRegionName%20eq%20%27eastus%27%20and%20priceType%20eq%20%27Consumption%27) on 2026-10-07 returned Windows D4s v3 meter `dd087e30-7477-4459-8349-b2523cbb4b04` at USD **0.376 per powered-on compute hour**, USD **9.60 per disk-month** plus disk operations, and USD **0.005 per public-IP hour**. At a 24-hour maximum powered-on window, compute is USD **9.024** and public IP at most USD **0.12**; disk, transactions, network egress and applicable taxes remain additional. The USD 75 figure is a proposed *total ceiling*, not an estimate that these residual meters are zero. Availability, Azure subscription and actual invoice prices must be checked before provisioning. Dsv3 is an older series with a published retirement path, and Windows Server results would still need a Windows 11 external-validity caveat.
 
 Period: provision only after explicit Source spending approval, conduct the experiment within one 24-hour wall-clock window, then export redacted raw data and delete the dedicated resource group, including VM, OS/data disks, snapshots, NIC and public IP. A budget alert is monitoring, not a hard cap: stop/deallocate the VM if cost nears the ceiling, verify deletion of billable resources and inspect Cost Management for delayed usage. Deallocation stops compute charges but leaves disks/IP billable; deletion of the VM alone can leave disks/network resources. Network egress, disk operations, taxes and delayed metering are residual charge risks until the invoice settles. The LoopOffice GitHub config explicitly says `pipeline.human.autonomousSpendCeilingUsd: 0` (not unknown). Proposed authorization is **one-time Microsoft Azure spending up to USD 75, no recurring resource**, contingent on an existing usable account; no account or credential expansion is authorized by this proposal.
 
-No Azure resource was provisioned, no purchase or charge was initiated, and no user approval was solicited. The free runner completed a live full-app A/B; it did not reproduce the severe slowdown. Luna must decide whether this non-reproduction under the stated idle Windows Server workload is sufficient or specify a representative workload/environment before causal repair can proceed. Hanbyeol review and Suah independent raw A/B rerun/comparison remain outstanding. The Issue's bug regression gate cannot be satisfied without an identified bug and a baseline-failing assertion.
+No Azure resource was provisioned, no purchase or charge was initiated, and no user approval was solicited. Neither the idle nor the loaded full-app A/B reproduced the severe slowdown. Per `luna-turn:DLG-20261007-087:2`, Luna must decide closure or a new representative workload/environment from these raw refs. Hanbyeol review and Suah independent raw A/B rerun/comparison remain outstanding. The Issue's bug regression gate cannot be satisfied without an identified bug and a baseline-failing assertion.
 
 ## Local checkpoint verification
 

@@ -1,6 +1,7 @@
 import { POLL_BOUNDS } from '@shared/constants'
 import type { MonitoringSettings } from '@shared/types'
 import type { SnapshotStore } from './store'
+import { recordPollingDuration } from './perf-trace'
 
 type Tier = 'fast' | 'medium' | 'slow'
 
@@ -90,14 +91,18 @@ export class PollingScheduler {
   }
 
   private refresh(tier: Tier): void {
+    const started = performance.now()
     const run =
       tier === 'fast'
         ? this.store.refreshFast()
         : tier === 'medium'
           ? this.store.refreshMedium()
           : this.store.refreshSlow()
-    // Refreshes are contract-bound not to throw; the catch keeps a defect in a
-    // collector from surfacing as an unhandled rejection inside a timer tick.
-    run.catch(() => {})
+    // Refreshes are contract-bound not to throw; handle either result so a
+    // collector defect cannot become an unhandled timer rejection.
+    void run.then(
+      () => recordPollingDuration(tier, performance.now() - started, 'ok'),
+      () => recordPollingDuration(tier, performance.now() - started, 'error')
+    )
   }
 }
