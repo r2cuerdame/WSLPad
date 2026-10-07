@@ -13,12 +13,16 @@ describe('default test suite host safety', () => {
     const env = { ...process.env }
     delete env.WSLPAD_LIVE_WSL_TESTS
     delete env.WSLPAD_FIXTURE_MODE
+    // No shell on PATH: detectors must take its fallback path. The preload
+    // blocks and records any attempted wsl.exe launch before it reaches WSL.
+    env.PATH = dir
+    env.Path = dir
     env.WSLPAD_SPAWN_ATTEMPT_LOG = log
     env.NODE_OPTIONS = `${process.env.NODE_OPTIONS ?? ''} --require="${preload.replaceAll('\\', '/')}"`.trim()
     try {
       const result = spawnSync(
         process.execPath,
-        [vitest, 'run', 'test/integration/wsl-collectors.test.ts', 'test/integration/terminal-real.test.ts', 'test/unit/wsl/escape.test.ts'],
+        [vitest, 'run', 'test/integration/wsl-collectors.test.ts', 'test/integration/terminal-real.test.ts', 'test/unit/wsl/escape.test.ts', 'test/unit/wsl/detectors.test.ts'],
         {
           cwd: process.cwd(),
           encoding: 'utf8',
@@ -29,6 +33,8 @@ describe('default test suite host safety', () => {
       const attempts = existsSync(log) ? readFileSync(log, 'utf8') : ''
       expect(attempts, `WSL spawn attempts:\n${attempts}\n${result.stdout}\n${result.stderr}`).toBe('')
       expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0)
+      expect(result.stdout).toContain('detectors.test.ts')
+      expect(result.stdout).toMatch(/Tests\s+[1-9]\d* passed/i)
       expect(result.stdout).toMatch(/Tests\s+.*skipped/i)
       expect(result.stdout).toContain('skipped: set WSLPAD_LIVE_WSL_TESTS=1')
     } finally {
