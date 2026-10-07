@@ -3,6 +3,8 @@
 // for this file alone keeps them out of everything else.
 /// <reference lib="dom" />
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { closeApp, consoleText, launchWslPad, type LaunchedApp } from './_helpers'
 
 test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
@@ -90,6 +92,71 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     await expect(detail).toContainText('Fixture connection to 127.0.0.1:5173')
     await expect(detail.getByText('Pass', { exact: true })).toHaveCount(2)
     await expect(detail).toContainText('Recovery check completed: reload-window (0 failed probes)')
+  })
+
+  test('records slowdown locally only after opt-in and stops on request', async () => {
+    const { page } = launched
+    await page.getByTestId('dashboard-nav-diagnostics').click()
+    const detail = page.getByTestId('dashboard-detail')
+    const logPath = await page.evaluate(() => window.wslpad.performance.get().then((state) => state.path))
+    expect(logPath).toBeNull()
+
+    await detail.getByRole('button', { name: 'Start recording' }).click()
+    await expect(detail.getByRole('button', { name: 'Stop recording' })).toBeVisible()
+    const path = await page.evaluate(() => window.wslpad.performance.get().then((state) => state.path))
+    expect(path).toBeTruthy()
+    await expect.poll(() => readFileSync(path!, 'utf8')).toContain('"kind":"cpu"')
+
+    await page.evaluate(() => {
+      const end = Date.now() + 250
+      while (Date.now() < end) { /* simulate one blocked renderer turn */ }
+    })
+    await expect(detail.locator('.diag-timeline').first()).toContainText('render')
+    await detail.getByRole('button', { name: 'Stop recording' }).click()
+    await expect(detail.getByRole('button', { name: 'Start recording' })).toBeVisible()
+    const afterStop = readFileSync(path!, 'utf8')
+    await page.waitForTimeout(1200)
+    expect(readFileSync(path!, 'utf8')).toBe(afterStop)
+
+    const exported = join(launched.userDataDir, 'exported-slowdown.jsonl')
+    await launched.app.evaluate(({ dialog }, target) => {
+      Object.defineProperty(dialog, 'showSaveDialog', {
+        configurable: true,
+        value: async () => ({ canceled: false, filePath: target })
+      })
+    }, exported)
+    await detail.getByRole('button', { name: 'Export recording' }).click()
+    await expect.poll(() => readFileSync(exported, 'utf8')).toBe(afterStop)
+  })
+
+  test('keeps enabled recording under the 2 ms per sample overhead budget through IPC', async () => {
+    const { page } = launched
+    await page.getByTestId('dashboard-nav-diagnostics').click()
+    const measure = () => page.evaluate(async () => {
+      const count = 200
+      const start = performance.now()
+      for (let index = 0; index < count; index++) {
+        await window.wslpad.performance.record('render', 10)
+      }
+      return (performance.now() - start) / count
+    })
+    await measure() // warm up IPC before comparing phases
+    const disabledMs = await measure()
+    await page.getByRole('button', { name: 'Start recording' }).click()
+    await expect(page.getByRole('button', { name: 'Stop recording' })).toBeVisible()
+    await measure()
+    const enabledMs = await measure()
+    await page.getByRole('button', { name: 'Stop recording' }).click()
+    const overheadMs = Math.max(0, enabledMs - disabledMs)
+    console.log(`renderer IPC recording overhead: disabled ${disabledMs.toFixed(3)} ms/sample, enabled ${enabledMs.toFixed(3)} ms/sample, delta ${overheadMs.toFixed(3)} ms/sample`)
+    expect(enabledMs).toBeLessThan(2)
+    const metricReadMs = await launched.app.evaluate(({ app }) => {
+      const start = performance.now()
+      for (let index = 0; index < 100; index++) app.getAppMetrics()
+      return (performance.now() - start) / 100
+    })
+    console.log(`Electron app process metrics: ${metricReadMs.toFixed(3)} ms/read`)
+    expect(metricReadMs).toBeLessThan(5)
   })
 
   // Both facts are collected on two different machines and only mean something

@@ -311,6 +311,17 @@ function makeApi(snapshot: WslPadSnapshot) {
       exportBundle: vi.fn(async () => 'C:\\out\\diagnostic.json'),
       onChange: vi.fn(() => () => undefined)
     },
+    performance: {
+      get: vi.fn(async () => ({ enabled: false, path: null, intervals: [] })),
+      setEnabled: vi.fn(async (enabled: boolean) => ({
+        enabled,
+        path: enabled ? 'C:\\local\\slowdown.jsonl' : 'C:\\local\\slowdown.jsonl',
+        intervals: []
+      })),
+      record: vi.fn(async () => undefined),
+      exportLog: vi.fn(async () => null),
+      onChange: vi.fn(() => () => undefined)
+    },
     tools: {
       search: vi.fn(async (query: string) => ({
         query,
@@ -575,6 +586,19 @@ describe('DashboardTab master–detail', () => {
     expect(within(detail).getByText('No network check has run in this session.')).toBeTruthy()
     expect(api.diagnostics.runNetworkCheck).not.toHaveBeenCalled()
     expect(api.diagnostics.runRecoveryCheck).not.toHaveBeenCalled()
+  })
+
+  it('lets the user start and stop local slowdown recording', async () => {
+    await renderDashboard()
+    fireEvent.click(navItem('diagnostics'))
+    const detail = screen.getByTestId('dashboard-detail')
+    expect(api.performance.setEnabled).not.toHaveBeenCalled()
+    fireEvent.click(within(detail).getByRole('button', { name: 'Start recording' }))
+    await flush()
+    expect(api.performance.setEnabled).toHaveBeenCalledWith(true)
+    fireEvent.click(within(detail).getByRole('button', { name: 'Stop recording' }))
+    await flush()
+    expect(api.performance.setEnabled).toHaveBeenCalledWith(false)
   })
 
   it('shows the least-destructive recovery step and only prepares its command', async () => {
