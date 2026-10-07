@@ -1,0 +1,78 @@
+name: Issue 107 draft candidate lifecycle
+
+on:
+  pull_request:
+    paths:
+      - release/v1.2.0/**
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-lifecycle:
+    if: github.head_ref == 'issue/107' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact manifest head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Download and verify original draft candidate
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifest = Get-Content release/v1.2.0/manifest.json -Raw | ConvertFrom-Json
+          if ($manifest.sourceSha -ne 'c06b065d5bd4127fdce32b115677494761782a64' -or
+              $manifest.draftRelease.id -ne 405268106 -or $manifest.version -ne '1.2.0') {
+            throw 'Unexpected candidate identity in manifest'
+          }
+          Write-Host "run=$env:GITHUB_RUN_ID job=$env:GITHUB_JOB head=${{ github.event.pull_request.head.sha }} release=$($manifest.draftRelease.id)"
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent' = 'WSLPad-issue-107-candidate-check'
+          }
+          $releaseResponse = Invoke-WebRequest -Uri "https://api.github.com/repos/r2cuerdame/WSLPad/releases/$($manifest.draftRelease.id)" -Headers $headers
+          Write-Host "release=$($manifest.draftRelease.id) HTTP=$([int]$releaseResponse.StatusCode)"
+          $release = $releaseResponse.Content | ConvertFrom-Json
+          if (-not $release.draft -or $release.tag_name -ne 'v1.2.0') { throw 'Release is not the v1.2.0 draft' }
+          New-Item -ItemType Directory -Path candidate | Out-Null
+          foreach ($asset in $manifest.assets) {
+            $listed = @($release.assets | Where-Object { $_.id -eq $asset.id -and $_.name -eq $asset.name })
+            if ($listed.Count -ne 1) { throw "Missing original draft asset $($asset.id)" }
+            $path = Join-Path candidate $asset.name
+            $assetHeaders = $headers.Clone()
+            $assetHeaders.Accept = 'application/octet-stream'
+            $response = Invoke-WebRequest -Uri "https://api.github.com/repos/r2cuerdame/WSLPad/releases/assets/$($asset.id)" -Headers $assetHeaders -OutFile $path -PassThru
+            $size = (Get-Item -LiteralPath $path).Length
+            $sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            Write-Host "asset=$($asset.id) HTTP=$([int]$response.StatusCode) name=$($asset.name) size=$size sha256=$sha256"
+            if ($size -ne $asset.size -or $sha256 -ne $asset.sha256) { throw "Draft asset mismatch: $($asset.id)" }
+          }
+          $installer = Join-Path candidate 'WSLPad-Setup-1.2.0.exe'
+          $sha512 = [Convert]::ToBase64String([Security.Cryptography.SHA512]::HashData([IO.File]::ReadAllBytes($installer)))
+          $latest = Get-Content candidate/latest.yml -Raw
+          if ($sha512 -ne $manifest.latestYmlSha512 -or
+              $latest -notmatch '(?m)^version: 1\.2\.0\s*$' -or
+              $latest -notmatch '(?m)^path: WSLPad-Setup-1\.2\.0\.exe\s*$' -or
+              $latest -notmatch "(?m)^\s+size: $((Get-Item $installer).Length)\s*`$" -or
+              @([regex]::Matches($latest, '(?m)^\s*sha512: (.+)$') | Where-Object { $_.Groups[1].Value.Trim() -eq $sha512 }).Count -ne 2) {
+            throw 'latest.yml does not describe the original installer'
+          }
+          if ((Get-AuthenticodeSignature -LiteralPath $installer).Status.ToString() -ne $manifest.signing.candidateStatus) {
+            throw 'Candidate signing status changed'
+          }
+          Write-Host "latest.yml sha512=$sha512; candidate version=1.2.0; signing=$($manifest.signing.candidateStatus)"
+
+      - name: Run isolated 1.1.2 to original 1.2.0 lifecycle
+        shell: pwsh
+        run: |
+          Write-Host "run=$env:GITHUB_RUN_ID job=$env:GITHUB_JOB runner=$env:RUNNER_NAME os=$env:RUNNER_OS"
+          Write-Host 'previous=https://github.com/r2cuerdame/WSLPad/releases/download/v1.1.2/WSLPad-Setup-1.1.2.exe'
+          Write-Host 'target=draft release 405268106 asset 617142776'
+          ./scripts/release-lifecycle-smoke.ps1 -PreviousVersion 1.1.2 -TargetVersion 1.2.0 -LocalTargetInstaller (Resolve-Path candidate/WSLPad-Setup-1.2.0.exe).Path -TargetSha256 'f3b0c5110bb80f141e4c416a6b932ad5f92182f48dcaae7efeb3e9967f943b88' -RequireNoDistros
