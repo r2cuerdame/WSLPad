@@ -34,9 +34,19 @@
     "policy": "Unsigned; electron-builder.yml has no win.sign or certificate configuration. Previous publish method is unknown."
   },
   "lifecycle": {
-    "environment": "Ephemeral GitHub-hosted windows-latest runner; no user session or distro",
-    "runId": null,
-    "jobId": null,
-    "result": "pending"
+    "environment": "Ephemeral GitHub-hosted windows-latest runner, isolated from the user's session and distros; WSL no-distro precondition was not reached",
+    "runId": 37555666965,
+    "jobId": 112581196251,
+    "result": "blocked",
+    "previousInstaller": "https://github.com/r2cuerdame/WSLPad/releases/download/v1.1.2/WSLPad-Setup-1.1.2.exe",
+    "candidateDownload": "not reached",
+    "draftReleaseRead": "HTTP 403: Resource not accessible by integration (contents:read GITHUB_TOKEN)",
+    "stages": {
+      "install": "not run",
+      "upgrade": "not run",
+      "uninstall": "not run",
+      "reinstall": "not run",
+      "finalCleanup": "not run"
+    }
   }
 }
