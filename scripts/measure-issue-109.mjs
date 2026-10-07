@@ -63,7 +63,7 @@ const { createMemoryCollector, createWindowsPortCollector, runHostCommand } = lo
 const calls = { netstat: 0, tasklist: 0 }
 const childWallMs = { netstat: 0, tasklist: 0 }
 const hostProcess = () => {
-  const command = `(Get-CimInstance Win32_Process -Filter 'ProcessId=${process.pid}') | Select-Object ProcessId,ThreadCount,ReadTransferCount,WriteTransferCount | ConvertTo-Json -Compress`
+  const command = `$p = Get-CimInstance Win32_Process -Filter 'ProcessId=${process.pid}'; $g = Get-Process -Id ${process.pid}; [pscustomobject]@{ ProcessId = $p.ProcessId; ThreadCount = $p.ThreadCount; ReadTransferCount = $p.ReadTransferCount; WriteTransferCount = $p.WriteTransferCount; PeakWorkingSetBytes = $g.PeakWorkingSet64 } | ConvertTo-Json -Compress`
   return JSON.parse(execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
     encoding: 'utf8'
   }))
@@ -83,13 +83,11 @@ const guest = { runInDistro: async () => ({ stdout: '' }) }
 const firstProcess = hostProcess()
 const start = performance.now()
 const cpuStart = process.cpuUsage()
-let peakRssBytes = 0
 let ticks = 0
 for (let tick = 0; tick * 3000 <= seconds * 1000; tick++) {
   const delay = start + tick * 3000 - performance.now()
   if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay))
   await Promise.all([ports.collect(), memory.collect(guest, 'synthetic')])
-  peakRssBytes = Math.max(peakRssBytes, process.memoryUsage().rss)
   ticks++
 }
 const cpu = process.cpuUsage(cpuStart)
@@ -102,7 +100,7 @@ console.log(JSON.stringify({
   calls,
   childWallMs: Object.fromEntries(Object.entries(childWallMs).map(([k, v]) => [k, Math.round(v)])),
   nodeCpuMs: Math.round((cpu.user + cpu.system) / 1000),
-  peakRssBytes,
+  peakWorkingSetBytes: Number(lastProcess.PeakWorkingSetBytes),
   nodeThreadCount: { start: firstProcess.ThreadCount, end: lastProcess.ThreadCount },
   nodeIoBytes: {
     read: Number(lastProcess.ReadTransferCount) - Number(firstProcess.ReadTransferCount),
