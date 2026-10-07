@@ -1,0 +1,38 @@
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+describe('default test suite host safety', () => {
+  it('attempts zero live WSL launches without explicit opt-in', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'wslpad-no-live-wsl-'))
+    const log = join(dir, 'attempts.log')
+    const preload = join(process.cwd(), 'test', 'support', 'block-live-wsl.cjs')
+    const vitest = join(process.cwd(), 'node_modules', 'vitest', 'vitest.mjs')
+    const env = { ...process.env }
+    delete env.WSLPAD_LIVE_WSL_TESTS
+    delete env.WSLPAD_FIXTURE_MODE
+    env.WSLPAD_SPAWN_ATTEMPT_LOG = log
+    env.NODE_OPTIONS = `${process.env.NODE_OPTIONS ?? ''} --require="${preload.replaceAll('\\', '/')}"`.trim()
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [vitest, 'run', 'test/integration/wsl-collectors.test.ts', 'test/integration/terminal-real.test.ts', 'test/unit/wsl/escape.test.ts'],
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          timeout: 120000,
+          env
+        }
+      )
+      const attempts = existsSync(log) ? readFileSync(log, 'utf8') : ''
+      expect(attempts, `WSL spawn attempts:\n${attempts}\n${result.stdout}\n${result.stderr}`).toBe('')
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0)
+      expect(result.stdout).toMatch(/Tests\s+.*skipped/i)
+      expect(result.stdout).toContain('skipped: set WSLPAD_LIVE_WSL_TESTS=1')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 120000)
+})

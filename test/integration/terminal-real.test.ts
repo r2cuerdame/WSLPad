@@ -4,6 +4,7 @@ import { WslRunner } from '../../src/main/wsl/runner'
 import { createRealConsoleFactory } from '../../src/main/terminal/backend'
 import { TerminalManager } from '../../src/main/terminal/manager'
 import type { TerminalDataEvent, TerminalStatusEvent } from '@shared/types'
+import { liveWslTestsEnabled, reportLiveWslSkip } from '../support/live-wsl'
 
 function wslAvailable(): boolean {
   try {
@@ -14,7 +15,8 @@ function wslAvailable(): boolean {
   }
 }
 
-const available = wslAvailable()
+reportLiveWslSkip('real console session against live WSL')
+const available = liveWslTestsEnabled && wslAvailable()
 const runner = new WslRunner()
 
 describe.skipIf(!available)('real console session against live WSL', () => {

@@ -9,6 +9,7 @@ import { collectProcesses } from '../../src/main/wsl/processes'
 import { _resetCpuSamples, collectResources } from '../../src/main/wsl/resources'
 import { collectServices } from '../../src/main/wsl/services'
 import { collectSystemInfo } from '../../src/main/wsl/system'
+import { liveWslTestsEnabled, reportLiveWslSkip } from '../support/live-wsl'
 
 /**
  * Live smoke tests for the collector scripts against a real running distro.
@@ -19,24 +20,16 @@ import { collectSystemInfo } from '../../src/main/wsl/system'
 const runner = new WslRunner()
 let distro: string | null = null
 
-beforeAll(async () => {
-  // Fixture-mode CI validates the deterministic backends and has no real WSL
-  // distribution to smoke-test. Some hosted Windows images still print a WSL
-  // setup/update message that resembles a distro list entry, so do not let
-  // that message turn this explicitly live suite into false failures.
-  if (process.env.WSLPAD_FIXTURE_MODE === '1') {
-    distro = null
-    return
-  }
-  try {
-    const distros = await listDistros(runner)
-    distro = distros.find((d) => d.state === 'Running')?.name ?? distros[0]?.name ?? null
-  } catch {
-    distro = null
-  }
-})
-
-describe('live collectors', () => {
+reportLiveWslSkip('live collectors')
+describe.skipIf(!liveWslTestsEnabled)('live collectors', () => {
+  beforeAll(async () => {
+    try {
+      const distros = await listDistros(runner)
+      distro = distros.find((d) => d.state === 'Running')?.name ?? distros[0]?.name ?? null
+    } catch {
+      distro = null
+    }
+  })
   it('collects system info', async (ctx) => {
     if (distro === null) return ctx.skip()
     const { system } = await collectSystemInfo(runner, distro)
