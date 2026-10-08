@@ -3,6 +3,7 @@ import { join } from 'path'
 import { readFileSync } from 'fs'
 import { parseSettings } from '@shared/schemas'
 import { WslPadApp } from './app'
+import { createBeforeQuitHandler } from './quit'
 import { sendPurplePulseHeartbeat } from './telemetry'
 
 // Isolated userData for E2E runs (set before any path use).
@@ -45,12 +46,10 @@ if (process.argv.includes('--mcp-stdio')) {
       // Tray-resident app: closing windows never quits (goal.md §4.2)
     })
 
-    app.on('before-quit', () => {
-      wslpad.markQuitting()
-    })
-
-    app.on('will-quit', () => {
-      wslpad.dispose()
-    })
+    app.on('before-quit', createBeforeQuitHandler(
+      () => wslpad.markQuitting(),
+      () => wslpad.dispose(),
+      () => app.quit()
+    ))
   }
 }

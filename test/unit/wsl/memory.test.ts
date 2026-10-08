@@ -196,6 +196,25 @@ describe('createMemoryCollector', () => {
   const hostRunner = (text = TASKLIST): HostCommandRunner => vi.fn(async () => text)
   const guestRunner = (): ReturnType<typeof fakeRunner> => fakeRunner(() => ok(MEMINFO))
 
+  it('bounds repeated host process scans during idle fast polls', async () => {
+    vi.useFakeTimers()
+    const run = hostRunner()
+    const collector = createMemoryCollector({
+      run,
+      wslconfigPath: configPath,
+      hostTotalBytes: () => 32 * GIB
+    })
+    try {
+      for (let tick = 0; tick <= 20; tick++) {
+        vi.setSystemTime(tick * 3000)
+        await collector.collect(guestRunner(), 'Ubuntu-24.04')
+      }
+      expect(run).toHaveBeenCalledTimes(5)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('reconciles all three views of the same memory', async () => {
     const run = hostRunner()
     const collector = createMemoryCollector({

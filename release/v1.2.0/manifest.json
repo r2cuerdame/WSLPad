@@ -34,19 +34,27 @@
     "policy": "Unsigned; electron-builder.yml has no win.sign or certificate configuration. Previous publish method is unknown."
   },
   "lifecycle": {
-    "environment": "Ephemeral GitHub-hosted windows-latest runner (GitHub Actions 1000014344, Windows); registered WSL distributions: 0; HKCU / LocalAppData per-user install; isolated from the user's session and distros",
-    "runId": 37701562990,
-    "jobId": 113065975152,
-    "result": "passed",
+    "result": "blocked",
+    "reason": "No approved isolated local environment was proven for the required 1.1.2 to original 1.2.0 lifecycle. A GitHub-hosted runner run is not qualifying evidence under Issue #107.",
     "previousInstaller": "https://github.com/r2cuerdame/WSLPad/releases/download/v1.1.2/WSLPad-Setup-1.1.2.exe",
-    "candidateDownload": "Original draft release asset 617142776; HTTP 200; 88109909 bytes; SHA256 f3b0c5110bb80f141e4c416a6b932ad5f92182f48dcaae7efeb3e9967f943b88; latest.yml SHA512 matched",
-    "draftReleaseRead": "HTTP 200 with contents:write GITHUB_TOKEN; asset IDs 617142776, 617142775, 617142779 each downloaded and matched manifest size and SHA256",
-    "stages": {
-      "install": "1.1.2: HKCU / LocalAppData; first launch without a WSL distribution passed; Desktop and Start menu shortcuts created",
-      "upgrade": "1.1.2 to original 1.2.0: passed; first launch passed; user-data marker preserved",
-      "uninstall": "Registration, executable and shortcuts removed; user data retained",
-      "reinstall": "Original 1.2.0: passed; first launch passed; user-data marker preserved",
-      "finalCleanup": "Final uninstall: registry, executable and shortcuts removed; user data retained; smoke marker and temporary installers removed"
+    "candidateAssetId": 617142776,
+    "isolationDiscovery": {
+      "windowsSandbox": "C:\\Windows\\System32\\WindowsSandbox.exe absent; feature state requires elevation to inspect",
+      "hyperV": "Get-VM denied by authorization policy",
+      "testAccount": "CodexSandboxOffline is enabled but its profile is not loaded; no existing scheduled task runs as a CodexSandbox account, and no usable credential was established"
+    },
+    "historicalHostedRun": {
+      "runId": 37701562990,
+      "jobId": 113065975152,
+      "qualification": "Not accepted for this Issue: it used a newly added GitHub-hosted workflow",
+      "assetChecks": "Draft release and all three assets returned HTTP 200 with contents:write; downloaded sizes and SHA256 values matched this manifest; installer SHA512 matched latest.yml",
+      "stagesReportedByRun": {
+        "install": "1.1.2 installed and launched without a WSL distribution",
+        "upgrade": "1.1.2 to original 1.2.0 passed; user-data marker preserved",
+        "uninstall": "Registration, executable and shortcuts removed; user data retained",
+        "reinstall": "Original 1.2.0 installed and launched; user-data marker preserved",
+        "finalCleanup": "Final uninstall removed registry, executable and shortcuts; temporary installers removed"
+      }
     }
   }
 }

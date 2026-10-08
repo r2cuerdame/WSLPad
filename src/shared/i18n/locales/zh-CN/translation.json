@@ -1026,6 +1026,16 @@
     }
   },
   "diagnostics": {
+    "performance": {
+    "title": "本地卡顿记录",
+    "description": "默认关闭。仅将延迟和应用 CPU、内存数据记录到本地文件，不发送任何数据。",
+    "start": "开始记录",
+    "stop": "停止记录",
+    "export": "导出记录",
+    "writeError": "本地文件写入失败，记录已停止。{{count}} 条样本仍保存在内存中。请勿关闭 WSLPad，选择“导出记录”重试。",
+    "slow": "缓慢时段",
+    "empty": "尚无超过阈值的时段。"
+    },
     "title": "诊断",
     "intro": "记录本次会话中重要的 WSL 变化。网络检查仅在您请求时运行，不属于后台轮询。",
     "port": "Windows localhost 端口",

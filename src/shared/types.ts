@@ -6,6 +6,29 @@
 
 export type DistroState = 'Running' | 'Stopped' | 'Installing' | 'Unknown'
 
+/** Only numeric timings and process totals are recorded; no command or path payloads. */
+export interface PerformanceMetric {
+  at: string
+  kind: 'ui' | 'eventLoop' | 'render' | 'wsl' | 'cpu' | 'memory'
+  value: number
+}
+
+export interface SlowInterval {
+  kind: 'ui' | 'eventLoop' | 'render' | 'wsl'
+  start: string
+  end: string
+  count: number
+  peakMs: number
+}
+
+export interface PerformanceState {
+  enabled: boolean
+  path: string | null
+  intervals: SlowInterval[]
+  writeError: boolean
+  unsavedSamples: number
+}
+
 export interface DistroSummary {
   name: string
   state: DistroState

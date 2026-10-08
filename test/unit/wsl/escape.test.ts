@@ -6,6 +6,7 @@ import {
   shellQuote,
   shellQuoteAll
 } from '../../../src/main/wsl/escape'
+import { liveWslTestsEnabled, reportLiveWslSkip } from '../../support/live-wsl'
 
 describe('shellQuote', () => {
   const hostile = [
@@ -25,26 +26,29 @@ describe('shellQuote', () => {
     ``
   ]
 
-  it('round-trips hostile strings through a real POSIX shell when available', () => {
-    let shAvailable = true
+  it('quotes hostile strings structurally', () => {
+    for (const value of hostile) {
+      const quoted = shellQuote(value)
+      expect(quoted.startsWith("'")).toBe(true)
+      expect(quoted.endsWith("'")).toBe(true)
+    }
+  })
+
+  reportLiveWslSkip('POSIX shell round-trip')
+  it.skipIf(!liveWslTestsEnabled)('round-trips hostile strings through a real POSIX shell', (ctx) => {
     try {
       execFileSync('wsl.exe', ['--exec', '/bin/sh', '-c', 'true'], { timeout: 15000 })
     } catch {
-      shAvailable = false
+      return ctx.skip()
     }
     for (const value of hostile) {
       const quoted = shellQuote(value)
-      // structural checks that hold everywhere
-      expect(quoted.startsWith("'")).toBe(true)
-      expect(quoted.endsWith("'")).toBe(true)
-      if (shAvailable) {
-        const printed = execFileSync(
-          'wsl.exe',
-          ['--exec', '/bin/sh', '-c', `printf %s ${quoted}`],
-          { timeout: 15000 }
-        ).toString('utf8')
-        expect(printed).toBe(value)
-      }
+      const printed = execFileSync(
+        'wsl.exe',
+        ['--exec', '/bin/sh', '-c', `printf %s ${quoted}`],
+        { timeout: 15000 }
+      ).toString('utf8')
+      expect(printed).toBe(value)
     }
   }, 120000)
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type {
   DiagnosticsState,
+  PerformanceState,
   IncidentEvent,
   LocaleCode,
   NetworkProbeResult,
@@ -17,6 +18,10 @@ const EMPTY: DiagnosticsState = {
   incidents: [],
   lastNetworkCheck: null,
   lastRecoveryCheck: null
+}
+
+const EMPTY_PERFORMANCE: PerformanceState = {
+  enabled: false, path: null, intervals: [], writeError: false, unsavedSamples: 0
 }
 
 const PROBE_KEYS: Record<NetworkProbeResult['id'], string> = {
@@ -59,6 +64,37 @@ export default function DiagnosticsCard(): React.JSX.Element {
   const [state, setState] = useState<DiagnosticsState>(EMPTY)
   const [portText, setPortText] = useState('')
   const [running, setRunning] = useState(false)
+  const [performanceState, setPerformanceState] = useState<PerformanceState>(EMPTY_PERFORMANCE)
+  const [performanceBusy, setPerformanceBusy] = useState(false)
+
+  useEffect(() => {
+    let disposed = false
+    void window.wslpad.performance.get().then((next) => {
+      if (!disposed) setPerformanceState(next)
+    })
+    const off = window.wslpad.performance.onChange(setPerformanceState)
+    return () => { disposed = true; off() }
+  }, [])
+
+  const togglePerformance = async (): Promise<void> => {
+    setPerformanceBusy(true)
+    try {
+      setPerformanceState(await window.wslpad.performance.setEnabled(!performanceState.enabled))
+    } catch {
+      pushToast('error', t('common.error'))
+    } finally {
+      setPerformanceBusy(false)
+    }
+  }
+
+  const exportPerformance = async (): Promise<void> => {
+    try {
+      const path = await window.wslpad.performance.exportLog()
+      if (path) pushToast('success', t('diagnostics.exported', { path }))
+    } catch {
+      pushToast('error', t('common.error'))
+    }
+  }
 
   useEffect(() => {
     let disposed = false
@@ -169,6 +205,48 @@ export default function DiagnosticsCard(): React.JSX.Element {
   return (
     <Card titleKey="diagnostics.title" actions={actions} className="diagnostics-card">
       <p className="dim diagnostics-intro">{t('diagnostics.intro')}</p>
+      <section className="diag-section" aria-labelledby="performance-heading">
+        <h3 id="performance-heading" className="diag-heading">
+          {t('diagnostics.performance.title', { defaultValue: 'Local slowdown recording' })}
+        </h3>
+        <p className="dim diagnostics-intro">
+          {t('diagnostics.performance.description', { defaultValue: 'Off by default. Records timing and app CPU/memory in a local file only. No data is sent.' })}
+        </p>
+        <div className="diagnostics-actions">
+          <button type="button" className="btn" disabled={performanceBusy || performanceState.writeError} onClick={() => void togglePerformance()}>
+            {performanceState.enabled
+              ? t('diagnostics.performance.stop', { defaultValue: 'Stop recording' })
+              : t('diagnostics.performance.start', { defaultValue: 'Start recording' })}
+          </button>
+          <button type="button" className="btn" disabled={!performanceState.path || performanceState.enabled} onClick={() => void exportPerformance()}>
+            {t('diagnostics.performance.export', { defaultValue: 'Export recording' })}
+          </button>
+        </div>
+        {performanceState.writeError && (
+          <p role="alert" className="diag-validation">
+            {t('diagnostics.performance.writeError', {
+              count: performanceState.unsavedSamples,
+              defaultValue: 'Recording stopped: local file write failed. {{count}} samples are still in memory. Keep WSLPad open and choose Export recording to retry.'
+            })}
+          </p>
+        )}
+        {performanceState.path && <p className="dim mono diag-performance-path">{performanceState.path}</p>}
+        <h4 className="diag-heading">{t('diagnostics.performance.slow', { defaultValue: 'Slow intervals' })}</h4>
+        {performanceState.intervals.length === 0 ? (
+          <p className="dim">{t('diagnostics.performance.empty', { defaultValue: 'No intervals over the thresholds yet.' })}</p>
+        ) : (
+          <ol className="diag-timeline">
+            {performanceState.intervals.map((interval, index) => (
+              <li key={`${interval.start}-${interval.kind}-${index}`} className="diag-incident">
+                <time dateTime={interval.start}>{formatter.format(new Date(interval.start))}</time>
+                <div className="diag-incident-text">
+                  {interval.kind}: {interval.peakMs} ms · {interval.count} samples
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
       {portInvalid ? <div className="diag-validation">{t('diagnostics.invalidPort')}</div> : null}
 
       <section className="diag-section" aria-labelledby="recovery-heading">

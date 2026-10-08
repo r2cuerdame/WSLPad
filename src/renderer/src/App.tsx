@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { detectLocale } from '@shared/i18n'
 import type { LocaleCode } from '@shared/types'
 import { AppStoreProvider, useApp } from './store'
@@ -10,6 +10,7 @@ import RecoveryTab from './recovery/RecoveryTab'
 import ConsolePanel from './console/ConsolePanel'
 import SettingsDrawer from './settings/SettingsDrawer'
 import { Toasts } from './components/Toasts'
+import { startRenderGapRecording } from './render-gap'
 
 initRendererI18n(detectLocale([...navigator.languages]))
 
@@ -20,6 +21,23 @@ function resolveTheme(theme: string): 'light' | 'dark' {
 
 function Shell(): React.JSX.Element {
   const { settings, tab } = useApp()
+  const [recordingPerformance, setRecordingPerformance] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    void window.wslpad.performance.get().then((state) => {
+      if (mounted) setRecordingPerformance(state.enabled)
+    })
+    const off = window.wslpad.performance.onChange((state) => setRecordingPerformance(state.enabled))
+    return () => { mounted = false; off() }
+  }, [])
+
+  useEffect(() => {
+    if (!recordingPerformance) return
+    return startRenderGapRecording((durationMs) => {
+      void window.wslpad.performance.record('render', durationMs).catch(() => {})
+    })
+  }, [recordingPerformance])
 
   useEffect(() => {
     if (!settings) return

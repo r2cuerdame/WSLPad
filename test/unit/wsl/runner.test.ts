@@ -31,6 +31,17 @@ describe('decodeWslOutput', () => {
 })
 
 describe('WslRunner', () => {
+  it('observes existing WSL call latency only while an observer is installed', async () => {
+    const runner = new WslRunner(node)
+    const durations: number[] = []
+    runner.setTimingObserver((ms) => durations.push(ms))
+    await runner.runWsl(['-e', 'process.exit(0)'], { encoding: 'utf8' })
+    expect(durations).toHaveLength(1)
+    expect(durations[0]).toBeGreaterThan(0)
+    runner.setTimingObserver(null)
+    await runner.runWsl(['-e', 'process.exit(0)'], { encoding: 'utf8' })
+    expect(durations).toHaveLength(1)
+  })
   it('captures stdout with exit code', async () => {
     const runner = new WslRunner(node)
     const res = await runner.runWsl(['-e', "process.stdout.write('hello')"], { encoding: 'utf8' })
