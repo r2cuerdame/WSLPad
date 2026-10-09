@@ -14,6 +14,12 @@ Read-only local discovery on 2026-10-10 found no proven, accessible isolated Win
 
 `wsl --list --verbose` reported `Ubuntu-24.04` and `docker-desktop` running. A `vmwp.exe` process and running `vmcompute`/`vmms` services do not prove that a separate Windows VM is available. No installer was run in the user's session. The install → upgrade → uninstall/reinstall → final-cleanup sequence and independent QA remain unmet until an existing isolated environment and access path are demonstrated.
 
+## Repair gate readback
+
+The Issue #107 comment at 2026-10-09T21:16:19Z records the prior repair receipt for head `fa5180f22439f9194f0737f75100ae89d98d31a4` as `gate_error`. It provides no gate log, command, or failure reason. The cause and original gate result therefore remain unknown; `gate_error` is not a QA verdict. GitHub CI at that same head reports `cancelled` for both [push run 37987890511](https://github.com/r2cuerdame/WSLPad/actions/runs/37987890511) and [PR run 37987897744](https://github.com/r2cuerdame/WSLPad/actions/runs/37987897744); unit tests were cancelled and build/E2E steps skipped in both. These check results do not explain the LoopOffice repair gate error.
+
+The read-only isolation probes were repeated on 2026-10-10: Sandbox executable `False`, `Get-VM` insufficient permission, and `quser` only the active `recue` console session. The two CodexSandbox accounts remain enabled, but their existence alone does not establish an isolated lifecycle execution route. No lifecycle or independent QA gate was rerun, because the Issue requires a proven existing isolated environment first. A gate owner must provide the original gate log and an eligible isolation route before the same gate can be rerun.
+
 Key command output (the Windows permission errors are quoted as returned by PowerShell):
 
 ```text
