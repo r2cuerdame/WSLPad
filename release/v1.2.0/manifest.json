@@ -35,13 +35,14 @@
   },
   "lifecycle": {
     "result": "blocked",
-    "reason": "No approved isolated local environment was proven for the required 1.1.2 to original 1.2.0 lifecycle. A GitHub-hosted runner run is not qualifying evidence under Issue #107.",
+    "reason": "No existing isolated Windows environment was proven accessible to both Worker and independent QA, with separation from the user's WSL distributions, app data, and session. The 1.1.2 to original 1.2.0 lifecycle was not run. A GitHub-hosted runner run is not qualifying evidence under Issue #107.",
     "previousInstaller": "https://github.com/r2cuerdame/WSLPad/releases/download/v1.1.2/WSLPad-Setup-1.1.2.exe",
     "candidateAssetId": 617142776,
     "isolationDiscovery": {
-      "windowsSandbox": "C:\\Windows\\System32\\WindowsSandbox.exe absent; feature state requires elevation to inspect",
-      "hyperV": "Get-VM denied by authorization policy",
-      "testAccount": "CodexSandboxOffline is enabled but its profile is not loaded; no existing scheduled task runs as a CodexSandbox account, and no usable credential was established"
+      "windowsSandbox": "Test-Path C:\\Windows\\System32\\WindowsSandbox.exe: False; Get-WindowsOptionalFeature -Online -FeatureName Containers-DisposableClientVM: requested operation requires elevation",
+      "hyperV": "Get-VM: insufficient permission under RECUERDAME authorization policy; vmcompute and vmms are running, but Hyper-V WMI returned no Virtual Machine rows. Existing vmwp.exe alone does not identify an accessible isolated Windows VM.",
+      "testAccount": "Get-LocalUser: CodexSandboxOffline and CodexSandboxOnline enabled; Win32_UserProfile: CodexSandboxOffline Loaded=False, no CodexSandboxOnline profile row; Get-ScheduledTask: zero tasks with CodexSandbox principal; quser: only recue console session active. No existing route to run lifecycle as either test account was established.",
+      "userSeparation": "wsl --list --verbose: Ubuntu-24.04 and docker-desktop Running; quser: recue console session Active. Neither account nor VM access and data separation could be proven, so no installer was run."
     },
     "historicalHostedRun": {
       "runId": 37701562990,
