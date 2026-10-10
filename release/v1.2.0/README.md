@@ -85,3 +85,26 @@ Issue comments at 13:32, 13:36, and 14:15 UTC again label repair receipts on hea
 The local discovery still returned `Total running VMs: 0` from `vmrun -T ws list`, no `WindowsSandbox.exe`, an elevation error from `Get-WindowsOptionalFeature`, an insufficient-permission error from `Get-VM`, and only the `recue` console session from `quser`. No existing isolated guest execution route was established, so the 1.1.2 → original candidate 1.2.0 lifecycle cannot be safely run here. No VM or installer was started.
 
 The Windows-native, default non-live-WSL checks were rerun in this workspace: `npm test` passed with 101 files and 1,649 tests passed, 11 tests skipped; `npm run build` passed. These checks do not substitute for the required isolated installer lifecycle or independent QA. A first attempt with `npm test -- --runInBand` exited 1 because Vitest does not accept `--runInBand`; the supported `npm test` command then passed.
+
+## Repair discovery (2026-10-10 23:24 KST)
+
+An authenticated `GET /repos/r2cuerdame/WSLPad` returned `permissions: {admin:true, maintain:true, pull:true, push:true, triage:true}`. The existing `GET /releases/405268106` returned `draft:true` and the original asset IDs `617142776`, `617142775`, and `617142779`, with the manifest's sizes and SHA256 digests. A tag-name GET for `v1.2.0` returned HTTP 404 while the release is draft; the release-ID GET succeeded. No asset was changed or published.
+
+The public v1.1.2 installer was downloaded from release `389464159` into the ignored local `release/` directory. Its SHA256 was `49cd0f4172fa117f41b701827571f455159cb15a6eaf06c2c6a004ed5b948f70`, matching GitHub's asset digest. `Get-AuthenticodeSignature` returned `NotSigned` with no signer certificate for it and for the original v1.2.0 candidate (local SHA256 `f3b0c5110bb80f141e4c416a6b932ad5f92182f48dcaae7efeb3e9967f943b88`). `electron-builder.yml` contains no `win.sign` or certificate configuration. The previous publish method remains unknown.
+
+Fresh read-only isolation probes returned the same result:
+
+```text
+vmrun -T ws list: Total running VMs: 0 (exit 0)
+Test-Path C:\Windows\System32\WindowsSandbox.exe: False (exit 0)
+Get-VM: 이 작업을 완료하는 데 필요한 권한이 없습니다. 'RECUERDAME' 컴퓨터의 권한 부여 정책 관리자에게 문의하십시오. (exit 1)
+quser: only recue, console session 1, Active
+Get-ScheduledTask with a CodexSandbox principal: no rows
+Get-LocalUser: CodexSandboxOffline and CodexSandboxOnline Enabled=True
+Win32_UserProfile: CodexSandboxOffline Loaded=False; no CodexSandboxOnline profile row
+wsl --list --verbose: Ubuntu-24.04 and docker-desktop Running
+```
+
+The current Issue comments still supply only the `gate_error` label for the prior repair receipts on `7d636ee54e48846761c8302d5ccababc65993a8f`; they do not include the original gate command, exit status, or output. The only identified command failure remains the separate GitHub CI cancellation documented above. There is no demonstrated isolated guest execution path for either Worker or independent QA, nor proof of runtime separation from the active user session, WSL distributions, and app data. The local 1.1.2 → original 1.2.0 lifecycle and independent QA remain unrun. A verified existing isolated execution route and the original LoopOffice gate log are required before this repair can proceed.
+
+Local `npm test` passed again (101 files, 1,649 tests; 11 skipped), and `npm run build` passed. These checks do not establish installer lifecycle behavior.
