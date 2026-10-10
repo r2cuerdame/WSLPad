@@ -71,3 +71,9 @@ DH-Smoke.vmx: checkToolsState unknown (exit -2); getGuestIPAddress "The virtual 
 ```
 
 Both existing CodexSandbox accounts are enabled, and `CodexSandboxOffline` has a recent `LastLogon`, but its profile is currently `Loaded=False`; this does not establish an active isolated execution route. Worker and independent QA still lack proven guest command access and runtime separation from the active user session and WSL distributions. The required local lifecycle and independent QA remain unrun. An eligible existing route, with access and separation demonstrated for both actors, is needed before the original candidate can be tested.
+
+## Current repair readback (2026-10-10 22:26 KST)
+
+The read-only probes still show no qualifying route. `Test-Path C:\Windows\System32\WindowsSandbox.exe` returned `False`; the Sandbox feature query returned `요청한 작업을 수행하려면 권한 상승이 필요합니다.` (`requested operation requires elevation`). `Get-VM` returned `이 작업을 완료하는 데 필요한 권한이 없습니다. 'RECUERDAME' 컴퓨터의 권한 부여 정책 관리자에게 문의하십시오.` (`insufficient permission`). `vmrun -T ws list` returned `Total running VMs: 0` (exit 0). No VM was started or changed.
+
+`Get-LocalUser` returned `Enabled=True` for `CodexSandboxOffline` and `CodexSandboxOnline`; the Offline account's `LastLogon` was 2026-10-10 21:23:05 KST, but its profile was `Loaded=False` when checked. `quser` showed only `recue` in console session 1, and `Get-ScheduledTask` found zero tasks with a CodexSandbox principal. The recent logon timestamp does not show an active test-account session or an execution path available to either Worker or independent QA. `wsl --list --verbose` showed the user's `Ubuntu-24.04` and `docker-desktop` distributions running. The required runtime separation from those distributions, app data, and the user session remains unverified, so the installer lifecycle was not run. The original draft candidate and its assets were left untouched.
