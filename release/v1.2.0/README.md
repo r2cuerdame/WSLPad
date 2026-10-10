@@ -52,3 +52,22 @@ DevHotel-Base.vmx: checkToolsState -> unknown (exit -2); getGuestIPAddress -> Er
 DevHotel-v060-Acceptance.vmx: checkToolsState -> unknown (exit -2); getGuestIPAddress -> Error: The virtual machine is not powered on (exit -1)
 DH-Smoke.vmx: checkToolsState -> unknown (exit -2); getGuestIPAddress -> Error: The virtual machine is not powered on (exit -1)
 ```
+
+## Current repair readback (2026-10-10 21:17 KST)
+
+The authenticated GitHub `GET /repos/r2cuerdame/WSLPad/releases/405268106` still returned `draft: true` and the original asset IDs `617142776`, `617142775`, and `617142779`, with the sizes and SHA256 digests in `manifest.json`. The release and candidate were not changed.
+
+The existing local execution routes were checked again without starting a VM or installer:
+
+```text
+vmrun -T ws list: Total running VMs: 0 (exit 0)
+WindowsSandbox.exe exists: False
+Get-VM: 이 작업을 완료하는 데 필요한 권한이 없습니다. 'RECUERDAME' 컴퓨터의 권한 부여 정책 관리자에게 문의하십시오.
+quser: recue, console session 1, Active (no test-account session)
+Get-ScheduledTask: zero tasks with a CodexSandbox principal
+DevHotel-Base.vmx: checkToolsState unknown (exit -2); getGuestIPAddress "The virtual machine is not powered on" (exit -1)
+DevHotel-v060-Acceptance.vmx: checkToolsState unknown (exit -2); getGuestIPAddress "The virtual machine is not powered on" (exit -1)
+DH-Smoke.vmx: checkToolsState unknown (exit -2); getGuestIPAddress "The virtual machine is not powered on" (exit -1)
+```
+
+Both existing CodexSandbox accounts are enabled, and `CodexSandboxOffline` has a recent `LastLogon`, but its profile is currently `Loaded=False`; this does not establish an active isolated execution route. Worker and independent QA still lack proven guest command access and runtime separation from the active user session and WSL distributions. The required local lifecycle and independent QA remain unrun. An eligible existing route, with access and separation demonstrated for both actors, is needed before the original candidate can be tested.
