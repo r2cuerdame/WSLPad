@@ -35,13 +35,15 @@
   },
   "lifecycle": {
     "result": "blocked",
-    "reason": "No existing isolated Windows environment was proven accessible to both Worker and independent QA, with separation from the user's WSL distributions, app data, and session. The 1.1.2 to original 1.2.0 lifecycle was not run. A GitHub-hosted runner run is not qualifying evidence under Issue #107.",
+    "reason": "Existing VMware Windows VM files were found, but all three VMs are powered off and no guest execution path was proven for Worker or independent QA. Separation from the user's WSL distributions, app data, and session could not be verified at runtime. The 1.1.2 to original 1.2.0 lifecycle was not run. A GitHub-hosted runner run is not qualifying evidence under Issue #107.",
     "previousInstaller": "https://github.com/r2cuerdame/WSLPad/releases/download/v1.1.2/WSLPad-Setup-1.1.2.exe",
     "candidateAssetId": 617142776,
     "isolationDiscovery": {
       "windowsSandbox": "Test-Path C:\\Windows\\System32\\WindowsSandbox.exe: False; Get-WindowsOptionalFeature -Online -FeatureName Containers-DisposableClientVM: requested operation requires elevation",
       "hyperV": "Get-VM: insufficient permission under RECUERDAME authorization policy; vmcompute and vmms are running, but Hyper-V WMI returned no Virtual Machine rows. Existing vmwp.exe alone does not identify an accessible isolated Windows VM.",
+      "vmware": "C:\\Program Files\\VMware\\VMware Workstation\\vmrun.exe list: Total running VMs: 0 (exit 0). Existing Windows 11 VMX files: DevHotel-Base, DevHotel-v060-Acceptance, DH-Smoke. Each vmrun checkToolsState returned unknown (exit -2); each getGuestIPAddress returned 'The virtual machine is not powered on' (exit -1). DevHotel-Base references two missing ISO files. DH-Smoke has snapshot devhotel-clean; no snapshot was reverted or VM started. VMX uses NAT; no sharedFolder or hgfs entry was found. File ACL grants CodexSandboxUsers Modify, but guest execution and runtime isolation remain unverified.",
       "testAccount": "Get-LocalUser: CodexSandboxOffline and CodexSandboxOnline enabled; Win32_UserProfile: CodexSandboxOffline Loaded=False, no CodexSandboxOnline profile row; Get-ScheduledTask: zero tasks with CodexSandbox principal; quser: only recue console session active. No existing route to run lifecycle as either test account was established.",
+      "workerAndQaAccess": "Worker identity RECUERDAME\\recue, session 1. Both existing CodexSandbox users are members of CodexSandboxUsers, which has inherited Modify access to the VMX files. No active test-account session, scheduled task, running VM, guest IP, or VMware Tools state was available. File ACL alone does not establish a Worker guest command path or an independently usable QA path; neither was exercised.",
       "userSeparation": "wsl --list --verbose: Ubuntu-24.04 and docker-desktop Running; quser: recue console session Active. Neither account nor VM access and data separation could be proven, so no installer was run."
     },
     "historicalHostedRun": {
