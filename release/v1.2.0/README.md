@@ -15,6 +15,8 @@ Read-only local discovery on 2026-10-10 found no proven, accessible isolated Win
 
 `wsl --list --verbose` reported `Ubuntu-24.04` and `docker-desktop` running. A `vmwp.exe` process and running `vmcompute`/`vmms` services do not prove that a separate Windows VM is available. No installer was run in the user's session. The install → upgrade → uninstall/reinstall → final-cleanup sequence and independent QA remain unmet until an existing isolated environment and access path are demonstrated.
 
+The existing VMware logs explain why two prior VM starts failed. `DevHotel-v060-Acceptance/vmware.log` at `2026-09-16T10:29:29.732Z` and `DH-Smoke/vmware.log` at `2026-09-16T10:30:15.846Z` both report `[msg.pci.noslotavail] No PCIe slot available for Ethernet0. Remove Ethernet0 and try again.`, followed by `E1000PCI: failed to register e1000e device`, an access violation, and `[msg.log.error.unrecoverable] VMware Workstation unrecoverable error: (vmx)`. This is a recorded failure of those two VM starts, not proof that either guest can now boot. Their current VMX files still enable `ethernet0`; no VM configuration was changed for this Issue. `DevHotel-Base` last logged a clean shutdown on 2026-08-22, but its current VMX references two missing ISO files, and no guest login or command route is known. These logs do not explain the separate LoopOffice `gate_error`.
+
 | Actor | Existing route and access evidence | Result |
 | --- | --- | --- |
 | Worker | `RECUERDAME\recue`, session 1; VMware VMX files readable and `vmrun` metadata queries ran. Sandbox feature query requires elevation; `Get-VM` denies access. | No powered-on guest, guest IP, or guest command path; no safe lifecycle execution established. |
