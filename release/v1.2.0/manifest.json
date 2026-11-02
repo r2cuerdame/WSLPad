@@ -5,7 +5,8 @@
     "id": 405268106,
     "url": "https://github.com/r2cuerdame/WSLPad/releases/tag/untagged-e7ae35aa2178c70e891e",
     "tag": "v1.2.0",
-    "draft": true
+    "draft": true,
+    "targetCommitish": "c06b065d5bd4127fdce32b115677494761782a64"
   },
   "assets": [
     {
@@ -31,29 +32,40 @@
   "signing": {
     "previousStatus": "NotSigned",
     "candidateStatus": "NotSigned",
-    "policy": "Unsigned; electron-builder.yml has no win.sign or certificate configuration. Previous publish method is unknown."
+    "policy": "Unsigned; electron-builder.yml at c06b065 has no win.sign or certificate configuration. Previous publish method is unknown."
+  },
+  "readback": {
+    "date": "2026-11-03",
+    "repoPermissions": "gh api repos/r2cuerdame/WSLPad --jq .permissions: {\"admin\":true,\"maintain\":true,\"pull\":true,\"push\":true,\"triage\":true}",
+    "draft": "Release 405268106: draft=true, target_commitish=c06b065d5bd4127fdce32b115677494761782a64, asset IDs 617142776, 617142775, 617142779 unchanged.",
+    "assetBytes": "Downloaded all three assets via the authenticated asset API; sizes and SHA256 values equal this manifest. Installer SHA512 equals latest.yml files[0].sha512 and sha512; latest.yml version 1.2.0, size 88109909, path WSLPad-Setup-1.2.0.exe.",
+    "signatures": "Get-AuthenticodeSignature: WSLPad-Setup-1.1.2.exe (public v1.1.2) NotSigned; WSLPad-Setup-1.2.0.exe (draft) NotSigned.",
+    "publicLatest": "releases/latest tag_name: v1.1.2"
   },
   "lifecycle": {
-    "result": "blocked",
-    "reason": "Existing VMware Windows VM files were found, but all three VMs are powered off and no guest execution path was proven for Worker or independent QA. Separation from the user's WSL distributions, app data, and session could not be verified at runtime. The 1.1.2 to original 1.2.0 lifecycle was not run. A GitHub-hosted runner run is not qualifying evidence under Issue #107.",
+    "result": "not_run",
+    "reason": "미실행: Get-VM 권한 미반영",
+    "route": "Owner decision (Issue #107 comments, 2026-11-01 and 2026-11-03): a new clean Windows 11 Hyper-V VM on the home PC, with the isolated account created only inside that VM. No host reboot or logoff, no hosted runner, no change to existing VMs, host settings, the user's WSL distributions, app data or session.",
     "previousInstaller": "https://github.com/r2cuerdame/WSLPad/releases/download/v1.1.2/WSLPad-Setup-1.1.2.exe",
     "candidateAssetId": 617142776,
-    "isolationDiscovery": {
-      "windowsSandbox": "Test-Path C:\\Windows\\System32\\WindowsSandbox.exe: False; Get-WindowsOptionalFeature -Online -FeatureName Containers-DisposableClientVM: requested operation requires elevation",
-      "hyperV": "Get-VM: insufficient permission under RECUERDAME authorization policy; vmcompute and vmms are running, but Hyper-V WMI returned no Virtual Machine rows. Existing vmwp.exe alone does not identify an accessible isolated Windows VM.",
-      "vmware": "C:\\Program Files\\VMware\\VMware Workstation\\vmrun.exe list: Total running VMs: 0 (exit 0). Existing Windows 11 VMX files: DevHotel-Base, DevHotel-v060-Acceptance, DH-Smoke. Each vmrun checkToolsState returned unknown (exit -2); each getGuestIPAddress returned 'The virtual machine is not powered on' (exit -1). DevHotel-Base references two missing ISO files. DH-Smoke has snapshot devhotel-clean; no snapshot was reverted or VM started. VMX uses NAT; no sharedFolder or hgfs entry was found. File ACL grants CodexSandboxUsers Modify, but guest execution and runtime isolation remain unverified.",
-      "vmwarePriorStartFailure": "DevHotel-v060-Acceptance/vmware.log at 2026-09-16T10:29:29.732Z and DH-Smoke/vmware.log at 2026-09-16T10:30:15.846Z: [msg.pci.noslotavail] No PCIe slot available for Ethernet0; E1000PCI failed to register e1000e device; access violation and VMware Workstation unrecoverable error (vmx). Current VMX files still enable ethernet0. These are historical VM start failures, not the separate LoopOffice gate_error.",
-      "testAccount": "Get-LocalUser: CodexSandboxOffline and CodexSandboxOnline enabled; Win32_UserProfile: CodexSandboxOffline Loaded=False, no CodexSandboxOnline profile row; Get-ScheduledTask: zero tasks with CodexSandbox principal; quser: only recue console session active. No existing route to run lifecycle as either test account was established.",
-      "workerAndQaAccess": "Worker identity RECUERDAME\\recue, session 1. Both existing CodexSandbox users are members of CodexSandboxUsers, which has inherited Modify access to the VMX files. No active test-account session, scheduled task, running VM, guest IP, or VMware Tools state was available. File ACL alone does not establish a Worker guest command path or an independently usable QA path; neither was exercised.",
-      "userSeparation": "wsl --list --verbose: Ubuntu-24.04 and docker-desktop Running; quser: recue console session Active. Neither account nor VM access and data separation could be proven, so no installer was run.",
-      "existingWindowsCI": "GET /actions/runners: total_count=0. Current CI workflow defaults to windows-latest and runs typecheck, lint, tests, build and fixture E2E, not installer lifecycle. Current successful CI job 114307438461 has runner_group_name=GitHub Actions. The existing public lifecycle workflow targets public releases and defaults to windows-latest. Historical candidate lifecycle job 113065975152 also has runner_group_name=GitHub Actions. Another hosted run is prohibited for this Issue; no self-hosted Windows runner is registered.",
-      "devHotelRoute": "No DevHotel command is available on PATH. The three existing DevHotel/VMware Windows VMX files are readable, but vmrun -T ws list reports Total running VMs: 0; none offers a current guest command session. Prior logs document boot failures for DevHotel-v060-Acceptance and DH-Smoke; starting or modifying a VM was not attempted. No Worker or independent QA guest access or runtime separation from the user's WSL, app data and session is proven."
+    "stages": {
+      "install": "not_run",
+      "upgrade": "not_run",
+      "uninstallReinstall": "not_run",
+      "finalCleanup": "not_run"
+    },
+    "accessEvidence": {
+      "whoami": "recuerdame\\recue",
+      "hyperVAdministratorsMembers": "Get-LocalGroupMember -Group \"Hyper-V Administrators\": RECUERDAME\\recue",
+      "sessionToken": "whoami /groups: no Hyper-V Administrators entry; BUILTIN\\Administrators is 'Group used for deny only'",
+      "getVm": "Get-VM: 이 작업을 완료하는 데 필요한 권한이 없습니다. 'RECUERDAME' 컴퓨터의 권한 부여 정책 관리자에게 문의하십시오.",
+      "services": "vmms Running; vmcompute Running",
+      "optionalFeature": "Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-All: 요청한 작업을 수행하려면 권한 상승이 필요합니다."
     },
     "historicalHostedRun": {
       "runId": 37701562990,
       "jobId": 113065975152,
-      "qualification": "Not accepted for this Issue: it used a newly added GitHub-hosted workflow",
-      "assetChecks": "Draft release and all three assets returned HTTP 200 with contents:write; downloaded sizes and SHA256 values matched this manifest; installer SHA512 matched latest.yml",
+      "qualification": "Not accepted for this Issue: GitHub-hosted runner.",
       "stagesReportedByRun": {
         "install": "1.1.2 installed and launched without a WSL distribution",
         "upgrade": "1.1.2 to original 1.2.0 passed; user-data marker preserved",
