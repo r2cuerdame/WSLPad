@@ -4,8 +4,12 @@ release*/
 dist/
 coverage/
 test-results/
-# Runtime worktrees created by the task loop — generated state, never source.
-.loop/
+# Keep runtime state out; allow the project PD contract and approved PLC.
+.loop/*
+!.loop/project.md
+!.loop/overrides.md
+!.loop/lessons.md
+!.loop/plc.md
 playwright-report/
 *.log
 .vite/
