@@ -426,6 +426,15 @@ describe('dual pane layout', () => {
       error: null
     }
 
+    act(() =>
+      progressListeners.forEach((listener) =>
+        listener({ ...progress, status: 'running', doneItems: 1 })
+      )
+    )
+    await flush()
+    expect(api.explorer.list.mock.calls.length).toBe(linuxListCalls)
+    expect(api.windows.list.mock.calls.length).toBe(windowsListCalls)
+
     act(() => progressListeners.forEach((listener) => listener({ ...progress, status: 'error', doneItems: 1 })))
     await waitFor(() => {
       expect(api.explorer.list.mock.calls.length).toBe(linuxListCalls + 1)
