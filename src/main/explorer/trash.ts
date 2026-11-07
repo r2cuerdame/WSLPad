@@ -161,7 +161,7 @@ for f in ${info}/*.trashinfo; do
   k=other
   [ -d "$t" ] && k=dir
   [ -f "$t" ] && k=file
-  [ -e "$t" ] || k=missing
+  { [ -e "$t" ] || [ -L "$t" ]; } || k=missing
   s=$(du -sb "$t" 2>/dev/null | cut -f1)
   echo '${ITEM}'
   echo '${FIELD}'; printf '%s${nl}' "$n"
@@ -227,8 +227,8 @@ export function buildRestoreScript(trashDir: string, entry: TrashEntry): string 
   const info = shellQuote(`${trashDir}/info/${entry.trashName}.trashinfo`)
   const dest = shellQuote(entry.originalPath)
   const parent = shellQuote(entry.originalPath.replace(/\/[^/]*$/, '') || '/')
-  return `[ -e ${src} ] || { echo ${shellQuote(`WSLPAD_MISSING`)} 1>&2; exit 1; }
-[ -e ${dest} ] && { echo ${shellQuote(`WSLPAD_EXISTS`)} 1>&2; exit 1; }
+  return `{ [ -e ${src} ] || [ -L ${src} ]; } || { echo ${shellQuote(`WSLPAD_MISSING`)} 1>&2; exit 1; }
+{ [ -e ${dest} ] || [ -L ${dest} ]; } && { echo ${shellQuote(`WSLPAD_EXISTS`)} 1>&2; exit 1; }
 mkdir -p ${parent} || exit 1
 mv ${src} ${dest} || exit 1
 rm -f ${info}`

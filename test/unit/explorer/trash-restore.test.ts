@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildRestoreScript,
+  buildTrashListScript,
   buildTrashInfo,
   decodeTrashPath,
   encodeTrashPath,
@@ -92,6 +93,13 @@ describe('parseTrashList', () => {
   })
 })
 
+describe('buildTrashListScript', () => {
+  it('counts a broken symlink in trash as present instead of missing', () => {
+    const script = buildTrashListScript('/home/dev/.local/share/Trash')
+    expect(script).toContain('{ [ -e "$t" ] || [ -L "$t" ]; } || k=missing')
+  })
+})
+
 describe('buildRestoreScript', () => {
   const entry = {
     trashName: 'notes.md',
@@ -107,6 +115,16 @@ describe('buildRestoreScript', () => {
     // The whole point of an undo is that it destroys nothing.
     expect(script).toContain('WSLPAD_EXISTS')
     expect(script.indexOf('WSLPAD_EXISTS')).toBeLessThan(script.indexOf('mv '))
+  })
+
+  it('recognizes a broken symlink in trash and protects a broken symlink destination', () => {
+    const script = buildRestoreScript('/home/dev/.local/share/Trash', entry)
+    expect(script).toContain(
+      "{ [ -e '/home/dev/.local/share/Trash/files/notes.md' ] || [ -L '/home/dev/.local/share/Trash/files/notes.md' ]; }"
+    )
+    expect(script).toContain(
+      "{ [ -e '/home/dev/docs/notes.md' ] || [ -L '/home/dev/docs/notes.md' ]; } && { echo 'WSLPAD_EXISTS'"
+    )
   })
 
   it('recreates the folder the file came from, and clears the record after', () => {
@@ -165,6 +183,16 @@ describe('restoreFromTrash', () => {
     await expect(restoreFromTrash(runner, 'Ubuntu', '/home/dev', ['notes.md'])).rejects.toThrow(
       /already exists/
     )
+  })
+
+  it('reports a broken symlink destination as occupied', async () => {
+    const runner = new MockRunner().on((script) =>
+      listingHandler(script) ? ok(listing) : fail(1, 'WSLPAD_EXISTS\n')
+    )
+    await expect(restoreFromTrash(runner, 'Ubuntu', '/home/dev', ['notes.md'])).rejects.toThrow(
+      /already exists/
+    )
+    expect(runner.calls[1].script).toContain("[ -L '/home/dev/notes.md' ]")
   })
 
   it('says the trashed copy is gone rather than reporting success', async () => {
