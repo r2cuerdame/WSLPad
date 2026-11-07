@@ -174,7 +174,7 @@ function makeApi(snapshot: WslPadSnapshot) {
     exportLlmJson: vi.fn(async () => null),
     explorer: {
       list: vi.fn(async (path: string) => linuxListings[path] ?? []),
-      tree: vi.fn(async () => [] as FileEntry[]),
+      tree: vi.fn(async (_path: string) => [] as FileEntry[]),
       stat: vi.fn(async () => ({
         ...entry({ name: 'config.json', path: `${LINUX_HOME}/config.json` }),
         inode: 1,
@@ -557,6 +557,35 @@ describe('folder tree strip', () => {
     expect(within(tree).getByText('This PC')).toBeDefined()
     await waitFor(() => expect(api.windows.tree).toHaveBeenCalledWith(WINDOWS_ROOT))
     expect(localStorage.getItem('wslpad.explorer.tree.windows')).toBe('1')
+  })
+
+  it('renders and expands directory symlinks while navigating to their link path', async () => {
+    const linkedDir = `${LINUX_HOME}/linked-dir`
+    api.explorer.tree.mockImplementation(async (path: string) => {
+      if (path === '/') return [entry({
+        name: 'linked-dir',
+        path: linkedDir,
+        type: 'symlink',
+        symlinkTarget: '/srv/data',
+        targetType: 'directory',
+        sizeBytes: null
+      })]
+      if (path === linkedDir) return [entry({ name: 'child', path: `${linkedDir}/child`, type: 'directory', sizeBytes: null })]
+      return []
+    })
+    api.windows.tree.mockImplementation(async (path: string) =>
+      path === WINDOWS_ROOT ? [winEntry({ name: 'C:', path: 'C:\\', type: 'directory', sizeBytes: null })] : []
+    )
+    await renderExplorer()
+    const linux = pane('linux')
+    fireEvent.click(within(linux).getByRole('button', { name: 'Show folder tree' }))
+    const tree = await within(linux).findByRole('tree')
+    const linkNode = await within(tree).findByText('linked-dir')
+    fireEvent.click(linkNode)
+    await waitFor(() => expect(api.explorer.list).toHaveBeenCalledWith(linkedDir, { showHidden: false }))
+    fireEvent.click(within(tree).getByRole('button', { name: 'Expand' }))
+    await within(tree).findByText('child')
+    expect(api.explorer.tree).toHaveBeenCalledWith(linkedDir)
   })
 })
 

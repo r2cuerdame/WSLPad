@@ -182,14 +182,36 @@ describe('listDirectory', () => {
 })
 
 describe('listTree', () => {
-  it('lists one level of directories only', async () => {
-    const runner = new MockRunner().on((script) =>
-      script.includes('-type d') ? ok('d|755|u|u|4096|1.0|sub|') : undefined
-    )
+  it('lists directories and resolved directory symlinks only', async () => {
+    const runner = new MockRunner()
+      .on((script) =>
+        script.includes('find -H')
+          ? ok([
+              'd|755|u|u|4096|1.0|sub|',
+              'l|777|u|u|3|1.0|dir-link|sub',
+              'l|777|u|u|4|1.0|file-link|file',
+              'l|777|u|u|6|1.0|broken-link|missing'
+            ].join('\n'))
+          : script.includes('if [ -d')
+            ? ok('d\nf\nx\n')
+            : undefined
+      )
     const entries = await listTree(runner, 'Ubuntu', '/home/u')
-    expect(entries).toHaveLength(1)
-    expect(entries[0].type).toBe('directory')
-    expect(runner.calls[0].script).toContain('-mindepth 1 -maxdepth 1 -type d')
+    expect(entries.map((entry) => [entry.name, entry.type, entry.targetType])).toEqual([
+      ['sub', 'directory', null],
+      ['dir-link', 'symlink', 'directory']
+    ])
+    expect(runner.calls[0].script).toContain('-mindepth 1 -maxdepth 1')
+    expect(runner.calls[0].script).toContain('-type d -o -type l')
+    expect(runner.calls[1].script).toContain('for p in')
+  })
+
+  it('follows a symlink when it is the lazy-loaded tree root', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('find -H') ? ok('d|755|u|u|4096|1.0|child|') : undefined
+    )
+    await listTree(runner, 'Ubuntu', '/home/u/link')
+    expect(runner.calls[0].script).toContain('find -H')
   })
 })
 
