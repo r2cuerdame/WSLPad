@@ -607,7 +607,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
     tree: async (path) => {
       if (path === WINDOWS_ROOT) return driveEntries()
       const entries = await readDirectory(normalizePath(path))
-      return entries.filter((e) => e.type === 'directory')
+      return entries.filter((e) => e.type === 'directory' || (e.type === 'symlink' && e.targetType === 'directory'))
     },
 
     stat: async (path) => (path === WINDOWS_ROOT ? thisPcStat() : statEntry(normalizePath(path))),

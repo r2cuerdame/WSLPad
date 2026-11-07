@@ -212,12 +212,16 @@ export async function listTree(
 ): Promise<FileEntry[]> {
   assertValidLinuxPath(dirPath)
   const q = shellQuote(dirPath)
-  const script = `${dirGuard(q)}; find ${q} -mindepth 1 -maxdepth 1 -type d -printf '${FIND_FMT}'`
+  // -H follows a symlink when the requested tree root is itself a link, while
+  // -type l includes child links so their targets can be checked below.
+  const script = `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 1 ( -type d -o -type l ) -printf '${FIND_FMT}'`
   const result = await runner.runInDistro(distro, script, { timeoutMs: RUNNER_SLOW_TIMEOUT_MS })
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
     throw explorerErrorFromResult(dirPath, result)
   }
-  return parseFindListing(dirPath, result.stdout)
+  const entries = parseFindListing(dirPath, result.stdout)
+  await resolveSymlinkTargets(runner, distro, entries)
+  return entries.filter((e) => e.type === 'directory' || (e.type === 'symlink' && e.targetType === 'directory'))
 }
 
 const STAT_FMT = '%F|%a|%U|%G|%s|%Y|%X|%i'
