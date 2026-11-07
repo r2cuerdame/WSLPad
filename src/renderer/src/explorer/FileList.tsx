@@ -4,7 +4,7 @@ import type { FileEntry, FsKind, PathSide } from '@shared/types'
 import { fileNameSchema } from '@shared/schemas'
 import { VirtualList } from '../components/VirtualList'
 import { SideBadge } from '../components/SideBadge'
-import { entrySide, resolveLinuxPath, type FsAdapter } from './fsAdapter'
+import { entrySide, resolveLinuxPath, resolveWindowsPath, type FsAdapter } from './fsAdapter'
 import { formatBytes, formatDateTime, type SortDir, type SortKey } from './usePane'
 
 export const INTERNAL_DND_TYPE = 'application/x-wslpad-paths'
@@ -223,7 +223,9 @@ export function FileListView(props: FileListProps): React.JSX.Element {
     } else if (entry.type === 'symlink' && entry.targetType === 'directory') {
       const target = entry.symlinkTarget ?? ''
       props.onNavigate(
-        adapter.kind === 'linux' ? resolveLinuxPath(adapter.parent(entry.path), target) : target
+        adapter.kind === 'linux'
+          ? resolveLinuxPath(adapter.parent(entry.path), target)
+          : resolveWindowsPath(adapter.parent(entry.path), target)
       )
     } else if (entry.type === 'file' || entry.type === 'symlink') {
       props.onOpenFile(entry)

@@ -260,6 +260,22 @@ describe('search', () => {
     expect(script).toContain('| head -200')
     expect(script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%p|%l\\n'")
   })
+
+  it('resolves directory and file symlink targets in search results', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('-iname')
+        ? ok(
+            'l|777|u|g|3|1.0|/home/u/shortcut|../shared\n' +
+              'l|777|u|g|3|1.0|/home/u/config-link|config.json\n'
+          )
+        : ok('d\nf\n')
+    )
+    const hits = await searchDirectory(runner, 'Ubuntu', '/home/u', 'link')
+    expect(hits.map((hit) => hit.targetType)).toEqual(['directory', 'file'])
+    expect(runner.calls).toHaveLength(2)
+    expect(runner.calls[1].script).toContain("'/home/u/shortcut'")
+    expect(runner.calls[1].script).toContain("'/home/u/config-link'")
+  })
 })
 
 describe('ExplorerError payload', () => {

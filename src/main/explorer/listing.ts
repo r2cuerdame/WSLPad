@@ -304,5 +304,7 @@ export async function searchDirectory(
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
     throw explorerErrorFromResult(dirPath, result)
   }
-  return parseFindPathListing(result.stdout)
+  const entries = parseFindPathListing(result.stdout)
+  await resolveSymlinkTargets(runner, distro, entries)
+  return entries
 }
