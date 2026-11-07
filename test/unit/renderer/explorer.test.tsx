@@ -406,6 +406,63 @@ describe('sortEntries', () => {
 })
 
 describe('dual pane layout', () => {
+  it('refreshes listings after partial file operations, but not empty failures', async () => {
+    const progressListeners: Array<(progress: import('@shared/types').FileOpProgress) => void> = []
+    api.onOpProgress.mockImplementation(((callback: (progress: import('@shared/types').FileOpProgress) => void) => {
+      progressListeners.push(callback)
+      return () => undefined
+    }) as unknown as () => () => undefined)
+    await renderExplorer()
+
+    const linuxListCalls = api.explorer.list.mock.calls.length
+    const windowsListCalls = api.windows.list.mock.calls.length
+    const progress = {
+      opId: 'op-partial',
+      kind: 'copy' as const,
+      totalItems: 2,
+      totalBytes: null,
+      doneBytes: null,
+      currentItem: null,
+      error: null
+    }
+
+    act(() =>
+      progressListeners.forEach((listener) =>
+        listener({ ...progress, status: 'running', doneItems: 1 })
+      )
+    )
+    await flush()
+    expect(api.explorer.list.mock.calls.length).toBe(linuxListCalls)
+    expect(api.windows.list.mock.calls.length).toBe(windowsListCalls)
+
+    act(() => progressListeners.forEach((listener) => listener({ ...progress, status: 'error', doneItems: 1 })))
+    await waitFor(() => {
+      expect(api.explorer.list.mock.calls.length).toBe(linuxListCalls + 1)
+      expect(api.windows.list.mock.calls.length).toBe(windowsListCalls + 1)
+    })
+
+    const refreshedLinuxCalls = api.explorer.list.mock.calls.length
+    const refreshedWindowsCalls = api.windows.list.mock.calls.length
+    act(() => progressListeners.forEach((listener) => listener({ ...progress, status: 'cancelled', doneItems: 2 })))
+    await waitFor(() => {
+      expect(api.explorer.list.mock.calls.length).toBe(refreshedLinuxCalls + 1)
+      expect(api.windows.list.mock.calls.length).toBe(refreshedWindowsCalls + 1)
+    })
+
+    const finalLinuxCalls = api.explorer.list.mock.calls.length
+    const finalWindowsCalls = api.windows.list.mock.calls.length
+    act(() => progressListeners.forEach((listener) => listener({ ...progress, status: 'error', doneItems: 0 })))
+    await flush()
+    expect(api.explorer.list.mock.calls.length).toBe(finalLinuxCalls)
+    expect(api.windows.list.mock.calls.length).toBe(finalWindowsCalls)
+
+    act(() => progressListeners.forEach((listener) => listener({ ...progress, status: 'done', doneItems: 2 })))
+    await waitFor(() => {
+      expect(api.explorer.list.mock.calls.length).toBe(finalLinuxCalls + 1)
+      expect(api.windows.list.mock.calls.length).toBe(finalWindowsCalls + 1)
+    })
+  })
+
   it('renders a Windows pane and a WSL pane', async () => {
     await renderExplorer()
     expect(pane('windows')).toBeDefined()

@@ -569,7 +569,12 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   // Refresh the listing when a file operation completes (paste/import/export).
   useEffect(() => {
     return window.wslpad.onOpProgress((p) => {
-      if (p.status === 'done') void refreshDir()
+      if (
+        p.status === 'done' ||
+        ((p.status === 'error' || p.status === 'cancelled') && (p.doneItems ?? 0) > 0)
+      ) {
+        void refreshDir()
+      }
     })
   }, [refreshDir])
 
