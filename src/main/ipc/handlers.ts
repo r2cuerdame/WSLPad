@@ -444,12 +444,18 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     )
   )
   handle(IpcChannels.openInWindowsExplorer, async (linuxPath) => {
+    const p = linuxPathSchema.parse(linuxPath)
+    const info = await deps.explorer.stat(distro(), p)
     const winPath = await deps.explorer.convertPath(
       distro(),
-      linuxPathSchema.parse(linuxPath),
+      p,
       'windows'
     )
-    shell.showItemInFolder(winPath)
+    if (info.type === 'directory' || info.targetType === 'directory') {
+      await shell.openPath(winPath)
+    } else {
+      shell.showItemInFolder(winPath)
+    }
   })
   handle(IpcChannels.openExternal, (url) => {
     const u = z.string().url().max(2048).parse(url)
