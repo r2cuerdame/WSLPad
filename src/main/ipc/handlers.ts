@@ -337,9 +337,10 @@ export function registerIpcHandlers(deps: IpcDeps): void {
       windowsPathSchema.parse(windowsDir)
     )
   )
-  handle(IpcChannels.explorerCancelOp, (opId) =>
-    deps.explorer.cancelOp(stringSchema.max(128).parse(opId))
-  )
+  handle(IpcChannels.explorerCancelOp, async (opId) => {
+    const id = stringSchema.max(128).parse(opId)
+    await Promise.all([deps.explorer.cancelOp(id), deps.windowsFs.cancelOp(id)])
+  })
   handle(IpcChannels.explorerDirSizes, (path, token) =>
     deps.explorer.dirSizes(distro(), linuxPathSchema.parse(path), opTokenSchema.parse(token))
   )
