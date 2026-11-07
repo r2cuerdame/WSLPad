@@ -118,6 +118,26 @@ export function normalizeWindowsPath(input: string): string | null {
   return isWindowsDriveRoot(value) ? value : value.replace(/\\+$/, '')
 }
 
+/** Resolve a relative Windows symlink target against its containing directory. */
+export function resolveWindowsPath(baseDir: string, target: string): string {
+  const raw = /^[A-Za-z]:[\\/]/.test(target) || /^[\\/]{2}/.test(target)
+    ? target
+    : `${baseDir}\\${target}`
+  const value = raw.replace(/\//g, '\\')
+  const unc = value.startsWith('\\\\')
+  const prefix = unc ? '\\\\' : value.slice(0, 2)
+  const parts = value.slice(unc ? 2 : 2).split('\\').filter(Boolean)
+  const protectedParts = unc ? 2 : 0
+  const normalized: string[] = []
+  for (const part of parts) {
+    if (part === '.') continue
+    if (part === '..') {
+      if (normalized.length > protectedParts) normalized.pop()
+    } else normalized.push(part)
+  }
+  return unc ? `${prefix}${normalized.join('\\')}` : `${prefix}\\${normalized.join('\\')}`
+}
+
 // ---------------------------------------------------------------------------
 // Adapter
 // ---------------------------------------------------------------------------

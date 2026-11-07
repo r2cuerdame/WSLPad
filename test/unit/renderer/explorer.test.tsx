@@ -519,6 +519,25 @@ describe('windows pane navigation', () => {
     )
     await within(win).findByText('Users')
   })
+
+  it('resolves relative Windows directory symlink targets against the link parent', async () => {
+    windowsListings[WIN_HOME].push(
+      winEntry({
+        name: 'shared-link',
+        path: `${WIN_HOME}\\shared-link`,
+        type: 'symlink',
+        symlinkTarget: '..\\Shared',
+        targetType: 'directory'
+      })
+    )
+    await renderExplorer()
+
+    fireEvent.doubleClick(within(pane('windows')).getByText('shared-link'))
+    await waitFor(() =>
+      expect(api.windows.list).toHaveBeenCalledWith('C:\\Users\\Shared', { showHidden: false })
+    )
+    expect(api.windows.readText).not.toHaveBeenCalled()
+  })
 })
 
 describe('folder tree strip', () => {
@@ -706,6 +725,30 @@ describe('console path sync', () => {
 })
 
 describe('context menus', () => {
+  it('opens a directory symlink from the context menu as a directory', async () => {
+    linuxListings[LINUX_HOME].push(
+      entry({
+        name: 'linked-logs',
+        path: `${LINUX_HOME}/linked-logs`,
+        type: 'symlink',
+        symlinkTarget: 'logs',
+        targetType: 'directory'
+      })
+    )
+    await renderExplorer()
+
+    fireEvent.contextMenu(within(pane('linux')).getByText('linked-logs'))
+    const menu = await screen.findByRole('menu')
+    fireEvent.click(within(menu).getAllByRole('menuitem', { name: /open/i })[0])
+
+    await waitFor(() =>
+      expect(api.explorer.list).toHaveBeenCalledWith(`${LINUX_HOME}/linked-logs`, {
+        showHidden: false
+      })
+    )
+    expect(api.explorer.readText).not.toHaveBeenCalled()
+  })
+
   it('offers no chmod command on Windows entries but keeps it on WSL entries', async () => {
     await renderExplorer()
 

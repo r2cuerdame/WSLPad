@@ -182,7 +182,10 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
   }
 
   const openEntry = (entry: FileEntry): void => {
-    if (entry.type === 'directory') void pane.navigate(entry.path)
+    if (
+      entry.type === 'directory' ||
+      (entry.type === 'symlink' && entry.targetType === 'directory')
+    ) void pane.navigate(entry.path)
     else props.onOpenEditor(entry.path, adapter.kind)
   }
 
