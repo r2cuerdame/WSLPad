@@ -12,7 +12,7 @@ import { DirSizesPanel } from './DirSizesPanel'
 import { FileListView, LINUX_COLUMNS, WINDOWS_COLUMNS } from './FileList'
 import { FolderTree } from './FolderTree'
 import { Toolbar } from './Toolbar'
-import { shQuote, type FsAdapter } from './fsAdapter'
+import { resolveLinuxPath, resolveWindowsPath, shQuote, type FsAdapter } from './fsAdapter'
 import { extractWindowsPaths, formatBytes, parseExplorerError, usePane } from './usePane'
 
 const TREE_STORAGE_PREFIX = 'wslpad.explorer.tree.'
@@ -182,11 +182,18 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
   }
 
   const openEntry = (entry: FileEntry): void => {
-    if (
-      entry.type === 'directory' ||
-      (entry.type === 'symlink' && entry.targetType === 'directory')
-    ) void pane.navigate(entry.path)
-    else props.onOpenEditor(entry.path, adapter.kind)
+    if (entry.type === 'directory') {
+      void pane.navigate(entry.path)
+    } else if (entry.type === 'symlink' && entry.targetType === 'directory') {
+      const target = entry.symlinkTarget ?? ''
+      const targetPath =
+        adapter.kind === 'linux'
+          ? resolveLinuxPath(adapter.parent(entry.path), target)
+          : resolveWindowsPath(adapter.parent(entry.path), target)
+      void pane.navigate(targetPath)
+    } else {
+      props.onOpenEditor(entry.path, adapter.kind)
+    }
   }
 
   const transferTarget = (): string | null => {

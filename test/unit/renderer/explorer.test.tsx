@@ -731,7 +731,7 @@ describe('context menus', () => {
         name: 'linked-logs',
         path: `${LINUX_HOME}/linked-logs`,
         type: 'symlink',
-        symlinkTarget: 'logs',
+        symlinkTarget: '../shared/logs',
         targetType: 'directory'
       })
     )
@@ -742,7 +742,7 @@ describe('context menus', () => {
     fireEvent.click(within(menu).getAllByRole('menuitem', { name: /open/i })[0])
 
     await waitFor(() =>
-      expect(api.explorer.list).toHaveBeenCalledWith(`${LINUX_HOME}/linked-logs`, {
+      expect(api.explorer.list).toHaveBeenCalledWith('/home/shared/logs', {
         showHidden: false
       })
     )
