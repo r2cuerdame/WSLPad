@@ -144,6 +144,23 @@ describe('createWindowsFs — listing', () => {
     expect((await fs.tree(base)).map((e) => e.name)).toEqual(['child'])
   })
 
+  it.runIf(IS_WINDOWS)('includes directory symlinks and junctions but excludes file and broken links', async () => {
+    const base = dir('tree-links')
+    const target = dir('tree-links', 'target')
+    const file = join(base, 'target.txt')
+    writeFileSync(file, 'x')
+    await import('fs/promises').then(({ symlink }) => Promise.all([
+      symlink(target, join(base, 'directory-link'), 'junction'),
+      symlink(file, join(base, 'file-link'), 'file'),
+      symlink(join(base, 'missing'), join(base, 'broken-link'), 'junction')
+    ]))
+
+    expect((await fs.tree(base)).map((entry) => [entry.name, entry.type, entry.targetType])).toEqual([
+      ['directory-link', 'symlink', 'directory'],
+      ['target', 'directory', null]
+    ])
+  })
+
   it('maps missing and non-directory paths to typed errors', async () => {
     const base = dir('list-errors')
     const file = join(base, 'plain.txt')
