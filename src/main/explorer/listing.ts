@@ -214,7 +214,7 @@ export async function listTree(
   const q = shellQuote(dirPath)
   // -H follows a symlink when the requested tree root is itself a link, while
   // -type l includes child links so their targets can be checked below.
-  const script = `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 1 ( -type d -o -type l ) -printf '${FIND_FMT}'`
+  const script = `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 1 '(' -type d -o -type l ')' -printf '${FIND_FMT}'`
   const result = await runner.runInDistro(distro, script, { timeoutMs: RUNNER_SLOW_TIMEOUT_MS })
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
     throw explorerErrorFromResult(dirPath, result)

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { spawnSync } from 'node:child_process'
 import {
   explorerErrorFromResult,
   listDirectory,
@@ -182,6 +183,22 @@ describe('listDirectory', () => {
 })
 
 describe('listTree', () => {
+  it.skipIf(spawnSync('sh', ['-c', 'exit 0']).status !== 0)(
+    'generates a script accepted by the POSIX shell parser',
+    async () => {
+      const runner = new MockRunner()
+      await listTree(runner, 'Ubuntu', '/home/u')
+      const script = runner.calls[0].script
+      const parsed = spawnSync('sh', ['-n', '-c', script], { encoding: 'utf8' })
+      expect(parsed.stderr).toBe('')
+      expect(parsed.status).toBe(0)
+
+      // Prove this check catches the original regression, even without WSL/GUI.
+      const unquoted = script.replace("'('", '(').replace("')'", ')')
+      expect(spawnSync('sh', ['-n', '-c', unquoted]).status).not.toBe(0)
+    }
+  )
+
   it('lists directories and resolved directory symlinks only', async () => {
     const runner = new MockRunner()
       .on((script) =>
@@ -202,7 +219,7 @@ describe('listTree', () => {
       ['dir-link', 'symlink', 'directory']
     ])
     expect(runner.calls[0].script).toContain('-mindepth 1 -maxdepth 1')
-    expect(runner.calls[0].script).toContain('-type d -o -type l')
+    expect(runner.calls[0].script).toContain("'(' -type d -o -type l ')'")
     expect(runner.calls[1].script).toContain('for p in')
   })
 
