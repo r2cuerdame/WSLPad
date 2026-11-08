@@ -315,6 +315,25 @@ describe('search', () => {
     expect(script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%p|%l\\n'")
   })
 
+  it('follows a directory symlink search root and returns nested matches', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes("find -H '/home/u/link'")
+        ? ok(
+            'f|644|u|g|9|1.0|/home/u/link/child/hit.txt|\n' +
+              'd|755|u|g|4096|1.0|/home/u/link/child/hit-dir|\n'
+          )
+        : undefined
+    )
+
+    const hits = await searchDirectory(runner, 'Ubuntu', '/home/u/link', 'hit')
+
+    expect(hits.map(({ name, path, type }) => ({ name, path, type }))).toEqual([
+      { name: 'hit.txt', path: '/home/u/link/child/hit.txt', type: 'file' },
+      { name: 'hit-dir', path: '/home/u/link/child/hit-dir', type: 'directory' }
+    ])
+    expect(runner.calls[0].script).toContain("find -H '/home/u/link' -mindepth 1 -maxdepth 4")
+  })
+
   it('resolves directory and file symlink targets in search results', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes('-iname')
