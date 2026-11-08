@@ -301,8 +301,9 @@ export async function searchDirectory(
   if (!sanitized) return []
   const q = shellQuote(dirPath)
   const pattern = shellQuote(`*${sanitized}*`)
+  // -H follows the requested root if navigation landed on a directory symlink.
   const script =
-    `${dirGuard(q)}; find ${q} -mindepth 1 -maxdepth 4 -iname ${pattern} ` +
+    `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 4 -iname ${pattern} ` +
     `-printf '${FIND_PATH_FMT}' 2>/dev/null | head -200`
   const result = await runner.runInDistro(distro, script, { timeoutMs: RUNNER_SLOW_TIMEOUT_MS })
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
