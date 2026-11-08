@@ -191,7 +191,7 @@ export async function listDirectory(
 ): Promise<FileEntry[]> {
   assertValidLinuxPath(dirPath)
   const q = shellQuote(dirPath)
-  const script = `${dirGuard(q)}; find ${q} -mindepth 1 -maxdepth 1 -printf '${FIND_FMT}'`
+  const script = `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 1 -printf '${FIND_FMT}'`
   const result = await runner.runInDistro(distro, script, { timeoutMs: RUNNER_SLOW_TIMEOUT_MS })
   // find exits non-zero when single entries are unreadable but still lists the
   // rest — only treat it as fatal when nothing came back at all.

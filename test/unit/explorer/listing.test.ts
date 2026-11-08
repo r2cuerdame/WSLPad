@@ -129,7 +129,7 @@ describe('listDirectory', () => {
     const entries = await listDirectory(runner, 'Ubuntu', "/home/a'b $(x)", true)
     expect(entries).toHaveLength(4)
     const findCall = runner.calls[0]
-    expect(findCall.script).toContain("find '/home/a'\\''b $(x)' -mindepth 1 -maxdepth 1")
+    expect(findCall.script).toContain("find -H '/home/a'\\''b $(x)' -mindepth 1 -maxdepth 1")
     expect(findCall.script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%f|%l\\n'")
   })
 
@@ -183,6 +183,21 @@ describe('listDirectory', () => {
 })
 
 describe('listTree', () => {
+  it('lists the contents after navigating to a directory symlink from the tree', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes("find -H '/home/u'")
+        ? ok('l|777|u|u|3|1.0|dir-link|sub')
+        : script.startsWith('for p in')
+          ? ok('d\n')
+          : script.includes("find -H '/home/u/dir-link'")
+            ? ok('f|644|u|u|5|1.0|contents.txt|')
+            : undefined
+    )
+    const tree = await listTree(runner, 'Ubuntu', '/home/u')
+    const entries = await listDirectory(runner, 'Ubuntu', tree[0].path, true)
+    expect(entries.map((entry) => entry.name)).toEqual(['contents.txt'])
+  })
+
   it.skipIf(spawnSync('sh', ['-c', 'exit 0']).status !== 0)(
     'generates a script accepted by the POSIX shell parser',
     async () => {
