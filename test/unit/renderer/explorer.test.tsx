@@ -851,10 +851,10 @@ describe('directory sizes', () => {
   const measureButton = (kind: 'windows' | 'linux'): HTMLElement | null =>
     within(pane(kind)).queryByRole('button', { name: 'Measure directory sizes' })
 
-  it('is offered on the WSL pane only — Windows sizes are not measured', async () => {
+  it('is offered on both Explorer panes', async () => {
     await renderExplorer()
     expect(measureButton('linux')).not.toBeNull()
-    expect(measureButton('windows')).toBeNull()
+    expect(measureButton('windows')).not.toBeNull()
   })
 
   it('measures on demand and lists the children largest first', async () => {

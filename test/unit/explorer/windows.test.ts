@@ -637,4 +637,36 @@ describe('createFixtureWindowsFs', () => {
     expect(info.atime).toBe('2024-06-01T10:00:00.000Z')
     expect((await fixture.stat(WINDOWS_ROOT)).type).toBe('directory')
   })
+
+  it('measures immediate children recursively without following directory links', async () => {
+    const target = dir('sizes', 'target')
+    writeFileSync(join(target, 'payload.bin'), Buffer.alloc(17))
+    const measured = dir('sizes', 'measured')
+    writeFileSync(join(measured, 'small.txt'), '12345')
+    const nested = dir('sizes', 'measured', 'nested')
+    writeFileSync(join(nested, 'large.txt'), Buffer.alloc(29))
+    try {
+      const { symlinkSync } = await import('fs')
+      symlinkSync(target, join(measured, 'loop'), 'junction')
+    } catch {
+      // Junction creation may be unavailable on a restricted test account.
+    }
+
+    const result = await fs.dirSizes(dir('sizes'), 'size-success')
+    expect(result.cancelled).toBe(false)
+    expect(result.entries.map(({ name }) => name)).toEqual(['measured', 'target'])
+    expect(result.entries[0]).toMatchObject({ name: 'measured', sizeBytes: 34, partial: false })
+    expect(result.entries[1]).toMatchObject({ name: 'target', sizeBytes: 17 })
+    expect(result.totalBytes).toBe(51)
+  })
+
+  it('cancels a large traversal and returns a partial result', async () => {
+    const many = dir('sizes-many')
+    for (let i = 0; i < 400; i++) writeFileSync(join(many, `f${i}.txt`), 'x')
+    const pending = fs.dirSizes(many, 'size-cancel')
+    await fs.cancelDirSizes('size-cancel')
+    const result = await pending
+    expect(result.cancelled).toBe(true)
+    expect(result.path).toBe(many)
+  })
 })

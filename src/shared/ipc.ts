@@ -98,6 +98,7 @@ export const IpcChannels = {
   windowsReadText: 'wslpad:windows:read-text',
   windowsWriteText: 'wslpad:windows:write-text',
   windowsSearch: 'wslpad:windows:search',
+  windowsDirSizes: 'wslpad:windows:dir-sizes',
   windowsOpenPath: 'wslpad:windows:open-path',
   windowsStartDrag: 'wslpad:windows:start-drag',
 
@@ -228,6 +229,7 @@ export interface WslPadApi {
     rename(path: string, newName: string): Promise<void>
     /** copy or move sources into destDir; returns opId */
     copy(sources: string[], destDir: string, move: boolean): Promise<string>
+    cancelOp(opId: string): Promise<void>
     trash(paths: string[]): Promise<void>
     /** What is in the distro trash right now, newest first (issue #23). */
     listTrash(): Promise<TrashEntry[]>
@@ -277,6 +279,10 @@ export interface WslPadApi {
     /** Reveal in Windows Explorer (directories open, files are selected). */
     openPath(path: string): Promise<void>
     startDrag(paths: string[]): Promise<void>
+    dirSizes(path: string, token: string): Promise<DirSizeResult>
+    cancelDirSizes(token: string): Promise<void>
+    dirSizes(path: string, token: string): Promise<DirSizeResult>
+    cancelDirSizes(token: string): Promise<void>
   }
 
   convertPath(input: string, to: 'windows' | 'linux'): Promise<string>

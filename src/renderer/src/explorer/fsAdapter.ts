@@ -210,7 +210,9 @@ export function createWindowsAdapter(): FsAdapter {
     writeText: (path, content) => window.wslpad.windows.writeText(path, content),
     search: (path, query) => window.wslpad.windows.search(path, query),
     openNative: (path) => window.wslpad.windows.openPath(path),
-    startDrag: (paths) => window.wslpad.windows.startDrag(paths)
+    startDrag: (paths) => window.wslpad.windows.startDrag(paths),
+    dirSizes: (path, token) => window.wslpad.windows.dirSizes(path, token),
+    cancelDirSizes: (token) => window.wslpad.windows.cancelDirSizes(token)
   }
 }
 
