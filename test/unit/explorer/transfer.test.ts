@@ -37,13 +37,53 @@ describe('resolveWindowsPath', () => {
   })
 
   it('uses the configured root for Explorer path conversion', async () => {
-    const backend = createRealExplorerBackend(new MockRunner(), async () => '/drives/')
+    let settingsReads = 0
+    const backend = createRealExplorerBackend(new MockRunner(), async () => {
+      settingsReads += 1
+      return '/drives/'
+    })
     await expect(backend.convertPath('Ubuntu', 'C:\\Users\\u', 'linux')).resolves.toBe(
       '/drives/c/Users/u'
     )
     await expect(backend.convertPath('Ubuntu', '/drives/c/Users/u', 'windows')).resolves.toBe(
       'C:\\Users\\u'
     )
+    expect(settingsReads).toBe(1)
+  })
+
+  it('shares an in-flight automount settings read across paths', async () => {
+    let settingsReads = 0
+    let finishRead!: (root: string) => void
+    const settings = new Promise<string>((resolve) => {
+      finishRead = resolve
+    })
+    const backend = createRealExplorerBackend(new MockRunner(), () => {
+      settingsReads += 1
+      return settings
+    })
+
+    const paths = [
+      backend.convertPath('Ubuntu', '/drives/c/Users/a', 'windows'),
+      backend.convertPath('Ubuntu', '/drives/d/Users/b', 'windows')
+    ]
+    expect(settingsReads).toBe(1)
+    finishRead('/drives/')
+    await expect(Promise.all(paths)).resolves.toEqual(['C:\\Users\\a', 'D:\\Users\\b'])
+  })
+
+  it('retries automount settings after a failed read', async () => {
+    let settingsReads = 0
+    const backend = createRealExplorerBackend(new MockRunner(), async () => {
+      settingsReads += 1
+      if (settingsReads === 1) throw new Error('temporary settings failure')
+      return '/drives/'
+    })
+
+    await expect(backend.convertPath('Ubuntu', '/drives/c/Users/u', 'windows')).rejects.toThrow()
+    await expect(backend.convertPath('Ubuntu', '/drives/c/Users/u', 'windows')).resolves.toBe(
+      'C:\\Users\\u'
+    )
+    expect(settingsReads).toBe(2)
   })
 
   it('throws not mappable when wslpath fails too', async () => {
