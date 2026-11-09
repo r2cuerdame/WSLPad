@@ -851,9 +851,16 @@ describe('directory sizes', () => {
   const measureButton = (kind: 'windows' | 'linux'): HTMLElement | null =>
     within(pane(kind)).queryByRole('button', { name: 'Measure directory sizes' })
 
-  it('is offered on the WSL pane only — Windows sizes are not measured', async () => {
+  it('is offered on both Explorer panes', async () => {
     await renderExplorer()
     expect(measureButton('linux')).not.toBeNull()
+    expect(measureButton('windows')).not.toBeNull()
+  })
+
+  it('hides Windows size measurement at the virtual This PC root', async () => {
+    await renderExplorer()
+    fireEvent.click(within(pane('windows')).getByRole('button', { name: 'Root' }))
+    await waitFor(() => expect(api.windows.list).toHaveBeenCalledWith(WINDOWS_ROOT, { showHidden: false }))
     expect(measureButton('windows')).toBeNull()
   })
 

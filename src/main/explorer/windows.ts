@@ -13,6 +13,7 @@ import { constants as FS } from 'fs'
 import {
   access,
   cp,
+  opendir,
   lstat,
   mkdir,
   open,
@@ -30,6 +31,8 @@ import { WINDOWS_ROOT } from '@shared/constants'
 import type {
   FileEntry,
   FileEntryType,
+  DirSizeEntry,
+  DirSizeResult,
   FileOpKind,
   FileOpProgress,
   FileOpStatus,
@@ -81,6 +84,8 @@ export interface WindowsFs {
   readText(path: string, maxBytes: number): Promise<TextFileContent>
   writeText(path: string, content: string): Promise<void>
   search(path: string, query: string): Promise<FileEntry[]>
+  dirSizes(path: string, token: string): Promise<DirSizeResult>
+  cancelDirSizes(token: string): Promise<void>
   cancelOp(opId: string): Promise<void>
   onProgress(cb: (p: FileOpProgress) => void): () => void
   dispose(): void
@@ -334,6 +339,7 @@ async function presentDrives(): Promise<string[]> {
 export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
   const emitter = new EventEmitter()
   const ops = new Map<string, { cancelled: boolean }>()
+  const sizeOps = new Map<string, { cancelled: boolean }>()
   const hiddenCache = new Map<string, { at: number; names: Set<string> }>()
   let disposed = false
 
@@ -493,6 +499,141 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
       emit('running', source)
     }
     emit(errors.length > 0 ? 'error' : 'done', null, errors.length > 0 ? errors.join('; ') : null)
+  }
+
+  const dirSizes = async (path: string, token: string): Promise<DirSizeResult> => {
+    const root = normalizePath(path)
+    const op = { cancelled: false }
+    sizeOps.set(token, op)
+    const result: DirSizeResult = {
+      path: root,
+      entries: [],
+      totalBytes: 0,
+      skipped: 0,
+      cancelled: false,
+      error: null
+    }
+    const children = new Map<string, DirSizeEntry>()
+    let sinceYield = 0
+    const yieldToLoop = async (): Promise<void> => {
+      if (++sinceYield >= 64) {
+        sinceYield = 0
+        await new Promise<void>((resolve) => setImmediate(resolve))
+      }
+    }
+    const walk = async (dir: string, owner: string): Promise<void> => {
+      if (op.cancelled || disposed) return
+      let handle: Awaited<ReturnType<typeof opendir>>
+      try {
+        handle = await opendir(dir)
+      } catch (err) {
+        if (owner === root) throw err
+        const entry = children.get(owner)
+        if (entry) entry.partial = true
+        return
+      }
+      try {
+        for await (const item of handle) {
+          if (op.cancelled || disposed) return
+          await yieldToLoop()
+          if (op.cancelled || disposed) return
+          const full = win.join(dir, item.name)
+          try {
+            // Dirent directory checks avoid following symlinks and NTFS junctions.
+            if (item.isDirectory()) {
+              const st = await lstat(full)
+              if (st.isDirectory() && !st.isSymbolicLink()) {
+                const child = children.get(owner)
+                if (child) child.sizeBytes = (child.sizeBytes ?? 0) + st.size
+                await walk(full, owner)
+              }
+            } else if (item.isFile()) {
+              const st = await lstat(full)
+              if (st.isFile()) {
+                const child = children.get(owner)
+                if (child) child.sizeBytes = (child.sizeBytes ?? 0) + st.size
+              }
+            }
+          } catch (err) {
+            const child = children.get(owner)
+            if (child) child.partial = true
+            const code = (err as NodeJS.ErrnoException).code
+            if (code !== 'ENOENT' && code !== 'EACCES' && code !== 'EPERM') throw err
+          }
+        }
+      } catch (err) {
+        const child = children.get(owner)
+        if (child) child.partial = true
+        const code = (err as NodeJS.ErrnoException).code
+        if (code !== 'ENOENT' && code !== 'EACCES' && code !== 'EPERM') throw err
+      } finally {
+        await handle.close().catch(() => undefined)
+      }
+    }
+    try {
+      const rootStat = await lstat(root)
+      if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+        throw new ExplorerError('ENOTDIR', root, `ENOTDIR: ${root}`)
+      }
+      let handle: Awaited<ReturnType<typeof opendir>>
+      try {
+        handle = await opendir(root)
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code
+        if (code === 'EACCES' || code === 'EPERM') {
+          result.totalBytes = null
+          result.error = toExplorerError(root, err).message
+          return result
+        }
+        throw err
+      }
+      try {
+        for await (const item of handle) {
+          if (op.cancelled || disposed) break
+          await yieldToLoop()
+          if (op.cancelled || disposed) break
+          const full = win.join(root, item.name)
+          try {
+            const st = await lstat(full)
+            if (st.isSymbolicLink()) continue
+            const isDirectory = st.isDirectory()
+            if (!isDirectory && !st.isFile()) continue
+            children.set(full, {
+              name: item.name,
+              path: full,
+              isDirectory,
+              sizeBytes: isDirectory ? 0 : st.size,
+              partial: false
+            })
+            if (isDirectory) await walk(full, full)
+          } catch (err) {
+            const code = (err as NodeJS.ErrnoException).code
+            if (code === 'EACCES' || code === 'EPERM') {
+              children.set(full, { name: item.name, path: full, isDirectory: item.isDirectory(), sizeBytes: 0, partial: true })
+            } else if (code !== 'ENOENT') throw err
+          }
+        }
+      } finally {
+        await handle.close().catch(() => undefined)
+      }
+      const entries = [...children.values()].sort((a, b) =>
+        a.sizeBytes === b.sizeBytes ? a.name.localeCompare(b.name) : (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0)
+      )
+      result.entries = entries
+      result.totalBytes = entries.reduce((sum, entry) => sum + (entry.sizeBytes ?? 0), 0)
+      result.cancelled = op.cancelled || disposed
+      return result
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (code === 'EACCES' || code === 'EPERM') {
+        result.totalBytes = null
+        result.error = toExplorerError(root, err).message
+        return result
+      }
+      throw toExplorerError(root, err)
+    } finally {
+      sizeOps.delete(token)
+    }
   }
 
   const trashOne = async (path: string): Promise<void> => {
@@ -797,6 +938,13 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
       return results
     },
 
+    dirSizes,
+
+    cancelDirSizes: async (token) => {
+      const op = sizeOps.get(token)
+      if (op) op.cancelled = true
+    },
+
     cancelOp: async (opId) => {
       const op = ops.get(opId)
       if (op) op.cancelled = true
@@ -812,6 +960,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
     dispose: () => {
       disposed = true
       for (const op of ops.values()) op.cancelled = true
+      for (const op of sizeOps.values()) op.cancelled = true
       hiddenCache.clear()
       emitter.removeAllListeners()
     }

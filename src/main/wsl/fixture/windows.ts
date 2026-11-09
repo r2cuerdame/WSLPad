@@ -8,6 +8,7 @@ import { WINDOWS_ROOT } from '@shared/constants'
 import type {
   FileEntry,
   FileEntryType,
+  DirSizeResult,
   FileOpProgress,
   FileOpStatus,
   FileStat,
@@ -480,6 +481,28 @@ class FixtureWindowsFs implements WindowsFs {
     }
     walk(normalized, node, 1)
     return results
+  }
+
+  async dirSizes(path: string, _token: string): Promise<DirSizeResult> {
+    const { node, normalized } = this.requireDir(path)
+    const entries = [...(node.children?.values() ?? [])].map((child) => {
+      const sizeOf = (item: WinNode): number =>
+        item.type === 'file'
+          ? item.content?.length ?? 0
+          : [...(item.children?.values() ?? [])].reduce((sum, nested) => sum + sizeOf(nested), 0)
+      return {
+        name: child.name,
+        path: this.join(normalized, child.name),
+        isDirectory: child.type === 'directory',
+        sizeBytes: sizeOf(child),
+        partial: false
+      }
+    }).sort((a, b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0) || a.name.localeCompare(b.name))
+    return { path: normalized, entries, totalBytes: entries.reduce((sum, entry) => sum + (entry.sizeBytes ?? 0), 0), skipped: 0, cancelled: false, error: null }
+  }
+
+  async cancelDirSizes(_token: string): Promise<void> {
+    // The deterministic fixture completes size walks synchronously.
   }
 
   async cancelOp(_opId: string): Promise<void> {

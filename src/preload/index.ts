@@ -108,7 +108,9 @@ const api: WslPadApi = {
     writeText: (path, content) => ipcRenderer.invoke(IpcChannels.windowsWriteText, path, content),
     search: (path, query) => ipcRenderer.invoke(IpcChannels.windowsSearch, path, query),
     openPath: (path) => ipcRenderer.invoke(IpcChannels.windowsOpenPath, path),
-    startDrag: (paths) => ipcRenderer.invoke(IpcChannels.windowsStartDrag, paths)
+    startDrag: (paths) => ipcRenderer.invoke(IpcChannels.windowsStartDrag, paths),
+    dirSizes: (path, token) => ipcRenderer.invoke(IpcChannels.windowsDirSizes, path, token),
+    cancelDirSizes: (token) => ipcRenderer.invoke(IpcChannels.explorerCancelOp, token)
   },
 
   convertPath: (input, to) => ipcRenderer.invoke(IpcChannels.pathConvert, input, to),
