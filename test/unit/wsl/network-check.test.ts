@@ -70,4 +70,30 @@ describe('runNetworkCheck', () => {
     expect(windowsDns?.detail).toContain('DNS server unavailable')
     expect(checked.probes.find((probe) => probe.id === 'distro')?.status).toBe('pass')
   })
+
+  it('times out an unresponsive Windows DNS probe without delaying other probes', async () => {
+    vi.useFakeTimers()
+    try {
+      let rejectLookup: ((error: Error) => void) | undefined
+      const checkedPromise = runNetworkCheck(makeSnapshot(), null, {
+        runner: runner(),
+        lookupHost: () => new Promise((_resolve, reject) => { rejectLookup = reject })
+      })
+
+      await vi.advanceTimersByTimeAsync(3000)
+      const checked = await checkedPromise
+      const windowsDns = checked.probes.find((probe) => probe.id === 'windows-dns')
+      expect(windowsDns?.status).toBe('fail')
+      expect(windowsDns?.detail).toBe('Timed out')
+      expect(checked.probes.find((probe) => probe.id === 'distro')?.status).toBe('pass')
+      expect(checked.probes.map((probe) => probe.id)).toEqual([
+        'distro', 'wsl-dns', 'windows-dns', 'default-route'
+      ])
+
+      rejectLookup?.(new Error('Late DNS failure'))
+      await Promise.resolve()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
