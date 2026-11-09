@@ -74,10 +74,10 @@ describe('runNetworkCheck', () => {
   it('times out an unresponsive Windows DNS probe without delaying other probes', async () => {
     vi.useFakeTimers()
     try {
-      let resolveLookup: ((value: { address: string }) => void) | undefined
+      let rejectLookup: ((error: Error) => void) | undefined
       const checkedPromise = runNetworkCheck(makeSnapshot(), null, {
         runner: runner(),
-        lookupHost: () => new Promise((resolve) => { resolveLookup = resolve })
+        lookupHost: () => new Promise((_resolve, reject) => { rejectLookup = reject })
       })
 
       await vi.advanceTimersByTimeAsync(3000)
@@ -90,7 +90,8 @@ describe('runNetworkCheck', () => {
         'distro', 'wsl-dns', 'windows-dns', 'default-route'
       ])
 
-      resolveLookup?.({ address: '93.184.216.34' })
+      rejectLookup?.(new Error('Late DNS failure'))
+      await Promise.resolve()
     } finally {
       vi.useRealTimers()
     }

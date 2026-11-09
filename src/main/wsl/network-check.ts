@@ -108,10 +108,18 @@ export async function runNetworkCheck(
       )
     ),
     timedProbe('windows-dns', async () => {
-      const result = await new Promise<{ address: string }>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Timed out')), WINDOWS_DNS_TIMEOUT_MS)
-        lookupHost('example.com').then(resolve, reject).finally(() => clearTimeout(timer))
-      })
+      let timer: ReturnType<typeof setTimeout> | undefined
+      let result: { address: string }
+      try {
+        result = await Promise.race([
+          lookupHost('example.com'),
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => reject(new Error('Timed out')), WINDOWS_DNS_TIMEOUT_MS)
+          })
+        ])
+      } finally {
+        if (timer !== undefined) clearTimeout(timer)
+      }
       return { status: 'pass', detail: `example.com → ${result.address}` }
     }),
     timedProbe('default-route', () =>
