@@ -857,6 +857,13 @@ describe('directory sizes', () => {
     expect(measureButton('windows')).not.toBeNull()
   })
 
+  it('hides Windows size measurement at the virtual This PC root', async () => {
+    await renderExplorer()
+    fireEvent.click(within(pane('windows')).getByRole('button', { name: 'Root' }))
+    await waitFor(() => expect(api.windows.list).toHaveBeenCalledWith(WINDOWS_ROOT, { showHidden: false }))
+    expect(measureButton('windows')).toBeNull()
+  })
+
   it('measures on demand and lists the children largest first', async () => {
     await renderExplorer()
     expect(api.explorer.dirSizes).not.toHaveBeenCalled()

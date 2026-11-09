@@ -601,7 +601,9 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     searchResults,
     refreshToken,
     dirSizes,
-    canMeasure: adapter.dirSizes !== undefined,
+    canMeasure:
+      adapter.dirSizes !== undefined &&
+      !(adapter.kind === 'windows' && path === adapter.rootPath),
     measureDirSizes,
     cancelDirSizes,
     closeDirSizes,

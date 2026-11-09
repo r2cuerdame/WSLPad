@@ -582,7 +582,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
         const code = (err as NodeJS.ErrnoException).code
         if (code === 'EACCES' || code === 'EPERM') {
           result.totalBytes = null
-          result.error = null
+          result.error = toExplorerError(root, err).message
           return result
         }
         throw err
@@ -627,6 +627,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
       const code = (err as NodeJS.ErrnoException).code
       if (code === 'EACCES' || code === 'EPERM') {
         result.totalBytes = null
+        result.error = toExplorerError(root, err).message
         return result
       }
       throw toExplorerError(root, err)

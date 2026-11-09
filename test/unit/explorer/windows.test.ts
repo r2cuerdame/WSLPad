@@ -669,4 +669,5 @@ describe('createFixtureWindowsFs', () => {
     expect(result.cancelled).toBe(true)
     expect(result.path).toBe(many)
   })
+
 })

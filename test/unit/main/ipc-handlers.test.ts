@@ -30,9 +30,10 @@ describe('registerIpcHandlers', () => {
   it('routes cancellation to both Linux and Windows file operation backends', async () => {
     const cancelLinuxOp = vi.fn().mockResolvedValue(undefined)
     const cancelWindowsOp = vi.fn().mockResolvedValue(undefined)
+    const cancelWindowsDirSizes = vi.fn().mockResolvedValue(undefined)
     registerIpcHandlers({
       explorer: { cancelOp: cancelLinuxOp },
-      windowsFs: { cancelOp: cancelWindowsOp }
+      windowsFs: { cancelOp: cancelWindowsOp, cancelDirSizes: cancelWindowsDirSizes }
     } as never)
 
     const handler = handles.get(IpcChannels.explorerCancelOp)
@@ -41,6 +42,7 @@ describe('registerIpcHandlers', () => {
 
     expect(cancelLinuxOp).toHaveBeenCalledWith('op-145')
     expect(cancelWindowsOp).toHaveBeenCalledWith('op-145')
+    expect(cancelWindowsDirSizes).toHaveBeenCalledWith('op-145')
   })
 
   it.each([
