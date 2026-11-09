@@ -10,6 +10,7 @@ import type { DistroRunner, RunResult } from './contracts'
 
 type LookupHost = (hostname: string) => Promise<{ address: string }>
 type ConnectLocalhost = (port: number) => Promise<string>
+const WINDOWS_DNS_TIMEOUT_MS = 3000
 
 export interface NetworkCheckDeps {
   runner: DistroRunner | null
@@ -107,7 +108,10 @@ export async function runNetworkCheck(
       )
     ),
     timedProbe('windows-dns', async () => {
-      const result = await lookupHost('example.com')
+      const result = await new Promise<{ address: string }>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Timed out')), WINDOWS_DNS_TIMEOUT_MS)
+        lookupHost('example.com').then(resolve, reject).finally(() => clearTimeout(timer))
+      })
       return { status: 'pass', detail: `example.com → ${result.address}` }
     }),
     timedProbe('default-route', () =>
