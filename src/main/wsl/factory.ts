@@ -7,6 +7,7 @@
 import type { ConsoleBackendFactory, DistroRunner, ExplorerBackend, WslProvider } from './contracts'
 import { WslRunner } from './runner'
 import { createRealProvider } from './collect'
+import { automountRootFromSettings } from '@shared/path-boundary'
 import { createRealExplorerBackend } from '../explorer/backend'
 import { createWindowsFs, type WindowsFs } from '../explorer/windows'
 import { createRealConsoleFactory } from '../terminal/backend'
@@ -49,9 +50,13 @@ export function createBackends(): Backends {
     }
   }
   const runner = new WslRunner()
+  const provider = createRealProvider(runner)
   return {
-    provider: createRealProvider(runner),
-    explorer: createRealExplorerBackend(runner),
+    provider,
+    explorer: createRealExplorerBackend(runner, async (distro) => {
+      const config = await provider.getWslSettings?.(distro)
+      return automountRootFromSettings(config?.settings)
+    }),
     windowsFs: createWindowsFs(),
     consoleFactory: createRealConsoleFactory(runner),
     runner,

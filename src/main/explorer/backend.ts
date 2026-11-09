@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { EventEmitter } from 'events'
 import type { FileOpKind, FileOpProgress } from '@shared/types'
+import { DEFAULT_AUTOMOUNT_ROOT } from '@shared/path-boundary'
 import {
   ExplorerError,
   type DistroRunner,
@@ -28,7 +29,10 @@ import { runExport, runImport } from './transfer'
  * reaches the shell through shellQuote(); nothing here ever appears in the
  * user Console transcript.
  */
-export function createRealExplorerBackend(runner: DistroRunner): ExplorerBackend {
+export function createRealExplorerBackend(
+  runner: DistroRunner,
+  getAutomountRoot: (distro: string) => Promise<string> = async () => DEFAULT_AUTOMOUNT_ROOT
+): ExplorerBackend {
   const emitter = new EventEmitter()
   const ops = new Map<string, { cancelled: boolean }>()
   const homeCache = new Map<string, string>()
@@ -85,7 +89,7 @@ export function createRealExplorerBackend(runner: DistroRunner): ExplorerBackend
 
     tree: (distro, path) => listTree(runner, distro, path),
 
-    stat: (distro, path) => statPath(runner, distro, path),
+    stat: async (distro, path) => statPath(runner, distro, path, await getAutomountRoot(distro)),
 
     mkdir: (distro, path) => makeDirectory(runner, distro, path),
 
@@ -119,12 +123,18 @@ export function createRealExplorerBackend(runner: DistroRunner): ExplorerBackend
 
     importFromWindows: async (distro, windowsPaths, destDir) => {
       assertValidLinuxPath(destDir)
-      return startOp('import', (ctx, opId) => runImport(ctx, opId, distro, windowsPaths, destDir))
+      const automountRoot = await getAutomountRoot(distro)
+      return startOp('import', (ctx, opId) =>
+        runImport(ctx, opId, distro, windowsPaths, destDir, automountRoot)
+      )
     },
 
     exportToWindows: async (distro, paths, windowsDir) => {
       for (const path of paths) assertValidLinuxPath(path)
-      return startOp('export', (ctx, opId) => runExport(ctx, opId, distro, paths, windowsDir))
+      const automountRoot = await getAutomountRoot(distro)
+      return startOp('export', (ctx, opId) =>
+        runExport(ctx, opId, distro, paths, windowsDir, automountRoot)
+      )
     },
 
     cancelOp: async (opId) => {
@@ -153,12 +163,12 @@ export function createRealExplorerBackend(runner: DistroRunner): ExplorerBackend
       }
       if (to === 'windows') {
         try {
-          return convertLinuxToWindows(distro, input)
+          return convertLinuxToWindows(distro, input, await getAutomountRoot(distro))
         } catch {
           throw new ExplorerError('UNKNOWN', input, `Path is not mappable: ${input}`)
         }
       }
-      const direct = convertWindowsToLinux(distro, input)
+      const direct = convertWindowsToLinux(distro, input, await getAutomountRoot(distro))
       if (direct !== null) return direct
       // Pure table cannot map it (e.g. substituted network drive) — ask wslpath.
       const result = await runner.runInDistro(distro, `wslpath -u ${shellQuote(input)}`)

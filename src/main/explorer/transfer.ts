@@ -16,9 +16,10 @@ import { convertWindowsToLinux, joinLinuxPath, linuxBasename, windowsBasename } 
 export async function resolveWindowsPath(
   runner: DistroRunner,
   distro: string,
-  windowsPath: string
+  windowsPath: string,
+  automountRoot?: string
 ): Promise<string> {
-  const direct = convertWindowsToLinux(distro, windowsPath)
+  const direct = convertWindowsToLinux(distro, windowsPath, automountRoot)
   if (direct !== null) return direct
   if (!windowsPath.includes('\0') && !windowsPath.includes('\n')) {
     const result = await runner.runInDistro(distro, `wslpath -u ${shellQuote(windowsPath)}`)
@@ -51,7 +52,8 @@ export async function runImport(
   opId: string,
   distro: string,
   windowsPaths: string[],
-  destDir: string
+  destDir: string,
+  automountRoot?: string
 ): Promise<void> {
   assertValidLinuxPath(destDir)
   const totalItems = windowsPaths.length
@@ -78,7 +80,7 @@ export async function runImport(
     }
     emit('running', windowsPath)
     try {
-      const source = await resolveWindowsPath(ctx.runner, distro, windowsPath)
+      const source = await resolveWindowsPath(ctx.runner, distro, windowsPath, automountRoot)
       const size = await sizeOfPath(ctx.runner, distro, source)
       if (size !== null) {
         totalBytes += size
@@ -111,7 +113,8 @@ export async function runExport(
   opId: string,
   distro: string,
   paths: string[],
-  windowsDir: string
+  windowsDir: string,
+  automountRoot?: string
 ): Promise<void> {
   const totalItems = paths.length
   let doneItems = 0
@@ -134,7 +137,7 @@ export async function runExport(
   try {
     // A \\wsl.localhost\<same distro>\… destination maps straight back to a
     // Linux path; C:\… maps to /mnt/c/… — either way cp runs in-distro.
-    destDirLinux = await resolveWindowsPath(ctx.runner, distro, windowsDir)
+    destDirLinux = await resolveWindowsPath(ctx.runner, distro, windowsDir, automountRoot)
   } catch (err) {
     emit('error', null, err instanceof Error ? err.message : String(err))
     return

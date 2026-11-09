@@ -38,6 +38,16 @@ describe('convertLinuxToWindows (goal.md §13 table)', () => {
     )
   })
 
+  it('maps drives under a custom automount root', () => {
+    expect(convertLinuxToWindows(DISTRO, '/drives/c/Users/user', '/drives/')).toBe(
+      'C:\\Users\\user'
+    )
+    expect(convertLinuxToWindows(DISTRO, '/c/Users/user', '/')).toBe('C:\\Users\\user')
+    expect(convertLinuxToWindows(DISTRO, '/driveshare/c/Users', '/drives/')).toBe(
+      '\\\\wsl.localhost\\Ubuntu-24.04\\driveshare\\c\\Users'
+    )
+  })
+
   it('preserves hostile names literally (spaces, quotes, $(cmd), hangul)', () => {
     expect(convertLinuxToWindows(DISTRO, "/home/u/a'b $(x).txt")).toBe(
       "\\\\wsl.localhost\\Ubuntu-24.04\\home\\u\\a'b $(x).txt"
@@ -58,6 +68,15 @@ describe('convertWindowsToLinux (goal.md §13 table)', () => {
     expect(convertWindowsToLinux(DISTRO, 'C:\\Users\\user\\project')).toBe(
       '/mnt/c/Users/user/project'
     )
+  })
+
+  it('maps Windows drive paths under custom automount roots', () => {
+    expect(convertWindowsToLinux(DISTRO, 'C:\\Users\\user', '/drives/')).toBe(
+      '/drives/c/Users/user'
+    )
+    expect(convertWindowsToLinux(DISTRO, 'C:\\Users\\user', '/')).toBe('/c/Users/user')
+    expect(convertWindowsToLinux(DISTRO, 'C:\\', '/')).toBe('/c')
+    expect(convertWindowsToLinux(DISTRO, 'C:\\Users\\user')).toBe('/mnt/c/Users/user')
   })
 
   it('accepts forward slashes and lowercase drives', () => {

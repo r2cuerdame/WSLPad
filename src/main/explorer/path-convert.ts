@@ -1,3 +1,4 @@
+import { DEFAULT_AUTOMOUNT_ROOT, normalizeAutomountRoot } from '@shared/path-boundary'
 import { assertValidLinuxPath } from '../wsl/escape'
 
 /**
@@ -6,13 +7,17 @@ import { assertValidLinuxPath } from '../wsl/escape'
  * back to `wslpath` or fail explicitly.
  */
 
-const DRIVE_MOUNT_RE = /^\/mnt\/([A-Za-z])(\/.*)?$/
 const WIN_DRIVE_RE = /^([A-Za-z]):([\\/].*)?$/
 const WSL_UNC_RE = /^[\\/]{2}(wsl\.localhost|wsl\$)[\\/]([^\\/]+)([\\/].*)?$/i
 
-export function convertLinuxToWindows(distro: string, linuxPath: string): string {
+export function convertLinuxToWindows(
+  distro: string,
+  linuxPath: string,
+  automountRoot: string = DEFAULT_AUTOMOUNT_ROOT
+): string {
   assertValidLinuxPath(linuxPath)
-  const drive = DRIVE_MOUNT_RE.exec(linuxPath)
+  const root = normalizeAutomountRoot(automountRoot)
+  const drive = new RegExp(`^${escapeRegExp(root)}([A-Za-z])(/.*)?$`).exec(linuxPath)
   if (drive) {
     const rest = (drive[2] ?? '').replace(/\//g, '\\')
     return `${drive[1].toUpperCase()}:${rest || '\\'}`
@@ -20,12 +25,16 @@ export function convertLinuxToWindows(distro: string, linuxPath: string): string
   return `\\\\wsl.localhost\\${distro}${linuxPath.replace(/\//g, '\\')}`
 }
 
-export function convertWindowsToLinux(distro: string, windowsPath: string): string | null {
+export function convertWindowsToLinux(
+  distro: string,
+  windowsPath: string,
+  automountRoot: string = DEFAULT_AUTOMOUNT_ROOT
+): string | null {
   if (windowsPath.includes('\0') || windowsPath.includes('\n')) return null
   const drive = WIN_DRIVE_RE.exec(windowsPath)
   if (drive) {
     const rest = (drive[2] ?? '').replace(/[\\/]+/g, '/').replace(/\/+$/, '')
-    return `/mnt/${drive[1].toLowerCase()}${rest}`
+    return `${normalizeAutomountRoot(automountRoot)}${drive[1].toLowerCase()}${rest}`
   }
   const unc = WSL_UNC_RE.exec(windowsPath)
   if (unc) {
@@ -34,6 +43,10 @@ export function convertWindowsToLinux(distro: string, windowsPath: string): stri
     return rest || '/'
   }
   return null
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 export function joinLinuxPath(dir: string, name: string): string {

@@ -12,6 +12,14 @@ describe('resolveWindowsPath', () => {
     expect(runner.calls).toHaveLength(0)
   })
 
+  it('maps drives through the configured automount root', async () => {
+    const runner = new MockRunner()
+    expect(await resolveWindowsPath(runner, 'Ubuntu', 'C:\\Users\\u', '/drives/')).toBe(
+      '/drives/c/Users/u'
+    )
+    expect(runner.calls).toHaveLength(0)
+  })
+
   it('maps same-distro UNC paths directly', async () => {
     const runner = new MockRunner()
     expect(
@@ -26,6 +34,16 @@ describe('resolveWindowsPath', () => {
     )
     expect(await resolveWindowsPath(runner, 'Ubuntu', 'Z:relative')).toBe('/mnt/z/share/f.txt')
     expect(runner.calls[0].script).toBe("wslpath -u 'Z:relative'")
+  })
+
+  it('uses the configured root for Explorer path conversion', async () => {
+    const backend = createRealExplorerBackend(new MockRunner(), async () => '/drives/')
+    await expect(backend.convertPath('Ubuntu', 'C:\\Users\\u', 'linux')).resolves.toBe(
+      '/drives/c/Users/u'
+    )
+    await expect(backend.convertPath('Ubuntu', '/drives/c/Users/u', 'windows')).resolves.toBe(
+      'C:\\Users\\u'
+    )
   })
 
   it('throws not mappable when wslpath fails too', async () => {

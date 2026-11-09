@@ -229,7 +229,8 @@ const STAT_FMT = '%F|%a|%U|%G|%s|%Y|%X|%i'
 export async function statPath(
   runner: DistroRunner,
   distro: string,
-  path: string
+  path: string,
+  automountRoot?: string
 ): Promise<FileStat> {
   assertValidLinuxPath(path)
   const q = shellQuote(path)
@@ -281,7 +282,7 @@ export async function statPath(
     targetType,
     inode: Number.isFinite(inode) ? inode : null,
     atime: epochToIso(atimeStr),
-    windowsPath: convertLinuxToWindows(distro, path)
+    windowsPath: convertLinuxToWindows(distro, path, automountRoot)
   }
 }
 
