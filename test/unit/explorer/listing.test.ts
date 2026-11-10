@@ -6,7 +6,6 @@ import {
   listTree,
   octalToRwx,
   parseFindListing,
-  parseFindPathListing,
   sanitizeSearchQuery,
   searchDirectory,
   statPath
@@ -32,10 +31,10 @@ describe('octalToRwx', () => {
 })
 
 const SAMPLE = [
-  'd|755|user|user|4096|1721718313.0|logs|',
-  'f|644|user|user|2048|1721718313.5|config.json|',
-  'l|777|user|user|11|1721718313.0|link|/etc/hosts',
-  'f|600|root|root|10|1721718313.0|.secret|',
+  'd|755|user|user|4096|1721718313.0|1|logs/',
+  'f|644|user|user|2048|1721718313.5|1|config.json/',
+  'l|777|user|user|11|1721718313.0|1|link//etc/hosts',
+  'f|600|root|root|10|1721718313.0|1|.secret/',
   ''
 ].join('\n')
 
@@ -77,26 +76,46 @@ describe('parseFindListing', () => {
   })
 
   it('reassembles pipe characters inside names', () => {
-    const entries = parseFindListing('/d', 'f|644|u|g|5|1.0|weird|name.txt|')
+    const entries = parseFindListing('/d', 'f|644|u|g|5|1.0|1|weird|name.txt/')
     expect(entries).toHaveLength(1)
     expect(entries[0].name).toBe('weird|name.txt')
     expect(entries[0].path).toBe('/d/weird|name.txt')
+    expect(entries[0].symlinkTarget).toBeNull()
+  })
+
+  it('keeps pipes inside symlink names and targets apart', () => {
+    const entries = parseFindListing(
+      '/d',
+      [
+        'l|777|u|g|6|1.0|1|a|b/target',
+        'l|777|u|g|3|1.0|1|link/c|d',
+        'l|777|u|g|8|1.0|1|x|y/../p|q/r'
+      ].join('\n')
+    )
+    expect(entries.map(({ name, path, symlinkTarget }) => ({ name, path, symlinkTarget }))).toEqual(
+      [
+        { name: 'a|b', path: '/d/a|b', symlinkTarget: 'target' },
+        { name: 'link', path: '/d/link', symlinkTarget: 'c|d' },
+        { name: 'x|y', path: '/d/x|y', symlinkTarget: '../p|q/r' }
+      ]
+    )
+  })
+
+  it('uses the printed relative path for nested search hits', () => {
+    const entries = parseFindListing('/home/u/', 'f|644|u|g|9|1.0|2|sub/hit.txt/')
+    expect(entries[0]).toMatchObject({ name: 'hit.txt', path: '/home/u/sub/hit.txt' })
   })
 
   it('skips malformed lines', () => {
     expect(parseFindListing('/d', 'garbage\nf|644\n')).toEqual([])
+    // No depth, or fewer path separators than the printed depth.
+    expect(parseFindListing('/d', 'f|644|u|g|5|1.0|x|name/\n')).toEqual([])
+    expect(parseFindListing('/d', 'f|644|u|g|5|1.0|2|name/\n')).toEqual([])
   })
 
   it('maps unknown type chars to other', () => {
-    const entries = parseFindListing('/d', 's|600|u|g|0|1.0|sock|')
+    const entries = parseFindListing('/d', 's|600|u|g|0|1.0|1|sock/')
     expect(entries[0].type).toBe('other')
-  })
-})
-
-describe('parseFindPathListing', () => {
-  it('uses the printed full path and derives the basename', () => {
-    const entries = parseFindPathListing('f|644|u|g|9|1.0|/home/u/sub/hit.txt|')
-    expect(entries[0]).toMatchObject({ name: 'hit.txt', path: '/home/u/sub/hit.txt' })
   })
 })
 
@@ -130,7 +149,23 @@ describe('listDirectory', () => {
     expect(entries).toHaveLength(4)
     const findCall = runner.calls[0]
     expect(findCall.script).toContain("find -H '/home/a'\\''b $(x)' -mindepth 1 -maxdepth 1")
-    expect(findCall.script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%f|%l\\n'")
+    expect(findCall.script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\n'")
+  })
+
+  it('lists and resolves symlinks whose name and target contain pipes', async () => {
+    const runner = new MockRunner()
+      .on((script) => (script.includes('-printf') ? ok('l|777|u|u|6|1.0|1|a|b/../c|d\n') : undefined))
+      .on((script) => (script.startsWith('for p in') ? ok('d\n') : undefined))
+    const entries = await listDirectory(runner, 'Ubuntu', '/home/u', true)
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({
+      name: 'a|b',
+      path: '/home/u/a|b',
+      type: 'symlink',
+      symlinkTarget: '../c|d',
+      targetType: 'directory'
+    })
+    expect(runner.calls[1].script).toContain("for p in '/home/u/a|b'")
   })
 
   it('resolves symlink target types with a second guarded pass', async () => {
@@ -186,11 +221,11 @@ describe('listTree', () => {
   it('lists the contents after navigating to a directory symlink from the tree', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes("find -H '/home/u'")
-        ? ok('l|777|u|u|3|1.0|dir-link|sub')
+        ? ok('l|777|u|u|3|1.0|1|dir-link/sub')
         : script.startsWith('for p in')
           ? ok('d\n')
           : script.includes("find -H '/home/u/dir-link'")
-            ? ok('f|644|u|u|5|1.0|contents.txt|')
+            ? ok('f|644|u|u|5|1.0|1|contents.txt/')
             : undefined
     )
     const tree = await listTree(runner, 'Ubuntu', '/home/u')
@@ -219,10 +254,10 @@ describe('listTree', () => {
       .on((script) =>
         script.includes('find -H')
           ? ok([
-              'd|755|u|u|4096|1.0|sub|',
-              'l|777|u|u|3|1.0|dir-link|sub',
-              'l|777|u|u|4|1.0|file-link|file',
-              'l|777|u|u|6|1.0|broken-link|missing'
+              'd|755|u|u|4096|1.0|1|sub/',
+              'l|777|u|u|3|1.0|1|dir-link/sub',
+              'l|777|u|u|4|1.0|1|file-link/file',
+              'l|777|u|u|7|1.0|1|broken-link/missing'
             ].join('\n'))
           : script.includes('if [ -d')
             ? ok('d\nf\nx\n')
@@ -240,7 +275,7 @@ describe('listTree', () => {
 
   it('follows a symlink when it is the lazy-loaded tree root', async () => {
     const runner = new MockRunner().on((script) =>
-      script.includes('find -H') ? ok('d|755|u|u|4096|1.0|child|') : undefined
+      script.includes('find -H') ? ok('d|755|u|u|4096|1.0|1|child/') : undefined
     )
     await listTree(runner, 'Ubuntu', '/home/u/link')
     expect(runner.calls[0].script).toContain('find -H')
@@ -304,7 +339,7 @@ describe('search', () => {
 
   it('builds a bounded quoted find | head pipeline', async () => {
     const runner = new MockRunner().on((script) =>
-      script.includes('-iname') ? ok('f|644|u|g|9|1.0|/home/u/sub/config.json|') : undefined
+      script.includes('-iname') ? ok('f|644|u|g|9|1.0|2|sub/config.json/') : undefined
     )
     const hits = await searchDirectory(runner, 'Ubuntu', '/home/u', "co*nfig a'b")
     expect(hits[0]).toMatchObject({ name: 'config.json', path: '/home/u/sub/config.json' })
@@ -312,15 +347,15 @@ describe('search', () => {
     expect(script).toContain('-maxdepth 4')
     expect(script).toContain("-iname '*config a'\\''b*'")
     expect(script).toContain('| head -200')
-    expect(script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%p|%l\\n'")
+    expect(script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\n'")
   })
 
   it('follows a directory symlink search root and returns nested matches', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes("find -H '/home/u/link'")
         ? ok(
-            'f|644|u|g|9|1.0|/home/u/link/child/hit.txt|\n' +
-              'd|755|u|g|4096|1.0|/home/u/link/child/hit-dir|\n'
+            'f|644|u|g|9|1.0|2|child/hit.txt/\n' +
+              'd|755|u|g|4096|1.0|2|child/hit-dir/\n'
           )
         : undefined
     )
@@ -338,8 +373,8 @@ describe('search', () => {
     const runner = new MockRunner().on((script) =>
       script.includes('-iname')
         ? ok(
-            'l|777|u|g|3|1.0|/home/u/shortcut|../shared\n' +
-              'l|777|u|g|3|1.0|/home/u/config-link|config.json\n'
+            'l|777|u|g|9|1.0|1|shortcut/../shared\n' +
+              'l|777|u|g|11|1.0|1|config-link/config.json\n'
           )
         : ok('d\nf\n')
     )
@@ -348,6 +383,23 @@ describe('search', () => {
     expect(runner.calls).toHaveLength(2)
     expect(runner.calls[1].script).toContain("'/home/u/shortcut'")
     expect(runner.calls[1].script).toContain("'/home/u/config-link'")
+  })
+
+  it('keeps pipes in nested symlink hit names, directories and targets', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('-iname')
+        ? ok('l|777|u|g|5|1.0|2|sub|dir/a|b/x|y/z\nf|644|u|g|5|1.0|1|plain|b.txt/\n')
+        : ok('f\n')
+    )
+    const hits = await searchDirectory(runner, 'Ubuntu', '/home/u', 'b')
+    expect(
+      hits.map(({ name, path, type, symlinkTarget }) => ({ name, path, type, symlinkTarget }))
+    ).toEqual([
+      { name: 'a|b', path: '/home/u/sub|dir/a|b', type: 'symlink', symlinkTarget: 'x|y/z' },
+      { name: 'plain|b.txt', path: '/home/u/plain|b.txt', type: 'file', symlinkTarget: null }
+    ])
+    expect(hits[0].targetType).toBe('file')
+    expect(runner.calls[1].script).toContain("for p in '/home/u/sub|dir/a|b'")
   })
 })
 

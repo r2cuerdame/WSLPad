@@ -171,7 +171,7 @@ describe('collectDirSizes', () => {
 
   it('lists the directory itself when the caller has no listing', async () => {
     const runner = new MockRunner()
-      .on((script) => (script.includes('find ') ? ok(`d|755|dev|dev|4096|1700000000|projects|\n`) : undefined))
+      .on((script) => (script.includes('find ') ? ok(`d|755|dev|dev|4096|1700000000|1|projects/\n`) : undefined))
       .on((script) => (script.startsWith('LC_ALL=C du') ? ok(du([[64, `${DIR}/projects`]])) : undefined))
     const result = await collectDirSizes(runner, 'Ubuntu', DIR)
 
