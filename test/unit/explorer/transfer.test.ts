@@ -59,6 +59,10 @@ describe('convertPath', () => {
 describe('importFromWindows', () => {
   it.each([
     { windowsPath: 'C:\\', message: 'Refusing to import drive root C:\\' },
+    { windowsPath: 'C:/', message: 'Refusing to import drive root C:/' },
+    { windowsPath: 'C:', message: 'Refusing to import drive root C:' },
+    { windowsPath: 'c:', message: 'Refusing to import drive root c:' },
+    { windowsPath: 'D:', message: 'Refusing to import drive root D:' },
     { windowsPath: '\\\\wsl.localhost\\Ubuntu', message: 'Refusing to import /' }
   ])('refuses a root source ($windowsPath) without shell commands', async ({ windowsPath, message }) => {
     const runner = new MockRunner()
