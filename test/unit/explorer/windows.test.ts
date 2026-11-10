@@ -259,6 +259,14 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
     expect(await codeOf(() => fs.remove(['C:\\']))).toBe('UNKNOWN')
   })
 
+  it.each(['\\\\server\\share', '\\\\server\\share\\'])(
+    'refuses to remove the UNC share root %s',
+    async (shareRoot) => {
+      expect(await codeOf(() => fs.remove([shareRoot]))).toBe('UNKNOWN')
+      await expect(fs.remove([shareRoot])).rejects.toThrow('Refusing to remove \\\\server\\share\\')
+    }
+  )
+
   it('routes trash through the injected trashItem', async () => {
     const base = dir('trash')
     const file = join(base, 'bin-me.txt')
@@ -275,12 +283,32 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
     expect(trashed).toEqual([])
   })
 
+  it.each(['\\\\server\\share', '\\\\server\\share\\'])(
+    'refuses to trash the UNC share root %s before reaching trashItem',
+    async (shareRoot) => {
+      trashed = []
+      expect(await codeOf(() => fs.trash([shareRoot]))).toBe('UNKNOWN')
+      await expect(fs.trash([shareRoot])).rejects.toThrow('Refusing to trash \\\\server\\share\\')
+      expect(trashed).toEqual([])
+    }
+  )
+
   it('refuses to rename a drive root', async () => {
     expect(await codeOf(() => fs.rename('C:\\', 'renamed-root'))).toBe('UNKNOWN')
     await expect(fs.rename('C:\\', 'renamed-root')).rejects.toThrow(
       'Refusing to rename drive root C:\\'
     )
   })
+
+  it.each(['\\\\server\\share', '\\\\server\\share\\'])(
+    'refuses to rename the UNC share root %s',
+    async (shareRoot) => {
+      expect(await codeOf(() => fs.rename(shareRoot, 'renamed-root'))).toBe('UNKNOWN')
+      await expect(fs.rename(shareRoot, 'renamed-root')).rejects.toThrow(
+        'Refusing to rename drive root \\\\server\\share\\'
+      )
+    }
+  )
 })
 
 describe('createWindowsFs — copy and move', () => {
@@ -290,6 +318,18 @@ describe('createWindowsFs — copy and move', () => {
   ])('refuses a drive-root source before starting a $move operation', async ({ move, message }) => {
     expect(await codeOf(() => fs.copyMove(['C:\\'], root, move))).toBe('UNKNOWN')
     await expect(fs.copyMove(['C:\\'], root, move)).rejects.toThrow(message)
+  })
+
+  it.each([
+    { shareRoot: '\\\\server\\share', move: false, message: 'Refusing to copy drive root' },
+    { shareRoot: '\\\\server\\share\\', move: false, message: 'Refusing to copy drive root' },
+    { shareRoot: '\\\\server\\share', move: true, message: 'Refusing to move drive root' },
+    { shareRoot: '\\\\server\\share\\', move: true, message: 'Refusing to move drive root' }
+  ])('refuses an UNC share-root source before starting a $move operation', async ({ shareRoot, move, message }) => {
+    expect(await codeOf(() => fs.copyMove([shareRoot], root, move))).toBe('UNKNOWN')
+    await expect(fs.copyMove([shareRoot], root, move)).rejects.toThrow(
+      `${message} \\\\server\\share\\`
+    )
   })
 
   it('copies into a destination and keeps the source', async () => {
