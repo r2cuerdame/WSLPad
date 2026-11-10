@@ -87,7 +87,8 @@ export async function runImport(
     }
     emit('running', windowsPath)
     try {
-      if (/^[A-Za-z]:[\\/]+$/.test(windowsPath)) {
+      // `C:` with no separator maps to /mnt/c as well, so it is a drive root too.
+      if (/^[A-Za-z]:[\\/]*$/.test(windowsPath)) {
         throw new ExplorerError(
           'UNKNOWN',
           windowsPath,
