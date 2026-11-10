@@ -284,6 +284,14 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
 })
 
 describe('createWindowsFs — copy and move', () => {
+  it.each([
+    { move: false, message: 'Refusing to copy drive root C:\\' },
+    { move: true, message: 'Refusing to move drive root C:\\' }
+  ])('refuses a drive-root source before starting a $move operation', async ({ move, message }) => {
+    expect(await codeOf(() => fs.copyMove(['C:\\'], root, move))).toBe('UNKNOWN')
+    await expect(fs.copyMove(['C:\\'], root, move)).rejects.toThrow(message)
+  })
+
   it('copies into a destination and keeps the source', async () => {
     const src = dir('copy', 'src')
     const dest = dir('copy', 'dest')

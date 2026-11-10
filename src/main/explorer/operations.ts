@@ -59,6 +59,7 @@ export async function renameEntry(
   newName: string
 ): Promise<void> {
   assertValidLinuxPath(path)
+  if (path === '/') throw new ExplorerError('UNKNOWN', path, 'Refusing to rename /')
   if (!isValidFileName(newName)) {
     throw new ExplorerError('UNKNOWN', path, `Invalid file name: ${JSON.stringify(newName)}`)
   }
@@ -107,6 +108,9 @@ export async function runCopyMove(
     emit('running', source)
     try {
       assertValidLinuxPath(source)
+      if (source === '/') {
+        throw new ExplorerError('UNKNOWN', source, `Refusing to ${kind} /`)
+      }
       const dest = joinLinuxPath(destDir, linuxBasename(source))
       const qd = shellQuote(dest)
       const script = `${existsGuard(qd)}; ${move ? 'mv' : 'cp -a'} ${shellQuote(source)} ${qd}`

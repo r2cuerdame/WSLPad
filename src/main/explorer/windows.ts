@@ -815,6 +815,15 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
     copyMove: async (sources, destDir, move) => {
       const dest = normalizePath(destDir)
       const srcs = sources.map(normalizePath)
+      for (const source of srcs) {
+        if (isDriveRoot(source)) {
+          throw new ExplorerError(
+            'UNKNOWN',
+            source,
+            `Refusing to ${move ? 'move' : 'copy'} drive root ${source}`
+          )
+        }
+      }
       try {
         const destStat = await stat(dest)
         if (!destStat.isDirectory()) {
