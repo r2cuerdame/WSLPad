@@ -293,6 +293,44 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
     }
   )
 
+  it.each([
+    { bad: 'C:\\', message: 'Refusing to trash C:\\' },
+    { bad: '\\\\server\\share', message: 'Refusing to trash \\\\server\\share\\' },
+    { bad: '\\\\server\\share\\', message: 'Refusing to trash \\\\server\\share\\' }
+  ])('refuses a whole trash batch holding the root $bad before trashing anything', async ({ bad, message }) => {
+    const base = dir('trash-batch-root')
+    const file = join(base, 'keep-me.txt')
+    writeFileSync(file, 'x')
+    trashed = []
+    expect(await codeOf(() => fs.trash([file, bad]))).toBe('UNKNOWN')
+    await expect(fs.trash([file, bad])).rejects.toThrow(message)
+    expect(trashed).toEqual([])
+  })
+
+  it.each(['relative\\file.txt', 'C:\\bad\0name.txt', 'C:\\bad\nname.txt'])(
+    'refuses a whole trash batch holding the invalid path %j before trashing anything',
+    async (bad) => {
+      const base = dir('trash-batch-invalid')
+      const file = join(base, 'keep-me.txt')
+      writeFileSync(file, 'x')
+      trashed = []
+      expect(await codeOf(() => fs.trash([file, bad]))).toBe('UNKNOWN')
+      await expect(fs.trash([file, bad])).rejects.toThrow('Not a Windows path')
+      expect(trashed).toEqual([])
+    }
+  )
+
+  it.each(['C:\\', '\\\\server\\share\\', 'relative\\file.txt'])(
+    'refuses a whole delete batch holding %j before deleting anything',
+    async (bad) => {
+      const base = dir('remove-batch')
+      const file = join(base, 'keep-me.txt')
+      writeFileSync(file, 'x')
+      expect(await codeOf(() => fs.remove([file, bad]))).toBe('UNKNOWN')
+      expect(await readFile(file, 'utf8')).toBe('x')
+    }
+  )
+
   it('refuses to rename a drive root', async () => {
     expect(await codeOf(() => fs.rename('C:\\', 'renamed-root'))).toBe('UNKNOWN')
     await expect(fs.rename('C:\\', 'renamed-root')).rejects.toThrow(
