@@ -111,6 +111,7 @@ export async function writeTextFile(
   const b64 = Buffer.from(content, 'utf8').toString('base64')
   const script = [
     `t=$(readlink -f ${q} 2>/dev/null); if [ -z "$t" ]; then t=${q}; fi`,
+    `if [ -d "$t" ]; then exit ${EXIT_EISDIR}; fi`,
     `if [ -e "$t" ] && [ ! -w "$t" ]; then exit ${EXIT_EACCES}; fi`,
     `d=$(dirname "$t")`,
     `if [ ! -e "$t" ] && [ ! -w "$d" ]; then exit ${EXIT_EACCES}; fi`,
