@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import { EventEmitter } from 'events'
+import { WINDOWS_ROOT } from '@shared/constants'
 import type { FileOpKind, FileOpProgress } from '@shared/types'
 import {
   ExplorerError,
@@ -148,6 +149,9 @@ export function createRealExplorerBackend(runner: DistroRunner): ExplorerBackend
     search: (distro, path, query) => searchDirectory(runner, distro, path, query),
 
     convertPath: async (distro, input, to) => {
+      if (input === WINDOWS_ROOT) {
+        throw new ExplorerError('UNKNOWN', input, 'Refusing to convert the This PC virtual root')
+      }
       if (input.includes('\0') || input.includes('\n')) {
         throw new ExplorerError('UNKNOWN', input, `Path is not mappable: ${JSON.stringify(input)}`)
       }

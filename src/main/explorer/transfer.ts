@@ -1,4 +1,4 @@
-import { RUNNER_SLOW_TIMEOUT_MS } from '@shared/constants'
+import { RUNNER_SLOW_TIMEOUT_MS, WINDOWS_ROOT } from '@shared/constants'
 import type { FileOpStatus } from '@shared/types'
 import { ExplorerError, type DistroRunner } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote } from '../wsl/escape'
@@ -18,6 +18,9 @@ export async function resolveWindowsPath(
   distro: string,
   windowsPath: string
 ): Promise<string> {
+  if (windowsPath === WINDOWS_ROOT) {
+    throw new ExplorerError('UNKNOWN', windowsPath, 'Refusing to use the This PC virtual root')
+  }
   const direct = convertWindowsToLinux(distro, windowsPath)
   if (direct !== null) return direct
   if (!windowsPath.includes('\0') && !windowsPath.includes('\n')) {

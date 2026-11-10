@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { WINDOWS_ROOT } from '@shared/constants'
 import { createRealExplorerBackend } from '../../../src/main/explorer/backend'
 import { resolveWindowsPath } from '../../../src/main/explorer/transfer'
 import { captureProgress, fail, MockRunner, ok } from './mock-runner'
@@ -34,6 +35,25 @@ describe('resolveWindowsPath', () => {
       code: 'UNKNOWN'
     })
   })
+
+  it('rejects the This PC virtual root without asking wslpath', async () => {
+    const runner = new MockRunner()
+    await expect(resolveWindowsPath(runner, 'Ubuntu', WINDOWS_ROOT)).rejects.toMatchObject({
+      code: 'UNKNOWN'
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+})
+
+describe('convertPath', () => {
+  it('rejects the This PC virtual root instead of returning a Linux path', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    await expect(backend.convertPath('Ubuntu', WINDOWS_ROOT, 'linux')).rejects.toMatchObject({
+      code: 'UNKNOWN'
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
 })
 
 describe('importFromWindows', () => {
@@ -50,6 +70,20 @@ describe('importFromWindows', () => {
       kind: 'import',
       status: 'error',
       error: expect.stringContaining(message)
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it('refuses to import from the This PC virtual root without shell commands', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const opId = await backend.importFromWindows('Ubuntu', [WINDOWS_ROOT], '/home/u/in')
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind: 'import',
+      status: 'error',
+      error: expect.stringContaining('This PC')
     })
     expect(runner.calls).toHaveLength(0)
   })
@@ -118,6 +152,20 @@ describe('importFromWindows', () => {
 })
 
 describe('exportToWindows', () => {
+  it('refuses the This PC virtual destination without shell commands', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const opId = await backend.exportToWindows('Ubuntu', ['/home/u/file.txt'], WINDOWS_ROOT)
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind: 'export',
+      status: 'error',
+      error: expect.stringContaining('This PC')
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
   it('refuses to export / without sizing or copying it', async () => {
     const runner = new MockRunner()
     const backend = createRealExplorerBackend(runner)
