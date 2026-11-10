@@ -55,6 +55,14 @@ describe('createEmptyFile', () => {
 })
 
 describe('renameEntry', () => {
+  it('refuses to rename / without a shell call', async () => {
+    const runner = new MockRunner()
+    await expect(renameEntry(runner, 'Ubuntu', '/', 'renamed-root')).rejects.toThrow(
+      'Refusing to rename /'
+    )
+    expect(runner.calls).toHaveLength(0)
+  })
+
   it('moves within the same directory with a target EEXIST guard', async () => {
     const runner = new MockRunner()
     await renameEntry(runner, 'Ubuntu', '/home/u/old name', "new'name")
@@ -81,6 +89,23 @@ describe('renameEntry', () => {
 })
 
 describe('copyMove via backend op registry', () => {
+  it.each([
+    { move: false, kind: 'copy', message: 'Refusing to copy /' },
+    { move: true, kind: 'move', message: 'Refusing to move /' }
+  ])('records a root source as a $kind operation error without a shell call', async ({ move, kind, message }) => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const opId = await backend.copyMove('Ubuntu', ['/'], '/dest', move)
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind,
+      status: 'error',
+      error: expect.stringContaining(message)
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
   it('copies items sequentially with quoted cp -a and reports done', async () => {
     const runner = new MockRunner()
     const backend = createRealExplorerBackend(runner)
