@@ -45,6 +45,22 @@ describe('registerIpcHandlers', () => {
     expect(cancelWindowsDirSizes).toHaveBeenCalledWith('op-145')
   })
 
+  it('lets a Windows size run reach This PC like the other read-only Windows calls', async () => {
+    const dirSizes = vi.fn().mockResolvedValue({ path: 'ThisPC', entries: [], totalBytes: 0 })
+    registerIpcHandlers({ windowsFs: { dirSizes } } as never)
+
+    const handler = handles.get(IpcChannels.windowsDirSizes)
+    expect(handler).toBeDefined()
+    await handler!({}, 'ThisPC', 'dirsize-1')
+    await handler!({}, 'D:\\Library\\Media', 'dirsize-2')
+    await expect(handler!({}, 'Library', 'dirsize-3')).rejects.toThrow()
+
+    expect(dirSizes.mock.calls).toEqual([
+      ['ThisPC', 'dirsize-1'],
+      ['D:\\Library\\Media', 'dirsize-2']
+    ])
+  })
+
   it.each([
     { type: 'directory', targetType: null, expectedMethod: 'openPath' },
     { type: 'symlink', targetType: 'directory', expectedMethod: 'openPath' },

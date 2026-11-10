@@ -321,6 +321,21 @@ function thisPcStat(): FileStat {
   }
 }
 
+/**
+ * "This PC" holds drives, not files: there is nothing under it to walk, so a
+ * size run there is an empty, finished answer rather than a path error.
+ */
+function thisPcSizes(): DirSizeResult {
+  return {
+    path: WINDOWS_ROOT,
+    entries: [],
+    totalBytes: 0,
+    skipped: 0,
+    cancelled: false,
+    error: null
+  }
+}
+
 async function presentDrives(): Promise<string[]> {
   const letters: string[] = []
   for (const letter of DRIVE_LETTERS) {
@@ -502,6 +517,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
   }
 
   const dirSizes = async (path: string, token: string): Promise<DirSizeResult> => {
+    if (path === WINDOWS_ROOT) return thisPcSizes()
     const root = normalizePath(path)
     const op = { cancelled: false }
     sizeOps.set(token, op)
@@ -571,8 +587,11 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
       }
     }
     try {
-      const rootStat = await lstat(root)
-      if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+      // stat, not lstat: a junction or directory symlink the user browsed into
+      // is measured through. Links below the root are still skipped, so one
+      // pointing back up the tree can never loop.
+      const rootStat = await stat(root)
+      if (!rootStat.isDirectory()) {
         throw new ExplorerError('ENOTDIR', root, `ENOTDIR: ${root}`)
       }
       let handle: Awaited<ReturnType<typeof opendir>>

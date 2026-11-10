@@ -1,8 +1,9 @@
 /**
  * Deterministic in-memory WindowsFs for WSLPAD_FIXTURE_MODE=1 (goal.md §18.4).
- * Two drives, a user profile with a hidden file, a binary download and a
- * read-only C:\Windows\System32. Every timestamp is a fixed ISO stamp and every
- * opId is a counter, so repeated runs are byte-identical (no Date.now anywhere).
+ * Two drives, a user profile with a hidden file, a binary download, a
+ * read-only C:\Windows\System32 and one NTFS junction (D:\Library\Media ->
+ * D:\Media). Every timestamp is a fixed ISO stamp and every opId is a
+ * counter, so repeated runs are byte-identical (no Date.now anywhere).
  */
 import { WINDOWS_ROOT } from '@shared/constants'
 import type {
@@ -29,11 +30,17 @@ const DRIVE_SIZES: Record<string, { totalBytes: number; freeBytes: number }> = {
 /** MZ header with embedded NUL bytes so readText rejects it as binary. */
 const SETUP_EXE = Buffer.from([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00])
 
+/** Junction chains longer than this resolve to nothing, like a dangling link. */
+const MAX_JUNCTION_HOPS = 8
+
 interface WinNode {
   name: string
-  type: 'file' | 'directory'
+  /** A junction names a directory elsewhere and has no children of its own. */
+  type: 'file' | 'directory' | 'junction'
   content: Buffer | null
   children: Map<string, WinNode> | null
+  /** Junction target as an absolute Windows path; null for anything else. */
+  target: string | null
   mtime: string
   writable: boolean
   inode: number
@@ -92,6 +99,9 @@ class FixtureWindowsFs implements WindowsFs {
     this.drives.set('D', d)
     const media = this.attach(d, this.dir('Media'))
     this.attach(media, this.file('clip.mp4', 'fixture media clip\n'))
+    const library = this.attach(d, this.dir('Library'))
+    this.attach(library, this.file('playlist.m3u', '#EXTM3U\n'))
+    this.attach(library, this.junction('Media', 'D:\\Media'))
   }
 
   // --- tree construction ---------------------------------------------------
@@ -102,6 +112,7 @@ class FixtureWindowsFs implements WindowsFs {
       type: 'directory',
       content: null,
       children: new Map(),
+      target: null,
       mtime: FIXTURE_SEED_MTIME,
       writable,
       inode: ++this.inodeCounter
@@ -114,8 +125,22 @@ class FixtureWindowsFs implements WindowsFs {
       type: 'file',
       content: Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf8'),
       children: null,
+      target: null,
       mtime: FIXTURE_SEED_MTIME,
       writable,
+      inode: ++this.inodeCounter
+    }
+  }
+
+  private junction(name: string, target: string): WinNode {
+    return {
+      name,
+      type: 'junction',
+      content: null,
+      children: null,
+      target,
+      mtime: FIXTURE_SEED_MTIME,
+      writable: true,
       inode: ++this.inodeCounter
     }
   }
@@ -131,6 +156,7 @@ class FixtureWindowsFs implements WindowsFs {
       type: node.type,
       content: node.content === null ? null : Buffer.from(node.content),
       children: node.children ? new Map() : null,
+      target: node.target,
       mtime: FIXTURE_NEW_MTIME,
       writable: node.writable,
       inode: ++this.inodeCounter
@@ -151,14 +177,30 @@ class FixtureWindowsFs implements WindowsFs {
     return parsed
   }
 
-  private nodeAt(path: string): { node: WinNode | null; normalized: string } {
+  /**
+   * Junctions part-way along the path are always crossed, as Windows does. The
+   * last name is only resolved with `follow` — stat() describes the link itself.
+   */
+  private nodeAt(path: string, follow = false, hops = 0): { node: WinNode | null; normalized: string } {
     const { drive, segments } = this.parse(path)
     let node: WinNode | null = this.drives.get(drive) ?? null
     for (const segment of segments) {
+      node = this.resolve(node, hops)
       if (!node || node.type !== 'directory' || !node.children) return { node: null, normalized: formatPath(drive, segments) }
       node = node.children.get(segment.toLowerCase()) ?? null
     }
-    return { node, normalized: formatPath(drive, segments) }
+    return { node: follow ? this.resolve(node, hops) : node, normalized: formatPath(drive, segments) }
+  }
+
+  /** What a junction points at; null when it dangles or chains too deep. */
+  private resolve(node: WinNode | null, hops = 0): WinNode | null {
+    if (node?.type !== 'junction') return node
+    if (node.target === null || hops >= MAX_JUNCTION_HOPS) return null
+    try {
+      return this.resolve(this.nodeAt(node.target, false, hops + 1).node, hops + 1)
+    } catch {
+      return null
+    }
   }
 
   private withParent(path: string): { parent: WinNode | null; node: WinNode | null; name: string; normalized: string } {
@@ -169,7 +211,7 @@ class FixtureWindowsFs implements WindowsFs {
     }
     const parentPath = formatPath(drive, segments.slice(0, -1))
     const name = segments[segments.length - 1]
-    const parent = this.nodeAt(parentPath).node
+    const parent = this.nodeAt(parentPath, true).node
     return {
       parent: parent?.type === 'directory' ? parent : null,
       node: parent?.children?.get(name.toLowerCase()) ?? null,
@@ -179,7 +221,7 @@ class FixtureWindowsFs implements WindowsFs {
   }
 
   private requireDir(path: string): { node: WinNode; normalized: string } {
-    const { node, normalized } = this.nodeAt(path)
+    const { node, normalized } = this.nodeAt(path, true)
     if (!node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
     if (node.type !== 'directory') {
       throw new ExplorerError('ENOTDIR', normalized, `ENOTDIR: ${normalized}`)
@@ -192,7 +234,8 @@ class FixtureWindowsFs implements WindowsFs {
   }
 
   private entry(path: string, node: WinNode): FileEntry {
-    const type: FileEntryType = node.type
+    const type: FileEntryType = node.type === 'junction' ? 'symlink' : node.type
+    const target = node.type === 'junction' ? this.resolve(node) : null
     return {
       name: node.name,
       path,
@@ -204,8 +247,8 @@ class FixtureWindowsFs implements WindowsFs {
       permissions: null,
       permissionsOctal: null,
       isHidden: node.name.startsWith('.'),
-      symlinkTarget: null,
-      targetType: null
+      symlinkTarget: node.target,
+      targetType: target?.type === 'directory' ? 'directory' : target?.type === 'file' ? 'file' : null
     }
   }
 
@@ -286,7 +329,7 @@ class FixtureWindowsFs implements WindowsFs {
   async tree(path: string): Promise<FileEntry[]> {
     if (path === WINDOWS_ROOT) return this.driveEntries()
     const entries = await this.list(path, { showHidden: true })
-    return entries.filter((e) => e.type === 'directory')
+    return entries.filter((e) => e.type === 'directory' || (e.type === 'symlink' && e.targetType === 'directory'))
   }
 
   async stat(path: string): Promise<FileStat> {
@@ -425,7 +468,7 @@ class FixtureWindowsFs implements WindowsFs {
   }
 
   async readText(path: string, maxBytes: number): Promise<TextFileContent> {
-    const { node, normalized } = this.nodeAt(path)
+    const { node, normalized } = this.nodeAt(path, true)
     if (!node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
     if (node.type === 'directory') {
       throw new ExplorerError('EISDIR', normalized, `EISDIR: ${normalized}`)
@@ -448,7 +491,8 @@ class FixtureWindowsFs implements WindowsFs {
   async writeText(path: string, content: string): Promise<void> {
     const { parent, node, name, normalized } = this.withParent(path)
     if (node) {
-      if (node.type === 'directory') {
+      // A junction is never overwritten as if it were a file.
+      if (node.type !== 'file') {
         throw new ExplorerError('EISDIR', normalized, `EISDIR: ${normalized}`)
       }
       if (!node.writable || (parent !== null && !parent.writable)) {
@@ -484,12 +528,21 @@ class FixtureWindowsFs implements WindowsFs {
   }
 
   async dirSizes(path: string, _token: string): Promise<DirSizeResult> {
+    // "This PC" holds drives, not files — the same empty answer as WindowsFs.
+    if (path === WINDOWS_ROOT) {
+      return { path: WINDOWS_ROOT, entries: [], totalBytes: 0, skipped: 0, cancelled: false, error: null }
+    }
+    // requireDir follows a junction root, like stat() in WindowsFs; junctions
+    // below it count for nothing, so a link back up the tree is never walked.
     const { node, normalized } = this.requireDir(path)
-    const entries = [...(node.children?.values() ?? [])].map((child) => {
-      const sizeOf = (item: WinNode): number =>
-        item.type === 'file'
+    const sizeOf = (item: WinNode): number =>
+      item.type === 'junction'
+        ? 0
+        : item.type === 'file'
           ? item.content?.length ?? 0
           : [...(item.children?.values() ?? [])].reduce((sum, nested) => sum + sizeOf(nested), 0)
+    const children = [...(node.children?.values() ?? [])].filter((child) => child.type !== 'junction')
+    const entries = children.map((child) => {
       return {
         name: child.name,
         path: this.join(normalized, child.name),
