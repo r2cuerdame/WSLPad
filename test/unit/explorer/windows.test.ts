@@ -267,6 +267,20 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
     await fs.trash([file])
     expect(trashed).toEqual([file])
   })
+
+  it('refuses to trash a drive root before reaching trashItem', async () => {
+    trashed = []
+    expect(await codeOf(() => fs.trash(['C:\\']))).toBe('UNKNOWN')
+    await expect(fs.trash(['C:\\'])).rejects.toThrow('Refusing to trash C:\\')
+    expect(trashed).toEqual([])
+  })
+
+  it('refuses to rename a drive root', async () => {
+    expect(await codeOf(() => fs.rename('C:\\', 'renamed-root'))).toBe('UNKNOWN')
+    await expect(fs.rename('C:\\', 'renamed-root')).rejects.toThrow(
+      'Refusing to rename drive root C:\\'
+    )
+  })
 })
 
 describe('createWindowsFs — copy and move', () => {

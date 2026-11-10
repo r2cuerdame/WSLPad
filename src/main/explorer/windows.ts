@@ -775,6 +775,9 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
 
     rename: async (path, newName) => {
       const p = normalizePath(path)
+      if (isDriveRoot(p)) {
+        throw new ExplorerError('UNKNOWN', p, `Refusing to rename drive root ${p}`)
+      }
       if (!isValidFileName(newName)) {
         throw new ExplorerError('UNKNOWN', p, `Invalid file name: ${JSON.stringify(newName)}`)
       }
@@ -813,6 +816,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
     trash: async (paths) => {
       for (const path of paths) {
         const p = normalizePath(path)
+        if (isDriveRoot(p)) throw new ExplorerError('UNKNOWN', p, `Refusing to trash ${p}`)
         try {
           await trashOne(p)
         } catch (err) {
