@@ -106,6 +106,67 @@ describe('copyMove via backend op registry', () => {
     expect(runner.calls).toHaveLength(0)
   })
 
+  it.each([
+    { move: false, kind: 'copy', destDir: '/home/u/dir' },
+    { move: false, kind: 'copy', destDir: '/home/u/dir/sub/deeper' },
+    { move: true, kind: 'move', destDir: '/home/u/dir' },
+    { move: true, kind: 'move', destDir: '/home/u/dir/sub/deeper' }
+  ])(
+    'records a $kind into $destDir as an operation error without a shell call',
+    async ({ move, kind, destDir }) => {
+      const runner = new MockRunner()
+      const backend = createRealExplorerBackend(runner)
+      const { done } = captureProgress(backend)
+      const opId = await backend.copyMove('Ubuntu', ['/home/u/dir'], destDir, move)
+      await expect(done).resolves.toMatchObject({
+        opId,
+        kind,
+        status: 'error',
+        doneItems: 1,
+        error: expect.stringContaining(`Cannot ${kind} /home/u/dir into itself`)
+      })
+      expect(runner.calls).toHaveLength(0)
+    }
+  )
+
+  it('catches self-containment written with trailing, doubled or dot segments', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.copyMove('Ubuntu', ['/home/u/dir/'], '/home/u//dir/./sub', false)
+    await expect(done).resolves.toMatchObject({
+      status: 'error',
+      error: expect.stringContaining('into itself')
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it.each([
+    { move: false, tool: 'cp -a' },
+    { move: true, tool: 'mv' }
+  ])('still runs $tool into a same-prefix sibling folder', async ({ move, tool }) => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.copyMove('Ubuntu', ['/home/u/dir'], '/home/u/dir-copy', move)
+    await expect(done).resolves.toMatchObject({ status: 'done', doneItems: 1 })
+    expect(runner.calls[0].script).toContain(`${tool} '/home/u/dir' '/home/u/dir-copy/dir'`)
+  })
+
+  it('keeps going with the remaining items after a self-containment error', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.copyMove('Ubuntu', ['/home/u/dir', '/home/u/note.txt'], '/home/u/dir/sub', false)
+    const final = await done
+    expect(final).toMatchObject({ status: 'error', doneItems: 2, totalItems: 2 })
+    expect(final.error).toContain('Cannot copy /home/u/dir into itself')
+    expect(runner.calls).toHaveLength(1)
+    expect(runner.calls[0].script).toContain(
+      "cp -a '/home/u/note.txt' '/home/u/dir/sub/note.txt'"
+    )
+  })
+
   it('copies items sequentially with quoted cp -a and reports done', async () => {
     const runner = new MockRunner()
     const backend = createRealExplorerBackend(runner)
