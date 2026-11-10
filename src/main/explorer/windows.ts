@@ -138,6 +138,19 @@ function isDriveRoot(path: string): boolean {
   return win.parse(path).root.length === path.length
 }
 
+/**
+ * Every path in a batch is checked before the first one is touched: a drive
+ * root or malformed path anywhere in the selection refuses the whole batch,
+ * rather than leaving the items in front of it already gone.
+ */
+function normalizeBatch(paths: readonly string[], verb: 'trash' | 'remove'): string[] {
+  const normalized = paths.map(normalizePath)
+  for (const p of normalized) {
+    if (isDriveRoot(p)) throw new ExplorerError('UNKNOWN', p, `Refusing to ${verb} ${p}`)
+  }
+  return normalized
+}
+
 function sameVolume(a: string, b: string): boolean {
   return win.parse(a).root.toLowerCase() === win.parse(b).root.toLowerCase()
 }
@@ -843,9 +856,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
     },
 
     trash: async (paths) => {
-      for (const path of paths) {
-        const p = normalizePath(path)
-        if (isDriveRoot(p)) throw new ExplorerError('UNKNOWN', p, `Refusing to trash ${p}`)
+      for (const p of normalizeBatch(paths, 'trash')) {
         try {
           await trashOne(p)
         } catch (err) {
@@ -855,9 +866,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
     },
 
     remove: async (paths) => {
-      for (const path of paths) {
-        const p = normalizePath(path)
-        if (isDriveRoot(p)) throw new ExplorerError('UNKNOWN', p, `Refusing to remove ${p}`)
+      for (const p of normalizeBatch(paths, 'remove')) {
         try {
           await rm(p, { recursive: true, force: true })
         } catch (err) {
