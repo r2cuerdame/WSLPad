@@ -37,6 +37,23 @@ describe('resolveWindowsPath', () => {
 })
 
 describe('importFromWindows', () => {
+  it.each([
+    { windowsPath: 'C:\\', message: 'Refusing to import drive root C:\\' },
+    { windowsPath: '\\\\wsl.localhost\\Ubuntu', message: 'Refusing to import /' }
+  ])('refuses a root source ($windowsPath) without shell commands', async ({ windowsPath, message }) => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const opId = await backend.importFromWindows('Ubuntu', [windowsPath], '/home/u/in')
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind: 'import',
+      status: 'error',
+      error: expect.stringContaining(message)
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
   it('converts, sizes and copies each item with progress bytes', async () => {
     const runner = new MockRunner()
       .on((script) => (script.includes('du -sb') ? ok('42\n') : undefined))
@@ -101,6 +118,20 @@ describe('importFromWindows', () => {
 })
 
 describe('exportToWindows', () => {
+  it('refuses to export / without sizing or copying it', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const opId = await backend.exportToWindows('Ubuntu', ['/'], 'C:\\Backup')
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind: 'export',
+      status: 'error',
+      error: expect.stringContaining('Refusing to export /')
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
   it('maps the destination and copies with du-based totals for dirs', async () => {
     const runner = new MockRunner()
       .on((script) => (script.includes('du -sb') ? ok('4096\n') : undefined))

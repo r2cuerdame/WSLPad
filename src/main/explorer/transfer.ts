@@ -78,7 +78,17 @@ export async function runImport(
     }
     emit('running', windowsPath)
     try {
+      if (/^[A-Za-z]:[\\/]+$/.test(windowsPath)) {
+        throw new ExplorerError(
+          'UNKNOWN',
+          windowsPath,
+          `Refusing to import drive root ${windowsPath}`
+        )
+      }
       const source = await resolveWindowsPath(ctx.runner, distro, windowsPath)
+      if (source === '/') {
+        throw new ExplorerError('UNKNOWN', source, 'Refusing to import /')
+      }
       const size = await sizeOfPath(ctx.runner, distro, source)
       if (size !== null) {
         totalBytes += size
@@ -147,6 +157,7 @@ export async function runExport(
     emit('running', path)
     try {
       assertValidLinuxPath(path)
+      if (path === '/') throw new ExplorerError('UNKNOWN', path, 'Refusing to export /')
       const size = await sizeOfPath(ctx.runner, distro, path)
       if (size !== null) {
         totalBytes += size
