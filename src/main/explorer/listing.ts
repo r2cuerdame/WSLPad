@@ -51,8 +51,11 @@ export function explorerErrorFromResult(path: string, result: RunResult): Explor
 // GNU find based listing (goal.md §7.3)
 // ---------------------------------------------------------------------------
 
-const FIND_FMT = '%y|%m|%u|%g|%s|%T@|%f|%l\\n'
-const FIND_PATH_FMT = '%y|%m|%u|%g|%s|%T@|%p|%l\\n'
+// Names and link targets may both contain '|', so '|' cannot end the name.
+// The path below the find root (%P) is printed with its depth (%d) and a '/'
+// before the target instead: path components never contain '/', so the
+// depth-th '/' is the one boundary a name or target cannot fake (issue #181).
+const FIND_FMT = '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\n'
 
 const TYPE_MAP: Record<string, FileEntryType> = { d: 'directory', f: 'file', l: 'symlink' }
 
@@ -82,7 +85,8 @@ interface ParsedFindLine {
   group: string
   size: number | null
   mtime: string | null
-  nameField: string
+  name: string
+  relPath: string
   linkTarget: string | null
 }
 
@@ -94,19 +98,17 @@ function epochToIso(raw: string): string | null {
 function parseFindLine(line: string): ParsedFindLine | null {
   const parts = line.split('|')
   if (parts.length < 8) return null
+  const depth = Number(parts[6])
+  if (!Number.isInteger(depth) || depth < 1) return null
+  // Pipes after the seven fixed fields belong to the path or target; only the
+  // depth-th '/' separates them.
+  const segments = parts.slice(7).join('|').split('/')
+  if (segments.length <= depth) return null
+  const components = segments.slice(0, depth)
+  if (components.some((c) => !c)) return null
   const type = TYPE_MAP[parts[0]] ?? 'other'
-  let nameField: string
-  let linkTarget: string | null
-  if (type === 'symlink') {
-    nameField = parts[6]
-    linkTarget = parts.slice(7).join('|') || null
-  } else {
-    // %l is empty for non-links, so the last field is empty; pipes inside the
-    // name re-join across the middle fields.
-    nameField = parts.slice(6, -1).join('|')
-    linkTarget = null
-  }
-  if (!nameField) return null
+  // %l is empty for non-links, so only a symlink can carry a target.
+  const target = segments.slice(depth).join('/')
   const size = Number.parseInt(parts[4], 10)
   return {
     type,
@@ -115,15 +117,17 @@ function parseFindLine(line: string): ParsedFindLine | null {
     group: parts[3],
     size: Number.isFinite(size) ? size : null,
     mtime: epochToIso(parts[5]),
-    nameField,
-    linkTarget
+    name: components[depth - 1],
+    relPath: components.join('/'),
+    linkTarget: type === 'symlink' ? target || null : null
   }
 }
 
-function toEntry(name: string, path: string, parsed: ParsedFindLine): FileEntry {
+function toEntry(rootPath: string, parsed: ParsedFindLine): FileEntry {
+  const name = parsed.name
   return {
     name,
-    path,
+    path: joinLinuxPath(rootPath, parsed.relPath),
     type: parsed.type,
     sizeBytes: parsed.type === 'directory' ? null : parsed.size,
     mtime: parsed.mtime,
@@ -137,26 +141,17 @@ function toEntry(name: string, path: string, parsed: ParsedFindLine): FileEntry 
   }
 }
 
-/** Parse `find -printf '%y|%m|%u|%g|%s|%T@|%f|%l\n'` output for one directory. */
-export function parseFindListing(dirPath: string, text: string): FileEntry[] {
+/**
+ * Parse `find <root> -printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\n'` output — one
+ * directory, or nested search hits — into entries with paths under `rootPath`.
+ */
+export function parseFindListing(rootPath: string, text: string): FileEntry[] {
   const out: FileEntry[] = []
   for (const line of text.split('\n')) {
     if (!line) continue
     const parsed = parseFindLine(line)
     if (!parsed) continue
-    out.push(toEntry(parsed.nameField, joinLinuxPath(dirPath, parsed.nameField), parsed))
-  }
-  return out
-}
-
-/** Variant for search results printed with %p (full path) instead of %f. */
-export function parseFindPathListing(text: string): FileEntry[] {
-  const out: FileEntry[] = []
-  for (const line of text.split('\n')) {
-    if (!line) continue
-    const parsed = parseFindLine(line)
-    if (!parsed) continue
-    out.push(toEntry(linuxBasename(parsed.nameField), parsed.nameField, parsed))
+    out.push(toEntry(rootPath, parsed))
   }
   return out
 }
@@ -304,12 +299,12 @@ export async function searchDirectory(
   // -H follows the requested root if navigation landed on a directory symlink.
   const script =
     `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 4 -iname ${pattern} ` +
-    `-printf '${FIND_PATH_FMT}' 2>/dev/null | head -200`
+    `-printf '${FIND_FMT}' 2>/dev/null | head -200`
   const result = await runner.runInDistro(distro, script, { timeoutMs: RUNNER_SLOW_TIMEOUT_MS })
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
     throw explorerErrorFromResult(dirPath, result)
   }
-  const entries = parseFindPathListing(result.stdout)
+  const entries = parseFindListing(dirPath, result.stdout)
   await resolveSymlinkTargets(runner, distro, entries)
   return entries
 }
