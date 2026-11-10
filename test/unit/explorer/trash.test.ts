@@ -107,6 +107,42 @@ describe('trashEntries', () => {
     expect(batch).toContain("'/home/u/.local/share/Trash/files/x.2.txt'")
   })
 
+  it('trashes a path given twice once, without a false ENOENT', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('mkdir -p') ? ok('') : undefined
+    )
+    await trashEntries(
+      runner,
+      'Ubuntu',
+      ['/a/x.txt', '/a/x.txt', '/b/x.txt', '/a/x.txt'],
+      '/home/u',
+      now
+    )
+    expect(runner.calls).toHaveLength(2)
+    const batch = runner.calls[1].script
+    expect(batch.match(/^printf /gm)).toHaveLength(2)
+    expect(batch.split("mv '/a/x.txt' ")).toHaveLength(2)
+    expect(batch).toContain("mv '/a/x.txt' '/home/u/.local/share/Trash/files/x.txt'")
+    // The other directory's x.txt still gets its own name; the duplicate did
+    // not use up x.2.txt or push it to x.3.txt.
+    expect(batch).toContain("mv '/b/x.txt' '/home/u/.local/share/Trash/files/x.2.txt'")
+    expect(batch).not.toContain('x.3.txt')
+    expect(batch).not.toContain('WSLPAD_FAIL:2')
+  })
+
+  it('names the failed item by its place in the de-duplicated batch', async () => {
+    const runner = new MockRunner()
+      .on((script) => (script.includes('mkdir -p') ? ok('') : undefined))
+      .on((script) =>
+        script.includes('WSLPAD_FAIL')
+          ? ok('', 0, "mv: cannot move '/b': Permission denied\nWSLPAD_FAIL:1")
+          : undefined
+      )
+    await expect(
+      trashEntries(runner, 'Ubuntu', ['/a', '/a', '/b'], '/home/u', now)
+    ).rejects.toMatchObject({ code: 'EACCES', path: '/b' })
+  })
+
   it('throws a mapped error when an item fails', async () => {
     const runner = new MockRunner()
       .on((script) => (script.includes('mkdir -p') ? ok('') : undefined))

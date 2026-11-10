@@ -99,6 +99,10 @@ export async function trashEntries(
     assertValidLinuxPath(path)
     if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to trash ${path}`)
   }
+  // A path given twice is trashed once, as restoreFromTrash does with names: a
+  // second mv would only find the file already gone and report a false ENOENT.
+  // Everything below indexes this list, so WSLPAD_FAIL:<i> names the right item.
+  const unique = [...new Set(paths)]
   const trashDir = `${homeDir.replace(/\/+$/, '')}/.local/share/Trash`
   const qFiles = shellQuote(`${trashDir}/files`)
   const qInfo = shellQuote(`${trashDir}/info`)
@@ -115,7 +119,7 @@ export async function trashEntries(
     used.add(line.endsWith('.trashinfo') ? line.slice(0, -'.trashinfo'.length) : line)
   }
   const date = now()
-  const items: TrashBatchItem[] = paths.map((sourcePath) => {
+  const items: TrashBatchItem[] = unique.map((sourcePath) => {
     const trashName = resolveTrashCollision(linuxBasename(sourcePath), used)
     used.add(trashName)
     return { sourcePath, trashName, date }
@@ -123,13 +127,13 @@ export async function trashEntries(
   const result = await runner.runInDistro(distro, buildTrashBatchScript(trashDir, items), {
     timeoutMs: FILE_OP_TIMEOUT_MS
   })
-  if (result.timedOut) throw explorerErrorFromResult(paths[0], result)
+  if (result.timedOut) throw explorerErrorFromResult(unique[0], result)
   const fail = /WSLPAD_FAIL:(\d+)/.exec(result.stderr)
   if (fail) {
-    const failedPath = paths[Number.parseInt(fail[1], 10)] ?? paths[0]
+    const failedPath = unique[Number.parseInt(fail[1], 10)] ?? unique[0]
     throw explorerErrorFromResult(failedPath, { ...result, code: 1 })
   }
-  if (result.code !== 0) throw explorerErrorFromResult(paths[0], result)
+  if (result.code !== 0) throw explorerErrorFromResult(unique[0], result)
 }
 
 // ---------------------------------------------------------------------------

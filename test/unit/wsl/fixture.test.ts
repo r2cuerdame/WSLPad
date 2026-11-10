@@ -206,6 +206,15 @@ describe('FixtureExplorerBackend', () => {
     expect(info.content).toContain('DeletionDate=2024-06-15T12:00:00')
   })
 
+  it('trashes a path given twice once, like the real backend', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.trash(U, ['/home/dev/notes.md', '/home/dev/notes.md'])
+    const files = await backend.list(U, '/home/dev/.local/share/Trash/files', {
+      showHidden: true
+    })
+    expect(files.map((e) => e.name).filter((n) => n.startsWith('notes.md'))).toEqual(['notes.md'])
+  })
+
   it('supports mkdir/createFile/writeText/readText/rename/remove', async () => {
     const backend = new FixtureExplorerBackend()
     await backend.mkdir(U, '/home/dev/scratch')
