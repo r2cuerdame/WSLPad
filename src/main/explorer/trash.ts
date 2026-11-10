@@ -245,14 +245,20 @@ export async function restoreFromTrash(
   // Re-read rather than trusting a name from the renderer: the record on disk
   // is what says where the file belongs.
   const entries = await listTrash(runner, distro, homeDir)
-  for (const name of trashNames) {
+  // Every name is resolved and its destination checked before the first one is
+  // moved: a name missing from the trash, or a record with nowhere valid to go,
+  // refuses the whole batch instead of leaving the items in front of it already
+  // restored. A name given twice is restored once — a second move would only
+  // find its trashed copy already gone.
+  const toRestore = [...new Set(trashNames)].map((name) => {
     const entry = entries.find((e) => e.trashName === name)
     if (entry === undefined) {
       throw new ExplorerError('ENOENT', name, `Nothing in the trash is called ${name}`)
     }
-    const result = await runner.runInDistro(distro, buildRestoreScript(trashDir, entry), {
-      timeoutMs: FILE_OP_TIMEOUT_MS
-    })
+    return { entry, script: buildRestoreScript(trashDir, entry) }
+  })
+  for (const { entry, script } of toRestore) {
+    const result = await runner.runInDistro(distro, script, { timeoutMs: FILE_OP_TIMEOUT_MS })
     if (result.stderr.includes('WSLPAD_EXISTS')) {
       throw new ExplorerError(
         'EEXIST',
