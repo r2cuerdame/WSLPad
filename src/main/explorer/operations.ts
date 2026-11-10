@@ -69,6 +69,7 @@ export async function renameEntry(
   if (!isValidFileName(newName)) {
     throw new ExplorerError('UNKNOWN', path, `Invalid file name: ${JSON.stringify(newName)}`)
   }
+  if (linuxBasename(path) === newName) return
   const target = joinLinuxPath(parentLinuxPath(path), newName)
   const qs = shellQuote(path)
   const qt = shellQuote(target)

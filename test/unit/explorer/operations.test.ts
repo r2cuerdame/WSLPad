@@ -69,6 +69,12 @@ describe('renameEntry', () => {
     expect(runner.calls[0].script).toContain("mv '/scratch' '/scratch-old'")
   })
 
+  it('treats an unchanged name as a successful no-op without a shell call', async () => {
+    const runner = new MockRunner()
+    await renameEntry(runner, 'Ubuntu', '/home/u/file name.txt', 'file name.txt')
+    expect(runner.calls).toHaveLength(0)
+  })
+
   it('moves within the same directory with a target EEXIST guard', async () => {
     const runner = new MockRunner()
     await renameEntry(runner, 'Ubuntu', '/home/u/old name', "new'name")
