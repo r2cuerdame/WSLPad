@@ -1,6 +1,6 @@
 import { execFileSync } from 'child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
-import { chmod, readFile, readdir } from 'fs/promises'
+import { chmod, lstat, readFile, readdir, readlink, symlink } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -465,6 +465,91 @@ describe('createWindowsFs — text files', () => {
   it('refuses to write over a directory', async () => {
     const base = dir('write-dir')
     expect(await codeOf(() => fs.writeText(base, 'nope'))).toBe('EISDIR')
+  })
+
+  it.runIf(IS_WINDOWS)('writes through a file symlink to its target and keeps the link', async () => {
+    const targets = dir('write-link', 'targets')
+    const links = dir('write-link', 'links')
+    const target = join(targets, 'real.txt')
+    writeFileSync(target, 'old')
+    const link = join(links, 'link.txt')
+    await symlink(target, link, 'file')
+    // A relative link pointing at another link resolves the same way `readlink -f` does.
+    await symlink('real.txt', join(targets, 'relative.txt'), 'file')
+    const chained = join(links, 'chained.txt')
+    await symlink(join(targets, 'relative.txt'), chained, 'file')
+
+    await fs.writeText(link, 'through the link')
+    expect(await readFile(target, 'utf8')).toBe('through the link')
+    expect((await lstat(link)).isSymbolicLink()).toBe(true)
+    expect(await readlink(link)).toBe(target)
+    expect((await fs.readText(link, 1024)).content).toBe('through the link')
+
+    await fs.writeText(chained, 'through the chain')
+    expect(await readFile(target, 'utf8')).toBe('through the chain')
+    expect((await lstat(chained)).isSymbolicLink()).toBe(true)
+    expect((await lstat(join(targets, 'relative.txt'))).isSymbolicLink()).toBe(true)
+
+    // The temp file is swapped in beside the target, so neither side keeps one.
+    expect((await readdir(links)).sort()).toEqual(['chained.txt', 'link.txt'])
+    expect((await readdir(targets)).sort()).toEqual(['real.txt', 'relative.txt'])
+  })
+
+  it.runIf(IS_WINDOWS)('refuses to write through a directory symlink or junction', async () => {
+    const base = dir('write-dir-link')
+    const target = dir('write-dir-link', 'target')
+    writeFileSync(join(target, 'inside.txt'), 'kept')
+    const dirLink = join(base, 'dir-link')
+    const junction = join(base, 'junction')
+    await symlink(target, dirLink, 'dir')
+    await symlink(target, junction, 'junction')
+
+    expect(await codeOf(() => fs.writeText(dirLink, 'nope'))).toBe('EISDIR')
+    expect(await codeOf(() => fs.writeText(junction, 'nope'))).toBe('EISDIR')
+    expect((await lstat(dirLink)).isSymbolicLink()).toBe(true)
+    expect((await lstat(junction)).isSymbolicLink()).toBe(true)
+    expect(await readdir(target)).toEqual(['inside.txt'])
+    expect((await readdir(base)).sort()).toEqual(['dir-link', 'junction', 'target'])
+  })
+
+  it.runIf(IS_WINDOWS)('reports a broken symlink as ENOENT without creating its target', async () => {
+    const base = dir('write-broken-link')
+    const link = join(base, 'broken.txt')
+    await symlink(join(base, 'missing.txt'), link, 'file')
+
+    expect(await codeOf(() => fs.writeText(link, 'nope'))).toBe('ENOENT')
+    expect((await lstat(link)).isSymbolicLink()).toBe(true)
+    expect(await readdir(base)).toEqual(['broken.txt'])
+  })
+
+  it.runIf(IS_WINDOWS)('maps an unwritable link target to EACCES and keeps both sides', async () => {
+    const base = dir('write-link-denied')
+    const locked = dir('write-link-denied', 'locked')
+    const target = join(locked, 'real.txt')
+    writeFileSync(target, 'protected')
+    const link = join(base, 'link.txt')
+    await symlink(target, link, 'file')
+
+    // `access(W_OK)` cannot see ACLs on Windows: only the temp file creation
+    // beside the target fails, and that must still surface as EACCES.
+    execFileSync('icacls', [locked, '/deny', '*S-1-1-0:(WD)'], { windowsHide: true, stdio: 'ignore' })
+    try {
+      expect(await codeOf(() => fs.writeText(link, 'overwritten'))).toBe('EACCES')
+    } finally {
+      execFileSync('icacls', [locked, '/remove:d', '*S-1-1-0'], { windowsHide: true, stdio: 'ignore' })
+    }
+    expect(await readFile(target, 'utf8')).toBe('protected')
+    expect(await readdir(locked)).toEqual(['real.txt'])
+
+    await chmod(target, 0o444)
+    try {
+      expect(await codeOf(() => fs.writeText(link, 'overwritten'))).toBe('EACCES')
+      expect(await readFile(target, 'utf8')).toBe('protected')
+    } finally {
+      await chmod(target, 0o666)
+    }
+    expect((await lstat(link)).isSymbolicLink()).toBe(true)
+    expect(await readdir(base)).toEqual(['link.txt', 'locked'])
   })
 })
 

@@ -19,6 +19,7 @@ import {
   open,
   readdir,
   readlink,
+  realpath,
   rename,
   rm,
   stat,
@@ -885,22 +886,40 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
 
     writeText: async (path, content) => {
       const p = normalizePath(path)
-      const dir = win.dirname(p)
-      if (await exists(p)) {
-        const st = await lstat(p).catch((err: unknown) => {
+      let link: Awaited<ReturnType<typeof lstat>> | null = null
+      try {
+        link = await lstat(p)
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw toExplorerError(p, err)
+      }
+      // Swapping the temp file in over a symlink would replace the link with a
+      // plain file and leave its target stale, so a link is written through to
+      // the file it resolves to — the Linux pane's `readlink -f`. A broken link
+      // has no such file: ENOENT, never a target created behind the user's back.
+      let target = p
+      if (link) {
+        let st = link
+        try {
+          if (link.isSymbolicLink()) {
+            target = await realpath(p)
+            st = await stat(target)
+          }
+        } catch (err) {
           throw toExplorerError(p, err)
-        })
+        }
+        // lstat calls a directory link or junction a link, never a directory.
         if (st.isDirectory()) throw new ExplorerError('EISDIR', p, `EISDIR: ${p}`)
-        if (!(await canWrite(p))) throw new ExplorerError('EACCES', p, `EACCES: ${p}`)
-      } else if (!(await canWrite(dir))) {
+        if (!(await canWrite(target))) throw new ExplorerError('EACCES', p, `EACCES: ${p}`)
+      } else if (!(await canWrite(win.dirname(p)))) {
         throw new ExplorerError('EACCES', p, `EACCES: ${p}`)
       }
       // Write beside the target and swap it in, so a failure never leaves the
-      // destination partially written (goal.md §7.6).
-      const temp = win.join(dir, `.wslpad-${randomUUID()}.tmp`)
+      // destination partially written (goal.md §7.6). ACL denials only show up
+      // here, as EPERM, because access(W_OK) on Windows sees only the read-only bit.
+      const temp = win.join(win.dirname(target), `.wslpad-${randomUUID()}.tmp`)
       try {
         await writeFile(temp, content, 'utf8')
-        await rename(temp, p)
+        await rename(temp, target)
       } catch (err) {
         await rm(temp, { force: true }).catch(() => undefined)
         throw toExplorerError(p, err)
