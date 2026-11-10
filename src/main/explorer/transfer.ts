@@ -4,7 +4,13 @@ import { ExplorerError, type DistroRunner } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote } from '../wsl/escape'
 import { EXIT_EEXIST, explorerErrorFromResult } from './listing'
 import { existsGuard, FILE_OP_TIMEOUT_MS, type OpContext } from './operations'
-import { convertWindowsToLinux, joinLinuxPath, linuxBasename, windowsBasename } from './path-convert'
+import {
+  convertWindowsToLinux,
+  isInsideLinux,
+  joinLinuxPath,
+  linuxBasename,
+  windowsBasename
+} from './path-convert'
 
 /**
  * Windows ↔ WSL transfers (goal.md §7.5). Existing destinations are reported
@@ -92,6 +98,11 @@ export async function runImport(
       if (source === '/') {
         throw new ExplorerError('UNKNOWN', source, 'Refusing to import /')
       }
+      // Same-distro UNC and /mnt/<drive> sources can contain destDir; cp -a
+      // into its own subtree recurses until the timeout or a full disk.
+      if (isInsideLinux(destDir, source)) {
+        throw new ExplorerError('UNKNOWN', windowsPath, `Cannot import ${windowsPath} into itself`)
+      }
       const size = await sizeOfPath(ctx.runner, distro, source)
       if (size !== null) {
         totalBytes += size
@@ -161,6 +172,9 @@ export async function runExport(
     try {
       assertValidLinuxPath(path)
       if (path === '/') throw new ExplorerError('UNKNOWN', path, 'Refusing to export /')
+      if (isInsideLinux(destDirLinux, path)) {
+        throw new ExplorerError('UNKNOWN', path, `Cannot export ${path} into itself`)
+      }
       const size = await sizeOfPath(ctx.runner, distro, path)
       if (size !== null) {
         totalBytes += size
