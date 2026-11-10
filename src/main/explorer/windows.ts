@@ -847,7 +847,11 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
       }
       for (const source of srcs) {
         if (isInside(dest, source)) {
-          throw new ExplorerError('UNKNOWN', source, `Cannot copy ${source} into itself`)
+          throw new ExplorerError(
+            'UNKNOWN',
+            source,
+            `Cannot ${move ? 'move' : 'copy'} ${source} into itself`
+          )
         }
       }
       return startOp(move ? 'move' : 'copy', (opId, isCancelled) =>
