@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   convertLinuxToWindows,
   convertWindowsToLinux,
+  isInsideLinux,
   joinLinuxPath,
   linuxBasename,
   parentLinuxPath,
@@ -131,6 +132,25 @@ describe('linux path helpers', () => {
     expect(linuxBasename('/home/u/file.txt')).toBe('file.txt')
     expect(linuxBasename('/home/u/dir/')).toBe('dir')
     expect(linuxBasename('/')).toBe('/')
+  })
+
+  it('detects a path equal to or below another', () => {
+    expect(isInsideLinux('/home/u/dir', '/home/u/dir')).toBe(true)
+    expect(isInsideLinux('/home/u/dir/sub/deeper', '/home/u/dir')).toBe(true)
+    expect(isInsideLinux('/etc', '/')).toBe(true)
+  })
+
+  it('folds trailing and doubled slashes, . and .. before comparing', () => {
+    expect(isInsideLinux('/home/u//dir/./sub', '/home/u/dir/')).toBe(true)
+    expect(isInsideLinux('/home/u/other/../dir/sub', '/home/u/dir')).toBe(true)
+    expect(isInsideLinux('/home/u/dir/..', '/home/u/dir')).toBe(false)
+  })
+
+  it('does not treat same-prefix siblings or parents as inside', () => {
+    expect(isInsideLinux('/home/u/dir-copy', '/home/u/dir')).toBe(false)
+    expect(isInsideLinux('/home/u/dirx/sub', '/home/u/dir')).toBe(false)
+    expect(isInsideLinux('/home/u', '/home/u/dir')).toBe(false)
+    expect(isInsideLinux('/tmp', '/home/u/dir')).toBe(false)
   })
 
   it('computes windows basenames', () => {

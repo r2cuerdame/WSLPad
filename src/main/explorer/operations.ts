@@ -2,7 +2,7 @@ import type { FileOpProgress, FileOpStatus } from '@shared/types'
 import { ExplorerError, type DistroRunner } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote } from '../wsl/escape'
 import { EXIT_EEXIST, explorerErrorFromResult } from './listing'
-import { joinLinuxPath, linuxBasename, parentLinuxPath } from './path-convert'
+import { isInsideLinux, joinLinuxPath, linuxBasename, parentLinuxPath } from './path-convert'
 
 /** Copies of large trees can far exceed the hidden-query timeout. */
 export const FILE_OP_TIMEOUT_MS = 10 * 60 * 1000
@@ -110,6 +110,10 @@ export async function runCopyMove(
       assertValidLinuxPath(source)
       if (source === '/') {
         throw new ExplorerError('UNKNOWN', source, `Refusing to ${kind} /`)
+      }
+      // cp -a into its own subtree recurses until the timeout or a full disk.
+      if (isInsideLinux(destDir, source)) {
+        throw new ExplorerError('UNKNOWN', source, `Cannot ${kind} ${source} into itself`)
       }
       const dest = joinLinuxPath(destDir, linuxBasename(source))
       const qd = shellQuote(dest)

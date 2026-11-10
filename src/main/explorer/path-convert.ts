@@ -1,3 +1,4 @@
+import { posix } from 'path'
 import { assertValidLinuxPath } from '../wsl/escape'
 
 /**
@@ -50,6 +51,21 @@ export function parentLinuxPath(linuxPath: string): string {
 export function linuxBasename(linuxPath: string): string {
   const trimmed = linuxPath.replace(/\/+$/, '')
   return trimmed.slice(trimmed.lastIndexOf('/') + 1) || '/'
+}
+
+function normalizeLinuxPath(linuxPath: string): string {
+  const normalized = posix.normalize(linuxPath)
+  return normalized.length > 1 ? normalized.replace(/\/+$/, '') : normalized
+}
+
+/**
+ * Lexical containment: true when `child` is `parent` or lies below it. `//`,
+ * `.` and `..` are folded first; symlinks are not resolved (no filesystem).
+ */
+export function isInsideLinux(child: string, parent: string): boolean {
+  const c = normalizeLinuxPath(child)
+  const p = normalizeLinuxPath(parent)
+  return c === p || c.startsWith(p === '/' ? p : p + '/')
 }
 
 export function windowsBasename(windowsPath: string): string {
