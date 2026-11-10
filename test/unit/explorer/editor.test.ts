@@ -85,6 +85,25 @@ describe('readTextFile', () => {
 })
 
 describe('writeTextFile', () => {
+  it.each([
+    { path: '/home/u/folder', label: 'directory' },
+    { path: '/home/u/folder-link', label: 'directory symlink' }
+  ])('rejects a $label before creating a temporary file', async ({ path }) => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('if [ -d "$t" ]') ? fail(42) : undefined
+    )
+
+    await expect(writeTextFile(runner, 'Ubuntu', path, 'content')).rejects.toMatchObject({
+      code: 'EISDIR',
+      path
+    })
+    expect(runner.calls).toHaveLength(1)
+    const script = runner.calls[0].script
+    expect(script.indexOf('if [ -d "$t" ]')).toBeLessThan(
+      script.indexOf('mktemp "$d/.wslpad-XXXXXX"')
+    )
+  })
+
   it('ships content as base64 stdin into a tmp+mv script', async () => {
     const runner = new MockRunner()
     await writeTextFile(runner, 'Ubuntu', "/etc/a'b.conf", 'key = value\n')
