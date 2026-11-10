@@ -537,7 +537,8 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
     const files = this.ensureTrashDir('files')
     const info = this.ensureTrashDir('info')
-    for (const path of paths) {
+    // Same as the real backend: a path given twice is trashed once.
+    for (const path of new Set(paths)) {
       assertValidLinuxPath(path)
       const base = this.fs.normalizePath(path)
       const { parent, node, name } = this.fs.getWithParent(base)
