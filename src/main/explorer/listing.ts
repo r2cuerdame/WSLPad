@@ -57,8 +57,8 @@ export function explorerErrorFromResult(path: string, result: RunResult): Explor
 // before the target instead: path components never contain '/', so the
 // depth-th '/' is the one boundary a name or target cannot fake (issue #181).
 // Both may hold newlines too, so a record ends with NUL, the one byte neither
-// can contain; the newline after it only lets `head -200` count search hits
-// (issue #183).
+// can contain; `head -z` counts complete search hits without counting newlines
+// embedded in a name or link target (issue #185).
 const FIND_FMT = '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\0\\n'
 
 /** The runner keeps FIND_FMT's NULs and any CR inside a name. */
@@ -321,7 +321,7 @@ export async function searchDirectory(
   // -H follows the requested root if navigation landed on a directory symlink.
   const script =
     `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 4 -iname ${pattern} ` +
-    `-printf '${FIND_FMT}' 2>/dev/null | head -200`
+    `-printf '${FIND_FMT}' 2>/dev/null | head -z -n 200`
   const result = await runner.runInDistro(distro, script, FIND_RUN_OPTS)
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
     throw explorerErrorFromResult(dirPath, result)

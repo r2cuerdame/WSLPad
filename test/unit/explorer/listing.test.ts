@@ -484,7 +484,7 @@ describe('search', () => {
     expect(runner.calls).toHaveLength(0)
   })
 
-  it('builds a bounded quoted find | head pipeline', async () => {
+  it('bounds search results by NUL-delimited entries', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes('-iname') ? ok('f|644|u|g|9|1.0|2|sub/config.json/') : undefined
     )
@@ -493,7 +493,7 @@ describe('search', () => {
     const script = runner.calls[0].script
     expect(script).toContain('-maxdepth 4')
     expect(script).toContain("-iname '*config a'\\''b*'")
-    expect(script).toContain('| head -200')
+    expect(script).toContain('| head -z -n 200')
     expect(script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\0\\n'")
   })
 
@@ -502,7 +502,7 @@ describe('search', () => {
       script.includes('-iname')
         ? ok(
             records('f|644|u|g|9|1.0|2|sub\ndir/hit\n1.txt/', 'l|777|u|g|3|1.0|3|a/b\nc/hit\nlink/t\nx') +
-              // head -200 counts lines, so it can stop inside a record.
+              // The runner may still cut off a final record at its output cap.
               'f|644|u|g|9|1.0|1|hit\ncu'
           )
         : ok('f\n')
