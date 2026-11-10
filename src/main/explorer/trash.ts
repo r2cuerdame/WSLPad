@@ -3,7 +3,7 @@ import { ExplorerError, type DistroRunner } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote, shellQuoteAll } from '../wsl/escape'
 import { EXIT_EACCES, explorerErrorFromResult } from './listing'
 import { FILE_OP_TIMEOUT_MS } from './operations'
-import { linuxBasename } from './path-convert'
+import { isLinuxRoot, linuxBasename } from './path-convert'
 
 /**
  * freedesktop.org trash spec (goal.md §7.4): files land in
@@ -97,7 +97,7 @@ export async function trashEntries(
   if (paths.length === 0) return
   for (const path of paths) {
     assertValidLinuxPath(path)
-    if (path === '/') throw new ExplorerError('UNKNOWN', path, 'Refusing to trash /')
+    if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to trash ${path}`)
   }
   const trashDir = `${homeDir.replace(/\/+$/, '')}/.local/share/Trash`
   const qFiles = shellQuote(`${trashDir}/files`)

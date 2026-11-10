@@ -7,6 +7,7 @@ import { existsGuard, FILE_OP_TIMEOUT_MS, type OpContext } from './operations'
 import {
   convertWindowsToLinux,
   isInsideLinux,
+  isLinuxRoot,
   joinLinuxPath,
   linuxBasename,
   windowsBasename
@@ -96,8 +97,8 @@ export async function runImport(
         )
       }
       const source = await resolveWindowsPath(ctx.runner, distro, windowsPath)
-      if (source === '/') {
-        throw new ExplorerError('UNKNOWN', source, 'Refusing to import /')
+      if (isLinuxRoot(source)) {
+        throw new ExplorerError('UNKNOWN', source, `Refusing to import ${source}`)
       }
       // Same-distro UNC and /mnt/<drive> sources can contain destDir; cp -a
       // into its own subtree recurses until the timeout or a full disk.
@@ -172,7 +173,7 @@ export async function runExport(
     emit('running', path)
     try {
       assertValidLinuxPath(path)
-      if (path === '/') throw new ExplorerError('UNKNOWN', path, 'Refusing to export /')
+      if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to export ${path}`)
       if (isInsideLinux(destDirLinux, path)) {
         throw new ExplorerError('UNKNOWN', path, `Cannot export ${path} into itself`)
       }

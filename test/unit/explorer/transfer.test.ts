@@ -78,6 +78,37 @@ describe('importFromWindows', () => {
     expect(runner.calls).toHaveLength(0)
   })
 
+  it.each(['//', '///'])(
+    'refuses a wslpath result of %s before sizing or copying it',
+    async (mapped) => {
+      const runner = new MockRunner().on((script) =>
+        script.startsWith('wslpath -u') ? ok(`${mapped}\n`) : undefined
+      )
+      const backend = createRealExplorerBackend(runner)
+      const { done } = captureProgress(backend)
+      const opId = await backend.importFromWindows('Ubuntu', ['Z:odd'], '/home/u/in')
+      await expect(done).resolves.toMatchObject({
+        opId,
+        kind: 'import',
+        status: 'error',
+        error: expect.stringContaining(`Refusing to import ${mapped}`)
+      })
+      expect(runner.calls.map((c) => c.script)).toEqual(["wslpath -u 'Z:odd'"])
+    }
+  )
+
+  it('refuses a same-distro UNC path that folds to the root without shell commands', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.importFromWindows('Ubuntu', ['\\\\wsl.localhost\\Ubuntu\\.'], '/home/u/in')
+    await expect(done).resolves.toMatchObject({
+      status: 'error',
+      error: expect.stringContaining('Refusing to import /.')
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
   it('refuses to import from the This PC virtual root without shell commands', async () => {
     const runner = new MockRunner()
     const backend = createRealExplorerBackend(runner)
@@ -218,18 +249,34 @@ describe('exportToWindows', () => {
     expect(runner.calls).toHaveLength(0)
   })
 
-  it('refuses to export / without sizing or copying it', async () => {
-    const runner = new MockRunner()
+  it.each(['/', '//', '///', '/./'])(
+    'refuses to export %s without sizing or copying it',
+    async (root) => {
+      const runner = new MockRunner()
+      const backend = createRealExplorerBackend(runner)
+      const { done } = captureProgress(backend)
+      const opId = await backend.exportToWindows('Ubuntu', [root], 'C:\\Backup')
+      await expect(done).resolves.toMatchObject({
+        opId,
+        kind: 'export',
+        status: 'error',
+        error: expect.stringContaining(`Refusing to export ${root}`)
+      })
+      expect(runner.calls).toHaveLength(0)
+    }
+  )
+
+  it('still exports a top-level entry', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('du -sb') ? ok('5\n') : undefined
+    )
     const backend = createRealExplorerBackend(runner)
     const { done } = captureProgress(backend)
-    const opId = await backend.exportToWindows('Ubuntu', ['/'], 'C:\\Backup')
-    await expect(done).resolves.toMatchObject({
-      opId,
-      kind: 'export',
-      status: 'error',
-      error: expect.stringContaining('Refusing to export /')
-    })
-    expect(runner.calls).toHaveLength(0)
+    await backend.exportToWindows('Ubuntu', ['/scratch'], 'C:\\Backup')
+    await expect(done).resolves.toMatchObject({ status: 'done', doneItems: 1 })
+    expect(runner.calls.map((c) => c.script)).toContainEqual(
+      expect.stringContaining("cp -a '/scratch' '/mnt/c/Backup/scratch'")
+    )
   })
 
   it.each([

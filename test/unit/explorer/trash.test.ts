@@ -128,9 +128,29 @@ describe('trashEntries', () => {
     })
   })
 
-  it('refuses to trash /', async () => {
+  it.each(['/', '//', '///', '/./'])('refuses to trash %s without a shell call', async (root) => {
     const runner = new MockRunner()
-    await expect(trashEntries(runner, 'Ubuntu', ['/'], '/home/u', now)).rejects.toThrow('Refusing')
+    await expect(trashEntries(runner, 'Ubuntu', [root], '/home/u', now)).rejects.toThrow(
+      `Refusing to trash ${root}`
+    )
     expect(runner.calls).toHaveLength(0)
+  })
+
+  it('refuses the whole batch when one item is the root', async () => {
+    const runner = new MockRunner()
+    await expect(
+      trashEntries(runner, 'Ubuntu', ['/home/u/a', '///'], '/home/u', now)
+    ).rejects.toThrow('Refusing to trash ///')
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it('still trashes a top-level entry', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('mkdir -p') ? ok('') : undefined
+    )
+    await trashEntries(runner, 'Ubuntu', ['/scratch'], '/home/u', now)
+    expect(runner.calls[1].script).toContain(
+      "mv '/scratch' '/home/u/.local/share/Trash/files/scratch'"
+    )
   })
 })
