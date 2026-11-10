@@ -176,6 +176,39 @@ describe('restoreFromTrash', () => {
     )
   })
 
+  it('refuses the whole batch before moving anything when one name is not in the trash', async () => {
+    // Checking each name only as its turn comes would leave the items in front
+    // of the bad one already restored and the rest still in the trash.
+    const runner = new MockRunner().on((script) => (listingHandler(script) ? ok(listing) : ok('')))
+    await expect(
+      restoreFromTrash(runner, 'Ubuntu', '/home/dev', ['notes.md', 'other'])
+    ).rejects.toThrow(/Nothing in the trash is called other/)
+    expect(runner.calls).toHaveLength(1)
+  })
+
+  it('refuses the whole batch before moving anything when one record has no usable destination', async () => {
+    const text = listing + record(['bad', 'relative/path', '2026-07-30T10:00:00', 'file', '1'])
+    const runner = new MockRunner().on((script) => (listingHandler(script) ? ok(text) : ok('')))
+    await expect(
+      restoreFromTrash(runner, 'Ubuntu', '/home/dev', ['notes.md', 'bad'])
+    ).rejects.toThrow()
+    expect(runner.calls).toHaveLength(1)
+  })
+
+  it('restores a name given twice once instead of failing on the second', async () => {
+    // A real distro answers a second move of the same file with WSLPAD_MISSING,
+    // because the first one already put it back.
+    const restored = new Set<string>()
+    const runner = new MockRunner().on((script) => {
+      if (listingHandler(script)) return ok(listing)
+      if (restored.has(script)) return fail(1, 'WSLPAD_MISSING\n')
+      restored.add(script)
+      return ok('')
+    })
+    await restoreFromTrash(runner, 'Ubuntu', '/home/dev', ['notes.md', 'notes.md'])
+    expect(runner.calls).toHaveLength(2)
+  })
+
   it('says the destination is occupied instead of overwriting it', async () => {
     const runner = new MockRunner().on((script) =>
       listingHandler(script) ? ok(listing) : fail(1, 'WSLPAD_EXISTS\n')
