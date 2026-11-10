@@ -4,6 +4,7 @@ import {
   ExplorerError,
   type DistroRunner,
   type ExplorerErrorCode,
+  type RunOptions,
   type RunResult
 } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote, shellQuoteAll } from '../wsl/escape'
@@ -55,7 +56,13 @@ export function explorerErrorFromResult(path: string, result: RunResult): Explor
 // The path below the find root (%P) is printed with its depth (%d) and a '/'
 // before the target instead: path components never contain '/', so the
 // depth-th '/' is the one boundary a name or target cannot fake (issue #181).
-const FIND_FMT = '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\n'
+// Both may hold newlines too, so a record ends with NUL, the one byte neither
+// can contain; the newline after it only lets `head -200` count search hits
+// (issue #183).
+const FIND_FMT = '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\0\\n'
+
+/** The runner keeps FIND_FMT's NULs and any CR inside a name. */
+const FIND_RUN_OPTS: RunOptions = { timeoutMs: RUNNER_SLOW_TIMEOUT_MS, nulDelimited: true }
 
 const TYPE_MAP: Record<string, FileEntryType> = { d: 'directory', f: 'file', l: 'symlink' }
 
@@ -142,14 +149,29 @@ function toEntry(rootPath: string, parsed: ParsedFindLine): FileEntry {
 }
 
 /**
- * Parse `find <root> -printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\n'` output — one
+ * Split find output into records. Whatever follows the last NUL was cut off by
+ * `head` or the output cap, so it is dropped rather than listed under a
+ * truncated name. Text without any NUL comes from a runner that strips them and
+ * leaves newline-terminated lines: those still parse, only a name holding a
+ * newline stays unreadable.
+ */
+function findRecords(text: string): string[] {
+  if (!text.includes('\0')) return text.split('\n')
+  const records = text.split('\0')
+  records.pop()
+  // Each record after the first starts with the newline of the previous one's end.
+  return records.map((record) => (record.startsWith('\n') ? record.slice(1) : record))
+}
+
+/**
+ * Parse `find <root> -printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\0\n'` output — one
  * directory, or nested search hits — into entries with paths under `rootPath`.
  */
 export function parseFindListing(rootPath: string, text: string): FileEntry[] {
   const out: FileEntry[] = []
-  for (const line of text.split('\n')) {
-    if (!line) continue
-    const parsed = parseFindLine(line)
+  for (const record of findRecords(text)) {
+    if (!record) continue
+    const parsed = parseFindLine(record)
     if (!parsed) continue
     out.push(toEntry(rootPath, parsed))
   }
@@ -187,7 +209,7 @@ export async function listDirectory(
   assertValidLinuxPath(dirPath)
   const q = shellQuote(dirPath)
   const script = `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 1 -printf '${FIND_FMT}'`
-  const result = await runner.runInDistro(distro, script, { timeoutMs: RUNNER_SLOW_TIMEOUT_MS })
+  const result = await runner.runInDistro(distro, script, FIND_RUN_OPTS)
   // find exits non-zero when single entries are unreadable but still lists the
   // rest — only treat it as fatal when nothing came back at all.
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
@@ -210,7 +232,7 @@ export async function listTree(
   // -H follows a symlink when the requested tree root is itself a link, while
   // -type l includes child links so their targets can be checked below.
   const script = `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 1 '(' -type d -o -type l ')' -printf '${FIND_FMT}'`
-  const result = await runner.runInDistro(distro, script, { timeoutMs: RUNNER_SLOW_TIMEOUT_MS })
+  const result = await runner.runInDistro(distro, script, FIND_RUN_OPTS)
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
     throw explorerErrorFromResult(dirPath, result)
   }
@@ -300,7 +322,7 @@ export async function searchDirectory(
   const script =
     `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 4 -iname ${pattern} ` +
     `-printf '${FIND_FMT}' 2>/dev/null | head -200`
-  const result = await runner.runInDistro(distro, script, { timeoutMs: RUNNER_SLOW_TIMEOUT_MS })
+  const result = await runner.runInDistro(distro, script, FIND_RUN_OPTS)
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
     throw explorerErrorFromResult(dirPath, result)
   }

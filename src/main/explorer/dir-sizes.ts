@@ -114,9 +114,9 @@ export async function collectDirSizes(
   const children = opts.children ?? (await listDirectory(runner, distro, dirPath, true))
   if (cancelled()) return emptyResult(dirPath, { cancelled: true })
 
-  // A tab would make du's `<bytes>\t<path>` output ambiguous, so such a child
-  // is listed as unmeasured rather than matched to the wrong number.
-  const measurable = children.filter((c) => !c.path.includes('\t'))
+  // A tab or newline would make du's `<bytes>\t<path>` lines ambiguous, so such
+  // a child is listed as unmeasured rather than matched to the wrong number.
+  const measurable = children.filter((c) => !/[\t\n]/.test(c.path))
   const measured = measurable.slice(0, DIR_SIZE_CHILD_CAP)
   const skipped = children.length - measured.length
 

@@ -15,9 +15,14 @@ import { assertValidDistroName } from './escape'
 /**
  * Decode wsl.exe output. Management commands (--list etc.) emit UTF-16LE,
  * in-distro commands emit UTF-8. 'auto' sniffs for the NUL bytes UTF-16LE
- * ASCII produces.
+ * ASCII produces. NUL-delimited output keeps NUL and CR bytes: there they are
+ * record ends and file-name characters, not encoding residue.
  */
-export function decodeWslOutput(buf: Buffer, encoding: 'utf8' | 'utf16le' | 'auto'): string {
+export function decodeWslOutput(
+  buf: Buffer,
+  encoding: 'utf8' | 'utf16le' | 'auto',
+  nulDelimited = false
+): string {
   let mode = encoding
   if (mode === 'auto') {
     const probe = buf.subarray(0, Math.min(buf.length, 256))
@@ -29,6 +34,7 @@ export function decodeWslOutput(buf: Buffer, encoding: 'utf8' | 'utf16le' | 'aut
   }
   let text = buf.toString(mode)
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1)
+  if (nulDelimited) return text
   return text.replace(/\r\n/g, '\n').replace(/\0/g, '')
 }
 
@@ -126,7 +132,7 @@ export class WslRunner implements DistroRunner {
         this.children.delete(child)
         observe()
         resolve({
-          stdout: decodeWslOutput(Buffer.concat(outChunks), encoding),
+          stdout: decodeWslOutput(Buffer.concat(outChunks), encoding, opts.nulDelimited),
           stderr: decodeWslOutput(Buffer.concat(errChunks), encoding),
           code,
           timedOut

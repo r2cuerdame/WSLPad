@@ -153,6 +153,24 @@ describe('collectDirSizes', () => {
     expect(result.skipped).toBe(1)
   })
 
+  it('lists a child whose name holds a newline as unmeasured instead of guessing', async () => {
+    // du prints its line in two pieces, and the first piece reads as the line
+    // of the sibling named by the part before the newline.
+    const runner = new MockRunner().on((script) =>
+      ok(
+        du([[5, `${DIR}/projects`]]) +
+          (script.includes('projects\nold') ? du([[999, `${DIR}/projects\nold`]]) : '')
+      )
+    )
+    const result = await collectDirSizes(runner, 'Ubuntu', DIR, {
+      children: [child('projects'), child('projects\nold')]
+    })
+
+    expect(runner.calls[0].script).not.toContain('\n')
+    expect(result.entries.map((e) => [e.name, e.sizeBytes])).toEqual([['projects', 5]])
+    expect(result.skipped).toBe(1)
+  })
+
   it('reports no numbers at all once the run was cancelled', async () => {
     let cancelled = false
     const runner = new MockRunner().on(() => {

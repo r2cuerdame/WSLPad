@@ -28,6 +28,12 @@ describe('decodeWslOutput', () => {
     expect(text).toContain('Ubuntu-24.04')
     expect(text).toContain('실행 중')
   })
+
+  it('keeps NUL and CR bytes of NUL-delimited records', () => {
+    const buf = Buffer.from('f|a\r\nb/\0\nd|새\n폴더/\0\n', 'utf8')
+    expect(decodeWslOutput(buf, 'utf8', true)).toBe('f|a\r\nb/\0\nd|새\n폴더/\0\n')
+    expect(decodeWslOutput(buf, 'utf8')).toBe('f|a\nb/\nd|새\n폴더/\n')
+  })
 })
 
 describe('WslRunner', () => {
@@ -48,6 +54,16 @@ describe('WslRunner', () => {
     expect(res.stdout).toBe('hello')
     expect(res.code).toBe(0)
     expect(res.timedOut).toBe(false)
+  })
+
+  it('keeps NUL-delimited stdout intact while stderr is still cleaned up', async () => {
+    const runner = new WslRunner(node)
+    const res = await runner.runWsl(
+      ['-e', "process.stdout.write('a\\r\\nb\\0\\n'); process.stderr.write('e\\0rr\\r\\n')"],
+      { encoding: 'utf8', nulDelimited: true }
+    )
+    expect(res.stdout).toBe('a\r\nb\0\n')
+    expect(res.stderr).toBe('err\n')
   })
 
   it('kills on timeout', async () => {
