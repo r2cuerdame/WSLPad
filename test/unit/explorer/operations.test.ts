@@ -55,12 +55,18 @@ describe('createEmptyFile', () => {
 })
 
 describe('renameEntry', () => {
-  it('refuses to rename / without a shell call', async () => {
+  it.each(['/', '//', '///', '/./'])('refuses to rename %s without a shell call', async (root) => {
     const runner = new MockRunner()
-    await expect(renameEntry(runner, 'Ubuntu', '/', 'renamed-root')).rejects.toThrow(
-      'Refusing to rename /'
+    await expect(renameEntry(runner, 'Ubuntu', root, 'renamed-root')).rejects.toThrow(
+      `Refusing to rename ${root}`
     )
     expect(runner.calls).toHaveLength(0)
+  })
+
+  it('still renames a top-level entry', async () => {
+    const runner = new MockRunner()
+    await renameEntry(runner, 'Ubuntu', '/scratch', 'scratch-old')
+    expect(runner.calls[0].script).toContain("mv '/scratch' '/scratch-old'")
   })
 
   it('moves within the same directory with a target EEXIST guard', async () => {
@@ -90,20 +96,36 @@ describe('renameEntry', () => {
 
 describe('copyMove via backend op registry', () => {
   it.each([
-    { move: false, kind: 'copy', message: 'Refusing to copy /' },
-    { move: true, kind: 'move', message: 'Refusing to move /' }
-  ])('records a root source as a $kind operation error without a shell call', async ({ move, kind, message }) => {
+    { move: false, kind: 'copy', source: '/' },
+    { move: true, kind: 'move', source: '/' },
+    { move: false, kind: 'copy', source: '//' },
+    { move: true, kind: 'move', source: '//' },
+    { move: false, kind: 'copy', source: '///' },
+    { move: true, kind: 'move', source: '///' }
+  ])('records root source $source as a $kind operation error without a shell call', async ({ move, kind, source }) => {
     const runner = new MockRunner()
     const backend = createRealExplorerBackend(runner)
     const { done } = captureProgress(backend)
-    const opId = await backend.copyMove('Ubuntu', ['/'], '/dest', move)
+    const opId = await backend.copyMove('Ubuntu', [source], '/dest', move)
     await expect(done).resolves.toMatchObject({
       opId,
       kind,
       status: 'error',
-      error: expect.stringContaining(message)
+      error: expect.stringContaining(`Refusing to ${kind} ${source}`)
     })
     expect(runner.calls).toHaveLength(0)
+  })
+
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('still runs a $kind of a top-level entry', async ({ move }) => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.copyMove('Ubuntu', ['/scratch'], '/dest', move)
+    await expect(done).resolves.toMatchObject({ status: 'done', doneItems: 1 })
+    expect(runner.calls[0].script).toContain(`${move ? 'mv' : 'cp -a'} '/scratch' '/dest/scratch'`)
   })
 
   it.each([
@@ -248,9 +270,28 @@ describe('removeEntries', () => {
     await expect(removeEntries(runner, 'Ubuntu', ['/x'])).rejects.toMatchObject({ code: 'EACCES' })
   })
 
-  it('refuses to remove /', async () => {
+  it.each(['/', '//', '///', '/./'])('refuses to remove %s without a shell call', async (root) => {
     const runner = new MockRunner()
-    await expect(removeEntries(runner, 'Ubuntu', ['/'])).rejects.toThrow('Refusing')
+    await expect(removeEntries(runner, 'Ubuntu', [root])).rejects.toThrow(
+      `Refusing to remove ${root}`
+    )
     expect(runner.calls).toHaveLength(0)
+  })
+
+  it('refuses the whole batch before deleting anything when one item is the root', async () => {
+    const runner = new MockRunner()
+    await expect(removeEntries(runner, 'Ubuntu', ['/home/u/a', '//'])).rejects.toThrow(
+      'Refusing to remove //'
+    )
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it('still removes top-level entries', async () => {
+    const runner = new MockRunner()
+    await removeEntries(runner, 'Ubuntu', ['/scratch', '//srv/cache'])
+    expect(runner.calls.map((c) => c.script)).toEqual([
+      "rm -rf '/scratch'",
+      "rm -rf '//srv/cache'"
+    ])
   })
 })

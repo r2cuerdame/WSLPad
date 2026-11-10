@@ -3,6 +3,7 @@ import {
   convertLinuxToWindows,
   convertWindowsToLinux,
   isInsideLinux,
+  isLinuxRoot,
   joinLinuxPath,
   linuxBasename,
   parentLinuxPath,
@@ -151,6 +152,18 @@ describe('linux path helpers', () => {
     expect(isInsideLinux('/home/u/dirx/sub', '/home/u/dir')).toBe(false)
     expect(isInsideLinux('/home/u', '/home/u/dir')).toBe(false)
     expect(isInsideLinux('/tmp', '/home/u/dir')).toBe(false)
+  })
+
+  it('recognises every spelling of the root, not just a single slash', () => {
+    for (const root of ['/', '//', '///', '/./', '//.', '/..', '/../']) {
+      expect(isLinuxRoot(root)).toBe(true)
+    }
+  })
+
+  it('does not treat top-level entries as the root', () => {
+    for (const path of ['/etc', '//etc', '///tmp/', '/.hidden', '/...']) {
+      expect(isLinuxRoot(path)).toBe(false)
+    }
   })
 
   it('computes windows basenames', () => {

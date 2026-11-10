@@ -68,6 +68,16 @@ export function isInsideLinux(child: string, parent: string): boolean {
   return c === p || c.startsWith(p === '/' ? p : p + '/')
 }
 
+/**
+ * True for any spelling of the filesystem root, not just `/`: Linux reads
+ * `//`, `///` and `/./` as `/` too, so a destructive guard comparing against
+ * the literal `/` would let `rm -rf '//'` through. Folded the same lexical way
+ * as isInsideLinux.
+ */
+export function isLinuxRoot(linuxPath: string): boolean {
+  return normalizeLinuxPath(linuxPath) === '/'
+}
+
 export function windowsBasename(windowsPath: string): string {
   const trimmed = windowsPath.replace(/[\\/]+$/, '')
   const idx = Math.max(trimmed.lastIndexOf('\\'), trimmed.lastIndexOf('/'))

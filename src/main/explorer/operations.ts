@@ -2,7 +2,13 @@ import type { FileOpProgress, FileOpStatus } from '@shared/types'
 import { ExplorerError, type DistroRunner } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote } from '../wsl/escape'
 import { EXIT_EEXIST, explorerErrorFromResult } from './listing'
-import { isInsideLinux, joinLinuxPath, linuxBasename, parentLinuxPath } from './path-convert'
+import {
+  isInsideLinux,
+  isLinuxRoot,
+  joinLinuxPath,
+  linuxBasename,
+  parentLinuxPath
+} from './path-convert'
 
 /** Copies of large trees can far exceed the hidden-query timeout. */
 export const FILE_OP_TIMEOUT_MS = 10 * 60 * 1000
@@ -59,7 +65,7 @@ export async function renameEntry(
   newName: string
 ): Promise<void> {
   assertValidLinuxPath(path)
-  if (path === '/') throw new ExplorerError('UNKNOWN', path, 'Refusing to rename /')
+  if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to rename ${path}`)
   if (!isValidFileName(newName)) {
     throw new ExplorerError('UNKNOWN', path, `Invalid file name: ${JSON.stringify(newName)}`)
   }
@@ -108,8 +114,8 @@ export async function runCopyMove(
     emit('running', source)
     try {
       assertValidLinuxPath(source)
-      if (source === '/') {
-        throw new ExplorerError('UNKNOWN', source, `Refusing to ${kind} /`)
+      if (isLinuxRoot(source)) {
+        throw new ExplorerError('UNKNOWN', source, `Refusing to ${kind} ${source}`)
       }
       // cp -a into its own subtree recurses until the timeout or a full disk.
       if (isInsideLinux(destDir, source)) {
@@ -133,7 +139,11 @@ export async function runCopyMove(
   emit(errors.length > 0 ? 'error' : 'done', null, errors.length > 0 ? errors.join('; ') : null)
 }
 
-/** Permanent delete — only invoked after the renderer confirmed (goal.md §7.4). */
+/**
+ * Permanent delete — only invoked after the renderer confirmed (goal.md §7.4).
+ * The whole batch is checked before the first rm: a batch that names the root
+ * is refused as a whole rather than after deleting its other items.
+ */
 export async function removeEntries(
   runner: DistroRunner,
   distro: string,
@@ -141,7 +151,9 @@ export async function removeEntries(
 ): Promise<void> {
   for (const path of paths) {
     assertValidLinuxPath(path)
-    if (path === '/') throw new ExplorerError('UNKNOWN', path, 'Refusing to remove /')
+    if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to remove ${path}`)
+  }
+  for (const path of paths) {
     const result = await runner.runInDistro(distro, `rm -rf ${shellQuote(path)}`, {
       timeoutMs: FILE_OP_TIMEOUT_MS
     })
