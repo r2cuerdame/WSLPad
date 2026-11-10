@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   explorerErrorFromResult,
   listDirectory,
@@ -11,7 +14,11 @@ import {
   statPath
 } from '../../../src/main/explorer/listing'
 import { ExplorerError } from '../../../src/main/wsl/contracts'
+import { decodeWslOutput } from '../../../src/main/wsl/runner'
 import { fail, MockRunner, ok, timedOut } from './mock-runner'
+
+/** find output as FIND_FMT prints it: every record ends with NUL and a newline. */
+const records = (...lines: string[]): string => lines.map((line) => `${line}\0\n`).join('')
 
 describe('octalToRwx', () => {
   it('maps plain modes', () => {
@@ -117,6 +124,85 @@ describe('parseFindListing', () => {
     const entries = parseFindListing('/d', 's|600|u|g|0|1.0|1|sock/')
     expect(entries[0].type).toBe('other')
   })
+
+  it('keeps newlines inside file and folder names as one entry each', () => {
+    const entries = parseFindListing(
+      '/d',
+      records(
+        'f|644|u|g|5|1.0|1|two\nlines.txt/',
+        'd|755|u|g|4096|1.0|1|new\nfolder/',
+        'f|644|u|g|5|1.0|1|crlf\r\nname/'
+      )
+    )
+    expect(entries.map(({ name, path, type }) => ({ name, path, type }))).toEqual([
+      { name: 'two\nlines.txt', path: '/d/two\nlines.txt', type: 'file' },
+      { name: 'new\nfolder', path: '/d/new\nfolder', type: 'directory' },
+      { name: 'crlf\r\nname', path: '/d/crlf\r\nname', type: 'file' }
+    ])
+  })
+
+  it('keeps newline symlink names and targets apart', () => {
+    const entries = parseFindListing(
+      '/d',
+      records('l|777|u|g|8|1.0|1|my\nlink/../a\nb/c', 'l|777|u|g|3|1.0|1|plain/x\ny')
+    )
+    expect(entries.map(({ name, path, symlinkTarget }) => ({ name, path, symlinkTarget }))).toEqual(
+      [
+        { name: 'my\nlink', path: '/d/my\nlink', symlinkTarget: '../a\nb/c' },
+        { name: 'plain', path: '/d/plain', symlinkTarget: 'x\ny' }
+      ]
+    )
+  })
+
+  it('cannot be split by a name or target that spells out another record', () => {
+    const entries = parseFindListing(
+      '/d',
+      records(
+        'f|644|u|g|1|1.0|1|a\nf|644|u|g|1|1.0|1|forged/',
+        'l|777|u|g|9|1.0|1|link/t\nd|755|u|g|1|1.0|1|fake/'
+      )
+    )
+    expect(entries.map(({ name, symlinkTarget }) => ({ name, symlinkTarget }))).toEqual([
+      { name: 'a\nf|644|u|g|1|1.0|1|forged', symlinkTarget: null },
+      { name: 'link', symlinkTarget: 't\nd|755|u|g|1|1.0|1|fake/' }
+    ])
+  })
+
+  it('drops a record cut off before its NUL instead of truncating its name', () => {
+    const text = records('f|644|u|g|5|1.0|1|whole/') + 'f|644|u|g|5|1.0|1|cut\noff'
+    expect(parseFindListing('/d', text).map((e) => e.name)).toEqual(['whole'])
+  })
+
+  it.skipIf(spawnSync('sh', ['-c', "find . -maxdepth 0 -printf ''"]).status !== 0)(
+    'reads back what GNU find prints for the listing format',
+    async () => {
+      const runner = new MockRunner()
+      await listDirectory(runner, 'Ubuntu', '/home/u', true)
+      const format = /-printf ('[^']*')/.exec(runner.calls[0].script)?.[1]
+      const dir = mkdtempSync(join(tmpdir(), 'wslpad-find-'))
+      try {
+        writeFileSync(join(dir, 'plain.txt'), 'hello')
+        mkdirSync(join(dir, 'sub'))
+        const out = spawnSync('sh', ['-c', `find . -mindepth 1 -maxdepth 1 -printf ${format}`], {
+          cwd: dir
+        })
+        expect(out.status).toBe(0)
+        const text = decodeWslOutput(out.stdout, 'utf8', true)
+        expect(text).toContain('/\0\n')
+        const entries = parseFindListing('/home/u', text)
+        expect(
+          entries
+            .map(({ name, path, type, sizeBytes }) => ({ name, path, type, sizeBytes }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        ).toEqual([
+          { name: 'plain.txt', path: '/home/u/plain.txt', type: 'file', sizeBytes: 5 },
+          { name: 'sub', path: '/home/u/sub', type: 'directory', sizeBytes: null }
+        ])
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    }
+  )
 })
 
 describe('explorerErrorFromResult', () => {
@@ -149,7 +235,57 @@ describe('listDirectory', () => {
     expect(entries).toHaveLength(4)
     const findCall = runner.calls[0]
     expect(findCall.script).toContain("find -H '/home/a'\\''b $(x)' -mindepth 1 -maxdepth 1")
-    expect(findCall.script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\n'")
+    expect(findCall.script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\0\\n'")
+  })
+
+  it('lists newline names from NUL-terminated records the runner keeps intact', async () => {
+    const runner = new MockRunner()
+      .on((script) =>
+        script.includes('-printf')
+          ? ok(
+              records(
+                'f|644|u|u|5|1.0|1|two\nlines.txt/',
+                'd|755|u|u|4096|1.0|1|new\nfolder/',
+                'l|777|u|u|6|1.0|1|my\nlink/../a\nb'
+              )
+            )
+          : undefined
+      )
+      .on((script) => (script.startsWith('for p in') ? ok('d\n') : undefined))
+    const entries = await listDirectory(runner, 'Ubuntu', '/home/u', true)
+    expect(
+      entries.map(({ name, path, type, symlinkTarget, targetType }) => ({
+        name,
+        path,
+        type,
+        symlinkTarget,
+        targetType
+      }))
+    ).toEqual([
+      {
+        name: 'two\nlines.txt',
+        path: '/home/u/two\nlines.txt',
+        type: 'file',
+        symlinkTarget: null,
+        targetType: null
+      },
+      {
+        name: 'new\nfolder',
+        path: '/home/u/new\nfolder',
+        type: 'directory',
+        symlinkTarget: null,
+        targetType: null
+      },
+      {
+        name: 'my\nlink',
+        path: '/home/u/my\nlink',
+        type: 'symlink',
+        symlinkTarget: '../a\nb',
+        targetType: 'directory'
+      }
+    ])
+    expect(runner.calls[0].opts).toMatchObject({ nulDelimited: true })
+    expect(runner.calls[1].script).toContain("for p in '/home/u/my\nlink'")
   })
 
   it('lists and resolves symlinks whose name and target contain pipes', async () => {
@@ -273,6 +409,17 @@ describe('listTree', () => {
     expect(runner.calls[1].script).toContain('for p in')
   })
 
+  it('keeps newline folder names in the lazy tree', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('find -H') ? ok(records('d|755|u|u|4096|1.0|1|new\nfolder/')) : undefined
+    )
+    const entries = await listTree(runner, 'Ubuntu', '/home/u')
+    expect(entries.map(({ name, path }) => ({ name, path }))).toEqual([
+      { name: 'new\nfolder', path: '/home/u/new\nfolder' }
+    ])
+    expect(runner.calls[0].opts).toMatchObject({ nulDelimited: true })
+  })
+
   it('follows a symlink when it is the lazy-loaded tree root', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes('find -H') ? ok('d|755|u|u|4096|1.0|1|child/') : undefined
@@ -347,7 +494,39 @@ describe('search', () => {
     expect(script).toContain('-maxdepth 4')
     expect(script).toContain("-iname '*config a'\\''b*'")
     expect(script).toContain('| head -200')
-    expect(script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\n'")
+    expect(script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\0\\n'")
+  })
+
+  it('returns nested hits with newline names and targets as one entry each', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('-iname')
+        ? ok(
+            records('f|644|u|g|9|1.0|2|sub\ndir/hit\n1.txt/', 'l|777|u|g|3|1.0|3|a/b\nc/hit\nlink/t\nx') +
+              // head -200 counts lines, so it can stop inside a record.
+              'f|644|u|g|9|1.0|1|hit\ncu'
+          )
+        : ok('f\n')
+    )
+    const hits = await searchDirectory(runner, 'Ubuntu', '/home/u', 'hit')
+    expect(
+      hits.map(({ name, path, type, symlinkTarget }) => ({ name, path, type, symlinkTarget }))
+    ).toEqual([
+      {
+        name: 'hit\n1.txt',
+        path: '/home/u/sub\ndir/hit\n1.txt',
+        type: 'file',
+        symlinkTarget: null
+      },
+      {
+        name: 'hit\nlink',
+        path: '/home/u/a/b\nc/hit\nlink',
+        type: 'symlink',
+        symlinkTarget: 't\nx'
+      }
+    ])
+    expect(hits[1].targetType).toBe('file')
+    expect(runner.calls[0].opts).toMatchObject({ nulDelimited: true })
+    expect(runner.calls[1].script).toContain("for p in '/home/u/a/b\nc/hit\nlink'")
   })
 
   it('follows a directory symlink search root and returns nested matches', async () => {

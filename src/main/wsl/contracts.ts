@@ -45,6 +45,12 @@ export interface RunOptions {
   /** 'utf16le' for wsl.exe management output, 'utf8' for in-distro output */
   encoding?: 'utf8' | 'utf16le' | 'auto'
   stdin?: Buffer | string
+  /**
+   * stdout is NUL-terminated records whose fields may hold newlines (find
+   * -printf '\0'): keep its NUL and CR bytes as emitted instead of cleaning
+   * them up. stderr is cleaned up as usual.
+   */
+  nulDelimited?: boolean
 }
 
 export interface RunResult {
