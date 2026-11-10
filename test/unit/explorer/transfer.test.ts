@@ -88,6 +88,54 @@ describe('importFromWindows', () => {
     expect(runner.calls).toHaveLength(0)
   })
 
+  it.each([
+    { windowsPath: '\\\\wsl.localhost\\Ubuntu\\home\\u\\dir', destDir: '/home/u/dir' },
+    { windowsPath: '\\\\wsl.localhost\\Ubuntu\\home\\u\\dir', destDir: '/home/u/dir/sub/deep' },
+    { windowsPath: 'C:\\Users\\u\\proj', destDir: '/mnt/c/Users/u/proj' },
+    { windowsPath: 'C:\\Users\\u\\proj\\', destDir: '/mnt/c/Users/u//proj/./sub' }
+  ])('refuses to import $windowsPath into $destDir without shell commands', async (item) => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const opId = await backend.importFromWindows('Ubuntu', [item.windowsPath], item.destDir)
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind: 'import',
+      status: 'error',
+      doneItems: 1,
+      error: expect.stringContaining(`Cannot import ${item.windowsPath} into itself`)
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it('still imports into a same-prefix sibling folder', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.importFromWindows('Ubuntu', ['C:\\Users\\u\\proj'], '/mnt/c/Users/u/proj-copy')
+    await expect(done).resolves.toMatchObject({ status: 'done', doneItems: 1 })
+    const scripts = runner.calls.map((c) => c.script)
+    expect(scripts).toContainEqual(
+      expect.stringContaining("cp -a '/mnt/c/Users/u/proj' '/mnt/c/Users/u/proj-copy/proj'")
+    )
+  })
+
+  it('keeps importing the remaining items after a self-containment error', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const unc = '\\\\wsl.localhost\\Ubuntu\\home\\u\\dir'
+    await backend.importFromWindows('Ubuntu', [unc, 'C:\\note.txt'], '/home/u/dir/sub')
+    const final = await done
+    expect(final).toMatchObject({ status: 'error', doneItems: 2, totalItems: 2 })
+    expect(final.error).toContain(`Cannot import ${unc} into itself`)
+    const scripts = runner.calls.map((c) => c.script)
+    expect(scripts.some((s) => s.includes("'/home/u/dir'"))).toBe(false)
+    expect(scripts).toContainEqual(
+      expect.stringContaining("cp -a '/mnt/c/note.txt' '/home/u/dir/sub/note.txt'")
+    )
+  })
+
   it('converts, sizes and copies each item with progress bytes', async () => {
     const runner = new MockRunner()
       .on((script) => (script.includes('du -sb') ? ok('42\n') : undefined))
@@ -178,6 +226,54 @@ describe('exportToWindows', () => {
       error: expect.stringContaining('Refusing to export /')
     })
     expect(runner.calls).toHaveLength(0)
+  })
+
+  it.each([
+    { path: '/home/u/dir', windowsDir: '\\\\wsl.localhost\\Ubuntu\\home\\u\\dir' },
+    { path: '/home/u/dir', windowsDir: '\\\\wsl.localhost\\Ubuntu\\home\\u\\dir\\sub\\deeper' },
+    { path: '/mnt/c/proj', windowsDir: 'C:\\proj' },
+    { path: '/mnt/c/proj/', windowsDir: 'C:\\proj\\\\sub' }
+  ])('refuses to export $path into $windowsDir without shell commands', async (item) => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const opId = await backend.exportToWindows('Ubuntu', [item.path], item.windowsDir)
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind: 'export',
+      status: 'error',
+      doneItems: 1,
+      error: expect.stringContaining(`Cannot export ${item.path} into itself`)
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it('still exports into a same-prefix sibling folder', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.exportToWindows('Ubuntu', ['/mnt/c/proj'], 'C:\\proj-copy')
+    await expect(done).resolves.toMatchObject({ status: 'done', doneItems: 1 })
+    const scripts = runner.calls.map((c) => c.script)
+    expect(scripts).toContainEqual(
+      expect.stringContaining("cp -a '/mnt/c/proj' '/mnt/c/proj-copy/proj'")
+    )
+  })
+
+  it('keeps exporting the remaining items after a self-containment error', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const unc = '\\\\wsl.localhost\\Ubuntu\\home\\u\\dir\\sub'
+    await backend.exportToWindows('Ubuntu', ['/home/u/dir', '/home/u/note.txt'], unc)
+    const final = await done
+    expect(final).toMatchObject({ status: 'error', doneItems: 2, totalItems: 2 })
+    expect(final.error).toContain('Cannot export /home/u/dir into itself')
+    const scripts = runner.calls.map((c) => c.script)
+    expect(scripts.some((s) => s.includes("'/home/u/dir'"))).toBe(false)
+    expect(scripts).toContainEqual(
+      expect.stringContaining("cp -a '/home/u/note.txt' '/home/u/dir/sub/note.txt'")
+    )
   })
 
   it('maps the destination and copies with du-based totals for dirs', async () => {
