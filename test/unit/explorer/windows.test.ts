@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'fs'
 import { chmod, lstat, readFile, readdir, readlink, symlink } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -769,4 +769,108 @@ describe('createFixtureWindowsFs', () => {
     expect(result.path).toBe(many)
   })
 
+})
+
+describe('dirSizes — link roots and This PC', () => {
+  describe.runIf(IS_WINDOWS)('createWindowsFs', () => {
+    it.each(['junction', 'dir'] as const)(
+      'measures through a %s root without following the links beneath it',
+      async (kind) => {
+        const base = dir(`sizes-${kind}-root`)
+        const target = dir(`sizes-${kind}-root`, 'target')
+        writeFileSync(join(target, 'top.bin'), Buffer.alloc(11))
+        const inner = dir(`sizes-${kind}-root`, 'target', 'inner')
+        writeFileSync(join(inner, 'deep.bin'), Buffer.alloc(13))
+        const outside = dir(`sizes-${kind}-root`, 'outside')
+        writeFileSync(join(outside, 'elsewhere.bin'), Buffer.alloc(1000))
+        // A link back up the tree would loop, and a sideways one would count
+        // bytes that do not live under the measured folder.
+        symlinkSync(target, join(inner, 'cycle'), kind)
+        symlinkSync(outside, join(target, 'sideways'), kind)
+        const link = join(base, 'link')
+        symlinkSync(target, link, kind)
+
+        expect(await fs.dirSizes(link, `size-${kind}-root`)).toEqual({
+          path: link,
+          entries: [
+            { name: 'inner', path: join(link, 'inner'), isDirectory: true, sizeBytes: 13, partial: false },
+            { name: 'top.bin', path: join(link, 'top.bin'), isDirectory: false, sizeBytes: 11, partial: false }
+          ],
+          totalBytes: 24,
+          skipped: 0,
+          cancelled: false,
+          error: null
+        })
+      }
+    )
+
+    it('still rejects a link root that names a file or nothing at all', async () => {
+      const base = dir('sizes-bad-link-root')
+      const file = join(base, 'plain.txt')
+      writeFileSync(file, 'x')
+      symlinkSync(file, join(base, 'file-link'), 'file')
+      symlinkSync(join(base, 'missing'), join(base, 'broken-link'), 'junction')
+
+      expect(await codeOf(() => fs.dirSizes(file, 'size-plain-file'))).toBe('ENOTDIR')
+      expect(await codeOf(() => fs.dirSizes(join(base, 'file-link'), 'size-file-link'))).toBe('ENOTDIR')
+      expect(await codeOf(() => fs.dirSizes(join(base, 'broken-link'), 'size-broken-link'))).toBe('ENOENT')
+    })
+  })
+
+  it('answers This PC with an empty, finished measurement instead of a path error', async () => {
+    const thisPc = {
+      path: WINDOWS_ROOT,
+      entries: [],
+      totalBytes: 0,
+      skipped: 0,
+      cancelled: false,
+      error: null
+    }
+    expect(await fs.dirSizes(WINDOWS_ROOT, 'size-this-pc')).toEqual(thisPc)
+    expect(await createFixtureWindowsFs().dirSizes(WINDOWS_ROOT, 'size-this-pc')).toEqual(thisPc)
+  })
+
+  it('lists the fixture junction as a directory link and browses through it', async () => {
+    const fixture = createFixtureWindowsFs()
+    expect(
+      (await fixture.list('D:\\Library')).map((e) => [e.name, e.type, e.symlinkTarget, e.targetType])
+    ).toEqual([
+      ['Media', 'symlink', 'D:\\Media', 'directory'],
+      ['playlist.m3u', 'file', null, null]
+    ])
+    expect((await fixture.tree('D:\\Library')).map((e) => e.name)).toEqual(['Media'])
+    expect((await fixture.stat('D:\\Library\\Media')).type).toBe('symlink')
+    expect((await fixture.list('D:\\Library\\Media')).map((e) => e.path)).toEqual([
+      'D:\\Library\\Media\\clip.mp4'
+    ])
+    expect(await codeOf(() => fixture.readText('D:\\Library\\Media', 4096))).toBe('EISDIR')
+  })
+
+  it('measures through the fixture junction root and skips it beneath a measured folder', async () => {
+    const fixture = createFixtureWindowsFs()
+    const clip = 'fixture media clip\n'.length
+    const playlist = '#EXTM3U\n'.length
+
+    expect(await fixture.dirSizes('D:\\Library\\Media', 'size-fixture-junction')).toEqual({
+      path: 'D:\\Library\\Media',
+      entries: [
+        { name: 'clip.mp4', path: 'D:\\Library\\Media\\clip.mp4', isDirectory: false, sizeBytes: clip, partial: false }
+      ],
+      totalBytes: clip,
+      skipped: 0,
+      cancelled: false,
+      error: null
+    })
+    // The junction is not an entry of its own folder…
+    const library = await fixture.dirSizes('D:\\Library', 'size-fixture-library')
+    expect(library.entries.map((e) => [e.name, e.sizeBytes])).toEqual([['playlist.m3u', playlist]])
+    expect(library.totalBytes).toBe(playlist)
+    // …and adds nothing to the folder above it, so D:\Media is counted once.
+    const drive = await fixture.dirSizes('D:\\', 'size-fixture-drive')
+    expect(drive.entries.map((e) => [e.name, e.sizeBytes])).toEqual([
+      ['Media', clip],
+      ['Library', playlist]
+    ])
+    expect(drive.totalBytes).toBe(clip + playlist)
+  })
 })

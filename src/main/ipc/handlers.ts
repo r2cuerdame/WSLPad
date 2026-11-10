@@ -349,7 +349,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     deps.explorer.dirSizes(distro(), linuxPathSchema.parse(path), opTokenSchema.parse(token))
   )
   handle(IpcChannels.windowsDirSizes, (path, token) =>
-    deps.windowsFs.dirSizes(windowsPathSchema.parse(path), opTokenSchema.parse(token))
+    deps.windowsFs.dirSizes(winRootOrPathSchema.parse(path), opTokenSchema.parse(token))
   )
   handle(IpcChannels.explorerSearch, (path, query) =>
     deps.explorer.search(distro(), linuxPathSchema.parse(path), stringSchema.max(256).parse(query))
