@@ -432,6 +432,8 @@ describe('createWindowsFs — copy and move', () => {
     const dest = dir('copy-into-self', 'src', 'inner')
     expect(await codeOf(() => fs.copyMove([src], dest, false))).toBe('UNKNOWN')
     expect(await codeOf(() => fs.copyMove([src], src, false))).toBe('UNKNOWN')
+    await expect(fs.copyMove([src], dest, false)).rejects.toThrow(`Cannot copy ${src} into itself`)
+    await expect(fs.copyMove([src], src, true)).rejects.toThrow(`Cannot move ${src} into itself`)
   })
 
   it('rejects a destination that is not a directory', async () => {
