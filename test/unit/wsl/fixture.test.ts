@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { MASKED_VALUE } from '@shared/constants'
+import { MASKED_VALUE, WINDOWS_ROOT } from '@shared/constants'
 import type { FileOpProgress } from '@shared/types'
 import { ExplorerError } from '../../../src/main/wsl/contracts'
 import { FixtureConsoleFactory } from '../../../src/main/wsl/fixture/console'
@@ -359,6 +359,58 @@ describe('FixtureExplorerBackend', () => {
     expect((await backend.list(U, '/home/dev/duplicate-import')).map((e) => e.name)).toEqual([
       'report.pdf'
     ])
+  })
+
+  it.each([WINDOWS_ROOT, '::ThisPC'])('refuses the virtual Windows root %s', async (windowsDir) => {
+    const backend = new FixtureExplorerBackend()
+    await expect(
+      backend.exportToWindows(U, ['/home/dev/projects/wslpad-demo/README.md'], windowsDir)
+    ).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      path: windowsDir,
+      message: 'Refusing to operate on This PC'
+    })
+  })
+
+  it.each(['C:\\bad\0path', 'C:\\bad\npath', 'not a Windows path'])(
+    'rejects an invalid Windows export target %s',
+    async (windowsDir) => {
+      const backend = new FixtureExplorerBackend()
+      await expect(
+        backend.exportToWindows(U, ['/home/dev/projects/wslpad-demo/README.md'], windowsDir)
+      ).rejects.toMatchObject({
+        code: 'UNKNOWN',
+        path: windowsDir,
+        message: `Path is not mappable: ${windowsDir}`
+      })
+    }
+  )
+
+  it.each([
+    '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\projects\\wslpad-demo',
+    '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\projects\\wslpad-demo\\src'
+  ])('refuses to export a source into itself or its child target %s', async (windowsDir) => {
+    const backend = new FixtureExplorerBackend()
+    const source = '/home/dev/projects/wslpad-demo'
+    await expect(backend.exportToWindows(U, [source], windowsDir)).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      path: source,
+      message: `Cannot export ${source} into itself`
+    })
+  })
+
+  it('rejects unreadable source paths before emitting completion progress', async () => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((progress) => events.push(progress))
+    await expect(
+      backend.exportToWindows(
+        U,
+        ['/home/dev/projects/wslpad-demo/README.md', '/root'],
+        'C:\\Users\\dev\\Desktop'
+      )
+    ).rejects.toMatchObject({ code: 'EACCES', path: '/root' })
+    expect(events).toEqual([])
   })
 
   describe.each(['/', '//', '///', '/./'])('refuses the root spelled %s', (root) => {
