@@ -33,6 +33,13 @@ const SETUP_EXE = Buffer.from([0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, 0
 /** Junction chains longer than this resolve to nothing, like a dangling link. */
 const MAX_JUNCTION_HOPS = 8
 
+function isInside(child: string, parent: string): boolean {
+  const normalizedChild = child.toLowerCase()
+  const normalizedParent = parent.toLowerCase()
+  const prefix = normalizedParent.endsWith('\\') ? normalizedParent : `${normalizedParent}\\`
+  return normalizedChild === normalizedParent || normalizedChild.startsWith(prefix)
+}
+
 interface WinNode {
   name: string
   /** A junction names a directory elsewhere and has no children of its own. */
@@ -424,6 +431,11 @@ class FixtureWindowsFs implements WindowsFs {
     const srcs = this.normalizeBatch(sources, `Refusing to ${kind} drive root`)
     const { node: dest, normalized: destPath } = this.requireDir(destDir)
     if (!dest.writable) throw new ExplorerError('EACCES', destPath, `EACCES: ${destPath}`)
+    for (const source of srcs) {
+      if (isInside(destPath, source)) {
+        throw new ExplorerError('UNKNOWN', source, `Cannot ${kind} ${source} into itself`)
+      }
+    }
     const opId = `fixture-win-op-${++this.opCounter}`
     const totalItems = srcs.length
     let doneItems = 0
@@ -445,10 +457,6 @@ class FixtureWindowsFs implements WindowsFs {
       const { parent, node, name, normalized } = this.withParent(source)
       try {
         if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
-        if (normalized.toLowerCase() === destPath.toLowerCase() ||
-            destPath.toLowerCase().startsWith(normalized.toLowerCase() + '\\')) {
-          throw new ExplorerError('UNKNOWN', normalized, `Cannot copy ${normalized} into itself`)
-        }
         if (dest.children?.has(name.toLowerCase())) {
           const conflict = this.join(destPath, name)
           throw new ExplorerError('EEXIST', conflict, `EEXIST: ${conflict}`)

@@ -892,6 +892,59 @@ describe('createFixtureWindowsFs', () => {
   })
 
   it.each([
+    {
+      move: false,
+      kind: 'copy',
+      dest: 'C:\\Users\\dev\\projects',
+      destination: 'C:\\Users\\dev\\projects'
+    },
+    {
+      move: true,
+      kind: 'move',
+      dest: 'C:\\Users\\dev\\projects',
+      destination: 'C:\\Users\\dev\\projects'
+    },
+    {
+      move: false,
+      kind: 'copy',
+      dest: 'C:\\Users\\dev\\projects\\demo',
+      destination: 'C:\\Users\\dev\\projects\\demo'
+    },
+    {
+      move: true,
+      kind: 'move',
+      dest: 'C:\\Users\\dev\\projects\\demo',
+      destination: 'C:\\Users\\dev\\projects\\demo'
+    }
+  ])('refuses a $kind batch containing a source that includes its destination', async ({
+    move,
+    kind,
+    dest,
+    destination
+  }) => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((progress) => events.push(progress))
+    const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+    const source = 'C:\\Users\\dev\\projects'
+
+    await expect(fixture.copyMove([notes, source], dest, move)).rejects.toThrow(
+      `Cannot ${kind} ${source} into itself`
+    )
+    expect(await codeOf(() => fixture.copyMove([notes, source], dest, move))).toBe('UNKNOWN')
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(events).toEqual([])
+    expect((await fixture.list('C:\\Users\\dev\\Documents')).map((entry) => entry.name)).toEqual([
+      'notes.txt'
+    ])
+    expect((await fixture.list(destination)).map((entry) => entry.name)).not.toContain('notes.txt')
+    expect(await fixture.copyMove([notes], 'C:\\Users\\dev\\Desktop', move)).toBe(
+      'fixture-win-op-1'
+    )
+  })
+
+  it.each([
     { move: false, message: 'Refusing to copy drive root C:\\' },
     { move: true, message: 'Refusing to move drive root C:\\' }
   ])('refuses a batch holding a drive-root source before starting a $move operation', async ({ move, message }) => {
