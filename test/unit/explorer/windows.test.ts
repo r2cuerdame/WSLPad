@@ -892,6 +892,102 @@ describe('createFixtureWindowsFs', () => {
   })
 
   it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('treats sources differing only in case as one item for $kind', async ({ move, kind }) => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((p) => events.push(p))
+    const notesBytes = 'Windows fixture notes\n'.length
+    // Windows names are case-insensitive: all three spell the same file.
+    await fixture.copyMove(
+      [
+        'C:\\Users\\dev\\Documents\\notes.txt',
+        'C:\\Users\\dev\\Documents\\NOTES.TXT',
+        'c:/users/DEV/documents/Notes.txt'
+      ],
+      'C:\\Users\\dev\\Desktop',
+      move
+    )
+    await waitFor(() => events.some((e) => e.status !== 'running'))
+
+    expect(events.filter((e) => e.status === 'running')).toHaveLength(1)
+    expect(events.at(-1)).toMatchObject({
+      kind,
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1,
+      totalBytes: notesBytes,
+      doneBytes: notesBytes,
+      error: null
+    })
+    expect((await fixture.list('C:\\Users\\dev\\Desktop')).map((e) => e.name)).toEqual([
+      'notes.txt'
+    ])
+    expect((await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)).toEqual(
+      move ? [] : ['notes.txt']
+    )
+  })
+
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('sizes a $kind batch up front, directories recursively, and counts bytes as items finish', async ({ move, kind }) => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((p) => events.push(p))
+    const notesBytes = 'Windows fixture notes\n'.length
+    const demoBytes = '# demo\n\nWindows fixture project.\n'.length
+    // The directory's bytes are its README, the same figure dirSizes reports.
+    expect((await fixture.dirSizes('C:\\Users\\dev\\projects', 'size-demo')).entries).toEqual([
+      expect.objectContaining({ name: 'demo', sizeBytes: demoBytes })
+    ])
+
+    await fixture.copyMove(
+      ['C:\\Users\\dev\\Documents\\notes.txt', 'C:\\Users\\dev\\projects\\demo'],
+      'C:\\Users\\dev\\Desktop',
+      move
+    )
+    await waitFor(() => events.some((e) => e.status !== 'running'))
+
+    // Every event, the first included, carries the whole batch's total.
+    expect(events.map((e) => e.totalBytes)).toEqual([
+      notesBytes + demoBytes,
+      notesBytes + demoBytes,
+      notesBytes + demoBytes
+    ])
+    expect(events.map((e) => [e.status, e.doneItems, e.doneBytes])).toEqual([
+      ['running', 1, notesBytes],
+      ['running', 2, notesBytes + demoBytes],
+      ['done', 2, notesBytes + demoBytes]
+    ])
+    expect(events.at(-1)).toMatchObject({ kind, error: null })
+  })
+
+  it('leaves the bytes of a failed item out of doneBytes', async () => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((p) => events.push(p))
+    const notesBytes = 'Windows fixture notes\n'.length
+    // C:\Users\dev already holds Documents (one notes.txt), so that item is EEXIST.
+    await fixture.copyMove(
+      ['C:\\Users\\dev\\Documents\\notes.txt', 'C:\\Users\\dev\\Documents'],
+      'C:\\Users\\dev',
+      false
+    )
+    await waitFor(() => events.some((e) => e.status !== 'running'))
+
+    expect(events.at(-1)).toMatchObject({
+      status: 'error',
+      totalItems: 2,
+      doneItems: 2,
+      totalBytes: notesBytes * 2,
+      doneBytes: notesBytes
+    })
+    expect(events.at(-1)?.error).toContain('EEXIST')
+  })
+
+  it.each([
     {
       move: false,
       kind: 'copy',
@@ -975,7 +1071,13 @@ describe('createFixtureWindowsFs', () => {
     const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
     const readme = 'C:\\Users\\dev\\projects\\demo\\README.md'
 
-    await fixture[verb]([notes, readme, notes, 'C:/Users/dev/Documents/notes.txt'])
+    await fixture[verb]([
+      notes,
+      readme,
+      notes,
+      'C:/Users/dev/Documents/notes.txt',
+      'C:\\USERS\\DEV\\DOCUMENTS\\NOTES.TXT'
+    ])
 
     expect(await fixture.list('C:\\Users\\dev\\Documents')).toEqual([])
     expect(await fixture.list('C:\\Users\\dev\\projects\\demo')).toEqual([])
