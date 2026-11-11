@@ -1084,6 +1084,111 @@ describe('createFixtureWindowsFs', () => {
     expect(await codeOf(() => fixture.stat(notes))).toBe('ENOENT')
   })
 
+  it.each(['trash', 'remove'] as const)(
+    'prevalidates the whole %s batch before changing earlier items',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+      const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+      const denied = 'C:\\Windows\\System32'
+
+      await expect(fixture[verb]([notes, denied])).rejects.toMatchObject({ code: 'EACCES' })
+
+      expect((await fixture.list('C:\\Users\\dev\\Documents')).map((entry) => entry.name)).toEqual([
+        'notes.txt'
+      ])
+    }
+  )
+
+  it.each(['trash', 'remove'] as const)(
+    'prevalidates missing targets before changing earlier items in a %s batch',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+      const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+
+      await expect(fixture[verb]([notes, 'C:\\Users\\dev\\Documents\\missing.txt'])).rejects.toMatchObject({
+        code: 'ENOENT'
+      })
+
+      expect((await fixture.list('C:\\Users\\dev\\Documents')).map((entry) => entry.name)).toEqual([
+        'notes.txt'
+      ])
+    }
+  )
+
+  it.each([
+    { verb: 'trash' as const, order: 'parent first' },
+    { verb: 'trash' as const, order: 'children first' },
+    { verb: 'remove' as const, order: 'parent first' },
+    { verb: 'remove' as const, order: 'children first' }
+  ])('handles parent and child targets together in a $verb batch ($order)', async ({ verb, order }) => {
+    const fixture = createFixtureWindowsFs()
+    const parent = 'C:\\Users\\dev\\projects'
+    const children = [`${parent}\\demo`, `${parent}\\DEMO\\README.md`]
+    const batch = order === 'parent first' ? [parent, ...children] : [...children, parent]
+
+    await expect(fixture[verb](batch)).resolves.toBeUndefined()
+
+    await expect(fixture.list(parent)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect((await fixture.list('C:\\Users\\dev')).map((e) => e.name)).not.toContain('projects')
+    expect((await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)).toEqual([
+      'notes.txt'
+    ])
+  })
+
+  it.each(['trash', 'remove'] as const)(
+    'unlinks a junction and still %ss the item selected through it',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+
+      await expect(
+        fixture[verb](['D:\\Library\\Media', 'D:\\Library\\Media\\clip.mp4'])
+      ).resolves.toBeUndefined()
+
+      expect((await fixture.list('D:\\Library')).map((e) => e.name)).toEqual(['playlist.m3u'])
+      expect(await fixture.list('D:\\Media')).toEqual([])
+    }
+  )
+
+  it.each(['trash', 'remove'] as const)(
+    'still %ss an item picked through a junction inside a selected directory',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+
+      await expect(
+        fixture[verb](['D:\\Library', 'D:\\Library\\Media\\clip.mp4'])
+      ).resolves.toBeUndefined()
+
+      expect((await fixture.list('D:\\')).map((e) => e.name)).toEqual(['Media'])
+      expect(await fixture.list('D:\\Media')).toEqual([])
+    }
+  )
+
+  it.each([
+    { verb: 'trash' as const, batch: ['D:\\Media', 'D:\\Library\\Media\\clip.mp4'] },
+    { verb: 'trash' as const, batch: ['D:\\Library\\Media\\clip.mp4', 'D:\\Media\\clip.mp4'] },
+    { verb: 'remove' as const, batch: ['D:\\Media', 'D:\\Library\\Media\\clip.mp4'] },
+    { verb: 'remove' as const, batch: ['D:\\Library\\Media\\clip.mp4', 'D:\\Media\\clip.mp4'] }
+  ])('$verb handles an item also reached through a junction once ($batch)', async ({ verb, batch }) => {
+    const fixture = createFixtureWindowsFs()
+
+    await expect(fixture[verb](batch)).resolves.toBeUndefined()
+
+    expect(await codeOf(() => fixture.stat('D:\\Media\\clip.mp4'))).toBe('ENOENT')
+    expect((await fixture.list('D:\\Library')).map((e) => e.name)).toContain('playlist.m3u')
+  })
+
+  it.each(['trash', 'remove'] as const)(
+    'deduplicates case-insensitive paths in a %s batch',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+      const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+      const caseVariant = 'C:\\Users\\dev\\Documents\\NOTES.TXT'
+
+      await expect(fixture[verb]([notes, caseVariant])).resolves.toBeUndefined()
+      expect(await codeOf(() => fixture.stat(notes))).toBe('ENOENT')
+    }
+  )
+
   it.each([
     { verb: 'trash' as const, bad: 'C:\\', message: 'Refusing to trash C:\\' },
     { verb: 'trash' as const, bad: 'D:', message: 'Refusing to trash D:\\' },
