@@ -3,7 +3,8 @@ import { MASKED_VALUE } from '@shared/constants'
 import type { FileOpProgress } from '@shared/types'
 import { ExplorerError } from '../../../src/main/wsl/contracts'
 import { FixtureConsoleFactory } from '../../../src/main/wsl/fixture/console'
-import { FixtureExplorerBackend } from '../../../src/main/wsl/fixture/explorer'
+import { DIR_SIZE_CHILD_CAP } from '../../../src/main/explorer/dir-sizes'
+import { FixtureExplorerBackend, FixtureFilesystem } from '../../../src/main/wsl/fixture/explorer'
 import { FixtureWslProvider } from '../../../src/main/wsl/fixture/provider'
 
 const U = 'Ubuntu-24.04'
@@ -123,6 +124,40 @@ describe('FixtureWslProvider', () => {
 })
 
 describe('FixtureExplorerBackend', () => {
+  it('reports an empty directory as a measured zero-byte result', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/empty-for-size')
+
+    await expect(backend.dirSizes(U, '/home/dev/empty-for-size', 'token')).resolves.toMatchObject({
+      path: '/home/dev/empty-for-size',
+      entries: [],
+      totalBytes: 0,
+      skipped: 0
+    })
+  })
+
+  it('caps measured children, counts skipped entries, and sorts unknown sizes last', async () => {
+    const fs = new FixtureFilesystem()
+    const directory = fs.attach(fs.getNode('/home/dev')!, fs.dir('size-fixture'))
+    for (let i = 0; i < DIR_SIZE_CHILD_CAP + 7; i++) {
+      const name = `child-${String(i).padStart(3, '0')}`
+      fs.attach(
+        directory,
+        fs.file(name, i === 1 ? '' : 'x'.repeat(i === 0 ? 3 : 1), { readable: i !== 0 })
+      )
+    }
+    const backend = new FixtureExplorerBackend(fs)
+
+    const result = await backend.dirSizes(U, '/home/dev/size-fixture', 'token')
+
+    expect(result.entries).toHaveLength(DIR_SIZE_CHILD_CAP)
+    expect(result.skipped).toBe(7)
+    expect(result.totalBytes).toBe(DIR_SIZE_CHILD_CAP - 2)
+    expect(result.entries[0]).toMatchObject({ name: 'child-002', sizeBytes: 1 })
+    expect(result.entries.at(-2)).toMatchObject({ name: 'child-001', sizeBytes: 0 })
+    expect(result.entries.at(-1)).toMatchObject({ name: 'child-000', sizeBytes: null })
+  })
+
   it('is deterministic: two backends list identical entries', async () => {
     const a = new FixtureExplorerBackend()
     const b = new FixtureExplorerBackend()
