@@ -216,6 +216,28 @@ describe('copyMove via backend op registry', () => {
     expect(events.every((e) => e.totalBytes === null && e.doneBytes === null)).toBe(true)
   })
 
+  it.each([
+    { move: false, kind: 'copy', command: 'cp -a' },
+    { move: true, kind: 'move', command: 'mv' }
+  ])('processes a duplicate source only once for $kind', async ({ move, kind, command }) => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const source = '/src/repeated.txt'
+
+    const opId = await backend.copyMove('Ubuntu', [source, source], '/dest', move)
+
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind,
+      status: 'done',
+      doneItems: 1,
+      totalItems: 1
+    })
+    expect(runner.calls).toHaveLength(1)
+    expect(runner.calls[0].script).toContain(`${command} '${source}' '/dest/repeated.txt'`)
+  })
+
   it('uses mv when moving', async () => {
     const runner = new MockRunner()
     const backend = createRealExplorerBackend(runner)

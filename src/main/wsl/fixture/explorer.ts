@@ -505,12 +505,17 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const destBase = this.fs.normalizePath(destDir)
     const dest = this.requireDir(destBase)
     if (!dest.writable) throw this.accessDenied(destBase, dest)
+    const uniqueSources = [...new Set(sources)]
     let last: string | null = null
-    for (const source of sources) {
+    for (const source of uniqueSources) {
       assertValidLinuxPath(source)
       const srcBase = this.fs.normalizePath(source)
       if (destBase === srcBase || destBase.startsWith(srcBase + '/')) {
-        throw new ExplorerError('UNKNOWN', srcBase, `Cannot copy ${srcBase} into itself`)
+        throw new ExplorerError(
+          'UNKNOWN',
+          srcBase,
+          `Cannot ${move ? 'move' : 'copy'} ${srcBase} into itself`
+        )
       }
       const { parent, node, name } = this.fs.getWithParent(srcBase)
       if (!parent || !node) {
@@ -529,7 +534,7 @@ export class FixtureExplorerBackend implements ExplorerBackend {
       last = srcBase
     }
     const opId = `fixture-op-${++this.opCounter}`
-    this.emit(this.doneProgress(opId, move ? 'move' : 'copy', sources.length, last))
+    this.emit(this.doneProgress(opId, move ? 'move' : 'copy', uniqueSources.length, last))
     return opId
   }
 

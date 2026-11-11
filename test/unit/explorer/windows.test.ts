@@ -409,6 +409,31 @@ describe('createWindowsFs — copy and move', () => {
     expect(await readFile(join(src, 'a.txt'), 'utf8')).toBe('alpha')
   })
 
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('processes a duplicate source only once for $kind', async ({ move, kind }) => {
+    const src = dir(`duplicate-${kind}`, 'src')
+    const dest = dir(`duplicate-${kind}`, 'dest')
+    const source = join(src, 'once.txt')
+    writeFileSync(source, 'once')
+
+    const events = await runOp(() => fs.copyMove([source, source], dest, move))
+
+    expect(events.at(-1)).toMatchObject({
+      kind,
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1
+    })
+    expect(await readFile(join(dest, 'once.txt'), 'utf8')).toBe('once')
+    if (move) {
+      await expect(readFile(source, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    } else {
+      expect(await readFile(source, 'utf8')).toBe('once')
+    }
+  })
+
   it('copies directories recursively', async () => {
     const src = dir('copy-tree', 'src', 'pack', 'inner')
     const dest = dir('copy-tree', 'dest')

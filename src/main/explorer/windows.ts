@@ -827,7 +827,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
 
     copyMove: async (sources, destDir, move) => {
       const dest = normalizePath(destDir)
-      const srcs = sources.map(normalizePath)
+      const srcs = [...new Set(sources.map(normalizePath))]
       for (const source of srcs) {
         if (isDriveRoot(source)) {
           throw new ExplorerError(
