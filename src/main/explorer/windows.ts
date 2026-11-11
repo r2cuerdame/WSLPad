@@ -951,8 +951,19 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
         // lstat calls a directory link or junction a link, never a directory.
         if (st.isDirectory()) throw new ExplorerError('EISDIR', p, `EISDIR: ${p}`)
         if (!(await canWrite(target))) throw new ExplorerError('EACCES', p, `EACCES: ${p}`)
-      } else if (!(await canWrite(win.dirname(p)))) {
-        throw new ExplorerError('EACCES', p, `EACCES: ${p}`)
+      } else {
+        // access(W_OK) fails the same way for a missing folder as for a locked
+        // one, so the parent is described first: only a folder that exists can
+        // turn the save away as EACCES — the fixture's order.
+        const parent = win.dirname(p)
+        try {
+          if (!(await stat(parent)).isDirectory()) {
+            throw new ExplorerError('ENOTDIR', p, `ENOTDIR: ${p}`)
+          }
+        } catch (err) {
+          throw toExplorerError(p, err)
+        }
+        if (!(await canWrite(parent))) throw new ExplorerError('EACCES', p, `EACCES: ${p}`)
       }
       // Write beside the target and swap it in, so a failure never leaves the
       // destination partially written (goal.md §7.6). ACL denials only show up

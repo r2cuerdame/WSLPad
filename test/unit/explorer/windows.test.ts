@@ -599,6 +599,36 @@ describe('createWindowsFs — text files', () => {
     expect(await codeOf(() => fs.writeText(base, 'nope'))).toBe('EISDIR')
   })
 
+  it('reports a missing parent folder as ENOENT, not a false EACCES', async () => {
+    const base = dir('write-no-parent')
+    expect(await codeOf(() => fs.writeText(join(base, 'gone', 'new.txt'), 'nope'))).toBe('ENOENT')
+    expect(await readdir(base)).toEqual([])
+  })
+
+  it('reports a file standing in for the parent folder as ENOTDIR', async () => {
+    const base = dir('write-file-parent')
+    const file = join(base, 'plain.txt')
+    writeFileSync(file, 'kept')
+    expect(await codeOf(() => fs.writeText(join(file, 'new.txt'), 'nope'))).toBe('ENOTDIR')
+    expect(await readFile(file, 'utf8')).toBe('kept')
+    expect(await readdir(base)).toEqual(['plain.txt'])
+  })
+
+  it.runIf(IS_WINDOWS)('still maps a write-denied existing parent folder to EACCES', async () => {
+    const base = dir('write-parent-denied')
+    const locked = dir('write-parent-denied', 'locked')
+    // A folder's read-only bit means nothing to access(W_OK) on Windows, so
+    // the ACL denial only surfaces when the temp file is created inside it.
+    execFileSync('icacls', [locked, '/deny', '*S-1-1-0:(WD)'], { windowsHide: true, stdio: 'ignore' })
+    try {
+      expect(await codeOf(() => fs.writeText(join(locked, 'new.txt'), 'nope'))).toBe('EACCES')
+    } finally {
+      execFileSync('icacls', [locked, '/remove:d', '*S-1-1-0'], { windowsHide: true, stdio: 'ignore' })
+    }
+    expect(await readdir(locked)).toEqual([])
+    expect(await readdir(base)).toEqual(['locked'])
+  })
+
   it.runIf(IS_WINDOWS)('writes through a file symlink to its target and keeps the link', async () => {
     const targets = dir('write-link', 'targets')
     const links = dir('write-link', 'links')
@@ -784,6 +814,11 @@ describe('createFixtureWindowsFs', () => {
       'BINARY'
     )
     expect(await codeOf(() => fixture.writeText('C:\\Windows\\System32\\hosts', 'x'))).toBe('EACCES')
+    // The parent is described before its permission, in the same order as WindowsFs.
+    expect(await codeOf(() => fixture.writeText('C:\\Windows\\missing\\new.txt', 'x'))).toBe('ENOENT')
+    expect(
+      await codeOf(() => fixture.writeText('C:\\Users\\dev\\Documents\\notes.txt\\new.txt', 'x'))
+    ).toBe('ENOTDIR')
     expect(await codeOf(() => fixture.createFile('C:\\Windows\\System32\\evil.dll'))).toBe('EACCES')
     expect(await codeOf(() => fixture.mkdir('C:\\Windows\\System32\\drivers'))).toBe('EACCES')
     expect(await codeOf(() => fixture.list('C:\\Users\\dev\\missing'))).toBe('ENOENT')
