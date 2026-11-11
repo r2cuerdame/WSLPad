@@ -144,7 +144,7 @@ function isDriveRoot(path: string): boolean {
  * rather than leaving the items in front of it already gone.
  */
 function normalizeBatch(paths: readonly string[], verb: 'trash' | 'remove'): string[] {
-  const normalized = paths.map(normalizePath)
+  const normalized = [...new Set(paths.map(normalizePath))]
   for (const p of normalized) {
     if (isDriveRoot(p)) throw new ExplorerError('UNKNOWN', p, `Refusing to ${verb} ${p}`)
   }

@@ -276,6 +276,16 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
     expect(trashed).toEqual([file])
   })
 
+  it('trashes duplicate normalized paths once while preserving case-distinct paths', async () => {
+    const first = 'C:\\CaseSensitive\\Foo.txt'
+    const second = 'C:\\CaseSensitive\\foo.txt'
+    trashed = []
+
+    await fs.trash([first, first, second])
+
+    expect(trashed).toEqual([first, second])
+  })
+
   it('refuses to trash a drive root before reaching trashItem', async () => {
     trashed = []
     expect(await codeOf(() => fs.trash(['C:\\']))).toBe('UNKNOWN')
@@ -330,6 +340,15 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
       expect(await readFile(file, 'utf8')).toBe('x')
     }
   )
+
+  it('removes duplicate normalized paths once', async () => {
+    const file = join(dir('remove-duplicates'), 'once.txt')
+    writeFileSync(file, 'x')
+
+    await fs.remove([file, file])
+
+    await expect(readFile(file, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
 
   it('refuses to rename a drive root', async () => {
     expect(await codeOf(() => fs.rename('C:\\', 'renamed-root'))).toBe('UNKNOWN')
