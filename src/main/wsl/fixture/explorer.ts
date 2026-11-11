@@ -587,7 +587,8 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const files = this.ensureTrashDir('files')
     const info = this.ensureTrashDir('info')
     const entries = await this.listTrash(distro)
-    for (const trashName of trashNames) {
+    const uniqueNames = [...new Set(trashNames)]
+    const toRestore = uniqueNames.map((trashName) => {
       const entry = entries.find((e) => e.trashName === trashName)
       if (entry === undefined) {
         throw new ExplorerError('ENOENT', trashName, `Nothing in the trash is called ${trashName}`)
@@ -602,6 +603,19 @@ export class FixtureExplorerBackend implements ExplorerBackend {
       }
       const parentPath = dest.replace(/\/[^/]*$/, '') || '/'
       const parent = this.requireDir(parentPath)
+      if (!parent.writable) throw this.accessDenied(dest, parent)
+      return { trashName, entry, node, dest, parent }
+    })
+
+    const destinations = new Set<string>()
+    for (const item of toRestore) {
+      if (destinations.has(item.dest)) {
+        throw new ExplorerError('EEXIST', item.dest, `${item.dest} already exists`)
+      }
+      destinations.add(item.dest)
+    }
+
+    for (const { trashName, entry, node, dest, parent } of toRestore) {
       files.children?.delete(trashName)
       node.name = dest.slice(dest.lastIndexOf('/') + 1)
       this.fs.attach(parent, node)

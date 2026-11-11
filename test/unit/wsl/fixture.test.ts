@@ -215,6 +215,71 @@ describe('FixtureExplorerBackend', () => {
     expect(files.map((e) => e.name).filter((n) => n.startsWith('notes.md'))).toEqual(['notes.md'])
   })
 
+  it('restores a trash entry given twice once', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/restore-duplicate')
+    await backend.createFile(U, '/home/dev/restore-duplicate/item.txt')
+    await backend.trash(U, ['/home/dev/restore-duplicate/item.txt'])
+
+    const entry = (await backend.listTrash(U)).find(
+      (candidate) => candidate.originalPath === '/home/dev/restore-duplicate/item.txt'
+    )
+    expect(entry).toBeDefined()
+    await backend.restoreTrash(U, [entry!.trashName, entry!.trashName])
+
+    expect((await backend.list(U, '/home/dev/restore-duplicate')).map((file) => file.name)).toEqual([
+      'item.txt'
+    ])
+    expect(await backend.listTrash(U)).toEqual([])
+  })
+
+  it('preflights every trash entry before restoring any file', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/restore-preflight')
+    await backend.createFile(U, '/home/dev/restore-preflight/first.txt')
+    await backend.createFile(U, '/home/dev/restore-preflight/second.txt')
+    await backend.trash(U, [
+      '/home/dev/restore-preflight/first.txt',
+      '/home/dev/restore-preflight/second.txt'
+    ])
+    const entries = await backend.listTrash(U)
+    const first = entries.find((entry) => entry.originalPath.endsWith('/first.txt'))!
+    const second = entries.find((entry) => entry.originalPath.endsWith('/second.txt'))!
+
+    await expect(backend.restoreTrash(U, [first.trashName, 'missing-entry', second.trashName]))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+
+    expect(await backend.list(U, '/home/dev/restore-preflight')).toEqual([])
+    expect((await backend.listTrash(U)).map((entry) => entry.trashName).sort()).toEqual(
+      [first.trashName, second.trashName].sort()
+    )
+  })
+
+  it('rejects destination conflicts before restoring earlier trash entries', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/restore-conflict')
+    await backend.createFile(U, '/home/dev/restore-conflict/first.txt')
+    await backend.createFile(U, '/home/dev/restore-conflict/second.txt')
+    await backend.trash(U, [
+      '/home/dev/restore-conflict/first.txt',
+      '/home/dev/restore-conflict/second.txt'
+    ])
+    const entries = await backend.listTrash(U)
+    const first = entries.find((entry) => entry.originalPath.endsWith('/first.txt'))!
+    const second = entries.find((entry) => entry.originalPath.endsWith('/second.txt'))!
+    await backend.createFile(U, '/home/dev/restore-conflict/second.txt')
+
+    await expect(backend.restoreTrash(U, [first.trashName, second.trashName]))
+      .rejects.toMatchObject({ code: 'EEXIST' })
+
+    expect((await backend.list(U, '/home/dev/restore-conflict')).map((file) => file.name)).toEqual([
+      'second.txt'
+    ])
+    expect((await backend.listTrash(U)).map((entry) => entry.trashName).sort()).toEqual(
+      [first.trashName, second.trashName].sort()
+    )
+  })
+
   it('supports mkdir/createFile/writeText/readText/rename/remove', async () => {
     const backend = new FixtureExplorerBackend()
     await backend.mkdir(U, '/home/dev/scratch')
