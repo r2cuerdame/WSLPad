@@ -280,6 +280,48 @@ describe('FixtureExplorerBackend', () => {
     )
   })
 
+  it('detects restore collisions through symlinked parent directories', async () => {
+    const backend = new FixtureExplorerBackend()
+    const directPath = '/home/dev/projects/alias-collision.txt'
+    const linkedPath = '/home/dev/link-to-projects/alias-collision.txt'
+    await backend.createFile(U, directPath)
+    await backend.trash(U, [directPath])
+    await backend.createFile(U, linkedPath)
+    await backend.trash(U, [linkedPath])
+
+    const entries = await backend.listTrash(U)
+    const direct = entries.find((entry) => entry.originalPath === directPath)!
+    const linked = entries.find((entry) => entry.originalPath === linkedPath)!
+    await expect(backend.restoreTrash(U, [direct.trashName, linked.trashName])).rejects.toMatchObject({
+      code: 'EEXIST'
+    })
+
+    expect(await backend.list(U, '/home/dev/projects')).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'alias-collision.txt' })])
+    )
+    expect((await backend.listTrash(U)).map((entry) => entry.trashName).sort()).toEqual(
+      [direct.trashName, linked.trashName].sort()
+    )
+  })
+
+  it('restores a directory before another trash entry beneath it', async () => {
+    const backend = new FixtureExplorerBackend()
+    const directory = '/home/dev/restore-parent'
+    const childPath = `${directory}/child.txt`
+    await backend.mkdir(U, directory)
+    await backend.createFile(U, childPath)
+    await backend.trash(U, [childPath])
+    await backend.trash(U, [directory])
+
+    const entries = await backend.listTrash(U)
+    const parent = entries.find((entry) => entry.originalPath === directory)!
+    const child = entries.find((entry) => entry.originalPath === childPath)!
+    await backend.restoreTrash(U, [parent.trashName, child.trashName])
+
+    expect((await backend.list(U, directory)).map((entry) => entry.name)).toEqual(['child.txt'])
+    expect(await backend.listTrash(U)).toEqual([])
+  })
+
   it('supports mkdir/createFile/writeText/readText/rename/remove', async () => {
     const backend = new FixtureExplorerBackend()
     await backend.mkdir(U, '/home/dev/scratch')
