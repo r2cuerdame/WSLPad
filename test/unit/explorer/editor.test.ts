@@ -121,7 +121,7 @@ describe('writeTextFile', () => {
 
   it('maps a missing parent directory to ENOENT before checking write access', async () => {
     const runner = new MockRunner().on((script) =>
-      script.includes('if [ ! -e "$d" ]') ? fail(40) : undefined
+      script.includes('*) exit 40 ;;') ? fail(40) : undefined
     )
 
     await expect(writeTextFile(runner, 'Ubuntu', '/home/u/gone/new.txt', 'content')).rejects.toMatchObject({
@@ -130,10 +130,28 @@ describe('writeTextFile', () => {
     })
     expect(runner.calls).toHaveLength(1)
     const script = runner.calls[0].script
-    expect(script.indexOf('if [ ! -e "$d" ]')).toBeLessThan(
+    expect(script).toContain('LC_ALL=C stat -L "$d"')
+    expect(script).toContain('*"Permission denied"*) exit 43 ;;')
+    expect(script).toContain('*"Not a directory"*) exit 45 ;;')
+    expect(script.indexOf('*) exit 40 ;;')).toBeLessThan(
       script.indexOf('if [ ! -e "$t" ] && [ ! -w "$d" ]')
     )
-    expect(script.indexOf('if [ ! -e "$d" ]')).toBeLessThan(script.indexOf('mktemp "$d/.wslpad-XXXXXX"'))
+    expect(script.indexOf('*) exit 40 ;;')).toBeLessThan(script.indexOf('mktemp "$d/.wslpad-XXXXXX"'))
+  })
+
+  it('preserves EACCES when an ancestor hides an existing parent directory', async () => {
+    const runner = new MockRunner()
+      .on((script) => (script.includes('*"Permission denied"*) exit 43 ;;') ? fail(43) : undefined))
+      .on((script) => (script.includes('id -un') ? ok('root|drwx------\nrecuerdame\n') : undefined))
+
+    await expect(writeTextFile(runner, 'Ubuntu', '/root/private/new.txt', 'content')).rejects.toMatchObject({
+      code: 'EACCES',
+      path: '/root/private/new.txt',
+      detail: { owner: 'root', user: 'recuerdame' }
+    })
+    expect(runner.calls).toHaveLength(2)
+    const script = runner.calls[0].script
+    expect(script.indexOf('*"Permission denied"*) exit 43 ;;')).toBeLessThan(script.indexOf('*) exit 40 ;;'))
   })
 
   it('maps a file used as the parent directory to ENOTDIR', async () => {
