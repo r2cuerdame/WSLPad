@@ -14,7 +14,8 @@ import type {
   TextFileContent
 } from '@shared/types'
 import { DIR_SIZE_CHILD_CAP } from '../../explorer/dir-sizes'
-import { isLinuxRoot } from '../../explorer/path-convert'
+import { isInsideLinux, isLinuxRoot } from '../../explorer/path-convert'
+import { sanitizeSearchQuery } from '../../explorer/listing'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
 import {
@@ -462,7 +463,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async tree(distro: string, path: string): Promise<FileEntry[]> {
     const entries = await this.list(distro, path, { showHidden: true })
-    return entries.filter((e) => e.type === 'directory')
+    return entries.filter(
+      (e) => e.type === 'directory' || (e.type === 'symlink' && e.targetType === 'directory')
+    )
   }
 
   async stat(distro: string, path: string): Promise<FileStat> {
@@ -491,8 +494,10 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     this.ensureDistro(distro, path)
     assertValidLinuxPath(path)
     const { parent, node, name } = this.fs.getWithParent(path)
-    if (!parent) throw new ExplorerError('ENOENT', path, `No such directory for: ${path}`)
+    // Existence first: the root has a node but no parent, and is EEXIST like
+    // the real backend's existsGuard reports it, not a false ENOENT.
     if (node) throw new ExplorerError('EEXIST', path, `Already exists: ${path}`)
+    if (!parent) throw new ExplorerError('ENOENT', path, `No such directory for: ${path}`)
     if (!parent.writable) throw this.accessDenied(path, parent)
     const created =
       type === 'directory'
@@ -511,6 +516,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const { parent, node, name } = this.fs.getWithParent(path)
     if (!parent || !node)
       throw new ExplorerError('ENOENT', path, `No such file or directory: ${path}`)
+    // Same name is a no-op, as renameEntry skips the mv; the entry itself must
+    // not read as an existing target.
+    if (name === newName) return
     if (!parent.writable) throw this.accessDenied(path, parent)
     if (parent.children?.has(newName)) {
       throw new ExplorerError('EEXIST', path, `Already exists: ${newName}`)
@@ -533,16 +541,21 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const destBase = this.fs.normalizePath(destDir)
     const dest = this.requireDir(destBase)
     if (!dest.writable) throw this.accessDenied(destBase, dest)
-    let last: string | null = null
-    for (const source of uniqueSources) {
-      const srcBase = this.fs.normalizePath(source)
-      if (destBase === srcBase || destBase.startsWith(srcBase + '/')) {
+    // Same order as the Windows backends: a source that contains the
+    // destination refuses the whole batch before the items in front of it
+    // are copied or moved away.
+    const srcBases = uniqueSources.map((source) => this.fs.normalizePath(source))
+    for (const srcBase of srcBases) {
+      if (isInsideLinux(destBase, srcBase)) {
         throw new ExplorerError(
           'UNKNOWN',
           srcBase,
           `Cannot ${move ? 'move' : 'copy'} ${srcBase} into itself`
         )
       }
+    }
+    let last: string | null = null
+    for (const srcBase of srcBases) {
       const { parent, node, name } = this.fs.getWithParent(srcBase)
       if (!parent || !node) {
         throw new ExplorerError('ENOENT', srcBase, `No such file or directory: ${srcBase}`)
@@ -789,21 +802,23 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   async search(distro: string, path: string, query: string): Promise<FileEntry[]> {
     this.ensureDistro(distro, path)
     assertValidLinuxPath(path)
-    const q = query.toLowerCase()
+    const q = sanitizeSearchQuery(query).toLowerCase()
+    if (!q) return []
     const results: FileEntry[] = []
-    const walk = (base: string, node: FsNode): void => {
-      if (results.length >= 1000 || !node.children) return
+    const walk = (base: string, node: FsNode, depth: number): void => {
+      if (results.length >= 200 || depth > 4 || !node.children) return
       for (const child of node.children.values()) {
+        if (results.length >= 200) return
         const childPath = this.joinPath(base, child.name)
-        if (q.length > 0 && child.name.toLowerCase().includes(q)) {
+        if (child.name.toLowerCase().includes(q)) {
           results.push(this.entry(childPath, child))
         }
         // Skip symlinks (cycle safety) and unreadable dirs like /root.
-        if (child.type === 'directory' && child.readable) walk(childPath, child)
+        if (child.type === 'directory' && child.readable) walk(childPath, child, depth + 1)
       }
     }
     const start = this.fs.normalizePath(path)
-    walk(start, this.requireDir(start))
+    walk(start, this.requireDir(start), 1)
     return results
   }
 
