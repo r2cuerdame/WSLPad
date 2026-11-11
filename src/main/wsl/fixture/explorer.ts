@@ -13,12 +13,8 @@ import type {
   TrashEntry,
   TextFileContent
 } from '@shared/types'
-<<<<<<< HEAD
-import { isLinuxRoot } from '../../explorer/path-convert'
-import { sanitizeSearchQuery } from '../../explorer/listing'
-=======
 import { isInsideLinux, isLinuxRoot } from '../../explorer/path-convert'
->>>>>>> origin/main
+import { sanitizeSearchQuery } from '../../explorer/listing'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
 import {
