@@ -235,19 +235,54 @@ class FixtureWindowsFs implements WindowsFs {
    * the second time with a false ENOENT/EEXIST.
    */
   private normalizeBatch(paths: readonly string[], refusal: string): string[] {
-    const normalized = [
-      ...new Set(
-        paths.map((path) => {
-          const { drive, segments } = this.parse(path)
-          return formatPath(drive, segments)
-        })
-      )
-    ]
+    const unique = new Map<string, string>()
+    for (const path of paths) {
+      const { drive, segments } = this.parse(path)
+      const normalized = formatPath(drive, segments)
+      const key = normalized.toLowerCase()
+      if (!unique.has(key)) unique.set(key, normalized)
+    }
+    const normalized = [...unique.values()]
     for (const p of normalized) {
       // formatPath only ends in a separator for a drive root ("C:\").
       if (p.endsWith('\\')) throw new ExplorerError('UNKNOWN', p, `${refusal} ${p}`)
     }
     return normalized
+  }
+
+  /**
+   * Every target is resolved and checked before the first one is touched, so a
+   * missing or read-only item anywhere in the batch refuses the whole batch
+   * instead of leaving the items in front of it already gone. An item that a
+   * selected real directory takes with it, or that a second path reaches
+   * through a junction, is dropped rather than failing with a false ENOENT. A
+   * junction only unlinks its own name, so items picked through it still go.
+   */
+  private mutationTargets(paths: readonly string[], verb: 'trash' | 'remove') {
+    const targets = this.normalizeBatch(paths, `Refusing to ${verb}`).map((path) => {
+      const { parent, node, name, normalized } = this.withParent(path)
+      if (!parent || !node) {
+        throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
+      }
+      if (!parent.writable) {
+        throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
+      }
+      return { parent, node, name, normalized }
+    })
+
+    return targets.filter(
+      (target, index) =>
+        targets.findIndex((other) => other.node === target.node) === index &&
+        !targets.some((other) => other.node.type === 'directory' && this.holds(other.node, target.node))
+    )
+  }
+
+  /** Whether `node` sits somewhere below `dir` without crossing a junction. */
+  private holds(dir: WinNode, node: WinNode): boolean {
+    for (const child of dir.children?.values() ?? []) {
+      if (child === node || (child.type === 'directory' && this.holds(child, node))) return true
+    }
+    return false
   }
 
   private requireDir(path: string): { node: WinNode; normalized: string } {
@@ -488,20 +523,14 @@ class FixtureWindowsFs implements WindowsFs {
   }
 
   async trash(paths: string[]): Promise<void> {
-    for (const path of this.normalizeBatch(paths, 'Refusing to trash')) {
-      const { parent, node, name, normalized } = this.withParent(path)
-      if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
-      if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
+    for (const { parent, node, name, normalized } of this.mutationTargets(paths, 'trash')) {
       parent.children?.delete(name.toLowerCase())
       this.recycle.push({ originalPath: normalized, node })
     }
   }
 
   async remove(paths: string[]): Promise<void> {
-    for (const path of this.normalizeBatch(paths, 'Refusing to remove')) {
-      const { parent, node, name, normalized } = this.withParent(path)
-      if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
-      if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
+    for (const { parent, name } of this.mutationTargets(paths, 'remove')) {
       parent.children?.delete(name.toLowerCase())
     }
   }
