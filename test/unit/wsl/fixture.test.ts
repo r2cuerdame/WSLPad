@@ -303,6 +303,36 @@ describe('FixtureExplorerBackend', () => {
     ).rejects.toThrow('Cannot move /home/dev/projects/wslpad-demo into itself')
   })
 
+  it.each([
+    { move: false, kind: 'copy', dest: '/home/dev/projects' },
+    { move: true, kind: 'move', dest: '/home/dev/projects' },
+    { move: false, kind: 'copy', dest: '/home/dev/projects/wslpad-demo' },
+    { move: true, kind: 'move', dest: '/home/dev/projects/wslpad-demo' }
+  ])('refuses a $kind batch containing a source that includes its destination $dest', async ({
+    move,
+    kind,
+    dest
+  }) => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((progress) => events.push(progress))
+    const notes = '/home/dev/notes.md'
+    const source = '/home/dev/projects'
+
+    await expect(backend.copyMove(U, [notes, source], dest, move)).rejects.toThrow(
+      `Cannot ${kind} ${source} into itself`
+    )
+    const err = await backend.copyMove(U, [notes, source], dest, move).catch((e: unknown) => e)
+    expect((err as ExplorerError).code).toBe('UNKNOWN')
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(events).toEqual([])
+    expect((await backend.list(U, '/home/dev')).map((entry) => entry.name)).toContain('notes.md')
+    expect((await backend.list(U, dest)).map((entry) => entry.name)).not.toContain('notes.md')
+    await backend.mkdir(U, '/home/dev/batch-ok')
+    expect(await backend.copyMove(U, [notes], '/home/dev/batch-ok', move)).toBe('fixture-op-1')
+  })
+
   it('simulates import/export instantly with one progress event each', async () => {
     const backend = new FixtureExplorerBackend()
     const events: FileOpProgress[] = []

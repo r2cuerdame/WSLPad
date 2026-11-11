@@ -13,7 +13,7 @@ import type {
   TrashEntry,
   TextFileContent
 } from '@shared/types'
-import { isLinuxRoot } from '../../explorer/path-convert'
+import { isInsideLinux, isLinuxRoot } from '../../explorer/path-convert'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
 import {
@@ -534,16 +534,21 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const destBase = this.fs.normalizePath(destDir)
     const dest = this.requireDir(destBase)
     if (!dest.writable) throw this.accessDenied(destBase, dest)
-    let last: string | null = null
-    for (const source of uniqueSources) {
-      const srcBase = this.fs.normalizePath(source)
-      if (destBase === srcBase || destBase.startsWith(srcBase + '/')) {
+    // Same order as the Windows backends: a source that contains the
+    // destination refuses the whole batch before the items in front of it
+    // are copied or moved away.
+    const srcBases = uniqueSources.map((source) => this.fs.normalizePath(source))
+    for (const srcBase of srcBases) {
+      if (isInsideLinux(destBase, srcBase)) {
         throw new ExplorerError(
           'UNKNOWN',
           srcBase,
           `Cannot ${move ? 'move' : 'copy'} ${srcBase} into itself`
         )
       }
+    }
+    let last: string | null = null
+    for (const srcBase of srcBases) {
       const { parent, node, name } = this.fs.getWithParent(srcBase)
       if (!parent || !node) {
         throw new ExplorerError('ENOENT', srcBase, `No such file or directory: ${srcBase}`)
