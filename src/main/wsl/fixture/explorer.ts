@@ -13,6 +13,7 @@ import type {
   TrashEntry,
   TextFileContent
 } from '@shared/types'
+import { DIR_SIZE_CHILD_CAP } from '../../explorer/dir-sizes'
 import { isLinuxRoot } from '../../explorer/path-convert'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
@@ -749,9 +750,12 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     assertValidLinuxPath(path)
     const base = this.fs.normalizePath(path)
     const dir = this.requireDir(base)
-    let total: number | null = null
+    const children = [...(dir.children?.values() ?? [])]
+    const measured = children.slice(0, DIR_SIZE_CHILD_CAP)
+    const skipped = children.length - measured.length
+    let total: number | null = measured.length === 0 && children.length === 0 ? 0 : null
     const entries: DirSizeEntry[] = []
-    for (const child of dir.children?.values() ?? []) {
+    for (const child of measured) {
       const childPath = this.joinPath(base, child.name)
       // An unreadable subtree measures as unknown here exactly as du would.
       const size = child.readable ? this.subtreeBytes(child) : null
@@ -764,8 +768,13 @@ export class FixtureExplorerBackend implements ExplorerBackend {
         partial: false
       })
     }
-    entries.sort((a, b) => (b.sizeBytes ?? -1) - (a.sizeBytes ?? -1) || a.name.localeCompare(b.name))
-    return { path: base, entries, totalBytes: total, skipped: 0, cancelled: false, error: null }
+    entries.sort((a, b) => {
+      if (a.sizeBytes === null && b.sizeBytes === null) return a.name.localeCompare(b.name)
+      if (a.sizeBytes === null) return 1
+      if (b.sizeBytes === null) return -1
+      return b.sizeBytes - a.sizeBytes || a.name.localeCompare(b.name)
+    })
+    return { path: base, entries, totalBytes: total, skipped, cancelled: false, error: null }
   }
 
   /** Apparent bytes of a node and everything under it; symlinks count as 0. */
