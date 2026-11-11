@@ -232,6 +232,30 @@ describe('FixtureExplorerBackend', () => {
     expect((dup as ExplorerError).code).toBe('EEXIST')
   })
 
+  it('treats a same-name rename as a no-op instead of a false EEXIST', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/rename-same')
+    await backend.createFile(U, '/home/dev/rename-same/a.txt')
+    await backend.createFile(U, '/home/dev/rename-same/b.txt')
+    await backend.mkdir(U, '/home/dev/rename-same/dir')
+    const before = await backend.list(U, '/home/dev/rename-same')
+
+    await backend.rename(U, '/home/dev/rename-same/a.txt', 'a.txt')
+    await backend.rename(U, '/home/dev/rename-same/dir', 'dir')
+    await backend.rename(U, '/etc/wsl.conf', 'wsl.conf')
+
+    expect(await backend.list(U, '/home/dev/rename-same')).toEqual(before)
+    await expect(
+      backend.rename(U, '/home/dev/rename-same/a.txt', 'b.txt')
+    ).rejects.toMatchObject({ code: 'EEXIST', message: 'Already exists: b.txt' })
+    await expect(
+      backend.rename(U, '/home/dev/rename-same/missing.txt', 'missing.txt')
+    ).rejects.toMatchObject({ code: 'ENOENT', path: '/home/dev/rename-same/missing.txt' })
+    await expect(
+      backend.rename(U, '/home/dev/rename-same/missing.txt', 'other.txt')
+    ).rejects.toMatchObject({ code: 'ENOENT', path: '/home/dev/rename-same/missing.txt' })
+  })
+
   it('removes a path given twice without a false missing-path error', async () => {
     const backend = new FixtureExplorerBackend()
     await backend.mkdir(U, '/home/dev/remove-duplicate')

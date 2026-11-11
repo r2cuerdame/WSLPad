@@ -510,6 +510,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const { parent, node, name } = this.fs.getWithParent(path)
     if (!parent || !node)
       throw new ExplorerError('ENOENT', path, `No such file or directory: ${path}`)
+    // Same name is a no-op, as renameEntry skips the mv; the entry itself must
+    // not read as an existing target.
+    if (name === newName) return
     if (!parent.writable) throw this.accessDenied(path, parent)
     if (parent.children?.has(newName)) {
       throw new ExplorerError('EEXIST', path, `Already exists: ${newName}`)
