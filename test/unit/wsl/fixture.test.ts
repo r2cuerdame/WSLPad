@@ -320,6 +320,47 @@ describe('FixtureExplorerBackend', () => {
     expect((await backend.list(U, '/home/dev')).map((e) => e.name)).toContain('report.pdf')
   })
 
+  it('imports and exports a path given twice once', async () => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((p) => events.push(p))
+    await backend.mkdir(U, '/home/dev/duplicate-import')
+    const windowsPath = 'C:\\Users\\dev\\report.pdf'
+    const linuxPath = '/home/dev/projects/wslpad-demo/README.md'
+
+    const importId = await backend.importFromWindows(
+      U,
+      [windowsPath, windowsPath],
+      '/home/dev/duplicate-import'
+    )
+    const exportId = await backend.exportToWindows(
+      U,
+      [linuxPath, linuxPath],
+      'C:\\Users\\dev\\Desktop'
+    )
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        opId: importId,
+        kind: 'import',
+        status: 'done',
+        totalItems: 1,
+        doneItems: 1
+      }),
+      expect.objectContaining({
+        opId: exportId,
+        kind: 'export',
+        status: 'done',
+        totalItems: 1,
+        doneItems: 1
+      })
+    ])
+    expect((await backend.list(U, '/home/dev/duplicate-import')).map((e) => e.name)).toEqual([
+      'report.pdf'
+    ])
+  })
+
   it('searches by name case-insensitively without entering unreadable dirs', async () => {
     const backend = new FixtureExplorerBackend()
     const hits = await backend.search(U, '/home/dev', 'readme')

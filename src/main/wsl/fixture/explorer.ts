@@ -690,8 +690,10 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     assertValidLinuxPath(destDir)
     const dest = this.requireDir(this.fs.normalizePath(destDir))
     if (!dest.writable) throw this.accessDenied(destDir, dest)
+    // Same as the real backend: a path given twice is imported once.
+    const uniqueWindowsPaths = [...new Set(windowsPaths)]
     let last: string | null = null
-    for (const windowsPath of windowsPaths) {
+    for (const windowsPath of uniqueWindowsPaths) {
       const name = windowsPath.split(/[\\/]/).filter(Boolean).pop() ?? 'imported'
       const node = this.fs.file(name, `fixture import of ${windowsPath}\n`, {
         mtime: FIXTURE_NEW_MTIME
@@ -700,19 +702,20 @@ export class FixtureExplorerBackend implements ExplorerBackend {
       last = name
     }
     const opId = `fixture-op-${++this.opCounter}`
-    this.emit(this.doneProgress(opId, 'import', windowsPaths.length, last))
+    this.emit(this.doneProgress(opId, 'import', uniqueWindowsPaths.length, last))
     return opId
   }
 
   async exportToWindows(distro: string, paths: string[], windowsDir: string): Promise<string> {
-    this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
-    for (const path of paths) {
+    const uniquePaths = [...new Set(paths)]
+    this.ensureDistro(distro, uniquePaths[0] ?? FIXTURE_HOME)
+    for (const path of uniquePaths) {
       assertValidLinuxPath(path)
       const node = this.fs.getNode(this.fs.normalizePath(path), false)
       if (!node) throw new ExplorerError('ENOENT', path, `No such file or directory: ${path}`)
     }
     const opId = `fixture-op-${++this.opCounter}`
-    this.emit(this.doneProgress(opId, 'export', paths.length, windowsDir))
+    this.emit(this.doneProgress(opId, 'export', uniquePaths.length, windowsDir))
     return opId
   }
 
