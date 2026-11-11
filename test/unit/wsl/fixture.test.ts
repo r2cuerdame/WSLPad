@@ -232,6 +232,19 @@ describe('FixtureExplorerBackend', () => {
     expect((dup as ExplorerError).code).toBe('EEXIST')
   })
 
+  it('removes a path given twice without a false missing-path error', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/remove-duplicate')
+    await backend.createFile(U, '/home/dev/remove-duplicate/item.txt')
+
+    await backend.remove(U, [
+      '/home/dev/remove-duplicate/item.txt',
+      '/home/dev/remove-duplicate/item.txt'
+    ])
+
+    expect(await backend.list(U, '/home/dev/remove-duplicate')).toEqual([])
+  })
+
   it('copies and moves with a completion progress event', async () => {
     const backend = new FixtureExplorerBackend()
     const events: FileOpProgress[] = []

@@ -619,8 +619,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   }
 
   async remove(distro: string, paths: string[]): Promise<void> {
-    this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
-    for (const path of paths) {
+    const uniquePaths = [...new Set(paths)]
+    this.ensureDistro(distro, uniquePaths[0] ?? FIXTURE_HOME)
+    for (const path of uniquePaths) {
       assertValidLinuxPath(path)
       const base = this.fs.normalizePath(path)
       const { parent, node, name } = this.fs.getWithParent(base)
