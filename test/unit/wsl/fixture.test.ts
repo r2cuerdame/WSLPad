@@ -271,6 +271,38 @@ describe('FixtureExplorerBackend', () => {
     off()
   })
 
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('processes a duplicate source only once for $kind', async ({ move, kind }) => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((progress) => events.push(progress))
+    await backend.mkdir(U, '/home/dev/duplicate-copy')
+    const source = '/home/dev/projects/wslpad-demo/README.md'
+
+    const opId = await backend.copyMove(U, [source, source], '/home/dev/duplicate-copy', move)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(events).toEqual([
+      expect.objectContaining({ opId, kind, status: 'done', totalItems: 1, doneItems: 1 })
+    ])
+    expect((await backend.list(U, '/home/dev/duplicate-copy')).map((entry) => entry.name)).toEqual([
+      'README.md'
+    ])
+    const sourceNames = (await backend.list(U, '/home/dev/projects/wslpad-demo')).map(
+      (entry) => entry.name
+    )
+    expect(sourceNames.includes('README.md')).toBe(!move)
+  })
+
+  it('uses the move verb for a move into its own subtree error', async () => {
+    const backend = new FixtureExplorerBackend()
+    await expect(
+      backend.copyMove(U, ['/home/dev/projects/wslpad-demo'], '/home/dev/projects/wslpad-demo/src', true)
+    ).rejects.toThrow('Cannot move /home/dev/projects/wslpad-demo into itself')
+  })
+
   it('simulates import/export instantly with one progress event each', async () => {
     const backend = new FixtureExplorerBackend()
     const events: FileOpProgress[] = []

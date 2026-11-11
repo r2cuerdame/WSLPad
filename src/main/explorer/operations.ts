@@ -92,7 +92,8 @@ export async function runCopyMove(
   move: boolean
 ): Promise<void> {
   const kind = move ? 'move' : 'copy'
-  const totalItems = sources.length
+  const uniqueSources = [...new Set(sources)]
+  const totalItems = uniqueSources.length
   let doneItems = 0
   const errors: string[] = []
   const emit = (status: FileOpStatus, currentItem: string | null, error: string | null = null) =>
@@ -107,7 +108,7 @@ export async function runCopyMove(
       currentItem,
       error
     })
-  for (const source of sources) {
+  for (const source of uniqueSources) {
     if (ctx.isCancelled()) {
       emit('cancelled', null)
       return
