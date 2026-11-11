@@ -490,6 +490,8 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     this.ensureDistro(distro, path)
     assertValidLinuxPath(path)
     const { parent, node, name } = this.fs.getWithParent(path)
+    // Existence first: the root has a node but no parent, and is EEXIST like
+    // the real backend's existsGuard reports it, not a false ENOENT.
     if (node) throw new ExplorerError('EEXIST', path, `Already exists: ${path}`)
     if (!parent) throw new ExplorerError('ENOENT', path, `No such directory for: ${path}`)
     if (!parent.writable) throw this.accessDenied(path, parent)
