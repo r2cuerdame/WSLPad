@@ -150,11 +150,12 @@ export async function removeEntries(
   distro: string,
   paths: string[]
 ): Promise<void> {
-  for (const path of paths) {
+  const uniquePaths = [...new Set(paths)]
+  for (const path of uniquePaths) {
     assertValidLinuxPath(path)
     if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to remove ${path}`)
   }
-  for (const path of paths) {
+  for (const path of uniquePaths) {
     const result = await runner.runInDistro(distro, `rm -rf ${shellQuote(path)}`, {
       timeoutMs: FILE_OP_TIMEOUT_MS
     })

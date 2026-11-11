@@ -271,6 +271,15 @@ describe('removeEntries', () => {
     expect(runner.calls[1].script).toBe("rm -rf '/home/u/dir'")
   })
 
+  it('runs rm -rf once for each distinct exact path', async () => {
+    const runner = new MockRunner()
+    await removeEntries(runner, 'Ubuntu', ['/home/u/Foo.txt', '/home/u/Foo.txt', '/home/u/foo.txt'])
+    expect(runner.calls.map((call) => call.script)).toEqual([
+      "rm -rf '/home/u/Foo.txt'",
+      "rm -rf '/home/u/foo.txt'"
+    ])
+  })
+
   it('maps permission failures', async () => {
     const runner = new MockRunner().on(() => fail(1, "rm: cannot remove '/x': Permission denied"))
     await expect(removeEntries(runner, 'Ubuntu', ['/x'])).rejects.toMatchObject({ code: 'EACCES' })
