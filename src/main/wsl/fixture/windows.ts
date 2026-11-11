@@ -220,6 +220,29 @@ class FixtureWindowsFs implements WindowsFs {
     }
   }
 
+  /**
+   * Same contract as normalizeBatch in WindowsFs: every path is parsed and
+   * checked before the first one is touched, so a drive root or unparseable
+   * path refuses the whole batch instead of leaving the items in front of it
+   * already gone, and a path given twice is handled once rather than failing
+   * the second time with a false ENOENT/EEXIST.
+   */
+  private normalizeBatch(paths: readonly string[], refusal: string): string[] {
+    const normalized = [
+      ...new Set(
+        paths.map((path) => {
+          const { drive, segments } = this.parse(path)
+          return formatPath(drive, segments)
+        })
+      )
+    ]
+    for (const p of normalized) {
+      // formatPath only ends in a separator for a drive root ("C:\").
+      if (p.endsWith('\\')) throw new ExplorerError('UNKNOWN', p, `${refusal} ${p}`)
+    }
+    return normalized
+  }
+
   private requireDir(path: string): { node: WinNode; normalized: string } {
     const { node, normalized } = this.nodeAt(path, true)
     if (!node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
@@ -397,11 +420,12 @@ class FixtureWindowsFs implements WindowsFs {
   }
 
   async copyMove(sources: string[], destDir: string, move: boolean): Promise<string> {
+    const kind = move ? 'move' : 'copy'
+    const srcs = this.normalizeBatch(sources, `Refusing to ${kind} drive root`)
     const { node: dest, normalized: destPath } = this.requireDir(destDir)
     if (!dest.writable) throw new ExplorerError('EACCES', destPath, `EACCES: ${destPath}`)
-    const kind = move ? 'move' : 'copy'
     const opId = `fixture-win-op-${++this.opCounter}`
-    const totalItems = sources.length
+    const totalItems = srcs.length
     let doneItems = 0
     let totalBytes = 0
     const errors: string[] = []
@@ -417,7 +441,7 @@ class FixtureWindowsFs implements WindowsFs {
         currentItem,
         error
       })
-    for (const source of sources) {
+    for (const source of srcs) {
       const { parent, node, name, normalized } = this.withParent(source)
       try {
         if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
@@ -449,7 +473,7 @@ class FixtureWindowsFs implements WindowsFs {
   }
 
   async trash(paths: string[]): Promise<void> {
-    for (const path of paths) {
+    for (const path of this.normalizeBatch(paths, 'Refusing to trash')) {
       const { parent, node, name, normalized } = this.withParent(path)
       if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
       if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
@@ -459,7 +483,7 @@ class FixtureWindowsFs implements WindowsFs {
   }
 
   async remove(paths: string[]): Promise<void> {
-    for (const path of paths) {
+    for (const path of this.normalizeBatch(paths, 'Refusing to remove')) {
       const { parent, node, name, normalized } = this.withParent(path)
       if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
       if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)

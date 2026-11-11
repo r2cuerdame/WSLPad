@@ -858,6 +858,111 @@ describe('createFixtureWindowsFs', () => {
     expect(last.error).toContain('EEXIST')
   })
 
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('processes a duplicate source only once for $kind', async ({ move, kind }) => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((p) => events.push(p))
+    const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+    // The same file spelled three ways normalizes to one source.
+    await fixture.copyMove(
+      [notes, notes, 'C:/Users/dev/Documents/notes.txt', 'C:\\Users\\dev\\projects\\demo'],
+      'C:\\Users\\dev\\Desktop',
+      move
+    )
+    await waitFor(() => events.some((e) => e.status !== 'running'))
+
+    expect(events.filter((e) => e.status === 'running').length).toBe(2)
+    expect(events.at(-1)).toMatchObject({
+      kind,
+      status: 'done',
+      totalItems: 2,
+      doneItems: 2,
+      error: null
+    })
+    expect((await fixture.list('C:\\Users\\dev\\Desktop')).map((e) => e.name)).toEqual([
+      'demo',
+      'notes.txt'
+    ])
+    expect((await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)).toEqual(
+      move ? [] : ['notes.txt']
+    )
+  })
+
+  it.each([
+    { move: false, message: 'Refusing to copy drive root C:\\' },
+    { move: true, message: 'Refusing to move drive root C:\\' }
+  ])('refuses a batch holding a drive-root source before starting a $move operation', async ({ move, message }) => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((p) => events.push(p))
+    const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+    const desktop = 'C:\\Users\\dev\\Desktop'
+
+    expect(await codeOf(() => fixture.copyMove([notes, 'C:\\'], desktop, move))).toBe('UNKNOWN')
+    await expect(fixture.copyMove([notes, 'C:\\Users\\..'], desktop, move)).rejects.toThrow(message)
+    await expect(fixture.copyMove([notes, 'd:'], desktop, move)).rejects.toThrow(
+      `Refusing to ${move ? 'move' : 'copy'} drive root D:\\`
+    )
+
+    // Nothing ran: no op was started and the file in front of the root stayed put.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(events).toEqual([])
+    expect(await fixture.list(desktop)).toEqual([])
+    expect((await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)).toEqual([
+      'notes.txt'
+    ])
+    expect(await fixture.copyMove([notes], desktop, move)).toBe('fixture-win-op-1')
+  })
+
+  it.each(['trash', 'remove'] as const)('%ss a path given twice only once', async (verb) => {
+    const fixture = createFixtureWindowsFs()
+    const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+    const readme = 'C:\\Users\\dev\\projects\\demo\\README.md'
+
+    await fixture[verb]([notes, readme, notes, 'C:/Users/dev/Documents/notes.txt'])
+
+    expect(await fixture.list('C:\\Users\\dev\\Documents')).toEqual([])
+    expect(await fixture.list('C:\\Users\\dev\\projects\\demo')).toEqual([])
+    expect(await codeOf(() => fixture.stat(notes))).toBe('ENOENT')
+  })
+
+  it.each([
+    { verb: 'trash' as const, bad: 'C:\\', message: 'Refusing to trash C:\\' },
+    { verb: 'trash' as const, bad: 'D:', message: 'Refusing to trash D:\\' },
+    { verb: 'trash' as const, bad: 'C:\\Users\\..', message: 'Refusing to trash C:\\' },
+    { verb: 'remove' as const, bad: 'C:\\', message: 'Refusing to remove C:\\' },
+    { verb: 'remove' as const, bad: 'D:', message: 'Refusing to remove D:\\' },
+    { verb: 'remove' as const, bad: 'C:\\Users\\..', message: 'Refusing to remove C:\\' }
+  ])('refuses a whole $verb batch holding the root $bad before touching anything', async ({ verb, bad, message }) => {
+    const fixture = createFixtureWindowsFs()
+    const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+
+    expect(await codeOf(() => fixture[verb]([notes, bad]))).toBe('UNKNOWN')
+    await expect(fixture[verb]([notes, bad])).rejects.toThrow(message)
+
+    expect((await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)).toEqual([
+      'notes.txt'
+    ])
+  })
+
+  it.each(['trash', 'remove'] as const)(
+    'refuses a whole %s batch holding an unparseable path before touching anything',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+      const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+
+      expect(await codeOf(() => fixture[verb]([notes, 'relative\\file.txt']))).toBe('ENOENT')
+      expect(await codeOf(() => fixture[verb]([notes, 'Z:\\missing.txt']))).toBe('ENOENT')
+
+      expect((await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)).toEqual([
+        'notes.txt'
+      ])
+    }
+  )
+
   it('stats entries with a deterministic windows path', async () => {
     const fixture = createFixtureWindowsFs()
     const info = await fixture.stat('C:\\Users\\dev\\Documents\\notes.txt')
