@@ -119,6 +119,40 @@ describe('writeTextFile', () => {
     expect(script).not.toContain("> '/etc/a'\\''b.conf'")
   })
 
+  it('maps a missing parent directory to ENOENT before checking write access', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('if [ ! -e "$d" ]') ? fail(40) : undefined
+    )
+
+    await expect(writeTextFile(runner, 'Ubuntu', '/home/u/gone/new.txt', 'content')).rejects.toMatchObject({
+      code: 'ENOENT',
+      path: '/home/u/gone/new.txt'
+    })
+    expect(runner.calls).toHaveLength(1)
+    const script = runner.calls[0].script
+    expect(script.indexOf('if [ ! -e "$d" ]')).toBeLessThan(
+      script.indexOf('if [ ! -e "$t" ] && [ ! -w "$d" ]')
+    )
+    expect(script.indexOf('if [ ! -e "$d" ]')).toBeLessThan(script.indexOf('mktemp "$d/.wslpad-XXXXXX"'))
+  })
+
+  it('maps a file used as the parent directory to ENOTDIR', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('if [ ! -d "$d" ]') ? fail(45) : undefined
+    )
+
+    await expect(writeTextFile(runner, 'Ubuntu', '/home/u/file/child.txt', 'content')).rejects.toMatchObject({
+      code: 'ENOTDIR',
+      path: '/home/u/file/child.txt'
+    })
+    expect(runner.calls).toHaveLength(1)
+    const script = runner.calls[0].script
+    expect(script.indexOf('if [ ! -d "$d" ]')).toBeLessThan(
+      script.indexOf('if [ ! -e "$t" ] && [ ! -w "$d" ]')
+    )
+    expect(script.indexOf('if [ ! -d "$d" ]')).toBeLessThan(script.indexOf('mktemp "$d/.wslpad-XXXXXX"'))
+  })
+
   it('cleans up the tmp file on every failure branch', async () => {
     const runner = new MockRunner()
     await writeTextFile(runner, 'Ubuntu', '/f', 'x')
