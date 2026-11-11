@@ -461,7 +461,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async tree(distro: string, path: string): Promise<FileEntry[]> {
     const entries = await this.list(distro, path, { showHidden: true })
-    return entries.filter((e) => e.type === 'directory')
+    return entries.filter(
+      (e) => e.type === 'directory' || (e.type === 'symlink' && e.targetType === 'directory')
+    )
   }
 
   async stat(distro: string, path: string): Promise<FileStat> {
