@@ -14,6 +14,7 @@ import type {
   TextFileContent
 } from '@shared/types'
 import { isInsideLinux, isLinuxRoot } from '../../explorer/path-convert'
+import { sanitizeSearchQuery } from '../../explorer/listing'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
 import {
@@ -792,21 +793,23 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   async search(distro: string, path: string, query: string): Promise<FileEntry[]> {
     this.ensureDistro(distro, path)
     assertValidLinuxPath(path)
-    const q = query.toLowerCase()
+    const q = sanitizeSearchQuery(query).toLowerCase()
+    if (!q) return []
     const results: FileEntry[] = []
-    const walk = (base: string, node: FsNode): void => {
-      if (results.length >= 1000 || !node.children) return
+    const walk = (base: string, node: FsNode, depth: number): void => {
+      if (results.length >= 200 || depth > 4 || !node.children) return
       for (const child of node.children.values()) {
+        if (results.length >= 200) return
         const childPath = this.joinPath(base, child.name)
-        if (q.length > 0 && child.name.toLowerCase().includes(q)) {
+        if (child.name.toLowerCase().includes(q)) {
           results.push(this.entry(childPath, child))
         }
         // Skip symlinks (cycle safety) and unreadable dirs like /root.
-        if (child.type === 'directory' && child.readable) walk(childPath, child)
+        if (child.type === 'directory' && child.readable) walk(childPath, child, depth + 1)
       }
     }
     const start = this.fs.normalizePath(path)
-    walk(start, this.requireDir(start))
+    walk(start, this.requireDir(start), 1)
     return results
   }
 

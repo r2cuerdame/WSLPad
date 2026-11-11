@@ -547,6 +547,45 @@ describe('FixtureExplorerBackend', () => {
     expect(fromRoot.map((e) => e.path)).toEqual(['/etc/wsl.conf'])
   })
 
+  it('returns no results when search sanitization removes the query', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.createFile(U, '/home/dev/***')
+    await backend.createFile(U, '/home/dev/   ')
+    await expect(backend.search(U, '/home/dev', '***')).resolves.toEqual([])
+    await expect(backend.search(U, '/home/dev', '   ')).resolves.toEqual([])
+  })
+
+  it('limits search traversal to four levels below the starting directory', async () => {
+    const backend = new FixtureExplorerBackend()
+    const root = '/home/dev/search-depth'
+    for (const dir of [
+      root,
+      `${root}/one`,
+      `${root}/one/two`,
+      `${root}/one/two/three`,
+      `${root}/one/two/three/four`
+    ]) {
+      await backend.mkdir(U, dir)
+    }
+    await backend.createFile(U, `${root}/one/two/three/needle-depth-4.txt`)
+    await backend.createFile(U, `${root}/one/two/three/four/needle-depth-5.txt`)
+
+    const paths = (await backend.search(U, root, 'needle')).map((entry) => entry.path)
+    expect(paths).toContain(`${root}/one/two/three/needle-depth-4.txt`)
+    expect(paths).not.toContain(`${root}/one/two/three/four/needle-depth-5.txt`)
+  })
+
+  it('caps search results at 200 entries', async () => {
+    const backend = new FixtureExplorerBackend()
+    const root = '/home/dev/search-many'
+    await backend.mkdir(U, root)
+    for (let i = 0; i < 201; i++) {
+      await backend.createFile(U, `${root}/needle-${String(i).padStart(3, '0')}.txt`)
+    }
+
+    await expect(backend.search(U, root, 'needle')).resolves.toHaveLength(200)
+  })
+
   it('converts paths between Linux and Windows forms', async () => {
     const backend = new FixtureExplorerBackend()
     expect(await backend.convertPath(U, '/mnt/c/Users/dev/file.txt', 'windows')).toBe(
