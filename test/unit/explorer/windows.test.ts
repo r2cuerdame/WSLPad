@@ -963,6 +963,33 @@ describe('createFixtureWindowsFs', () => {
     }
   )
 
+  it.each([
+    { bad: 'C:\\', message: 'Refusing to rename drive root C:\\' },
+    { bad: 'D:', message: 'Refusing to rename drive root D:\\' },
+    { bad: 'C:\\Users\\..', message: 'Refusing to rename drive root C:\\' }
+  ])('refuses to rename the drive root $bad instead of a false ENOENT', async ({ bad, message }) => {
+    const fixture = createFixtureWindowsFs()
+
+    expect(await codeOf(() => fixture.rename(bad, 'renamed-root'))).toBe('UNKNOWN')
+    await expect(fixture.rename(bad, 'renamed-root')).rejects.toThrow(message)
+    // Like WindowsFs, the root is refused before the new name is even judged.
+    await expect(fixture.rename(bad, '')).rejects.toThrow(message)
+
+    expect((await fixture.list('C:\\')).map((e) => e.name)).toEqual(['Users', 'Windows'])
+  })
+
+  it.each([
+    { verb: 'mkdir' as const, drive: 'C:\\', message: 'EEXIST: C:\\' },
+    { verb: 'mkdir' as const, drive: 'D:', message: 'EEXIST: D:\\' },
+    { verb: 'createFile' as const, drive: 'C:\\', message: 'EEXIST: C:\\' },
+    { verb: 'createFile' as const, drive: 'D:', message: 'EEXIST: D:\\' }
+  ])('reports EEXIST, not a false ENOENT, when $verb names the drive root $drive', async ({ verb, drive, message }) => {
+    const fixture = createFixtureWindowsFs()
+
+    expect(await codeOf(() => fixture[verb](drive))).toBe('EEXIST')
+    await expect(fixture[verb](drive)).rejects.toThrow(message)
+  })
+
   it('stats entries with a deterministic windows path', async () => {
     const fixture = createFixtureWindowsFs()
     const info = await fixture.stat('C:\\Users\\dev\\Documents\\notes.txt')
