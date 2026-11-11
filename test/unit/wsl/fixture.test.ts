@@ -167,6 +167,20 @@ describe('FixtureExplorerBackend', () => {
     expect(listedThroughLink.map((e) => e.name)).toEqual(['wslpad-demo'])
   })
 
+  it('includes directory symlinks in tree results but excludes file and broken symlinks', async () => {
+    const backend = new FixtureExplorerBackend()
+    const entries = await backend.tree(U, '/home/dev')
+    const names = entries.map((e) => e.name)
+    expect(names).toContain('projects')
+    expect(names).toContain('link-to-projects')
+    expect(entries.find((e) => e.name === 'link-to-projects')).toMatchObject({
+      type: 'symlink',
+      targetType: 'directory'
+    })
+    expect(names).not.toContain('notes.md')
+    expect(names).not.toContain('broken-link')
+  })
+
   it('raises EACCES with ownership detail when listing /root', async () => {
     const backend = new FixtureExplorerBackend()
     const err = await backend.list(U, '/root').catch((e: unknown) => e)
