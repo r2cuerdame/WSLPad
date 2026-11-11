@@ -649,14 +649,27 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async remove(distro: string, paths: string[]): Promise<void> {
     this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
-    for (const path of this.checkBatch(paths, 'remove')) {
-      const base = this.fs.normalizePath(path)
+
+    // Normalize before deduplicating: different valid spellings can name the same node.
+    const uniquePaths = [
+      ...new Set(this.checkBatch(paths, 'remove').map((path) => this.fs.normalizePath(path)))
+    ]
+
+    // Validate every target before deleting any of them, so a later error cannot
+    // leave the earlier items permanently removed.
+    const targets = uniquePaths.map((base) => {
       const { parent, node, name } = this.fs.getWithParent(base)
       if (!parent || !node)
         throw new ExplorerError('ENOENT', base, `No such file or directory: ${base}`)
       if (!parent.writable) throw this.accessDenied(base, parent)
-      parent.children?.delete(name)
-    }
+      return { base, parent, name }
+    })
+
+    // Removing a selected directory already removes every selected descendant.
+    const topLevelTargets = targets.filter(
+      ({ base }) => !uniquePaths.some((candidate) => base.startsWith(`${candidate}/`))
+    )
+    for (const { parent, name } of topLevelTargets) parent.children?.delete(name)
   }
 
   async readText(distro: string, path: string, maxBytes: number): Promise<TextFileContent> {
