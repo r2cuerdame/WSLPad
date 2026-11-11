@@ -13,6 +13,7 @@ import type {
   TrashEntry,
   TextFileContent
 } from '@shared/types'
+import { isLinuxRoot } from '../../explorer/path-convert'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
 import {
@@ -346,6 +347,30 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     })
   }
 
+  /**
+   * Same guard as the real backend: any spelling of the root (`//`, `/./`) is
+   * refused by name rather than failing as a false ENOENT, because the root
+   * has no parent to look it up in.
+   */
+  private refuseRoot(path: string, verb: string): void {
+    if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to ${verb} ${path}`)
+  }
+
+  /**
+   * Same contract as removeEntries/trashEntries: every path is checked before
+   * the first one is touched, so a batch naming the root is refused as a whole
+   * instead of after the items in front of it are already gone. A path given
+   * twice is handled once.
+   */
+  private checkBatch(paths: readonly string[], verb: string): string[] {
+    const unique = [...new Set(paths)]
+    for (const path of unique) {
+      assertValidLinuxPath(path)
+      this.refuseRoot(path, verb)
+    }
+    return unique
+  }
+
   private joinPath(base: string, name: string): string {
     return (base === '/' ? '' : base) + '/' + name
   }
@@ -478,6 +503,7 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   async rename(distro: string, path: string, newName: string): Promise<void> {
     this.ensureDistro(distro, path)
     assertValidLinuxPath(path)
+    this.refuseRoot(path, 'rename')
     if (/[/\\\0\n]/.test(newName) || newName === '' || newName === '.' || newName === '..') {
       throw new ExplorerError('UNKNOWN', path, `Invalid file name: ${JSON.stringify(newName)}`)
     }
@@ -502,13 +528,12 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   ): Promise<string> {
     this.ensureDistro(distro, destDir)
     assertValidLinuxPath(destDir)
+    const uniqueSources = this.checkBatch(sources, move ? 'move' : 'copy')
     const destBase = this.fs.normalizePath(destDir)
     const dest = this.requireDir(destBase)
     if (!dest.writable) throw this.accessDenied(destBase, dest)
-    const uniqueSources = [...new Set(sources)]
     let last: string | null = null
     for (const source of uniqueSources) {
-      assertValidLinuxPath(source)
       const srcBase = this.fs.normalizePath(source)
       if (destBase === srcBase || destBase.startsWith(srcBase + '/')) {
         throw new ExplorerError(
@@ -540,11 +565,10 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async trash(distro: string, paths: string[]): Promise<void> {
     this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
+    const uniquePaths = this.checkBatch(paths, 'trash')
     const files = this.ensureTrashDir('files')
     const info = this.ensureTrashDir('info')
-    // Same as the real backend: a path given twice is trashed once.
-    for (const path of new Set(paths)) {
-      assertValidLinuxPath(path)
+    for (const path of uniquePaths) {
       const base = this.fs.normalizePath(path)
       const { parent, node, name } = this.fs.getWithParent(base)
       if (!parent || !node)
@@ -624,10 +648,8 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   }
 
   async remove(distro: string, paths: string[]): Promise<void> {
-    const uniquePaths = [...new Set(paths)]
-    this.ensureDistro(distro, uniquePaths[0] ?? FIXTURE_HOME)
-    for (const path of uniquePaths) {
-      assertValidLinuxPath(path)
+    this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
+    for (const path of this.checkBatch(paths, 'remove')) {
       const base = this.fs.normalizePath(path)
       const { parent, node, name } = this.fs.getWithParent(base)
       if (!parent || !node)
@@ -707,10 +729,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   }
 
   async exportToWindows(distro: string, paths: string[], windowsDir: string): Promise<string> {
-    const uniquePaths = [...new Set(paths)]
-    this.ensureDistro(distro, uniquePaths[0] ?? FIXTURE_HOME)
+    this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
+    const uniquePaths = this.checkBatch(paths, 'export')
     for (const path of uniquePaths) {
-      assertValidLinuxPath(path)
       const node = this.fs.getNode(this.fs.normalizePath(path), false)
       if (!node) throw new ExplorerError('ENOENT', path, `No such file or directory: ${path}`)
     }

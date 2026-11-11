@@ -361,6 +361,96 @@ describe('FixtureExplorerBackend', () => {
     ])
   })
 
+  describe.each(['/', '//', '///', '/./'])('refuses the root spelled %s', (root) => {
+    it('in remove and trash instead of a false ENOENT', async () => {
+      const backend = new FixtureExplorerBackend()
+      await expect(backend.remove(U, [root])).rejects.toMatchObject({
+        code: 'UNKNOWN',
+        path: root,
+        message: `Refusing to remove ${root}`
+      })
+      await expect(backend.trash(U, [root])).rejects.toMatchObject({
+        code: 'UNKNOWN',
+        path: root,
+        message: `Refusing to trash ${root}`
+      })
+      expect((await backend.list(U, '/')).map((e) => e.name)).toEqual([
+        'etc',
+        'home',
+        'mnt',
+        'root',
+        'usr'
+      ])
+    })
+
+    it.each([
+      { move: false, kind: 'copy' },
+      { move: true, kind: 'move' }
+    ])('in $kind and rename instead of a false ENOENT', async ({ move, kind }) => {
+      const backend = new FixtureExplorerBackend()
+      await backend.mkdir(U, '/home/dev/root-dest')
+      await expect(backend.copyMove(U, [root], '/home/dev/root-dest', move)).rejects.toMatchObject(
+        { code: 'UNKNOWN', path: root, message: `Refusing to ${kind} ${root}` }
+      )
+      await expect(backend.rename(U, root, 'renamed')).rejects.toMatchObject({
+        code: 'UNKNOWN',
+        path: root,
+        message: `Refusing to rename ${root}`
+      })
+      expect(await backend.list(U, '/home/dev/root-dest')).toEqual([])
+    })
+
+    it('in export without a completion event', async () => {
+      const backend = new FixtureExplorerBackend()
+      const events: FileOpProgress[] = []
+      backend.onProgress((p) => events.push(p))
+      await expect(
+        backend.exportToWindows(U, [root], 'C:\\Users\\dev\\Desktop')
+      ).rejects.toMatchObject({ code: 'UNKNOWN', path: root, message: `Refusing to export ${root}` })
+      await new Promise((r) => setTimeout(r, 0))
+      expect(events).toEqual([])
+    })
+  })
+
+  it('refuses a remove batch naming the root before deleting its other items', async () => {
+    const backend = new FixtureExplorerBackend()
+    await expect(backend.remove(U, ['/home/dev/notes.md', '//'])).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      message: 'Refusing to remove //'
+    })
+    expect((await backend.list(U, '/home/dev')).map((e) => e.name)).toContain('notes.md')
+  })
+
+  it('refuses a trash batch naming the root before trashing its other items', async () => {
+    const backend = new FixtureExplorerBackend()
+    await expect(backend.trash(U, ['/home/dev/notes.md', '/./'])).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      message: 'Refusing to trash /./'
+    })
+    expect((await backend.list(U, '/home/dev')).map((e) => e.name)).toContain('notes.md')
+    expect(await backend.listTrash(U)).toEqual([])
+  })
+
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('refuses a $kind batch naming the root before touching its other items', async ({
+    move,
+    kind
+  }) => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((p) => events.push(p))
+    await backend.mkdir(U, '/home/dev/root-batch')
+    await expect(
+      backend.copyMove(U, ['/home/dev/notes.md', '///'], '/home/dev/root-batch', move)
+    ).rejects.toMatchObject({ code: 'UNKNOWN', message: `Refusing to ${kind} ///` })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(events).toEqual([])
+    expect(await backend.list(U, '/home/dev/root-batch')).toEqual([])
+    expect((await backend.list(U, '/home/dev')).map((e) => e.name)).toContain('notes.md')
+  })
+
   it('searches by name case-insensitively without entering unreadable dirs', async () => {
     const backend = new FixtureExplorerBackend()
     const hits = await backend.search(U, '/home/dev', 'readme')
