@@ -604,7 +604,7 @@ export class FixtureExplorerBackend implements ExplorerBackend {
       const parentPath = dest.replace(/\/[^/]*$/, '') || '/'
       const parent = this.requireDir(parentPath)
       if (!parent.writable) throw this.accessDenied(dest, parent)
-      return { trashName, entry, node, dest, parent }
+      return { trashName, node, dest, parent }
     })
 
     const destinations = new Set<string>()
@@ -615,7 +615,7 @@ export class FixtureExplorerBackend implements ExplorerBackend {
       destinations.add(item.dest)
     }
 
-    for (const { trashName, entry, node, dest, parent } of toRestore) {
+    for (const { trashName, node, dest, parent } of toRestore) {
       files.children?.delete(trashName)
       node.name = dest.slice(dest.lastIndexOf('/') + 1)
       this.fs.attach(parent, node)
