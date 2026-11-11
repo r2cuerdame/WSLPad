@@ -215,6 +215,85 @@ describe('FixtureExplorerBackend', () => {
     expect(files.map((e) => e.name).filter((n) => n.startsWith('notes.md'))).toEqual(['notes.md'])
   })
 
+  it.each([
+    { name: 'notes.md', collision: 'notes.2.md' },
+    { name: 'archive.tar.gz', collision: 'archive.tar.2.gz' },
+    { name: '.bashrc', collision: '.bashrc.2' },
+    { name: 'file', collision: 'file.2' }
+  ])('keeps the extension before the collision number for $name', async ({ name, collision }) => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/first')
+    await backend.mkdir(U, '/home/dev/second')
+    await backend.createFile(U, `/home/dev/first/${name}`)
+    await backend.createFile(U, `/home/dev/second/${name}`)
+
+    await backend.trash(U, [`/home/dev/first/${name}`, `/home/dev/second/${name}`])
+
+    const files = await backend.list(U, '/home/dev/.local/share/Trash/files', {
+      showHidden: true
+    })
+    expect(files.map((entry) => entry.name).sort()).toEqual([collision, name].sort())
+  })
+
+  it('encodes trash paths in metadata and decodes them when listing', async () => {
+    const backend = new FixtureExplorerBackend()
+    const path = '/home/dev/notes & 자료%.md'
+    await backend.createFile(U, path)
+
+    await backend.trash(U, [path])
+
+    const info = await backend.readText(
+      U,
+      '/home/dev/.local/share/Trash/info/notes & 자료%.md.trashinfo',
+      65536
+    )
+    expect(info.content).toContain(
+      'Path=/home/dev/notes%20%26%20%EC%9E%90%EB%A3%8C%25.md'
+    )
+    expect((await backend.listTrash(U)).map((entry) => entry.originalPath)).toContain(path)
+  })
+
+  it('reports UTF-8 file bytes and the combined size of trashed directories', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/archive')
+    await backend.mkdir(U, '/home/dev/archive/subdir')
+    await backend.createFile(U, '/home/dev/archive/hello.txt')
+    await backend.writeText(U, '/home/dev/archive/hello.txt', '안녕')
+    await backend.createFile(U, '/home/dev/archive/subdir/ok.txt')
+    await backend.writeText(U, '/home/dev/archive/subdir/ok.txt', 'ok')
+
+    await backend.trash(U, ['/home/dev/archive/hello.txt', '/home/dev/archive/subdir'])
+
+    const entries = await backend.listTrash(U)
+    expect(entries.find((entry) => entry.trashName === 'hello.txt')?.sizeBytes).toBe(6)
+    expect(entries.find((entry) => entry.trashName === 'subdir')?.sizeBytes).toBe(2)
+  })
+
+  it('validates all trash batch entries before moving files when one is missing', async () => {
+    const backend = new FixtureExplorerBackend()
+
+    await expect(
+      backend.trash(U, ['/home/dev/notes.md', '/home/dev/missing.txt'])
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+
+    expect(backend.fs.getNode('/home/dev/notes.md')).not.toBeNull()
+    expect(backend.fs.getNode('/home/dev/.local/share/Trash')).toBeNull()
+  })
+
+  it('validates unreadable items in the whole trash batch before moving files', async () => {
+    const backend = new FixtureExplorerBackend()
+    const home = backend.fs.getNode('/home/dev')!
+    backend.fs.attach(home, backend.fs.file('private.txt', 'secret', { readable: false }))
+
+    await expect(
+      backend.trash(U, ['/home/dev/notes.md', '/home/dev/private.txt'])
+    ).rejects.toMatchObject({ code: 'EACCES', path: '/home/dev/private.txt' })
+
+    expect(backend.fs.getNode('/home/dev/notes.md')).not.toBeNull()
+    expect(backend.fs.getNode('/home/dev/private.txt')).not.toBeNull()
+    expect(backend.fs.getNode('/home/dev/.local/share/Trash')).toBeNull()
+  })
+
   it('supports mkdir/createFile/writeText/readText/rename/remove', async () => {
     const backend = new FixtureExplorerBackend()
     await backend.mkdir(U, '/home/dev/scratch')

@@ -14,6 +14,7 @@ import type {
   TextFileContent
 } from '@shared/types'
 import { isLinuxRoot } from '../../explorer/path-convert'
+import { decodeTrashPath, encodeTrashPath, resolveTrashCollision } from '../../explorer/trash'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
 import {
@@ -566,20 +567,33 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   async trash(distro: string, paths: string[]): Promise<void> {
     this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
     const uniquePaths = this.checkBatch(paths, 'trash')
-    const files = this.ensureTrashDir('files')
-    const info = this.ensureTrashDir('info')
-    for (const path of uniquePaths) {
+
+    // Validate the whole batch before creating trash folders or moving anything.
+    const sources = uniquePaths.map((path) => {
       const base = this.fs.normalizePath(path)
       const { parent, node, name } = this.fs.getWithParent(base)
       if (!parent || !node)
         throw new ExplorerError('ENOENT', base, `No such file or directory: ${base}`)
-      if (!parent.writable) throw this.accessDenied(base, parent)
-      let unique = name
-      for (let n = 2; files.children?.has(unique); n++) unique = `${name}.${n}`
+      if (!parent.readable || !parent.writable) throw this.accessDenied(base, parent)
+      if (!node.readable) throw this.accessDenied(base, node)
+      return { base, parent, node, name }
+    })
+
+    const files = this.ensureTrashDir('files')
+    const info = this.ensureTrashDir('info')
+    const used = new Set<string>()
+    for (const name of files.children?.keys() ?? []) used.add(name)
+    for (const name of info.children?.keys() ?? []) {
+      used.add(name.endsWith('.trashinfo') ? name.slice(0, -'.trashinfo'.length) : name)
+    }
+    for (const { base, parent, node, name } of sources) {
+      const unique = resolveTrashCollision(name, used)
+      used.add(unique)
       parent.children?.delete(name)
       node.name = unique
       this.fs.attach(files, node)
-      const infoContent = `[Trash Info]\nPath=${base}\nDeletionDate=${FIXTURE_TRASH_DATE}\n`
+      const infoContent =
+        `[Trash Info]\nPath=${encodeTrashPath(base)}\nDeletionDate=${FIXTURE_TRASH_DATE}\n`
       this.fs.attach(
         info,
         this.fs.file(`${unique}.trashinfo`, infoContent, { mtime: FIXTURE_NEW_MTIME })
@@ -596,8 +610,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
       if (!name.endsWith('.trashinfo')) continue
       const trashName = name.slice(0, -'.trashinfo'.length)
       const content = node.content ?? ''
-      const originalPath = /^Path=(.*)$/m.exec(content)?.[1] ?? ''
-      if (originalPath === '') continue
+      const encodedPath = /^Path=(.*)$/m.exec(content)?.[1] ?? ''
+      if (encodedPath === '') continue
+      const originalPath = decodeTrashPath(encodedPath)
       const trashed = files.children?.get(trashName) ?? null
       entries.push({
         trashName,
@@ -605,7 +620,7 @@ export class FixtureExplorerBackend implements ExplorerBackend {
         deletedAt: /^DeletionDate=(.*)$/m.exec(content)?.[1] ?? null,
         type: trashed === null ? 'other' : trashed.type === 'directory' ? 'directory' : 'file',
         present: trashed !== null,
-        sizeBytes: trashed?.content?.length ?? null
+        sizeBytes: trashed === null ? null : this.subtreeBytes(trashed)
       })
     }
     return entries.sort((a, b) => (b.deletedAt ?? '').localeCompare(a.deletedAt ?? ''))
