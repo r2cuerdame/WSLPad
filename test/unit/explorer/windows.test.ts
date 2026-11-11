@@ -276,15 +276,14 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
     expect(trashed).toEqual([file])
   })
 
-  it('trashes duplicate paths once, ignoring Windows path casing', async () => {
-    const base = dir('trash-duplicates')
-    const file = join(base, 'once.txt')
-    writeFileSync(file, 'x')
+  it('trashes duplicate normalized paths once while preserving case-distinct paths', async () => {
+    const first = 'C:\\CaseSensitive\\Foo.txt'
+    const second = 'C:\\CaseSensitive\\foo.txt'
     trashed = []
 
-    await fs.trash([file, file, file.toUpperCase()])
+    await fs.trash([first, first, second])
 
-    expect(trashed).toEqual([file])
+    expect(trashed).toEqual([first, second])
   })
 
   it('refuses to trash a drive root before reaching trashItem', async () => {
@@ -342,11 +341,11 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
     }
   )
 
-  it('removes duplicate paths once, ignoring Windows path casing', async () => {
+  it('removes duplicate normalized paths once', async () => {
     const file = join(dir('remove-duplicates'), 'once.txt')
     writeFileSync(file, 'x')
 
-    await fs.remove([file, file, file.toUpperCase()])
+    await fs.remove([file, file])
 
     await expect(readFile(file, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
