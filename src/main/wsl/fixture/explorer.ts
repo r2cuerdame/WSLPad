@@ -13,9 +13,14 @@ import type {
   TrashEntry,
   TextFileContent
 } from '@shared/types'
-import { isLinuxRoot } from '../../explorer/path-convert'
+import { WINDOWS_ROOT } from '@shared/constants'
+import {
+  convertLinuxToWindows,
+  convertWindowsToLinux,
+  isLinuxRoot
+} from '../../explorer/path-convert'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
-import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
+import { assertValidLinuxPath, isValidDistroName } from '../escape'
 import {
   FIXTURE_HOME,
   FIXTURE_NEW_MTIME,
@@ -800,29 +805,28 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async convertPath(distro: string, input: string, to: 'windows' | 'linux'): Promise<string> {
     this.ensureDistro(distro, '/')
+    if (input === WINDOWS_ROOT) {
+      throw new ExplorerError('UNKNOWN', input, 'Refusing to convert the This PC virtual root')
+    }
+    if (input.includes('\0') || input.includes('\n')) {
+      throw new ExplorerError(
+        'UNKNOWN',
+        input,
+        `Path is not mappable: ${JSON.stringify(input)}`
+      )
+    }
     if (to === 'windows') {
-      if (!isValidLinuxPath(input)) {
-        throw new ExplorerError('UNKNOWN', input, `Cannot convert path: ${input}`)
+      try {
+        return convertLinuxToWindows(distro, input)
+      } catch {
+        throw new ExplorerError('UNKNOWN', input, `Path is not mappable: ${input}`)
       }
-      const normalized = this.fs.normalizePath(input)
-      const drive = /^\/mnt\/([a-zA-Z])(\/.*)?$/.exec(normalized)
-      if (drive) {
-        const rest = (drive[2] ?? '').replace(/\//g, '\\')
-        return `${drive[1].toUpperCase()}:${rest === '' ? '\\' : rest}`
-      }
-      return toUncPath(distro, normalized)
     }
-    const driveMatch = /^([A-Za-z]):[\\/](.*)$/.exec(input)
-    if (driveMatch) {
-      const rest = driveMatch[2].replace(/\\/g, '/')
-      return this.fs.normalizePath(`/mnt/${driveMatch[1].toLowerCase()}/${rest}`)
+    const mapped = convertWindowsToLinux(distro, input)
+    if (mapped !== null) {
+      return mapped
     }
-    const uncPrefix = `\\\\wsl.localhost\\${distro}`
-    if (input.startsWith(uncPrefix)) {
-      const rest = input.slice(uncPrefix.length).replace(/\\/g, '/')
-      return this.fs.normalizePath(rest === '' ? '/' : rest)
-    }
-    throw new ExplorerError('UNKNOWN', input, `Cannot convert path: ${input}`)
+    throw new ExplorerError('UNKNOWN', input, `Path is not mappable: ${input}`)
   }
 
   onProgress(cb: (p: FileOpProgress) => void): () => void {
