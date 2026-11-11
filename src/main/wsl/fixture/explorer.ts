@@ -13,7 +13,8 @@ import type {
   TrashEntry,
   TextFileContent
 } from '@shared/types'
-import { isLinuxRoot } from '../../explorer/path-convert'
+import { WINDOWS_ROOT } from '@shared/constants'
+import { convertWindowsToLinux, isLinuxRoot } from '../../explorer/path-convert'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
 import {
@@ -710,10 +711,31 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   ): Promise<string> {
     this.ensureDistro(distro, destDir)
     assertValidLinuxPath(destDir)
-    const dest = this.requireDir(this.fs.normalizePath(destDir))
-    if (!dest.writable) throw this.accessDenied(destDir, dest)
     // Same as the real backend: a path given twice is imported once.
     const uniqueWindowsPaths = [...new Set(windowsPaths)]
+    // Reject roots across the whole batch before any fixture file is created.
+    for (const windowsPath of uniqueWindowsPaths) {
+      if (windowsPath === WINDOWS_ROOT) {
+        throw new ExplorerError(
+          'UNKNOWN',
+          windowsPath,
+          'Refusing to use the This PC virtual root'
+        )
+      }
+      if (/^[A-Za-z]:[\\/]*$/.test(windowsPath)) {
+        throw new ExplorerError(
+          'UNKNOWN',
+          windowsPath,
+          `Refusing to import drive root ${windowsPath}`
+        )
+      }
+      const linuxPath = convertWindowsToLinux(distro, windowsPath)
+      if (linuxPath !== null && isLinuxRoot(linuxPath)) {
+        throw new ExplorerError('UNKNOWN', linuxPath, `Refusing to import ${linuxPath}`)
+      }
+    }
+    const dest = this.requireDir(this.fs.normalizePath(destDir))
+    if (!dest.writable) throw this.accessDenied(destDir, dest)
     let last: string | null = null
     for (const windowsPath of uniqueWindowsPaths) {
       const name = windowsPath.split(/[\\/]/).filter(Boolean).pop() ?? 'imported'
