@@ -13,8 +13,12 @@ import type {
   TrashEntry,
   TextFileContent
 } from '@shared/types'
+<<<<<<< HEAD
 import { isLinuxRoot } from '../../explorer/path-convert'
 import { sanitizeSearchQuery } from '../../explorer/listing'
+=======
+import { isInsideLinux, isLinuxRoot } from '../../explorer/path-convert'
+>>>>>>> origin/main
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
 import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
 import {
@@ -462,7 +466,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async tree(distro: string, path: string): Promise<FileEntry[]> {
     const entries = await this.list(distro, path, { showHidden: true })
-    return entries.filter((e) => e.type === 'directory')
+    return entries.filter(
+      (e) => e.type === 'directory' || (e.type === 'symlink' && e.targetType === 'directory')
+    )
   }
 
   async stat(distro: string, path: string): Promise<FileStat> {
@@ -491,8 +497,10 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     this.ensureDistro(distro, path)
     assertValidLinuxPath(path)
     const { parent, node, name } = this.fs.getWithParent(path)
-    if (!parent) throw new ExplorerError('ENOENT', path, `No such directory for: ${path}`)
+    // Existence first: the root has a node but no parent, and is EEXIST like
+    // the real backend's existsGuard reports it, not a false ENOENT.
     if (node) throw new ExplorerError('EEXIST', path, `Already exists: ${path}`)
+    if (!parent) throw new ExplorerError('ENOENT', path, `No such directory for: ${path}`)
     if (!parent.writable) throw this.accessDenied(path, parent)
     const created =
       type === 'directory'
@@ -511,6 +519,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const { parent, node, name } = this.fs.getWithParent(path)
     if (!parent || !node)
       throw new ExplorerError('ENOENT', path, `No such file or directory: ${path}`)
+    // Same name is a no-op, as renameEntry skips the mv; the entry itself must
+    // not read as an existing target.
+    if (name === newName) return
     if (!parent.writable) throw this.accessDenied(path, parent)
     if (parent.children?.has(newName)) {
       throw new ExplorerError('EEXIST', path, `Already exists: ${newName}`)
@@ -533,16 +544,21 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const destBase = this.fs.normalizePath(destDir)
     const dest = this.requireDir(destBase)
     if (!dest.writable) throw this.accessDenied(destBase, dest)
-    let last: string | null = null
-    for (const source of uniqueSources) {
-      const srcBase = this.fs.normalizePath(source)
-      if (destBase === srcBase || destBase.startsWith(srcBase + '/')) {
+    // Same order as the Windows backends: a source that contains the
+    // destination refuses the whole batch before the items in front of it
+    // are copied or moved away.
+    const srcBases = uniqueSources.map((source) => this.fs.normalizePath(source))
+    for (const srcBase of srcBases) {
+      if (isInsideLinux(destBase, srcBase)) {
         throw new ExplorerError(
           'UNKNOWN',
           srcBase,
           `Cannot ${move ? 'move' : 'copy'} ${srcBase} into itself`
         )
       }
+    }
+    let last: string | null = null
+    for (const srcBase of srcBases) {
       const { parent, node, name } = this.fs.getWithParent(srcBase)
       if (!parent || !node) {
         throw new ExplorerError('ENOENT', srcBase, `No such file or directory: ${srcBase}`)

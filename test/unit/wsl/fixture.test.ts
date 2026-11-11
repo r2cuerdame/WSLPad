@@ -167,6 +167,20 @@ describe('FixtureExplorerBackend', () => {
     expect(listedThroughLink.map((e) => e.name)).toEqual(['wslpad-demo'])
   })
 
+  it('includes directory symlinks in tree results but excludes file and broken symlinks', async () => {
+    const backend = new FixtureExplorerBackend()
+    const entries = await backend.tree(U, '/home/dev')
+    const names = entries.map((e) => e.name)
+    expect(names).toContain('projects')
+    expect(names).toContain('link-to-projects')
+    expect(entries.find((e) => e.name === 'link-to-projects')).toMatchObject({
+      type: 'symlink',
+      targetType: 'directory'
+    })
+    expect(names).not.toContain('notes.md')
+    expect(names).not.toContain('broken-link')
+  })
+
   it('raises EACCES with ownership detail when listing /root', async () => {
     const backend = new FixtureExplorerBackend()
     const err = await backend.list(U, '/root').catch((e: unknown) => e)
@@ -230,6 +244,30 @@ describe('FixtureExplorerBackend', () => {
     expect(await backend.list(U, '/home/dev/scratch')).toEqual([])
     const dup = await backend.mkdir(U, '/home/dev/scratch').catch((e: unknown) => e)
     expect((dup as ExplorerError).code).toBe('EEXIST')
+  })
+
+  it('treats a same-name rename as a no-op instead of a false EEXIST', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/rename-same')
+    await backend.createFile(U, '/home/dev/rename-same/a.txt')
+    await backend.createFile(U, '/home/dev/rename-same/b.txt')
+    await backend.mkdir(U, '/home/dev/rename-same/dir')
+    const before = await backend.list(U, '/home/dev/rename-same')
+
+    await backend.rename(U, '/home/dev/rename-same/a.txt', 'a.txt')
+    await backend.rename(U, '/home/dev/rename-same/dir', 'dir')
+    await backend.rename(U, '/etc/wsl.conf', 'wsl.conf')
+
+    expect(await backend.list(U, '/home/dev/rename-same')).toEqual(before)
+    await expect(
+      backend.rename(U, '/home/dev/rename-same/a.txt', 'b.txt')
+    ).rejects.toMatchObject({ code: 'EEXIST', message: 'Already exists: b.txt' })
+    await expect(
+      backend.rename(U, '/home/dev/rename-same/missing.txt', 'missing.txt')
+    ).rejects.toMatchObject({ code: 'ENOENT', path: '/home/dev/rename-same/missing.txt' })
+    await expect(
+      backend.rename(U, '/home/dev/rename-same/missing.txt', 'other.txt')
+    ).rejects.toMatchObject({ code: 'ENOENT', path: '/home/dev/rename-same/missing.txt' })
   })
 
   it('removes a path given twice without a false missing-path error', async () => {
@@ -303,6 +341,36 @@ describe('FixtureExplorerBackend', () => {
     ).rejects.toThrow('Cannot move /home/dev/projects/wslpad-demo into itself')
   })
 
+  it.each([
+    { move: false, kind: 'copy', dest: '/home/dev/projects' },
+    { move: true, kind: 'move', dest: '/home/dev/projects' },
+    { move: false, kind: 'copy', dest: '/home/dev/projects/wslpad-demo' },
+    { move: true, kind: 'move', dest: '/home/dev/projects/wslpad-demo' }
+  ])('refuses a $kind batch containing a source that includes its destination $dest', async ({
+    move,
+    kind,
+    dest
+  }) => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((progress) => events.push(progress))
+    const notes = '/home/dev/notes.md'
+    const source = '/home/dev/projects'
+
+    await expect(backend.copyMove(U, [notes, source], dest, move)).rejects.toThrow(
+      `Cannot ${kind} ${source} into itself`
+    )
+    const err = await backend.copyMove(U, [notes, source], dest, move).catch((e: unknown) => e)
+    expect((err as ExplorerError).code).toBe('UNKNOWN')
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(events).toEqual([])
+    expect((await backend.list(U, '/home/dev')).map((entry) => entry.name)).toContain('notes.md')
+    expect((await backend.list(U, dest)).map((entry) => entry.name)).not.toContain('notes.md')
+    await backend.mkdir(U, '/home/dev/batch-ok')
+    expect(await backend.copyMove(U, [notes], '/home/dev/batch-ok', move)).toBe('fixture-op-1')
+  })
+
   it('simulates import/export instantly with one progress event each', async () => {
     const backend = new FixtureExplorerBackend()
     const events: FileOpProgress[] = []
@@ -362,6 +430,16 @@ describe('FixtureExplorerBackend', () => {
   })
 
   describe.each(['/', '//', '///', '/./'])('refuses the root spelled %s', (root) => {
+    it.each(['mkdir', 'createFile'] as const)('%s reports EEXIST instead of a false ENOENT', async (operation) => {
+      const backend = new FixtureExplorerBackend()
+      const create = operation === 'mkdir' ? backend.mkdir.bind(backend) : backend.createFile.bind(backend)
+      await expect(create(U, root)).rejects.toMatchObject({
+        code: 'EEXIST',
+        path: root,
+        message: `Already exists: ${root}`
+      })
+    })
+
     it('in remove and trash instead of a false ENOENT', async () => {
       const backend = new FixtureExplorerBackend()
       await expect(backend.remove(U, [root])).rejects.toMatchObject({
@@ -409,6 +487,16 @@ describe('FixtureExplorerBackend', () => {
       ).rejects.toMatchObject({ code: 'UNKNOWN', path: root, message: `Refusing to export ${root}` })
       await new Promise((r) => setTimeout(r, 0))
       expect(events).toEqual([])
+    })
+  })
+
+  it.each(['mkdir', 'createFile'] as const)('%s preserves ENOENT for a missing parent', async (operation) => {
+    const backend = new FixtureExplorerBackend()
+    const create = operation === 'mkdir' ? backend.mkdir.bind(backend) : backend.createFile.bind(backend)
+    await expect(create(U, '/home/dev/missing-parent/new-item')).rejects.toMatchObject({
+      code: 'ENOENT',
+      path: '/home/dev/missing-parent/new-item',
+      message: 'No such directory for: /home/dev/missing-parent/new-item'
     })
   })
 

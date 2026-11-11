@@ -236,6 +236,52 @@ describe('Environment Doctor (issue #89)', () => {
     expect(check.evidence).toContain('/mnt')
   })
 
+  it('warning when PWD is on a custom automount root', () => {
+    const base = makeDash()
+    const report = runDoctor(makeDash({
+      wslSettings: {
+        wslconfigPath: null,
+        wslconfigExists: false,
+        wslConfPath: null,
+        wslConfExists: false,
+        restartPending: false,
+        vmStartedAt: null,
+        networkingModeDeclared: null,
+        networkingModeEffective: null,
+        platform: null,
+        interop: null,
+        defaultUser: null,
+        settings: [{
+          key: 'root',
+          section: 'automount',
+          scope: 'linux',
+          declaredValue: '/',
+          effectiveValue: '/',
+          origin: 'wsl-conf',
+          provenance: 'user',
+          verdict: 'applied',
+          note: null
+        }]
+      },
+      environment: base.environment.map((entry) =>
+        entry.name === 'PWD' ? { ...entry, maskedValue: '/c/Users/dev/project' } : entry
+      )
+    }))
+    const check = report.checks.find((c) => c.id === 'project-path')!
+    expect(check.verdict).toBe('warning')
+    expect(check.evidence).toContain('Windows mount')
+  })
+
+  it('keeps unknown PWD locations unknown', () => {
+    const base = makeDash()
+    const report = runDoctor(makeDash({
+      environment: base.environment.map((entry) =>
+        entry.name === 'PWD' ? { ...entry, maskedValue: 'C:\\Users\\dev\\project' } : entry
+      )
+    }))
+    expect(report.checks.find((c) => c.id === 'project-path')!.verdict).toBe('unknown')
+  })
+
   it('unknown when current workspace PWD was not collected', () => {
     const base = makeDash()
     const report = runDoctor(makeDash({
@@ -243,6 +289,61 @@ describe('Environment Doctor (issue #89)', () => {
     }))
     const check = report.checks.find((c) => c.id === 'project-path')!
     expect(check.verdict).toBe('unknown')
+  })
+
+  // ---- PATH duplication ---------------------------------------------------
+
+  it('warns about duplicate Linux PATH entries without Windows entries', () => {
+    const base = makeDash()
+    const report = runDoctor(makeDash({
+      environment: base.environment.map((entry) =>
+        entry.name === 'PATH'
+          ? { ...entry, maskedValue: '/usr/local/bin:/usr/bin:/bin:/usr/bin' }
+          : entry
+      )
+    }))
+    const check = report.checks.find((c) => c.id === 'path-duplication')!
+    expect(check.verdict).toBe('warning')
+    expect(check.evidence).toContain('1 duplicate')
+  })
+
+  it('classifies custom-root Windows PATH entries and checks them for duplicates', () => {
+    const base = makeDash()
+    const report = runDoctor(makeDash({
+      wslSettings: {
+        wslconfigPath: null,
+        wslconfigExists: false,
+        wslConfPath: null,
+        wslConfExists: false,
+        restartPending: false,
+        vmStartedAt: null,
+        networkingModeDeclared: null,
+        networkingModeEffective: null,
+        platform: null,
+        interop: null,
+        defaultUser: null,
+        settings: [{
+          key: 'root',
+          section: 'automount',
+          scope: 'linux',
+          declaredValue: '/',
+          effectiveValue: '/',
+          origin: 'wsl-conf',
+          provenance: 'user',
+          verdict: 'applied',
+          note: null
+        }]
+      },
+      environment: base.environment.map((entry) =>
+        entry.name === 'PATH'
+          ? { ...entry, maskedValue: '/c/Windows/System32:/usr/bin:/c/Windows/System32' }
+          : entry
+      )
+    }))
+    const check = report.checks.find((c) => c.id === 'path-duplication')!
+    expect(check.verdict).toBe('warning')
+    expect(check.evidence).toContain('2 Windows mount entry/entries under /')
+    expect(check.evidence).toContain('1 duplicate')
   })
 
   // ---- binary shadowing ---------------------------------------------------
