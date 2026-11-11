@@ -395,8 +395,10 @@ class FixtureWindowsFs implements WindowsFs {
 
   private createChild(path: string, type: 'file' | 'directory'): void {
     const { parent, node, name, normalized } = this.withParent(path)
-    if (!parent) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
+    // Existence first: a drive root has a node but no parent, and is EEXIST
+    // like WindowsFs reports it, not a false ENOENT.
     if (node) throw new ExplorerError('EEXIST', normalized, `EEXIST: ${normalized}`)
+    if (!parent) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
     if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
     const created = type === 'directory' ? this.dir(name) : this.file(name, '')
     created.mtime = FIXTURE_NEW_MTIME
@@ -405,6 +407,11 @@ class FixtureWindowsFs implements WindowsFs {
 
   async rename(path: string, newName: string): Promise<void> {
     const { parent, node, name, normalized } = this.withParent(path)
+    // formatPath only ends in a separator for a drive root ("C:\"); refused
+    // before the new name is judged, in the same order as WindowsFs.
+    if (normalized.endsWith('\\')) {
+      throw new ExplorerError('UNKNOWN', normalized, `Refusing to rename drive root ${normalized}`)
+    }
     if (/[/\\\0\n]/.test(newName) || newName === '' || newName === '.' || newName === '..') {
       throw new ExplorerError('UNKNOWN', normalized, `Invalid file name: ${JSON.stringify(newName)}`)
     }
