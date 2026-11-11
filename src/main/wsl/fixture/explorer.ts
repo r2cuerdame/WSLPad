@@ -490,8 +490,8 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     this.ensureDistro(distro, path)
     assertValidLinuxPath(path)
     const { parent, node, name } = this.fs.getWithParent(path)
-    if (!parent) throw new ExplorerError('ENOENT', path, `No such directory for: ${path}`)
     if (node) throw new ExplorerError('EEXIST', path, `Already exists: ${path}`)
+    if (!parent) throw new ExplorerError('ENOENT', path, `No such directory for: ${path}`)
     if (!parent.writable) throw this.accessDenied(path, parent)
     const created =
       type === 'directory'

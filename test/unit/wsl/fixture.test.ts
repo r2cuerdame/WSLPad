@@ -362,6 +362,16 @@ describe('FixtureExplorerBackend', () => {
   })
 
   describe.each(['/', '//', '///', '/./'])('refuses the root spelled %s', (root) => {
+    it.each(['mkdir', 'createFile'] as const)('%s reports EEXIST instead of a false ENOENT', async (operation) => {
+      const backend = new FixtureExplorerBackend()
+      const create = operation === 'mkdir' ? backend.mkdir.bind(backend) : backend.createFile.bind(backend)
+      await expect(create(U, root)).rejects.toMatchObject({
+        code: 'EEXIST',
+        path: root,
+        message: `Already exists: ${root}`
+      })
+    })
+
     it('in remove and trash instead of a false ENOENT', async () => {
       const backend = new FixtureExplorerBackend()
       await expect(backend.remove(U, [root])).rejects.toMatchObject({
@@ -409,6 +419,16 @@ describe('FixtureExplorerBackend', () => {
       ).rejects.toMatchObject({ code: 'UNKNOWN', path: root, message: `Refusing to export ${root}` })
       await new Promise((r) => setTimeout(r, 0))
       expect(events).toEqual([])
+    })
+  })
+
+  it.each(['mkdir', 'createFile'] as const)('%s preserves ENOENT for a missing parent', async (operation) => {
+    const backend = new FixtureExplorerBackend()
+    const create = operation === 'mkdir' ? backend.mkdir.bind(backend) : backend.createFile.bind(backend)
+    await expect(create(U, '/home/dev/missing-parent/new-item')).rejects.toMatchObject({
+      code: 'ENOENT',
+      path: '/home/dev/missing-parent/new-item',
+      message: 'No such directory for: /home/dev/missing-parent/new-item'
     })
   })
 
