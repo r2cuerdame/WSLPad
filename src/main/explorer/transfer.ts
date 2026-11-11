@@ -64,7 +64,10 @@ export async function runImport(
   destDir: string
 ): Promise<void> {
   assertValidLinuxPath(destDir)
-  const totalItems = windowsPaths.length
+  // A path given twice is copied once: the second cp would only find the first
+  // copy at the destination and report a false EEXIST, and count its bytes twice.
+  const uniqueWindowsPaths = [...new Set(windowsPaths)]
+  const totalItems = uniqueWindowsPaths.length
   let doneItems = 0
   let totalBytes = 0
   let doneBytes = 0
@@ -81,7 +84,7 @@ export async function runImport(
       currentItem,
       error
     })
-  for (const windowsPath of windowsPaths) {
+  for (const windowsPath of uniqueWindowsPaths) {
     if (ctx.isCancelled()) {
       emit('cancelled', null)
       return
@@ -139,7 +142,9 @@ export async function runExport(
   paths: string[],
   windowsDir: string
 ): Promise<void> {
-  const totalItems = paths.length
+  // Same as runImport: a path given twice is copied once, not refused as EEXIST.
+  const uniquePaths = [...new Set(paths)]
+  const totalItems = uniquePaths.length
   let doneItems = 0
   let totalBytes = 0
   let doneBytes = 0
@@ -165,7 +170,7 @@ export async function runExport(
     emit('error', null, err instanceof Error ? err.message : String(err))
     return
   }
-  for (const path of paths) {
+  for (const path of uniquePaths) {
     if (ctx.isCancelled()) {
       emit('cancelled', null)
       return

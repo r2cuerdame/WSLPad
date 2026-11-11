@@ -221,6 +221,37 @@ describe('importFromWindows', () => {
     expect(final.error).toContain('EEXIST')
   })
 
+  it('imports a path given twice once, without a false EEXIST', async () => {
+    // A real distro answers a second copy to the same destination with the
+    // exists guard, because the first one already put the file there.
+    const copied = new Set<string>()
+    const runner = new MockRunner()
+      .on((script) => (script.includes('du -sb') ? ok('7\n') : undefined))
+      .on((script) => {
+        if (!script.includes('cp -a')) return undefined
+        if (copied.has(script)) return fail(41)
+        copied.add(script)
+        return ok('')
+      })
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const source = 'C:\\Users\\u\\file.txt'
+    const opId = await backend.importFromWindows('Ubuntu', [source, source], '/home/u/in')
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind: 'import',
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1,
+      totalBytes: 7,
+      doneBytes: 7,
+      error: null
+    })
+    const copies = runner.calls.filter((c) => c.script.includes('cp -a'))
+    expect(copies).toHaveLength(1)
+    expect(copies[0].script).toContain("cp -a '/mnt/c/Users/u/file.txt' '/home/u/in/file.txt'")
+  })
+
   it('quotes hostile windows-derived names in the copy script', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes('du -sb') ? ok('1\n') : undefined
@@ -340,6 +371,38 @@ describe('exportToWindows', () => {
     expect(sizeScript).toContain("du -sb '/home/u/proj'")
     const copy = runner.calls[1].script
     expect(copy).toContain("cp -a '/home/u/proj' '/mnt/c/Backup/proj'")
+  })
+
+  it('exports a path given twice once, without a false EEXIST', async () => {
+    const copied = new Set<string>()
+    const runner = new MockRunner()
+      .on((script) => (script.includes('du -sb') ? ok('4096\n') : undefined))
+      .on((script) => {
+        if (!script.includes('cp -a')) return undefined
+        if (copied.has(script)) return fail(41)
+        copied.add(script)
+        return ok('')
+      })
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const opId = await backend.exportToWindows(
+      'Ubuntu',
+      ['/home/u/proj', '/home/u/proj'],
+      'C:\\Backup'
+    )
+    await expect(done).resolves.toMatchObject({
+      opId,
+      kind: 'export',
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1,
+      totalBytes: 4096,
+      doneBytes: 4096,
+      error: null
+    })
+    const copies = runner.calls.filter((c) => c.script.includes('cp -a'))
+    expect(copies).toHaveLength(1)
+    expect(copies[0].script).toContain("cp -a '/home/u/proj' '/mnt/c/Backup/proj'")
   })
 
   it('maps a same-distro UNC destination straight back to a linux path', async () => {
