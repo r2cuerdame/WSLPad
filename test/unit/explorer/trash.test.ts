@@ -1,4 +1,18 @@
+import { spawnSync } from 'child_process'
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'fs'
+import { tmpdir } from 'os'
+import { join, resolve } from 'path'
 import { describe, expect, it } from 'vitest'
+import { decodeWslOutput } from '../../../src/main/wsl/runner'
 import {
   buildTrashBatchScript,
   buildTrashInfo,
@@ -77,6 +91,101 @@ describe('buildTrashBatchScript', () => {
 
 describe('trashEntries', () => {
   const now = () => new Date(2026, 6, 30, 9, 5, 3)
+  const inspected = (...entries: Array<[string, string]>) =>
+    ok(['WSLPAD_TRASH_INSPECT', ...entries.flat(), ''].join('\0'))
+
+  it.each([false, true])(
+    'keeps distinct entries reached through symlink/.. (reverse: %s)',
+    async (reverse) => {
+      const linked = '/home/u/link/../file.txt'
+      const local = '/home/u/file.txt'
+      const paths = reverse ? [local, linked] : [linked, local]
+      const runner = new MockRunner().on((script) =>
+        script.includes('WSLPAD_TRASH_INSPECT')
+          ? inspected(
+              ...paths.map((path): [string, string] => [
+                'o',
+                path === linked ? '/outside' : '/home/u'
+              ])
+            )
+          : undefined
+      )
+
+      await trashEntries(runner, 'Ubuntu', paths, '/home/u', now)
+
+      const batch = runner.calls[runner.calls.length - 1].script
+      expect(batch.match(/\bmv '/g)).toHaveLength(2)
+      expect(batch).toContain("mv '/home/u/link/../file.txt' ")
+      expect(batch).toContain("mv '/home/u/file.txt' ")
+      expect(batch).toContain("'/home/u/.local/share/Trash/files/file.2.txt'")
+    }
+  )
+
+  it.each([false, true])(
+    'moves a selected child before its directory symlink (parent first: %s)',
+    async (parentFirst) => {
+      const link = '/home/u/link'
+      const child = '/home/u/link/child.txt'
+      const paths = parentFirst ? [link, child] : [child, link]
+      const runner = new MockRunner().on((script) =>
+        script.includes('WSLPAD_TRASH_INSPECT')
+          ? inspected(
+              ...paths.map((path): [string, string] => [
+                'o',
+                path === link ? '/home/u' : '/outside'
+              ])
+            )
+          : undefined
+      )
+
+      await trashEntries(runner, 'Ubuntu', paths, '/home/u', now)
+
+      const batch = runner.calls[runner.calls.length - 1].script
+      expect(batch.match(/\bmv '/g)).toHaveLength(2)
+      expect(batch.indexOf("mv '/home/u/link/child.txt' ")).toBeLessThan(
+        batch.indexOf("mv '/home/u/link' ")
+      )
+      expect(runner.calls[0].script).toContain("[ -d '/home/u/link' ] && [ ! -L '/home/u/link' ]")
+      expect(runner.calls[0].opts?.nulDelimited).toBe(true)
+    }
+  )
+
+  it('keeps a selected descendant reached through an intermediate directory link', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('WSLPAD_TRASH_INSPECT')
+        ? inspected(['d', '/home/u'], ['o', '/outside'])
+        : undefined
+    )
+    await trashEntries(
+      runner,
+      'Ubuntu',
+      ['/home/u/folder', '/home/u/folder/link/file.txt'],
+      '/home/u',
+      now
+    )
+    const batch = runner.calls[runner.calls.length - 1].script
+    expect(batch.match(/\bmv '/g)).toHaveLength(2)
+    expect(batch.indexOf("mv '/home/u/folder/link/file.txt' ")).toBeLessThan(
+      batch.indexOf("mv '/home/u/folder' ")
+    )
+  })
+
+  it('still de-duplicates .. spellings when their physical parent and basename match', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('WSLPAD_TRASH_INSPECT')
+        ? inspected(['o', '/home/u/docs'], ['o', '/home/u/docs'])
+        : undefined
+    )
+    await trashEntries(
+      runner,
+      'Ubuntu',
+      ['/home/u/docs/sub/../file.txt', '/home/u/docs/file.txt'],
+      '/home/u',
+      now
+    )
+    const batch = runner.calls[runner.calls.length - 1].script
+    expect(batch.match(/\bmv '/g)).toHaveLength(1)
+  })
 
   it('creates trash dirs, avoids collisions against files/ and info/', async () => {
     const runner = new MockRunner()
@@ -130,24 +239,54 @@ describe('trashEntries', () => {
     expect(batch).not.toContain('WSLPAD_FAIL:2')
   })
 
-  it('moves a selected parent directory only once when its descendants are also selected', async () => {
-    const runner = new MockRunner().on((script) =>
-      script.includes('mkdir -p') ? ok('') : undefined
-    )
-    await trashEntries(
-      runner,
-      'Ubuntu',
-      ['/home/u/docs/sub/file.txt', '/home/u/docs', '/home/u/docs/other.txt'],
-      '/home/u',
-      now
-    )
+  it.each([false, true])(
+    'moves a real parent directory with its descendants (parent first: %s)',
+    async (parentFirst) => {
+      const paths = parentFirst
+        ? ['/home/u/docs', '/home/u/docs/sub/file.txt', '/home/u/docs/other.txt']
+        : ['/home/u/docs/sub/file.txt', '/home/u/docs', '/home/u/docs/other.txt']
+      const runner = new MockRunner().on((script) =>
+        script.includes('WSLPAD_TRASH_INSPECT')
+          ? parentFirst
+            ? inspected(['d', '/home/u'], ['o', '/home/u/docs/sub'], ['o', '/home/u/docs'])
+            : inspected(['o', '/home/u/docs/sub'], ['d', '/home/u'], ['o', '/home/u/docs'])
+          : undefined
+      )
+      await trashEntries(runner, 'Ubuntu', paths, '/home/u', now)
 
-    expect(runner.calls).toHaveLength(2)
-    const batch = runner.calls[1].script
-    expect(batch.match(/\bmv '/g)).toHaveLength(1)
-    expect(batch).toContain("mv '/home/u/docs' '/home/u/.local/share/Trash/files/docs'")
-    expect(batch).not.toContain('/home/u/docs/sub/file.txt')
-    expect(batch).not.toContain('/home/u/docs/other.txt')
+      expect(runner.calls).toHaveLength(3)
+      const batch = runner.calls[2].script
+      expect(batch.match(/\bmv '/g)).toHaveLength(1)
+      expect(batch).toContain("mv '/home/u/docs' '/home/u/.local/share/Trash/files/docs'")
+      expect(batch).not.toContain('/home/u/docs/sub/file.txt')
+      expect(batch).not.toContain('/home/u/docs/other.txt')
+    }
+  )
+
+  it('rejects an inspection failure before creating trash directories or moving files', async () => {
+    const runner = new MockRunner().on(() => fail(40, 'WSLPAD_FAIL:1'))
+    await expect(
+      trashEntries(runner, 'Ubuntu', ['/home/u/docs', '/home/u/docs/gone'], '/home/u', now)
+    ).rejects.toMatchObject({ code: 'ENOENT', path: '/home/u/docs/gone' })
+    expect(runner.calls).toHaveLength(1)
+    expect(runner.calls[0].script).not.toContain('mkdir')
+    expect(runner.calls[0].script).not.toContain('mv ')
+  })
+
+  it('rejects incomplete inspection records instead of dropping selected entries', async () => {
+    const runner = new MockRunner().on(() => ok('WSLPAD_TRASH_INSPECT\0d\0'))
+    await expect(
+      trashEntries(runner, 'Ubuntu', ['/home/u/docs', '/home/u/docs/a'], '/home/u', now)
+    ).rejects.toMatchObject({ code: 'UNKNOWN' })
+    expect(runner.calls).toHaveLength(1)
+  })
+
+  it('refuses a root directory reached through symlink/.. before any mutation', async () => {
+    const runner = new MockRunner().on(() => inspected(['d', '/outside'], ['o', '/home/u']))
+    await expect(
+      trashEntries(runner, 'Ubuntu', ['/home/u/link/..', '/home/u/file.txt'], '/home/u', now)
+    ).rejects.toMatchObject({ code: 'UNKNOWN', path: '/home/u/link/..' })
+    expect(runner.calls).toHaveLength(1)
   })
 
   it.each([
@@ -263,4 +402,126 @@ describe('trashEntries', () => {
       "mv '/scratch' '/home/u/.local/share/Trash/files/scratch'"
     )
   })
+})
+
+describe('trashEntries with a local POSIX shell', () => {
+  // Git's existing sh on Windows exercises the generated scripts without
+  // starting a WSL distribution. Each case owns only this temporary tree.
+  const linuxPath = (path: string): string =>
+    path
+      .replace(/\\/g, '/')
+      .replace(/^([A-Za-z]):/, (_, drive: string) => '/' + drive.toLowerCase())
+  const shellRunner = (): MockRunner => {
+    let shell = 'sh'
+    if (process.platform === 'win32') {
+      const git = spawnSync('git', ['--exec-path'], { encoding: 'utf8' })
+      if (git.status === 0) {
+        const candidate = resolve(git.stdout.trim(), '../../../usr/bin/sh.exe')
+        if (existsSync(candidate)) shell = candidate
+      }
+    }
+    return new MockRunner().on((script, call) => {
+      // Windows also supplies a different find.exe; use POSIX utilities here.
+      const result = spawnSync(shell, ['-c', 'PATH=/usr/bin:/bin:$PATH\n' + script], {
+        timeout: 10000
+      })
+      if (result.error) throw result.error
+      return ok(
+        decodeWslOutput(result.stdout, 'utf8', call.opts?.nulDelimited),
+        result.status ?? 1,
+        decodeWslOutput(result.stderr, 'utf8')
+      )
+    })
+  }
+
+  it('trashes both distinct files when .. traverses a directory link', async () => {
+    const base = mkdtempSync(join(tmpdir(), 'wslpad-trash-dotdot-'))
+    try {
+      const home = join(base, 'home')
+      const outside = join(base, 'outside')
+      mkdirSync(home)
+      mkdirSync(join(outside, 'sub'), { recursive: true })
+      symlinkSync(join(outside, 'sub'), join(home, 'link'), 'dir')
+      writeFileSync(join(outside, 'file.txt'), 'outside')
+      writeFileSync(join(home, 'file.txt'), 'local')
+      symlinkSync(join(outside, 'file.txt'), join(home, 'alias.txt'), 'file')
+      await trashEntries(
+        shellRunner(),
+        'test',
+        [
+          linuxPath(home) + '/link/../file.txt',
+          linuxPath(home) + '/file.txt',
+          linuxPath(home) + '/alias.txt'
+        ],
+        linuxPath(home)
+      )
+      const files = join(home, '.local', 'share', 'Trash', 'files')
+      expect(readFileSync(join(files, 'file.txt'), 'utf8')).toBe('outside')
+      expect(readFileSync(join(files, 'file.2.txt'), 'utf8')).toBe('local')
+      expect(lstatSync(join(files, 'alias.txt')).isSymbolicLink()).toBe(true)
+      expect(existsSync(join(outside, 'file.txt'))).toBe(false)
+      expect(existsSync(join(home, 'file.txt'))).toBe(false)
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
+  })
+
+  it.each([false, true])(
+    'keeps real directory contents and unrelated files (parent first: %s)',
+    async (parentFirst) => {
+      const base = mkdtempSync(join(tmpdir(), 'wslpad-trash-directory-'))
+      try {
+        const home = join(base, 'home')
+        const docs = join(home, 'docs')
+        mkdirSync(join(docs, 'sub'), { recursive: true })
+        writeFileSync(join(docs, 'sub', 'file.txt'), 'nested')
+        writeFileSync(join(home, 'other.txt'), 'unrelated')
+        const parent = linuxPath(docs)
+        const child = parent + '/sub/file.txt'
+        await trashEntries(
+          shellRunner(),
+          'test',
+          [...(parentFirst ? [parent, child] : [child, parent]), linuxPath(home) + '/other.txt'],
+          linuxPath(home)
+        )
+        const files = join(home, '.local', 'share', 'Trash', 'files')
+        expect(readFileSync(join(files, 'docs', 'sub', 'file.txt'), 'utf8')).toBe('nested')
+        expect(readFileSync(join(files, 'other.txt'), 'utf8')).toBe('unrelated')
+        expect(existsSync(join(files, 'file.txt'))).toBe(false)
+        expect(existsSync(docs)).toBe(false)
+      } finally {
+        rmSync(base, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.each([false, true])(
+    'trashes a child and its directory link (parent first: %s)',
+    async (parentFirst) => {
+      const base = mkdtempSync(join(tmpdir(), 'wslpad-trash-link-'))
+      try {
+        const home = join(base, 'home')
+        const outside = join(base, 'outside')
+        mkdirSync(home)
+        mkdirSync(outside)
+        symlinkSync(outside, join(home, 'link'), 'dir')
+        writeFileSync(join(outside, 'child.txt'), 'selected')
+        const link = linuxPath(home) + '/link'
+        const child = link + '/child.txt'
+        await trashEntries(
+          shellRunner(),
+          'test',
+          parentFirst ? [link, child] : [child, link],
+          linuxPath(home)
+        )
+        const files = join(home, '.local', 'share', 'Trash', 'files')
+        expect(readFileSync(join(files, 'child.txt'), 'utf8')).toBe('selected')
+        expect(lstatSync(join(files, 'link')).isSymbolicLink()).toBe(true)
+        expect(existsSync(join(outside, 'child.txt'))).toBe(false)
+        expect(existsSync(join(home, 'link'))).toBe(false)
+      } finally {
+        rmSync(base, { recursive: true, force: true })
+      }
+    }
+  )
 })

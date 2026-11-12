@@ -2,7 +2,7 @@ import { posix } from 'path'
 import type { TrashEntry } from '@shared/types'
 import { ExplorerError, type DistroRunner } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote, shellQuoteAll } from '../wsl/escape'
-import { EXIT_EACCES, explorerErrorFromResult } from './listing'
+import { EXIT_EACCES, EXIT_ENOENT, EXIT_UNKNOWN, explorerErrorFromResult } from './listing'
 import { FILE_OP_TIMEOUT_MS } from './operations'
 import { isInsideLinux, isLinuxRoot, linuxBasename } from './path-convert'
 
@@ -88,6 +88,118 @@ export function buildTrashBatchScript(trashDir: string, items: readonly TrashBat
   return parts.join('\n')
 }
 
+interface TrashSource {
+  path: string
+  spelling: string
+  key: string
+  directory: boolean | null
+}
+
+/** Fold harmless spelling differences, keeping .. until the filesystem resolves it. */
+function trashPathSpelling(path: string): string {
+  const spelling =
+    '/' +
+    path
+      .split('/')
+      .filter((part) => part && part !== '.')
+      .join('/')
+  return /\/\.\/*$/.test(path) ? spelling + '/.' : spelling
+}
+
+function belowPath(child: string, parent: string): boolean {
+  return child !== parent && child.startsWith(parent === '/' ? parent : parent + '/')
+}
+
+async function selectTrashSources(
+  runner: DistroRunner,
+  distro: string,
+  paths: string[]
+): Promise<string[]> {
+  const bySpelling = new Map<string, TrashSource>()
+  for (const path of paths) {
+    const spelling = trashPathSpelling(path)
+    if (!bySpelling.has(spelling)) {
+      bySpelling.set(spelling, { path, spelling, key: spelling, directory: null })
+    }
+  }
+  let selected = [...bySpelling.values()]
+  const inspect = selected.some(
+    (source) =>
+      source.path.split('/').includes('..') ||
+      /\/\.\/*$/.test(source.path) ||
+      selected.some((parent) => belowPath(source.spelling, parent.spelling))
+  )
+  if (inspect) {
+    const parts = ["printf '%s\\0' 'WSLPAD_TRASH_INSPECT'"]
+    selected.forEach(({ path }, index) => {
+      const trimmed = path.replace(/\/+$/, '')
+      const q = shellQuote(trimmed)
+      const failed = shellQuote(`WSLPAD_FAIL:${index}`)
+      parts.push(
+        `{ [ -e ${q} ] || [ -L ${q} ]; } || { echo ${failed} >&2; exit ${EXIT_ENOENT}; }`,
+        `if [ -d ${q} ] && [ ! -L ${q} ]; then printf 'd\\0'; else printf 'o\\0'; fi`,
+        `readlink -ez -- ${shellQuote(posix.dirname(trimmed))} || ` +
+          `{ echo ${failed} >&2; exit ${EXIT_UNKNOWN}; }`
+      )
+    })
+    const result = await runner.runInDistro(distro, parts.join('\n'), {
+      timeoutMs: FILE_OP_TIMEOUT_MS,
+      nulDelimited: true
+    })
+    if (result.code !== 0 || result.timedOut) {
+      const failed = /WSLPAD_FAIL:(\d+)/.exec(result.stderr)
+      const path = selected[Number(failed?.[1] ?? 0)]?.path ?? selected[0].path
+      throw explorerErrorFromResult(path, result)
+    }
+    // Resolve only the parent: resolving a final symlink would conflate the
+    // link with its target. NUL records also preserve newlines in link targets.
+    const fields = result.stdout.split('\0')
+    if (
+      fields.shift() !== 'WSLPAD_TRASH_INSPECT' ||
+      fields.pop() !== '' ||
+      fields.length !== selected.length * 2 ||
+      selected.some(
+        (_, index) =>
+          !['d', 'o'].includes(fields[index * 2]) || !fields[index * 2 + 1].startsWith('/')
+      )
+    ) {
+      throw new ExplorerError(
+        'UNKNOWN',
+        selected[0].path,
+        'Unexpected trash source inspection output'
+      )
+    }
+    selected.forEach((source, index) => {
+      source.directory = fields[index * 2] === 'd'
+      source.key = posix.join(fields[index * 2 + 1], linuxBasename(source.path))
+      if (source.key === '/') {
+        throw new ExplorerError('UNKNOWN', source.path, 'Refusing to trash the filesystem root')
+      }
+    })
+    const byIdentity = new Map<string, TrashSource>()
+    for (const source of selected) {
+      if (!byIdentity.has(source.key)) byIdentity.set(source.key, source)
+    }
+    selected = [...byIdentity.values()]
+  }
+  const retained = selected.filter(
+    (source) =>
+      !selected.some((parent) => parent.directory === true && belowPath(source.key, parent.key))
+  )
+  // A retained descendant reached through a link must move before relocating
+  // that link or its container, which would break the original source path.
+  const ordered = new Set<TrashSource>()
+  const append = (source: TrashSource): void => {
+    if (ordered.has(source)) return
+    for (const child of retained) {
+      if (belowPath(child.spelling, source.spelling)) append(child)
+    }
+    ordered.add(source)
+  }
+  retained.forEach(append)
+  return [...ordered].map((source) => source.path)
+}
+
 export async function trashEntries(
   runner: DistroRunner,
   distro: string,
@@ -97,7 +209,6 @@ export async function trashEntries(
 ): Promise<void> {
   if (paths.length === 0) return
   const trashDir = `${homeDir.replace(/\/+$/, '')}/.local/share/Trash`
-  const normalizedPaths: Array<{ path: string; normalized: string }> = []
   for (const path of paths) {
     assertValidLinuxPath(path)
     if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to trash ${path}`)
@@ -109,26 +220,8 @@ export async function trashEntries(
         `Refusing to trash ${path}: path is inside the trash directory`
       )
     }
-    normalizedPaths.push({ path, normalized })
   }
-  // Compare normalized spellings but keep the original path for shell commands,
-  // since resolving `..` through a symlink can change which file it names.
-  const byNormalizedPath = new Map<string, string>()
-  for (const { path, normalized } of normalizedPaths) {
-    if (!byNormalizedPath.has(normalized)) byNormalizedPath.set(normalized, path)
-  }
-  const selected = [...byNormalizedPath.entries()]
-  // If a selected parent moves, every selected descendant moves with it. Keep
-  // only the highest selected path so later moves cannot fail with false ENOENT.
-  const unique = selected
-    .filter(
-      ([candidate]) =>
-        !selected.some(
-          ([possibleParent]) =>
-            possibleParent !== candidate && isInsideLinux(candidate, possibleParent)
-        )
-    )
-    .map(([, path]) => path)
+  const unique = await selectTrashSources(runner, distro, paths)
   // Everything below indexes this list, so WSLPAD_FAIL:<i> names the right item.
   const qFiles = shellQuote(`${trashDir}/files`)
   const qInfo = shellQuote(`${trashDir}/info`)
