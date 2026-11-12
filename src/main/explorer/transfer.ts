@@ -56,6 +56,28 @@ async function sizeOfPath(
   return Number.isFinite(n) && n >= 0 ? n : null
 }
 
+/** Do not fold `..`: its meaning depends on directory symlinks in the distro. */
+function transferPathKey(path: string): string {
+  return path.replace(/\/+/g, '/').replace(/\/\.(?=\/)/g, '')
+}
+
+function windowsTransferPathKey(path: string): string {
+  const key = transferPathKey(path.replace(/\\/g, '/'))
+  // Drive paths follow Windows casing; the tail of a WSL UNC path is Linux
+  // and must keep its case so distinct files remain distinct.
+  return /^[A-Za-z]:\//.test(key) ? key.toLowerCase() : key
+}
+
+function uniqueTransferPaths(paths: string[], key: (path: string) => string): string[] {
+  const seen = new Set<string>()
+  return paths.filter((path) => {
+    const normalized = key(path)
+    if (seen.has(normalized)) return false
+    seen.add(normalized)
+    return true
+  })
+}
+
 export async function runImport(
   ctx: OpContext,
   opId: string,
@@ -66,7 +88,7 @@ export async function runImport(
   assertValidLinuxPath(destDir)
   // A path given twice is copied once: the second cp would only find the first
   // copy at the destination and report a false EEXIST, and count its bytes twice.
-  const uniqueWindowsPaths = [...new Set(windowsPaths)]
+  const uniqueWindowsPaths = uniqueTransferPaths(windowsPaths, windowsTransferPathKey)
   const totalItems = uniqueWindowsPaths.length
   let doneItems = 0
   let totalBytes = 0

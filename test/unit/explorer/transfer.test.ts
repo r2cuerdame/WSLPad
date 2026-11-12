@@ -252,6 +252,31 @@ describe('importFromWindows', () => {
     expect(copies[0].script).toContain("cp -a '/mnt/c/Users/u/file.txt' '/home/u/in/file.txt'")
   })
 
+  it('imports case and slash variants once with an accurate byte count', async () => {
+    const runner = new MockRunner()
+      .on((script) => (script.includes('du -sb') ? ok('7\n') : undefined))
+      .on((script) => (script.includes('cp -a') ? ok('') : undefined))
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    const opId = await backend.importFromWindows(
+      'Ubuntu',
+      ['C:\\Users\\u\\file.txt', 'c:/users/u/file.txt', 'C:\\Users\\u\\.\\file.txt'],
+      '/home/u/in'
+    )
+    await expect(done).resolves.toMatchObject({
+      opId,
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1,
+      totalBytes: 7,
+      doneBytes: 7,
+      error: null
+    })
+    const copies = runner.calls.filter((call) => call.script.includes('cp -a'))
+    expect(copies).toHaveLength(1)
+    expect(copies[0].script).toContain("cp -a '/mnt/c/Users/u/file.txt' '/home/u/in/file.txt'")
+  })
+
   it('quotes hostile windows-derived names in the copy script', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes('du -sb') ? ok('1\n') : undefined
