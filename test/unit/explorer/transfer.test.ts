@@ -277,6 +277,68 @@ describe('importFromWindows', () => {
     expect(copies[0].script).toContain("cp -a '/mnt/c/Users/u/file.txt' '/home/u/in/file.txt'")
   })
 
+  it.each([false, true])(
+    'imports a folder with its descendants once (children first: %s)',
+    async (childrenFirst) => {
+      const runner = new MockRunner()
+        .on((script) => (script.includes("printf 'covered'") ? ok('covered') : undefined))
+        .on((script) => (script.includes('du -sb') ? ok('42\n') : undefined))
+      const backend = createRealExplorerBackend(runner)
+      const { done } = captureProgress(backend)
+      const parent = 'C:\\Users\\u\\Project\\.'
+      const children = ['c:/users/u/project/sub/file.txt', 'C:\\Users\\u\\Project\\sub']
+      await backend.importFromWindows(
+        'Ubuntu',
+        childrenFirst ? [...children, parent] : [parent, ...children],
+        '/home/u/in'
+      )
+      await expect(done).resolves.toMatchObject({
+        status: 'done',
+        totalItems: 1,
+        doneItems: 1,
+        totalBytes: 42,
+        doneBytes: 42,
+        error: null
+      })
+      const copies = runner.calls.filter((call) => call.script.includes('cp -a'))
+      expect(copies).toHaveLength(1)
+      expect(copies[0].script).toContain("cp -a '/mnt/c/Users/u/Project' '/home/u/in/Project'")
+      expect(runner.calls.filter((call) => call.script.includes('du -sb'))).toHaveLength(1)
+    }
+  )
+
+  it('keeps an imported file selected through a directory junction', async () => {
+    const runner = new MockRunner().on((script) => {
+      if (!script.includes("printf 'covered'")) return undefined
+      return script.includes("[ ! -L '/mnt/c/folder/link' ]") ? ok('') : ok('covered')
+    })
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.importFromWindows(
+      'Ubuntu', ['C:\\folder', 'C:\\folder\\link\\file.txt'], '/home/u/in'
+    )
+    await expect(done).resolves.toMatchObject({ status: 'done', totalItems: 2, doneItems: 2 })
+    expect(runner.calls.filter((call) => call.script.includes('cp -a')).map((call) => call.script))
+      .toEqual([
+        expect.stringContaining("cp -a '/mnt/c/folder' '/home/u/in/folder'"),
+        expect.stringContaining("cp -a '/mnt/c/folder/link/file.txt' '/home/u/in/file.txt'")
+      ])
+  })
+
+  it('keeps same-prefix Windows siblings and case-sensitive WSL UNC sources distinct', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.importFromWindows('Ubuntu', [
+      'C:\\folder', 'C:\\folder-copy\\file.txt',
+      '\\\\wsl.localhost\\Ubuntu\\home\\u\\Readme',
+      '\\\\wsl.localhost\\Ubuntu\\home\\u\\README'
+    ], '/home/u/in')
+    await expect(done).resolves.toMatchObject({ status: 'done', totalItems: 4, doneItems: 4 })
+    expect(runner.calls.filter((call) => call.script.includes('cp -a'))).toHaveLength(4)
+    expect(runner.calls.some((call) => call.script.includes("printf 'covered'"))).toBe(false)
+  })
+
   it('quotes hostile windows-derived names in the copy script', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes('du -sb') ? ok('1\n') : undefined
@@ -428,6 +490,103 @@ describe('exportToWindows', () => {
     const copies = runner.calls.filter((c) => c.script.includes('cp -a'))
     expect(copies).toHaveLength(1)
     expect(copies[0].script).toContain("cp -a '/home/u/proj' '/mnt/c/Backup/proj'")
+  })
+
+  it('exports non-normalized aliases once without a false EEXIST or double-counted bytes', async () => {
+    let copies = 0
+    const runner = new MockRunner()
+      .on((script) => (script.includes('du -sb') ? ok('42\n') : undefined))
+      .on((script) =>
+        script.includes('cp -a') ? (++copies === 1 ? ok('') : fail(41)) : undefined
+      )
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.exportToWindows('Ubuntu', [
+      '/home//u/./proj/.', '/home/u/proj', '/home/u/proj/'
+    ], 'C:\\Backup')
+    await expect(done).resolves.toMatchObject({
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1,
+      totalBytes: 42,
+      doneBytes: 42,
+      error: null
+    })
+    expect(copies).toBe(1)
+    expect(runner.calls.filter((call) => call.script.includes('du -sb'))).toHaveLength(1)
+    expect(runner.calls.map((call) => call.script)).toContainEqual(
+      expect.stringContaining("cp -a '/home/u/proj' '/mnt/c/Backup/proj'")
+    )
+  })
+
+  it.each([false, true])(
+    'exports a folder with its descendants once (children first: %s)',
+    async (childrenFirst) => {
+      const runner = new MockRunner()
+        .on((script) => (script.includes("printf 'covered'") ? ok('covered') : undefined))
+        .on((script) => (script.includes('du -sb') ? ok('42\n') : undefined))
+      const backend = createRealExplorerBackend(runner)
+      const { done } = captureProgress(backend)
+      const parent = '/home/u/proj/.'
+      const children = ['/home//u/proj/sub/file.txt', '/home/u/proj/./sub']
+      await backend.exportToWindows(
+        'Ubuntu', childrenFirst ? [...children, parent] : [parent, ...children], 'C:\\Backup'
+      )
+      await expect(done).resolves.toMatchObject({
+        status: 'done',
+        totalItems: 1,
+        doneItems: 1,
+        totalBytes: 42,
+        doneBytes: 42,
+        error: null
+      })
+      const copies = runner.calls.filter((call) => call.script.includes('cp -a'))
+      expect(copies).toHaveLength(1)
+      expect(copies[0].script).toContain("cp -a '/home/u/proj' '/mnt/c/Backup/proj'")
+      expect(runner.calls.filter((call) => call.script.includes('du -sb'))).toHaveLength(1)
+    }
+  )
+
+  it('keeps an exported file selected through an intermediate directory symlink', async () => {
+    const runner = new MockRunner().on((script) => {
+      if (!script.includes("printf 'covered'")) return undefined
+      return script.includes("[ ! -L '/home/u/proj/link' ]") ? ok('') : ok('covered')
+    })
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.exportToWindows(
+      'Ubuntu', ['/home/u/proj', '/home/u/proj/link/file.txt'], 'C:\\Backup'
+    )
+    await expect(done).resolves.toMatchObject({ status: 'done', totalItems: 2, doneItems: 2 })
+    const copies = runner.calls.filter((call) => call.script.includes('cp -a'))
+    expect(copies).toHaveLength(2)
+    expect(copies[1].script).toContain("cp -a '/home/u/proj/link/file.txt' '/mnt/c/Backup/file.txt'")
+  })
+
+  it('keeps descendants when the ancestor check cannot confirm coverage', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes("printf 'covered'") ? fail(1, 'Permission denied') : undefined
+    )
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.exportToWindows('Ubuntu', ['/home/u/proj', '/home/u/proj/f'], 'C:\\Backup')
+    await expect(done).resolves.toMatchObject({ status: 'done', totalItems: 2, doneItems: 2 })
+    expect(runner.calls.filter((call) => call.script.includes('cp -a'))).toHaveLength(2)
+  })
+
+  it('does not fold .. across symlinks or conflate Linux case and same-prefix siblings', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const { done } = captureProgress(backend)
+    await backend.exportToWindows('Ubuntu', [
+      '/home/u/proj', '/home/u/proj/link/../outside.txt',
+      '/home/u/proj-copy/other.txt', '/home/u/Proj/Upper.txt'
+    ], 'C:\\Backup')
+    await expect(done).resolves.toMatchObject({ status: 'done', totalItems: 4, doneItems: 4 })
+    const copies = runner.calls.filter((call) => call.script.includes('cp -a'))
+    expect(copies).toHaveLength(4)
+    expect(copies[1].script).toContain("cp -a '/home/u/proj/link/../outside.txt'")
+    expect(runner.calls.some((call) => call.script.includes("printf 'covered'"))).toBe(false)
   })
 
   it('maps a same-distro UNC destination straight back to a linux path', async () => {
