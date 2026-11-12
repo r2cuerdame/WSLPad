@@ -1,3 +1,4 @@
+import { posix } from 'node:path'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { defenderCoverage, suggestedExclusion } from '@shared/defender-coverage'
 import { watchesAreLow } from '@shared/inotify'
@@ -692,24 +693,29 @@ export function createMcpServer(deps: McpDeps): McpServer {
     guard(({ path }: { path: string }) =>
       withDistro(async (distro) => {
         assertValidLinuxPath(path)
-        if (FORBIDDEN_READ_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) {
-          return fail(`reading ${path} is not allowed: /proc, /sys and /dev are excluded`)
+        const normalizedPath = posix.normalize(path).replace(/^\/+/, '/')
+        if (
+          FORBIDDEN_READ_PREFIXES.some(
+            (p) => normalizedPath === p || normalizedPath.startsWith(`${p}/`)
+          )
+        ) {
+          return fail(`reading ${normalizedPath} is not allowed: /proc, /sys and /dev are excluded`)
         }
         let file: TextFileContent
         try {
-          file = await deps.explorer.readText(distro, path, MAX_TEXT_FILE_BYTES)
+          file = await deps.explorer.readText(distro, normalizedPath, MAX_TEXT_FILE_BYTES)
         } catch (err) {
           if (err instanceof ExplorerError && err.code === 'BINARY') {
-            return fail(`binary file: ${path} cannot be returned as text`)
+            return fail(`binary file: ${normalizedPath} cannot be returned as text`)
           }
           throw err
         }
-        const masked = maskTextFileContent(path, file.content)
+        const masked = maskTextFileContent(normalizedPath, file.content)
         const header = masked.warning === null ? '' : `[warning: ${masked.warning}]\n`
         return {
           content: [text(`${header}${masked.content}`)],
           structuredContent: {
-            path,
+            path: normalizedPath,
             content: masked.content,
             warning: masked.warning,
             encoding: file.encoding,

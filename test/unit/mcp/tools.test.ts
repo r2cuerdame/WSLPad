@@ -261,13 +261,21 @@ describe('GetTextFile restrictions', () => {
     expect(JSON.stringify(result)).not.toContain('OPENSSH PRIVATE KEY')
   })
 
-  it('rejects /proc, /sys and /dev paths', async () => {
+  it.each([
+    ['/proc/cpuinfo', '/proc/cpuinfo'],
+    ['//proc/cpuinfo', '/proc/cpuinfo'],
+    ['/proc/', '/proc/'],
+    ['/sys/kernel/hostname', '/sys/kernel/hostname'],
+    ['/./sys/kernel/hostname', '/sys/kernel/hostname'],
+    ['/dev/null', '/dev/null'],
+    ['/tmp/../dev/null', '/dev/null']
+  ])('rejects forbidden path %s after normalization', async (path, normalizedPath) => {
     const client = await connect(makeDeps())
-    for (const path of ['/proc/cpuinfo', '/sys/kernel/hostname', '/dev/null']) {
-      const result = await call(client, 'GetTextFile', { path })
-      expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('not allowed')
-    }
+    const result = await call(client, 'GetTextFile', { path })
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toBe(
+      `reading ${normalizedPath} is not allowed: /proc, /sys and /dev are excluded`
+    )
   })
 
   it('rejects binary files', async () => {
