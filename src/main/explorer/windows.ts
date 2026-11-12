@@ -972,14 +972,24 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
       // "This PC" is not a directory: there is nothing to walk from there.
       if (!needle || path === WINDOWS_ROOT) return []
       const root = normalizePath(path)
+      // A missing, non-directory or unreadable start is an error, not "no
+      // matches" — the same contract as the WSL and fixture backends.
+      try {
+        if (!(await stat(root)).isDirectory()) {
+          throw new ExplorerError('ENOTDIR', root, `ENOTDIR: ${root}`)
+        }
+      } catch (err) {
+        throw toExplorerError(root, err)
+      }
       const results: FileEntry[] = []
       const walk = async (dir: string, depth: number): Promise<void> => {
         if (results.length >= SEARCH_MAX_RESULTS) return
         let names: string[]
         try {
           names = await readdir(dir)
-        } catch {
-          // unreadable directories are skipped silently
+        } catch (err) {
+          if (depth === 1) throw toExplorerError(dir, err)
+          // unreadable directories below the start are skipped silently
           return
         }
         for (const name of names) {
