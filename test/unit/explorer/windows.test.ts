@@ -434,6 +434,84 @@ describe('createWindowsFs — copy and move', () => {
     }
   })
 
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('deduplicates case and separator variants for $kind', async ({ move, kind }) => {
+    const src = dir(`normalized-duplicate-${kind}`, 'src')
+    const dest = dir(`normalized-duplicate-${kind}`, 'dest')
+    const source = join(src, 'once.txt')
+    writeFileSync(source, 'once')
+
+    const events = await runOp(() =>
+      fs.copyMove([source, source.toUpperCase(), source.replaceAll('\\', '/')], dest, move)
+    )
+
+    expect(events.at(-1)).toMatchObject({
+      kind,
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1
+    })
+    expect(await readFile(join(dest, 'once.txt'), 'utf8')).toBe('once')
+    if (move) {
+      await expect(readFile(source, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    } else {
+      expect(await readFile(source, 'utf8')).toBe('once')
+    }
+  })
+
+  it('moves a selected directory and its child as one intact tree when the child comes first', async () => {
+    const parent = dir('move-overlap', 'src', 'folder')
+    const dest = dir('move-overlap', 'dest')
+    const child = join(parent, 'nested.txt')
+    writeFileSync(child, 'inside')
+
+    const events = await runOp(() => fs.copyMove([child, parent], dest, true))
+
+    expect(events.at(-1)).toMatchObject({
+      kind: 'move',
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1
+    })
+    expect(await readFile(join(dest, 'folder', 'nested.txt'), 'utf8')).toBe('inside')
+    await expect(readFile(child, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(dest, 'nested.txt'), 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
+  })
+
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('processes unrelated sources sequentially for $kind', async ({ move, kind }) => {
+    const src = dir(`unrelated-${kind}`, 'src')
+    const dest = dir(`unrelated-${kind}`, 'dest')
+    const first = join(src, 'first.txt')
+    const second = join(src, 'second.txt')
+    writeFileSync(first, 'first')
+    writeFileSync(second, 'second')
+
+    const events = await runOp(() => fs.copyMove([first, second], dest, move))
+
+    expect(events.at(-1)).toMatchObject({
+      kind,
+      status: 'done',
+      totalItems: 2,
+      doneItems: 2
+    })
+    expect(await readFile(join(dest, 'first.txt'), 'utf8')).toBe('first')
+    expect(await readFile(join(dest, 'second.txt'), 'utf8')).toBe('second')
+    if (move) {
+      await expect(readFile(first, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readFile(second, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    } else {
+      expect(await readFile(first, 'utf8')).toBe('first')
+      expect(await readFile(second, 'utf8')).toBe('second')
+    }
+  })
+
   it('copies directories recursively', async () => {
     const src = dir('copy-tree', 'src', 'pack', 'inner')
     const dest = dir('copy-tree', 'dest')
