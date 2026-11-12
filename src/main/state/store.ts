@@ -429,6 +429,9 @@ export class SnapshotStore {
 
   setTerminalContext(ctx: TerminalContext): void {
     this.terminal = ctx
+    // A cd into /mnt/c is exactly when the slow-path warning matters; waiting
+    // for the next poll would show it late and leave it up after cd ~.
+    this.recomputeWarnings()
     this.emit()
   }
 
@@ -797,13 +800,20 @@ export class SnapshotStore {
   }
 
   private recomputeWarnings(): void {
+    // Consoles are kept per distro, so the last status may belong to a shell
+    // the user switched away from; its cwd says nothing about this distro.
+    const terminal = this.terminal
+    const consoleCwd =
+      this.selected === null || terminal.distro === null || terminal.distro === this.selected
+        ? terminal.cwd
+        : null
     const warnings = computeWarnings({
       distros: this.distros,
       selectedDistro: this.selected,
       dashboard: this.sections ? { ...this.sections, warnings: [] } : null,
       runnerFailures: this.runnerFailures,
       mcpError: this.mcp.error,
-      consoleCwd: this.terminal.cwd
+      consoleCwd
     })
     // Liveness is store state, not a fact any collector reported, so it is
     // appended here instead of inside the pure warning rules.
