@@ -1,9 +1,10 @@
+import { posix } from 'path'
 import type { TrashEntry } from '@shared/types'
 import { ExplorerError, type DistroRunner } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote, shellQuoteAll } from '../wsl/escape'
 import { EXIT_EACCES, explorerErrorFromResult } from './listing'
 import { FILE_OP_TIMEOUT_MS } from './operations'
-import { isLinuxRoot, linuxBasename } from './path-convert'
+import { isInsideLinux, isLinuxRoot, linuxBasename } from './path-convert'
 
 /**
  * freedesktop.org trash spec (goal.md §7.4): files land in
@@ -95,15 +96,40 @@ export async function trashEntries(
   now: () => Date = () => new Date()
 ): Promise<void> {
   if (paths.length === 0) return
+  const trashDir = `${homeDir.replace(/\/+$/, '')}/.local/share/Trash`
+  const normalizedPaths: Array<{ path: string; normalized: string }> = []
   for (const path of paths) {
     assertValidLinuxPath(path)
     if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to trash ${path}`)
+    const normalized = posix.normalize(path)
+    if (isInsideLinux(normalized, trashDir)) {
+      throw new ExplorerError(
+        'UNKNOWN',
+        path,
+        `Refusing to trash ${path}: path is inside the trash directory`
+      )
+    }
+    normalizedPaths.push({ path, normalized })
   }
-  // A path given twice is trashed once, as restoreFromTrash does with names: a
-  // second mv would only find the file already gone and report a false ENOENT.
+  // Compare normalized spellings but keep the original path for shell commands,
+  // since resolving `..` through a symlink can change which file it names.
+  const byNormalizedPath = new Map<string, string>()
+  for (const { path, normalized } of normalizedPaths) {
+    if (!byNormalizedPath.has(normalized)) byNormalizedPath.set(normalized, path)
+  }
+  const selected = [...byNormalizedPath.entries()]
+  // If a selected parent moves, every selected descendant moves with it. Keep
+  // only the highest selected path so later moves cannot fail with false ENOENT.
+  const unique = selected
+    .filter(
+      ([candidate]) =>
+        !selected.some(
+          ([possibleParent]) =>
+            possibleParent !== candidate && isInsideLinux(candidate, possibleParent)
+        )
+    )
+    .map(([, path]) => path)
   // Everything below indexes this list, so WSLPAD_FAIL:<i> names the right item.
-  const unique = [...new Set(paths)]
-  const trashDir = `${homeDir.replace(/\/+$/, '')}/.local/share/Trash`
   const qFiles = shellQuote(`${trashDir}/files`)
   const qInfo = shellQuote(`${trashDir}/info`)
   const listScript =

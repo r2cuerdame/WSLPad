@@ -130,6 +130,52 @@ describe('trashEntries', () => {
     expect(batch).not.toContain('WSLPAD_FAIL:2')
   })
 
+  it('moves a selected parent directory only once when its descendants are also selected', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('mkdir -p') ? ok('') : undefined
+    )
+    await trashEntries(
+      runner,
+      'Ubuntu',
+      ['/home/u/docs/sub/file.txt', '/home/u/docs', '/home/u/docs/other.txt'],
+      '/home/u',
+      now
+    )
+
+    expect(runner.calls).toHaveLength(2)
+    const batch = runner.calls[1].script
+    expect(batch.match(/\bmv '/g)).toHaveLength(1)
+    expect(batch).toContain("mv '/home/u/docs' '/home/u/.local/share/Trash/files/docs'")
+    expect(batch).not.toContain('/home/u/docs/sub/file.txt')
+    expect(batch).not.toContain('/home/u/docs/other.txt')
+  })
+
+  it.each([
+    '/home/u/.local/share/Trash',
+    '/home/u/.local/share/Trash/files/a',
+    '/home/u/.local/share/Trash/info/../files/a',
+    '//home/u/.local/share/Trash/./files/a'
+  ])('refuses to trash the trash directory or an entry inside it: %s', async (path) => {
+    const runner = new MockRunner()
+    await expect(trashEntries(runner, 'Ubuntu', [path], '/home/u', now)).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      path
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it('moves paths only once when their spellings normalize to the same target', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('mkdir -p') ? ok('') : undefined
+    )
+    await trashEntries(runner, 'Ubuntu', ['//home/u/./a.txt', '/home/u/a.txt'], '/home/u', now)
+
+    expect(runner.calls).toHaveLength(2)
+    const batch = runner.calls[1].script
+    expect(batch.match(/\bmv '/g)).toHaveLength(1)
+    expect(batch).toContain("mv '//home/u/./a.txt' '/home/u/.local/share/Trash/files/a.txt'")
+  })
+
   it('names the failed item by its place in the de-duplicated batch', async () => {
     const runner = new MockRunner()
       .on((script) => (script.includes('mkdir -p') ? ok('') : undefined))
