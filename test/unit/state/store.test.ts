@@ -345,6 +345,69 @@ describe('SnapshotStore', () => {
     expect(seen.length).toBe(2)
   })
 
+  it('setTerminalContext re-judges the Console cwd warning at once', async () => {
+    await store.initialize()
+    const seen: WslPadSnapshot[] = []
+    store.subscribe((s) => seen.push(s))
+    const has = (s: WslPadSnapshot | undefined) =>
+      (s?.warnings ?? []).some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+
+    store.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/mnt/c/Users/dev', status: 'ready' })
+    expect(has(seen.at(-1))).toBe(true)
+    expect(
+      store
+        .get()
+        .dashboard?.warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+    ).toBe(true)
+
+    store.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/home/dev', status: 'ready' })
+    expect(has(seen.at(-1))).toBe(false)
+    expect(
+      store
+        .get()
+        .dashboard?.warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+    ).toBe(false)
+  })
+
+  it('judges the Console cwd against the automount root in force', async () => {
+    const settings = wslSettings()
+    settings.settings.push({
+      key: 'root',
+      section: 'automount',
+      scope: 'linux',
+      declaredValue: '/',
+      effectiveValue: '/',
+      origin: 'wsl-conf',
+      provenance: 'user',
+      verdict: 'applied',
+      note: null
+    })
+    const s = new SnapshotStore({ ...provider, getWslSettings: vi.fn(async () => settings) })
+    await s.initialize()
+    await s.refreshSlow()
+    const has = () =>
+      s.get().warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+
+    s.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/c/Users/dev/project', status: 'ready' })
+    expect(has()).toBe(true)
+    s.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/mnt/c/cache', status: 'ready' })
+    expect(has()).toBe(false)
+  })
+
+  it("does not blame the selected distro for another distro's Console cwd", async () => {
+    await store.initialize()
+    const has = () =>
+      store.get().warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+    store.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/mnt/c/Users/dev', status: 'ready' })
+    expect(has()).toBe(true)
+
+    await store.setDistro('Debian')
+    expect(has()).toBe(false)
+
+    await store.setDistro('Ubuntu-24.04')
+    expect(has()).toBe(true)
+  })
+
   it('noteRunnerFailure feeds warnings without emitting', async () => {
     await store.initialize()
     const seen: WslPadSnapshot[] = []

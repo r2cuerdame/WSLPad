@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { WslSettingInfo } from '@shared/types'
 import { computeWarnings, type WarningComputeInput } from '../../../src/main/state/warnings'
 import {
   debian,
@@ -220,4 +221,56 @@ describe('a Console sitting on the slow side', () => {
     const out = computeWarnings(input({ dashboard: null, consoleCwd: '/mnt/d/work' }))
     expect(keys(out)).toContain('warnings.consoleCwdCrossBoundary')
   })
+
+  it('finds the drives under a custom automount root', () => {
+    // root=/ mounts C: at /c; a /mnt-only classifier would call it ext4.
+    const out = computeWarnings(
+      input({ dashboard: withAutomountRoot('/'), consoleCwd: '/c/Users/dev/project' })
+    )
+    expect(keys(out)).toContain('warnings.consoleCwdCrossBoundary')
+  })
+
+  it('does not call /mnt/c slow when the drives live elsewhere', () => {
+    const out = computeWarnings(
+      input({ dashboard: withAutomountRoot('/drives'), consoleCwd: '/mnt/c/cache' })
+    )
+    expect(keys(out)).not.toContain('warnings.consoleCwdCrossBoundary')
+    expect(
+      keys(
+        computeWarnings(
+          input({ dashboard: withAutomountRoot('/drives'), consoleCwd: '/drives/c/work' })
+        )
+      )
+    ).toContain('warnings.consoleCwdCrossBoundary')
+  })
 })
+
+function withAutomountRoot(root: string): ReturnType<typeof makeDashboard> {
+  const setting: WslSettingInfo = {
+    key: 'root',
+    section: 'automount',
+    scope: 'linux',
+    declaredValue: root,
+    effectiveValue: root,
+    origin: 'wsl-conf',
+    provenance: 'user',
+    verdict: 'applied',
+    note: null
+  }
+  return makeDashboard({
+    wslSettings: {
+      wslconfigPath: 'C:\\Users\\dev\\.wslconfig',
+      wslconfigExists: false,
+      wslConfPath: '/etc/wsl.conf',
+      wslConfExists: true,
+      restartPending: false,
+      vmStartedAt: null,
+      networkingModeDeclared: null,
+      networkingModeEffective: null,
+      platform: null,
+      interop: null,
+      defaultUser: null,
+      settings: [setting]
+    }
+  })
+}

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import type { ConsoleStatus } from '@shared/types'
 import { CONSOLE_DEFAULTS, CONSOLE_DEFAULT_HEIGHT, CONSOLE_HEIGHT_BOUNDS } from '@shared/constants'
-import { classifyPathSide, isCrossBoundary } from '@shared/path-boundary'
+import { automountRootFromSettings, classifyPathSide, isCrossBoundary } from '@shared/path-boundary'
 import { useApp } from '../store'
 import './console.css'
 
@@ -62,6 +62,12 @@ export function ConsolePanel(): React.JSX.Element {
   )
   const [status, setStatus] = useState<ConsoleStatus>('disconnected')
   const [cwd, setCwd] = useState<string | null>(null)
+  // Same automount root the Explorer, Doctor and dashboard warning use, so the
+  // badge never disagrees with them about which side a directory is on.
+  const automountRoot = useMemo(
+    () => automountRootFromSettings(snapshot?.dashboard?.wslSettings?.settings),
+    [snapshot?.dashboard?.wslSettings?.settings]
+  )
   const [error, setError] = useState<string | null>(null)
   const [reconnectToken, setReconnectToken] = useState(0)
 
@@ -322,7 +328,7 @@ export function ConsolePanel(): React.JSX.Element {
         )}
         {/* Said where it is paid: a shell in a Windows-mounted directory looks
             exactly like any other shell, and every file it touches crosses 9P. */}
-        {cwd && isCrossBoundary(classifyPathSide(cwd)) && (
+        {cwd && isCrossBoundary(classifyPathSide(cwd, automountRoot)) && (
           <span className="badge badge-warn" title={t('console.slowPathHint')}>
             {t('console.slowPath')}
           </span>
