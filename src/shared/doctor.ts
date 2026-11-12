@@ -18,6 +18,7 @@ import type {
   DoctorVerdict
 } from './types'
 import { MASKED_VALUE } from './constants'
+import { automountRootFromSettings, classifyPathSide } from './path-boundary'
 
 // ---------------------------------------------------------------------------
 // Individual checks — each examines one concern from the snapshot
@@ -34,21 +35,23 @@ function checkProjectPath(dash: DashboardSnapshot): DoctorCheckResult {
       command: null
     }
   }
-  if (pwd.maskedValue.startsWith('/mnt/')) {
+  const automountRoot = automountRootFromSettings(dash.wslSettings?.settings)
+  const side = classifyPathSide(pwd.maskedValue, automountRoot)
+  if (side === 'windows-mount') {
     return {
       id: 'project-path',
       title: 'Project path filesystem',
       verdict: 'warning',
-      evidence: `Current working directory ${pwd.maskedValue} is on a Windows mount (/mnt). Developer workloads are usually faster on the native WSL filesystem.`,
+      evidence: `Current working directory ${pwd.maskedValue} is on a Windows mount under ${automountRoot}. Developer workloads are usually faster on the native WSL filesystem.`,
       command: null
     }
   }
-  if (pwd.maskedValue.startsWith('/')) {
+  if (side === 'ext4') {
     return {
       id: 'project-path',
       title: 'Project path filesystem',
       verdict: 'healthy',
-      evidence: `Current working directory ${pwd.maskedValue} is on the Linux filesystem rather than /mnt.`,
+      evidence: `Current working directory ${pwd.maskedValue} is on the native Linux filesystem.`,
       command: null
     }
   }
@@ -103,20 +106,13 @@ function checkPathDuplication(dash: DashboardSnapshot): DoctorCheckResult {
       command: null
     }
   }
-  // The masked value for PATH is the actual value (it's not a secret).
-  // We check for /mnt entries to detect Windows PATH appended.
-  const mntEntries = pathVar.maskedValue.split(':').filter((e) => e.startsWith('/mnt/'))
-  if (mntEntries.length === 0) {
-    return {
-      id: 'path-duplication',
-      title: 'PATH duplication',
-      verdict: 'healthy',
-      evidence: 'No Windows PATH entries (/mnt/) detected in the Linux PATH.',
-      command: null
-    }
-  }
-  // Check for duplicate entries
+  // PATH is already masked. Duplicate detection must not depend on Windows
+  // entries being present: Linux-only PATHs can contain duplicates too.
   const entries = pathVar.maskedValue.split(':')
+  const automountRoot = automountRootFromSettings(dash.wslSettings?.settings)
+  const windowsEntries = entries.filter(
+    (entry) => classifyPathSide(entry, automountRoot) === 'windows-mount'
+  )
   const seen = new Set<string>()
   const dupes: string[] = []
   for (const e of entries) {
@@ -128,7 +124,7 @@ function checkPathDuplication(dash: DashboardSnapshot): DoctorCheckResult {
       id: 'path-duplication',
       title: 'PATH duplication',
       verdict: 'warning',
-      evidence: `PATH has ${mntEntries.length} Windows entry/entries via /mnt and ${dupes.length} duplicate(s). Duplicates slow shell startup.`,
+      evidence: `PATH has ${windowsEntries.length} Windows mount entry/entries under ${automountRoot} and ${dupes.length} duplicate(s). Duplicates slow shell startup.`,
       command: null
     }
   }
@@ -136,7 +132,7 @@ function checkPathDuplication(dash: DashboardSnapshot): DoctorCheckResult {
     id: 'path-duplication',
     title: 'PATH duplication',
     verdict: 'healthy',
-    evidence: `PATH has ${mntEntries.length} Windows entry/entries via /mnt; no duplicates found.`,
+    evidence: `PATH has ${windowsEntries.length} Windows mount entry/entries under ${automountRoot}; no duplicates found.`,
     command: null
   }
 }
