@@ -591,7 +591,15 @@ class FixtureWindowsFs implements WindowsFs {
       node.mtime = FIXTURE_NEW_MTIME
       return
     }
-    if (!parent) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
+    if (!parent) {
+      // A file standing where the folder should be is ENOTDIR, as WindowsFs
+      // reports it, not a missing folder.
+      const { drive, segments } = this.parse(normalized)
+      if (this.nodeAt(formatPath(drive, segments.slice(0, -1)), true).node) {
+        throw new ExplorerError('ENOTDIR', normalized, `ENOTDIR: ${normalized}`)
+      }
+      throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
+    }
     if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
     const created = this.file(name, content)
     created.mtime = FIXTURE_NEW_MTIME
