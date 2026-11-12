@@ -798,6 +798,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
 
     createFile: async (path) => {
       const p = normalizePath(path)
+      if (await exists(p)) throw new ExplorerError('EEXIST', p, `EEXIST: ${p}`)
       try {
         const handle = await open(p, 'wx')
         await handle.close()
