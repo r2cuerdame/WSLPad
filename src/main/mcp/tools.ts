@@ -1,4 +1,3 @@
-import { posix } from 'node:path'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { defenderCoverage, suggestedExclusion } from '@shared/defender-coverage'
 import { watchesAreLow } from '@shared/inotify'
@@ -693,7 +692,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
     guard(({ path }: { path: string }) =>
       withDistro(async (distro) => {
         assertValidLinuxPath(path)
-        const normalizedPath = posix.normalize(path).replace(/^\/+/, '/')
+        const normalizedPath = await deps.explorer.resolvePath(distro, path)
         if (
           FORBIDDEN_READ_PREFIXES.some(
             (p) => normalizedPath === p || normalizedPath.startsWith(`${p}/`)

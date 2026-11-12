@@ -309,6 +309,40 @@ export class FixtureFilesystem {
     return followFinal ? this.resolveLink(node) : node
   }
 
+  /** Resolve an existing path while following each symlink before later `..` components. */
+  resolvePath(path: string): string | null {
+    const pending = path.split('/').filter((part) => part.length > 0)
+    const resolved: string[] = []
+    let linksFollowed = 0
+
+    while (pending.length > 0) {
+      const part = pending.shift()!
+      const currentPath = resolved.length === 0 ? '/' : `/${resolved.join('/')}`
+      const current = this.getNode(currentPath, true)
+      if (!current || current.type !== 'directory') return null
+      if (part === '.') continue
+      if (part === '..') {
+        resolved.pop()
+        continue
+      }
+
+      const node = current.children?.get(part)
+      if (!node) return null
+      if (node.type === 'symlink') {
+        if (++linksFollowed > 40 || !node.symlinkTarget) return null
+        if (node.symlinkTarget.startsWith('/')) resolved.length = 0
+        pending.unshift(...node.symlinkTarget.split('/').filter((segment) => segment.length > 0))
+      } else {
+        resolved.push(part)
+      }
+    }
+
+    const resolvedPath = resolved.length === 0 ? '/' : `/${resolved.join('/')}`
+    const node = this.getNode(resolvedPath, true)
+    if (!node || (path.endsWith('/') && node.type !== 'directory')) return null
+    return resolvedPath
+  }
+
   getWithParent(path: string): { parent: FsNode | null; node: FsNode | null; name: string } {
     const normalized = this.normalizePath(path)
     if (normalized === '/') return { parent: null, node: this.root, name: '/' }
@@ -476,6 +510,14 @@ export class FixtureExplorerBackend implements ExplorerBackend {
       atime: node.atime,
       windowsPath: toUncPath(distro, base)
     }
+  }
+
+  async resolvePath(distro: string, path: string): Promise<string> {
+    this.ensureDistro(distro, path)
+    assertValidLinuxPath(path)
+    const resolved = this.fs.resolvePath(path)
+    if (resolved === null) throw new ExplorerError('ENOENT', path, `No such file or directory: ${path}`)
+    return resolved
   }
 
   async mkdir(distro: string, path: string): Promise<void> {
