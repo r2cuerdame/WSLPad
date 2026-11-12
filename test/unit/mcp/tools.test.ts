@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { MASKED_VALUE } from '@shared/constants'
@@ -261,13 +261,45 @@ describe('GetTextFile restrictions', () => {
     expect(JSON.stringify(result)).not.toContain('OPENSSH PRIVATE KEY')
   })
 
-  it('rejects /proc, /sys and /dev paths', async () => {
+  it.each([
+    ['/proc/cpuinfo', '/proc/cpuinfo'],
+    ['//proc/cpuinfo', '/proc/cpuinfo'],
+    ['/proc/', '/proc/'],
+    ['/sys/kernel/hostname', '/sys/kernel/hostname'],
+    ['/./sys/kernel/hostname', '/sys/kernel/hostname'],
+    ['/dev/null', '/dev/null'],
+    ['/tmp/../dev/null', '/dev/null']
+  ])('rejects forbidden path %s after distro path resolution', async (path, resolvedPath) => {
     const client = await connect(makeDeps())
-    for (const path of ['/proc/cpuinfo', '/sys/kernel/hostname', '/dev/null']) {
-      const result = await call(client, 'GetTextFile', { path })
-      expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('not allowed')
-    }
+    const result = await call(client, 'GetTextFile', { path })
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toBe(
+      `reading ${resolvedPath} is not allowed: /proc, /sys and /dev are excluded`
+    )
+  })
+
+  it('uses the distro-resolved path without lexically collapsing symlink/.. components', async () => {
+    const deps = makeDeps()
+    const inputPath = '/home/user/link/../config.txt'
+    const resolvedPath = '/opt/project/config.txt'
+    const resolvePath = vi
+      .spyOn(deps.explorer, 'resolvePath')
+      .mockResolvedValue(resolvedPath)
+    const readText = vi.spyOn(deps.explorer, 'readText').mockResolvedValue({
+      content: 'resolved target content\n',
+      encoding: 'utf-8',
+      truncated: false,
+      sizeBytes: 24,
+      writable: true
+    })
+    const client = await connect(deps)
+
+    const result = await call(client, 'GetTextFile', { path: inputPath })
+
+    expect(resolvePath).toHaveBeenCalledWith('Ubuntu-24.04', inputPath)
+    expect(readText).toHaveBeenCalledWith('Ubuntu-24.04', resolvedPath, expect.any(Number))
+    expect(result.structuredContent?.path).toBe(resolvedPath)
+    expect(result.structuredContent?.content).toBe('resolved target content\n')
   })
 
   it('rejects binary files', async () => {

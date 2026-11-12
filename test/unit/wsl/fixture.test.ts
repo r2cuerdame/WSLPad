@@ -124,6 +124,28 @@ describe('FixtureWslProvider', () => {
 })
 
 describe('FixtureExplorerBackend', () => {
+  it('resolves symlink targets before interpreting following parent components', async () => {
+    const backend = new FixtureExplorerBackend()
+    const project = backend.fs.getNode('/home/dev/projects/wslpad-demo')
+    const home = backend.fs.getNode('/home/dev')
+    expect(project?.type).toBe('directory')
+    expect(home?.type).toBe('directory')
+    if (!project || !home) throw new Error('Fixture directories are missing')
+
+    backend.fs.attach(project, backend.fs.file('config.txt', 'symlink target config\n'))
+    backend.fs.attach(
+      home,
+      backend.fs.link('project-src', '/home/dev/projects/wslpad-demo/src')
+    )
+
+    const path = '/home/dev/project-src/../config.txt'
+    const resolved = await backend.resolvePath(U, path)
+    const file = await backend.readText(U, resolved, 1024)
+
+    expect(resolved).toBe('/home/dev/projects/wslpad-demo/config.txt')
+    expect(file.content).toBe('symlink target config\n')
+  })
+
   it('reports an empty directory as a measured zero-byte result', async () => {
     const backend = new FixtureExplorerBackend()
     await backend.mkdir(U, '/home/dev/empty-for-size')

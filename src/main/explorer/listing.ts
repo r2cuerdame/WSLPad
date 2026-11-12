@@ -302,6 +302,28 @@ export async function statPath(
   }
 }
 
+/** Resolve an existing path inside the distro using its actual filesystem semantics. */
+export async function resolveRealPath(
+  runner: DistroRunner,
+  distro: string,
+  path: string
+): Promise<string> {
+  assertValidLinuxPath(path)
+  const q = shellQuote(path)
+  const result = await runner.runInDistro(distro, `realpath -z -e -- ${q}`, {
+    nulDelimited: true
+  })
+  if (result.code !== 0 || result.timedOut) throw explorerErrorFromResult(path, result)
+  if (!result.stdout.endsWith('\0')) {
+    throw new ExplorerError('UNKNOWN', path, `Unexpected realpath output for ${path}`)
+  }
+  const resolvedPath = result.stdout.slice(0, -1)
+  if (!resolvedPath.startsWith('/')) {
+    throw new ExplorerError('UNKNOWN', path, `Unexpected realpath output for ${path}`)
+  }
+  return resolvedPath
+}
+
 /** Strip glob/path metacharacters so the query stays a plain -iname substring. */
 export function sanitizeSearchQuery(query: string): string {
   return query.replace(/[/\\*?[\]\0\r\n]/g, '').trim()

@@ -229,6 +229,8 @@ export interface ExplorerBackend {
   /** Immediate subdirectories only (lazy folder tree). */
   tree(distro: string, path: string): Promise<FileEntry[]>
   stat(distro: string, path: string): Promise<FileStat>
+  /** Resolve a path inside the distro, following symlinks and filesystem `..` semantics. */
+  resolvePath(distro: string, path: string): Promise<string>
   mkdir(distro: string, path: string): Promise<void>
   createFile(distro: string, path: string): Promise<void>
   rename(distro: string, path: string, newName: string): Promise<void>
