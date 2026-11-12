@@ -764,6 +764,33 @@ describe('createWindowsFs — search', () => {
     for (let i = 0; i < 205; i++) writeFileSync(join(base, `capped-${i}.txt`), 'x')
     expect((await fs.search(base, 'capped-')).length).toBe(200)
   })
+
+  it('rejects a missing start with ENOENT instead of an empty result', async () => {
+    const base = dir('search-missing')
+    expect(await codeOf(() => fs.search(join(base, 'gone'), 'needle'))).toBe('ENOENT')
+  })
+
+  it('rejects a file start with ENOTDIR instead of an empty result', async () => {
+    const base = dir('search-file')
+    const file = join(base, 'needle.txt')
+    writeFileSync(file, 'x')
+    expect(await codeOf(() => fs.search(file, 'needle'))).toBe('ENOTDIR')
+  })
+
+  it.runIf(IS_WINDOWS)('rejects an unreadable start with EACCES but skips unreadable subfolders', async () => {
+    const base = dir('search-denied')
+    const locked = dir('search-denied', 'locked')
+    writeFileSync(join(locked, 'needle-hidden.txt'), 'x')
+    writeFileSync(join(base, 'needle-visible.txt'), 'x')
+
+    execFileSync('icacls', [locked, '/deny', '*S-1-1-0:(RD)'], { windowsHide: true, stdio: 'ignore' })
+    try {
+      expect(await codeOf(() => fs.search(locked, 'needle'))).toBe('EACCES')
+      expect((await fs.search(base, 'needle')).map((e) => e.name)).toEqual(['needle-visible.txt'])
+    } finally {
+      execFileSync('icacls', [locked, '/remove:d', '*S-1-1-0'], { windowsHide: true, stdio: 'ignore' })
+    }
+  })
 })
 
 describe('createFixtureWindowsFs', () => {
