@@ -234,6 +234,30 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
     expect(await codeOf(() => fs.createFile(target))).toBe('EEXIST')
   })
 
+  it('reports EEXIST when createFile targets an existing directory', async () => {
+    const target = dir('createfile-existing-directory')
+
+    expect(await codeOf(() => fs.createFile(target))).toBe('EEXIST')
+    await expect(fs.createFile(target)).rejects.toMatchObject({
+      code: 'EEXIST',
+      path: target
+    })
+  })
+
+  it('reports EEXIST when createFile targets a drive root', async () => {
+    expect(await codeOf(() => fs.createFile('C:\\'))).toBe('EEXIST')
+    await expect(fs.createFile('C:\\')).rejects.toMatchObject({
+      code: 'EEXIST',
+      path: 'C:\\'
+    })
+  })
+
+  it('keeps ENOENT when createFile parent directory is missing', async () => {
+    const target = join(root, 'createfile-missing-parent', 'new.txt')
+
+    expect(await codeOf(() => fs.createFile(target))).toBe('ENOENT')
+  })
+
   it('renames within the same directory and refuses conflicts and bad names', async () => {
     const base = dir('rename')
     const original = join(base, 'before.txt')
