@@ -176,6 +176,34 @@ describe('trashEntries', () => {
     expect(batch).toContain("mv '//home/u/./a.txt' '/home/u/.local/share/Trash/files/a.txt'")
   })
 
+  it.each([
+    ['/home/u/docs/', '/home/u/docs'],
+    ['/home/u/docs', '/home/u/docs//']
+  ])('trashes a directory once for trailing-slash duplicates: %s, %s', async (first, second) => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('mkdir -p') ? ok('') : undefined
+    )
+    await trashEntries(runner, 'Ubuntu', [first, second], '/home/u', now)
+
+    const batch = runner.calls[1].script
+    expect(batch.match(/\bmv '/g)).toHaveLength(1)
+    expect(batch).toContain(`mv '${first}' '/home/u/.local/share/Trash/files/docs'`)
+  })
+
+  it('refuses a mixed batch before moving a valid source when another source is inside trash', async () => {
+    const runner = new MockRunner()
+    await expect(
+      trashEntries(
+        runner,
+        'Ubuntu',
+        ['/home/u/keep.txt', '/home/u/.local/share/Trash/files/a'],
+        '/home/u',
+        now
+      )
+    ).rejects.toMatchObject({ code: 'UNKNOWN' })
+    expect(runner.calls).toHaveLength(0)
+  })
+
   it('names the failed item by its place in the de-duplicated batch', async () => {
     const runner = new MockRunner()
       .on((script) => (script.includes('mkdir -p') ? ok('') : undefined))

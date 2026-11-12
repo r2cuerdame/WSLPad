@@ -101,7 +101,7 @@ export async function trashEntries(
   for (const path of paths) {
     assertValidLinuxPath(path)
     if (isLinuxRoot(path)) throw new ExplorerError('UNKNOWN', path, `Refusing to trash ${path}`)
-    const normalized = posix.normalize(path)
+    const normalized = posix.normalize(path).replace(/\/+$/, '') || '/'
     if (isInsideLinux(normalized, trashDir)) {
       throw new ExplorerError(
         'UNKNOWN',
