@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DashboardSnapshot, DoctorVerdict } from '@shared/types'
-import { runDoctor } from '@shared/doctor'
+import { maskEvidencePaths, runDoctor } from '@shared/doctor'
+import { MASKED_VALUE } from '@shared/constants'
 
 // ---------------------------------------------------------------------------
 // Minimal fixture builder — every field the doctor reads, nothing else.
@@ -565,5 +566,51 @@ describe('Environment Doctor (issue #89)', () => {
     for (const check of report.checks) {
       expect(report.maskedMarkdown).toContain(check.title)
     }
+  })
+
+  it('masks the Linux home account name (issue #252)', () => {
+    expect(maskEvidencePaths('cwd /home/dev/projects/wslpad ok'))
+      .toBe(`cwd /home/${MASKED_VALUE}/projects/wslpad ok`)
+    const report = runDoctor(makeDash())
+    expect(report.maskedMarkdown).toContain(`/home/${MASKED_VALUE}/projects/wslpad`)
+    expect(report.maskedMarkdown).not.toContain('/home/dev')
+  })
+
+  it('masks Windows user-profile account names on any drive and case (issue #252)', () => {
+    expect(maskEvidencePaths('at C:\\Users\\dev\\AppData\\git.exe now'))
+      .toBe(`at C:\\Users\\${MASKED_VALUE}\\AppData\\git.exe now`)
+    expect(maskEvidencePaths('at c:\\Users\\dev\\src'))
+      .toBe(`at c:\\Users\\${MASKED_VALUE}\\src`)
+    expect(maskEvidencePaths('at D:\\users\\dev'))
+      .toBe(`at D:\\users\\${MASKED_VALUE}`)
+    expect(maskEvidencePaths('C:\\Windows\\System32\\wsl.exe')).toBe('C:\\Windows\\System32\\wsl.exe')
+  })
+
+  it('masks the distro segment of WSL UNC paths (issue #252)', () => {
+    expect(maskEvidencePaths('\\\\wsl.localhost\\Ubuntu-24.04\\home\\x'))
+      .toBe(`\\\\wsl.localhost\\${MASKED_VALUE}\\home\\x`)
+    expect(maskEvidencePaths('\\\\wsl$\\Ubuntu'))
+      .toBe(`\\\\wsl$\\${MASKED_VALUE}`)
+  })
+
+  it('masks Windows and UNC paths in the generated markdown report (issue #252)', () => {
+    const base = makeDash()
+    const withPwd = (value: string) => makeDash({
+      environment: base.environment.map((entry) =>
+        entry.name === 'PWD' ? { ...entry, maskedValue: value, valueLength: value.length } : entry
+      )
+    })
+
+    for (const pwd of ['C:\\Users\\dev\\src\\wslpad', 'c:\\Users\\dev\\src\\wslpad']) {
+      const report = runDoctor(withPwd(pwd))
+      const check = report.checks.find((c) => c.id === 'project-path')!
+      expect(check.evidence).toContain(pwd)
+      expect(report.maskedMarkdown).toContain(`${pwd.slice(0, 2)}\\Users\\${MASKED_VALUE}\\src\\wslpad`)
+      expect(report.maskedMarkdown).not.toContain('\\Users\\dev')
+    }
+
+    const unc = runDoctor(withPwd('\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev'))
+    expect(unc.maskedMarkdown).toContain(`\\\\wsl.localhost\\${MASKED_VALUE}\\home\\dev`)
+    expect(unc.maskedMarkdown).not.toContain('Ubuntu-24.04\\home')
   })
 })

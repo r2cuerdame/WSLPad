@@ -498,6 +498,18 @@ function checkSystemdDocker(dash: DashboardSnapshot): DoctorCheckResult {
 // Masked markdown report for LLM troubleshooting
 // ---------------------------------------------------------------------------
 
+/**
+ * Mask account names in Linux home paths, Windows user-profile paths (any
+ * drive letter, either case) and WSL UNC paths (`\\wsl.localhost\<distro>`,
+ * `\\wsl$\<distro>`). Each regex literal matches a single real backslash.
+ */
+export function maskEvidencePaths(evidence: string): string {
+  return evidence
+    .replace(/\/home\/[^\s/]+/g, `/home/${MASKED_VALUE}`)
+    .replace(/([A-Za-z]:\\Users\\)[^\s\\/]+/gi, `$1${MASKED_VALUE}`)
+    .replace(/(\\\\wsl(?:\.localhost|\$)\\)[^\s\\/]+/gi, `$1${MASKED_VALUE}`)
+}
+
 function buildMaskedMarkdown(checks: DoctorCheckResult[], distroName: string): string {
   const lines: string[] = [
     `# WSLPad Environment Doctor Report`,
@@ -519,11 +531,7 @@ function buildMaskedMarkdown(checks: DoctorCheckResult[], distroName: string): s
     lines.push(``)
     lines.push(`**Verdict:** ${check.verdict}`)
     // Mask any potential secret values or full paths in evidence
-    const maskedEvidence = check.evidence
-      .replace(/\/home\/[^ /]+/g, `/home/${MASKED_VALUE}`)
-      .replace(/C:\\\\Users\\\\[^ \\]+/g, `C:\\\\Users\\\\${MASKED_VALUE}`)
-      .replace(/\\\\wsl\.localhost\\\\[^ \\]+/g, `\\\\wsl.localhost\\\\${MASKED_VALUE}`)
-    lines.push(`**Evidence:** ${maskedEvidence}`)
+    lines.push(`**Evidence:** ${maskEvidencePaths(check.evidence)}`)
     if (check.command) {
       lines.push(`**Suggested command:** \`${check.command}\``)
     }
