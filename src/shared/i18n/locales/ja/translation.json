@@ -130,6 +130,7 @@
       "loadAvg": "ロードアベレージ",
       "processes": "プロセス",
       "notMounted": "未マウント",
+      "diskUnknown": "不明（未取得）",
       "of": "{{total}} 中 {{used}}",
       "hostMemory": "Windows のメモリ",
       "vmLimit": "WSL のメモリ上限",

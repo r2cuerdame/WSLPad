@@ -35,13 +35,32 @@ const STAT_2 = [
   'cpu1 100 0 100 500 100 0 0 0 0 0'
 ].join('\n')
 
+const DONE = `${MARKER}-done`
+
 const DF_OUTPUT = [
   `${MARKER} /`,
   'Filesystem      1-blocks        Used   Available Capacity Mounted on',
   '/dev/sdd   1081101176832 47110483968 978996318208       5% /',
+  `${DONE} /`,
   `${MARKER} /home`,
   'Filesystem      1-blocks        Used   Available Capacity Mounted on',
   '/dev/sdd   1081101176832 47110483968 978996318208       5% /',
+  `${DONE} /home`,
+  `${MARKER} /mnt/c`,
+  `${DONE} /mnt/c`,
+  ''
+].join('\n')
+
+// The run timed out while df was still stuck on /mnt/c metadata.
+const DF_PARTIAL = [
+  `${MARKER} /`,
+  'Filesystem      1-blocks        Used   Available Capacity Mounted on',
+  '/dev/sdd   1081101176832 47110483968 978996318208       5% /',
+  `${DONE} /`,
+  `${MARKER} /home`,
+  'Filesystem      1-blocks        Used   Available Capacity Mounted on',
+  '/dev/sdd   1081101176832 47110483968 978996318208       5% /',
+  `${DONE} /home`,
   `${MARKER} /mnt/c`,
   ''
 ].join('\n')
@@ -128,7 +147,7 @@ describe('parseDfP', () => {
 })
 
 describe('parseDfBlocks', () => {
-  it('marks missing mounts as exists:false', () => {
+  it('marks mounts df finished without a row as exists:false', () => {
     const disks = parseDfBlocks(DF_OUTPUT)
     expect(disks.map((d) => d.mountPoint)).toEqual(['/', '/home', '/mnt/c'])
     expect(disks[0]).toMatchObject({ exists: true, totalBytes: 1081101176832, usePercent: 5 })
@@ -143,8 +162,33 @@ describe('parseDfBlocks', () => {
     })
   })
 
-  it('returns three non-existing disks for empty input', () => {
-    expect(parseDfBlocks('').every((d) => !d.exists)).toBe(true)
+  it('returns three unknown disks for empty input, never "not mounted"', () => {
+    const disks = parseDfBlocks('')
+    expect(disks.map((d) => d.mountPoint)).toEqual(['/', '/home', '/mnt/c'])
+    expect(disks.every((d) => d.exists === null && d.usePercent === null)).toBe(true)
+  })
+
+  it('keeps finished mounts and leaves the cut-off mount unknown', () => {
+    const disks = parseDfBlocks(DF_PARTIAL)
+    expect(disks[0]).toMatchObject({ exists: true, usePercent: 5 })
+    expect(disks[1]).toMatchObject({ exists: true, usePercent: 5 })
+    expect(disks[2]).toEqual({
+      mountPoint: '/mnt/c',
+      exists: null,
+      totalBytes: null,
+      usedBytes: null,
+      availableBytes: null,
+      usePercent: null
+    })
+  })
+
+  it('does not trust a row whose block never reached its done marker', () => {
+    const cut = [
+      `${MARKER} /`,
+      'Filesystem      1-blocks        Used   Available Capacity Mounted on',
+      '/dev/sdd   1081101176832 47110483968 978996318208       5% /'
+    ].join('\n')
+    expect(parseDfBlocks(cut)[0].exists).toBeNull()
   })
 })
 
@@ -211,7 +255,33 @@ describe('collectResources', () => {
     expect(res.loadAvg).toBeNull()
     expect(res.processCount).toBeNull()
     expect(res.disks).toHaveLength(3)
-    expect(res.disks.every((d) => !d.exists)).toBe(true)
+    expect(res.disks.every((d) => d.exists === null)).toBe(true)
+  })
+
+  it('reports partial df output from a timed-out run per mount', async () => {
+    const runner = fakeRunner((script) => {
+      if (script.includes('df -P')) return { stdout: DF_PARTIAL, stderr: '', code: null, timedOut: true }
+      return ok(fastOutput(STAT_1))
+    })
+    const res = await collectResources(runner, 'Ubuntu-24.04')
+    // the script closes every mount with the done marker the parser trusts
+    const dfScript = runner.calls.find((s) => s.includes('df -P')) ?? ''
+    expect(dfScript).toContain(`printf '${DONE} %s\\n' "$m"`)
+    expect(res.disks.map((d) => d.exists)).toEqual([true, true, null])
+    expect(res.disks[0].usePercent).toBe(5)
+    // the slow df does not disturb the fast figures
+    expect(res.memTotalBytes).toBe(16302996 * 1024)
+    expect(res.processCount).toBe(123)
+  })
+
+  it('leaves every disk unknown when df times out with no output', async () => {
+    const runner = fakeRunner((script) => {
+      if (script.includes('df -P')) return { stdout: '', stderr: '', code: null, timedOut: true }
+      return ok(fastOutput(STAT_1))
+    })
+    const res = await collectResources(runner, 'Ubuntu-24.04')
+    expect(res.disks.every((d) => d.exists === null)).toBe(true)
+    expect(res.cpuCount).toBe(2)
   })
 
   it('passes WslNotAvailableError through', async () => {

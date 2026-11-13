@@ -326,7 +326,8 @@ function portsSection(lines: string[], ctx: DevEnvContext): void {
 }
 
 function mountLine(fs: DevEnvFilesystem): string {
-  if (!fs.exists) return `- ${fs.mountPoint} — not mounted`
+  if (fs.exists === false) return `- ${fs.mountPoint} — not mounted`
+  if (fs.exists !== true) return `- ${fs.mountPoint} — unknown (disk usage not read)`
   const kind =
     fs.side === 'windows-mount'
       ? 'Windows drive, slow for many small files'

@@ -10,6 +10,7 @@ import type {
   ConfigurationFileInfo,
   DashboardSnapshot,
   DiskImageInfo,
+  DiskUsage,
   DistroDetails,
   DistroSummary,
   DnsInfo,
@@ -130,6 +131,20 @@ function emptyResources(): ResourceInfo {
     loadAvg: null,
     processCount: null
   }
+}
+
+/**
+ * A mount whose df did not finish this tick (exists:null) keeps the last
+ * answered value for this distro instead of blanking it; an answered mount
+ * always replaces it. A distro switch builds fresh sections, which is the
+ * reset, so one distro's disks never stand in for another's.
+ */
+function keepKnownDisks(prev: DiskUsage[], next: DiskUsage[]): DiskUsage[] {
+  return next.map((disk) => {
+    if (disk.exists !== null) return disk
+    const last = prev.find((p) => p.mountPoint === disk.mountPoint)
+    return last !== undefined && last.exists !== null ? last : disk
+  })
 }
 
 function sectionsFor(summary: DistroSummary): DashboardSections {
@@ -281,7 +296,7 @@ export class SnapshotStore {
               'resources',
               () => this.provider.getResources(distro),
               (v) => {
-                s.resources = v
+                s.resources = { ...v, disks: keepKnownDisks(s.resources.disks, v.disks) }
               }
             ),
             this.collect(

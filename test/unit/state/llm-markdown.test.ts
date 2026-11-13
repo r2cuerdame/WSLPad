@@ -377,6 +377,35 @@ describe('snapshotToMarkdown agent-context preset', () => {
     expect(md).toContain('- /mnt/d — not mounted')
   })
 
+  it('keeps a mount whose disk usage was not read apart from "not mounted" (issue #318)', () => {
+    const unread = { exists: null, totalBytes: null, usedBytes: null, availableBytes: null, usePercent: null }
+    const resources = {
+      ...makeDashboard().resources,
+      disks: [disk('/', unread), disk('/mnt/c', unread), disk('/mnt/d', { ...unread, exists: false })]
+    }
+    const snapshot = makeSnapshot({ dashboard: makeDashboard({ resources }) })
+
+    const agent = snapshotToMarkdown(snapshot, 'agent-context')
+    expect(agent).toContain('- / — unknown (disk usage not read)')
+    expect(agent).toContain('- /mnt/c — unknown (disk usage not read)')
+    expect(agent).toContain('- /mnt/d — not mounted')
+    // an unread / is not evidence for the disk-headroom check
+    expect(agent).not.toContain('/ is ')
+
+    const summary = snapshotToMarkdown(snapshot)
+    expect(summary).toContain('- Disk /: unknown')
+    expect(summary).toContain('- Disk /mnt/c: unknown')
+    expect(summary).toContain('- Disk /mnt/d: not mounted')
+    expect(summary).not.toContain('Free space on /')
+
+    const context = buildDevEnvContext(snapshot)
+    expect(context.storage.filesystems.map((f) => [f.mountPoint, f.exists])).toEqual([
+      ['/', null],
+      ['/mnt/c', null],
+      ['/mnt/d', false]
+    ])
+  })
+
   it('gives a doctor line only to a trap that is actually armed', () => {
     const quiet = snapshotToMarkdown(
       makeSnapshot({
