@@ -75,6 +75,8 @@ export class ConsoleSession {
     this.seqValue = 0
     this.atPrompt = false
     this.syncInFlight = false
+    this.typedInput = ''
+    this.parseBuf = ''
     try {
       this.pty = await this.opts.factory.spawn(this.opts.distro, cols, rows)
       this.errorValue = null
@@ -183,7 +185,11 @@ export class ConsoleSession {
     rest = rest.slice(keep)
     if (rest.length > PARSE_BUF_MAX) rest = rest.slice(rest.length - PARSE_BUF_MAX)
     this.parseBuf = rest
-    if (this.statusValue === 'running' && SUDO_RE.test(rest)) {
+    // A markerless shell never leaves 'ready' while a command runs, so a sudo
+    // prompt has to be recognised from there too.
+    const commandMayRun =
+      this.statusValue === 'running' || (this.markerless && this.statusValue === 'ready')
+    if (commandMayRun && SUDO_RE.test(rest)) {
       this.atPrompt = false
       this.setStatus('waiting-sudo')
     }
@@ -273,12 +279,14 @@ export class ConsoleSession {
         const submitted = this.typedInput.trim().length > 0
         this.typedInput = ''
         if (this.statusValue === 'waiting-sudo') {
-          this.atPrompt = false
-          this.setStatus('running')
+          this.leaveSudoPrompt()
         } else if (
           submitted &&
+          !this.markerless &&
           (this.statusValue === 'ready' || this.statusValue === 'path-sync-pending')
         ) {
+          // Without the rc no prompt marker would ever end 'running', so a
+          // markerless console stays 'ready' across commands.
           this.atPrompt = false
           this.setStatus('running')
         }
@@ -290,15 +298,31 @@ export class ConsoleSession {
           }
         }
       } else if (ch === '\x03') {
-        // Ctrl+C abandons the current input line
+        // Ctrl+C abandons the current input line (or the sudo password prompt)
         clearedByEdit = false
         this.typedInput = ''
+        if (this.statusValue === 'waiting-sudo') this.leaveSudoPrompt()
       } else if (ch >= ' ') {
         clearedByEdit = false
         this.typedInput += ch
       }
     }
     return clearedByEdit && this.typedInput.length === 0
+  }
+
+  private get markerless(): boolean {
+    return this.pty?.supportsMarkers === false
+  }
+
+  /**
+   * The password was submitted or the prompt cancelled. A marker shell waits
+   * for the next prompt marker; a markerless one has none, so it is ready now.
+   * The parse tail still ends with the sudo prompt and must not re-trigger.
+   */
+  private leaveSudoPrompt(): void {
+    this.atPrompt = false
+    this.parseBuf = ''
+    this.setStatus(this.markerless ? 'ready' : 'running')
   }
 
   private handleExit(): void {
