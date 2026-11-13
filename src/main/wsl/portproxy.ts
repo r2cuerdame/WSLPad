@@ -72,29 +72,50 @@ export function parsePortProxy(text: string): PortProxyRule[] {
   return rules
 }
 
-/** Loopback and the unspecified address forward to Windows itself, not to WSL. */
+function octets(ip: string): number[] {
+  return ip.split('.').map((part) => Number.parseInt(part, 10))
+}
+
+/** Loopback (all of 127.0.0.0/8) and the unspecified address are Windows itself, not WSL. */
 function isLocalAddress(ip: string): boolean {
-  return ip === '127.0.0.1' || ip === '0.0.0.0'
+  return ip === '0.0.0.0' || octets(ip)[0] === 127
+}
+
+/**
+ * Could this address have been the distro's own on an earlier boot? WSL's NAT
+ * mode draws from 172.16.0.0/12 by default; a custom range still keeps the
+ * same /16 across restarts. Anything else — a NAS, another PC on the LAN — is
+ * a forward to a different machine that is working as intended.
+ */
+function couldHaveBeenDistro(ip: string, distroIp: string): boolean {
+  const [a, b] = octets(ip)
+  const [da, db] = octets(distroIp)
+  if (a === 172 && b >= 16 && b <= 31) return true
+  return a === da && b === db
 }
 
 /**
  * A rule is only called stale when the distro's address is known and differs.
  * With no address to compare against, every rule stays unknown — a forwarding
  * rule reported as dead when it is merely unverifiable would send the user to
- * fix something that works.
+ * fix something that works. The rules are v4tov4, so an address that is not
+ * IPv4 (hostname -I can lead with IPv6) is no address to compare against.
  */
 export function judgeRules(
   rules: readonly PortProxyRule[],
   distroIp: string | null
 ): PortProxyRule[] {
   return rules.map((rule) => {
-    if (distroIp === null) return { ...rule, verdict: 'unknown' as const }
+    if (distroIp === null || !IPV4.test(distroIp)) return { ...rule, verdict: 'unknown' as const }
     if (rule.connectAddress === distroIp) return { ...rule, verdict: 'live' as const }
     // Forwarding to Windows itself is a deliberate, still-working setup.
     if (isLocalAddress(rule.connectAddress)) return { ...rule, verdict: 'elsewhere' as const }
-    // A private address that is not this distro is the classic stale rule: it
-    // was this distro's IP, one WSL restart ago.
-    return { ...rule, verdict: 'stale' as const }
+    // An address from the distro's range that is not this distro is the
+    // classic stale rule: it was this distro's IP, one WSL restart ago.
+    if (couldHaveBeenDistro(rule.connectAddress, distroIp)) {
+      return { ...rule, verdict: 'stale' as const }
+    }
+    return { ...rule, verdict: 'elsewhere' as const }
   })
 }
 

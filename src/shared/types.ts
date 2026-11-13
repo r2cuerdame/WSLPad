@@ -183,9 +183,11 @@ export interface PortProxyRule {
   connectPort: number
   /**
    * 'live' — connectAddress is the distro's current IP.
-   * 'stale' — it is not, so the rule forwards into nowhere.
-   * 'elsewhere' — it points at something that is not this distro at all.
-   * 'unknown' — the distro's IP could not be read, so nothing is claimed.
+   * 'stale' — it is an address from the distro's range (WSL's 172.16.0.0/12
+   *   or the current /16) but not the current one, so it forwards into nowhere.
+   * 'elsewhere' — it points at something that is not this distro at all:
+   *   Windows itself (127.0.0.0/8, 0.0.0.0) or another machine.
+   * 'unknown' — the distro's IPv4 address could not be read, so nothing is claimed.
    */
   verdict: 'live' | 'stale' | 'elsewhere' | 'unknown'
 }
