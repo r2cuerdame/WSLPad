@@ -782,7 +782,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
       description:
         'Answer "which binary does this command actually run": the resolved path, every ' +
         'match on PATH in order, what the winner shadows, and whether it is a Windows ' +
-        'executable reached through /mnt. Resolves the name; never runs it.',
+        'executable reached through a Windows drive mount. Resolves the name; never runs it.',
       inputSchema: {
         command: z
           .string()
@@ -810,7 +810,9 @@ export function createMcpServer(deps: McpDeps): McpServer {
             : resolution.kind === 'builtin'
               ? `${command} is a shell builtin in ${distro}`
               : `${command} resolves to ${resolution.path}` +
-                (resolution.shadowedByWindows ? ' — a Windows executable reached through /mnt' : '')
+                (resolution.shadowedByWindows
+                  ? ' — a Windows executable reached through a Windows drive mount'
+                  : '')
         return ok(summary, { resolution })
       })
     )

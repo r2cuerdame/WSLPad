@@ -79,7 +79,7 @@ at-a-glance status badge):
 | `GetTextFile` | Bounded text file content (see limits below) |
 | `GetPathMapping` | Linux ↔ Windows path conversion (explicit failure) |
 | `GetPortOwner` | Who owns one port: the distro listener, the process behind it, the Windows-side listener, whether Windows can reach it, and any forwarding rule that mentions it (`{ port }`) |
-| `GetCommandResolution` | Which binary a command name really runs: resolved path, every match on PATH in order, what the winner shadows, and whether it is a Windows executable under /mnt (`{ command }`) |
+| `GetCommandResolution` | Which binary a command name really runs: resolved path, every match on PATH in order, what the winner shadows, and whether it is a Windows executable on a Windows drive mount — /mnt/c by default, or wherever `[automount] root` moved it (`{ command }`) |
 | `GetZoneIdentifiers` | Count and location of the `*:Zone.Identifier` files Windows leaves behind, plus the cleanup command |
 | `GetTerminalProfiles` | Windows Terminal profiles, which distro each opens, and the JSON to add a missing one |
 | `GetDiskConsumers` | What is filling the disk image by name — package caches, the systemd journal, build caches, the trash, Docker's store — each with the command that would clear it |
