@@ -5,7 +5,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import packageJson from '../../../package.json'
 import { MAX_TEXT_FILE_BYTES } from '@shared/constants'
-import { buildDevEnvContext } from '@shared/dev-env-context'
+import { buildDevEnvContext, collectionSucceeded } from '@shared/dev-env-context'
 import { devEnvContextToMarkdown } from '@shared/dev-env-context-markdown'
 import type {
   DashboardSnapshot,
@@ -94,6 +94,21 @@ function ok(summary: string, structured: Record<string, unknown>): CallToolResul
 
 function fail(message: string): CallToolResult {
   return { isError: true, content: [text(message)] }
+}
+
+/**
+ * Before the first completed tool read the list is empty, and "0 of 0" or
+ * "tool not found" would both be confident wrong answers (Unknown, never zero).
+ */
+function toolsNotRead(dash: DashboardSnapshot, field: 'tools' | 'tool'): CallToolResult {
+  const status = (dash as { toolsCollectionStatus?: string }).toolsCollectionStatus
+  const failed = status === 'failed'
+  return ok(
+    failed
+      ? 'tool detection failed: which developer tools are installed is unknown'
+      : 'tools not read yet: which developer tools are installed is unknown',
+    { [field]: null, collectionStatus: failed ? 'failed' : 'pending' }
+  )
 }
 
 function errorMessage(err: unknown): string {
@@ -288,6 +303,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
     },
     guard(() =>
       withDashboard((dash) => {
+        if (!collectionSucceeded(dash, 'tools')) return toolsNotRead(dash, 'tools')
         const installed = dash.tools.filter((t) => t.installed).length
         return ok(`${installed} of ${dash.tools.length} known tool(s) installed`, {
           tools: dash.tools
@@ -307,6 +323,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
     },
     guard(({ tool }: { tool: string }) =>
       withDashboard((dash) => {
+        if (!collectionSucceeded(dash, 'tools')) return toolsNotRead(dash, 'tool')
         const needle = tool.toLowerCase()
         const found = dash.tools.find(
           (t) => t.id.toLowerCase() === needle || t.displayName.toLowerCase() === needle

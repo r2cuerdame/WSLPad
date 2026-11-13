@@ -73,7 +73,7 @@ const CATEGORY_BY_TOOL_ID = new Map(TOOL_SPECS.map((spec) => [spec.id, spec.cate
 type ToolGroupKey = 'runtimes' | 'packageManagers' | 'tools'
 
 /** Older snapshots lack collector status; nonempty data still proves a completed read. */
-function collectionSucceeded(dash: DashboardSnapshot | null, section: 'tools' | 'ports'): boolean {
+export function collectionSucceeded(dash: DashboardSnapshot | null, section: 'tools' | 'ports'): boolean {
   if (dash === null) return false
   const tracked = dash as DashboardSnapshot & {
     toolsCollectionStatus?: 'pending' | 'succeeded' | 'failed'

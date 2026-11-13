@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   DiskImageInfo,
+  DriveMountInfo,
+  DriveMountsInfo,
+  HermesInfo,
+  InotifyInfo,
   MemoryReconciliation,
   ResourceInfo,
   WindowsPortInfo,
@@ -16,6 +20,7 @@ import {
   debian,
   dns,
   firewall,
+  hermes,
   makeProvider,
   mcpStatus,
   port,
@@ -25,6 +30,21 @@ import {
   ubuntu,
   type FakeProvider
 } from './helpers'
+
+function driveMount(point: string): DriveMountInfo {
+  return {
+    point,
+    source: 'C:\\',
+    metadata: true,
+    caseSensitivity: null,
+    uid: 1000,
+    gid: 1000,
+    umask: null,
+    fmask: null,
+    dmask: null,
+    options: 'rw,aname=drvfs;path=C:\\;metadata'
+  }
+}
 
 function diskImage(vhdxBytes: number): DiskImageInfo {
   return {
@@ -626,6 +646,85 @@ describe('SnapshotStore', () => {
     await s.refreshMedium()
     expect(s.get().dashboard?.dns?.nameservers).toEqual(['192.168.1.1'])
     expect(s.get().warnings.some((w) => w.messageKey === 'warnings.runnerFailed')).toBe(false)
+  })
+
+  it('keeps the last-good Hermes, drive mounts and watch limits through an unknown read, until a distro switch', async () => {
+    const mounts = (point: string): DriveMountsInfo => ({
+      drives: [driveMount(point)],
+      declaredOptions: null,
+      declaredEnabled: null
+    })
+    const limits = (maxUserWatches: number): InotifyInfo => ({
+      maxUserWatches,
+      maxUserInstances: 128,
+      raiseCommand: 'wsl.exe -d Ubuntu -u root sh -c true'
+    })
+    const getDriveMounts = vi.fn(async (): Promise<DriveMountsInfo | null> => mounts('/mnt/c'))
+    const getInotify = vi.fn(async (): Promise<InotifyInfo | null> => limits(65536))
+    const getHermes = vi.fn(async (): Promise<HermesInfo | null> => hermes())
+    const extended = { ...provider, getHermes, getDriveMounts, getInotify }
+    extended.listDistros.mockResolvedValue([ubuntu(), debian('Running')])
+    const s = new SnapshotStore(extended)
+    await s.initialize()
+    await s.refreshMedium()
+    await s.refreshSlow()
+    expect(s.get().dashboard?.hermes?.installed).toBe(true)
+
+    extended.getHermes.mockResolvedValueOnce(null)
+    getDriveMounts.mockResolvedValueOnce(null)
+    getInotify.mockResolvedValueOnce(null)
+    await s.refreshMedium()
+    await s.refreshSlow()
+    const dash = s.get().dashboard
+    expect(dash?.hermes?.installed).toBe(true)
+    expect(dash?.driveMounts?.drives.map((d) => d.point)).toEqual(['/mnt/c'])
+    expect(dash?.inotify?.maxUserWatches).toBe(65536)
+
+    // A fresh answer still replaces the remembered one.
+    getInotify.mockResolvedValueOnce(limits(524288))
+    await s.refreshSlow()
+    expect(s.get().dashboard?.inotify?.maxUserWatches).toBe(524288)
+
+    // Another distro starts from unknown and never shows Ubuntu's answers.
+    extended.getHermes.mockResolvedValue(null)
+    getDriveMounts.mockResolvedValue(null)
+    getInotify.mockResolvedValue(null)
+    await s.setDistro('Debian')
+    expect(s.get().selectedDistro).toBe('Debian')
+    const other = s.get().dashboard
+    expect(other?.hermes).toBeNull()
+    expect(other?.driveMounts).toBeNull()
+    expect(other?.inotify).toBeNull()
+  })
+
+  it('keeps the last-good tool list when detection fails, and never marks a first failure as collected', async () => {
+    const status = (st: SnapshotStore) =>
+      (st.get().dashboard as { toolsCollectionStatus?: string } | null)?.toolsCollectionStatus
+    const toolsFailed = (st: SnapshotStore) =>
+      st
+        .get()
+        .warnings.some((w) => w.messageKey === 'warnings.runnerFailed' && w.message.includes('tools'))
+
+    // First read fails: still no list, and the status says why.
+    provider.getTools.mockRejectedValueOnce(new Error('tool detection timed out in Ubuntu-24.04'))
+    await store.initialize()
+    await store.refreshSlow()
+    expect(store.get().dashboard?.tools).toEqual([])
+    expect(status(store)).toBe('failed')
+    expect(toolsFailed(store)).toBe(true)
+
+    // Recovery publishes the list and clears the failure.
+    await store.refreshSlow()
+    expect(store.get().dashboard?.tools.map((t) => t.id)).toEqual(['node'])
+    expect(status(store)).toBe('succeeded')
+    expect(toolsFailed(store)).toBe(false)
+
+    // A later failure keeps the list on screen and raises the warning again.
+    provider.getTools.mockRejectedValueOnce(new Error('tool detection exited with code 1'))
+    await store.refreshSlow()
+    expect(store.get().dashboard?.tools.map((t) => t.id)).toEqual(['node'])
+    expect(status(store)).toBe('succeeded')
+    expect(toolsFailed(store)).toBe(true)
   })
 
   it('never wakes a stopped distro for clock, firewall or dns', async () => {

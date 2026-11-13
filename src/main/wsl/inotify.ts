@@ -69,6 +69,9 @@ export async function collectInotify(
   assertValidDistroName(distro)
   try {
     const res = await runner.runInDistro(distro, INOTIFY_SCRIPT, { timeoutMs: RUNNER_TIMEOUT_MS })
+    // Both reads end in `|| true`, so only a cut-off run exits non-zero; its
+    // half output would read as a limit card with nothing in it.
+    if (res.timedOut || res.code !== 0) return null
     return parseInotify(res.stdout, distro)
   } catch {
     return null

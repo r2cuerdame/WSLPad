@@ -239,6 +239,44 @@ describe('snapshot-backed tools', () => {
     expect(missing.isError).toBe(true)
   })
 
+  it('tool queries answer "not read yet" instead of "0 of 0" or "not found" before the first detection', async () => {
+    for (const [toolsCollectionStatus, word] of [
+      ['pending', 'not read yet'],
+      ['failed', 'detection failed']
+    ] as const) {
+      const snapshot = makeSnapshot()
+      const dash = snapshot.dashboard
+      if (dash === null) throw new Error('fixture dashboard missing')
+      snapshot.dashboard = Object.assign({ ...dash, tools: [] }, { toolsCollectionStatus })
+      const client = await connect(makeDeps({ snapshot }))
+
+      const all = await call(client, 'GetInstalledTools')
+      expect(all.isError).toBeFalsy()
+      expect(all.content[0].text).toContain(word)
+      expect(all.content[0].text).not.toContain('0 of 0')
+      expect(all.structuredContent).toEqual({ tools: null, collectionStatus: toolsCollectionStatus })
+
+      const one = await call(client, 'GetToolStatus', { tool: 'node' })
+      expect(one.isError).toBeFalsy()
+      expect(one.content[0].text).toContain(word)
+      expect(one.content[0].text).not.toContain('not found')
+      expect(one.structuredContent).toEqual({ tool: null, collectionStatus: toolsCollectionStatus })
+    }
+  })
+
+  it('tool queries still answer from a completed detection, including an empty one', async () => {
+    const snapshot = makeSnapshot()
+    const dash = snapshot.dashboard
+    if (dash === null) throw new Error('fixture dashboard missing')
+    snapshot.dashboard = Object.assign({ ...dash, tools: [] }, { toolsCollectionStatus: 'succeeded' })
+    const client = await connect(makeDeps({ snapshot }))
+    const all = await call(client, 'GetInstalledTools')
+    expect(all.content[0].text).toContain('0 of 0 known tool(s) installed')
+    const one = await call(client, 'GetToolStatus', { tool: 'node' })
+    expect(one.isError).toBe(true)
+    expect(one.content[0].text).toContain('tool not found')
+  })
+
   it('GetProcess finds by pid and fails for unknown pids', async () => {
     const client = await connect(makeDeps())
     const found = await call(client, 'GetProcess', { pid: 1234 })

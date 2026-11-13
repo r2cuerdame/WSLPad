@@ -771,6 +771,16 @@ export async function runToolDetection(
     runner.runInDistro(distro, script, { timeoutMs: RUNNER_SLOW_TIMEOUT_MS }),
     runner.runInDistro(distro, USER_SERVICES_SCRIPT).catch((): null => null)
   ])
+  // The script ends on `:`, so a finished sweep always exits 0. A timeout or
+  // any other exit means the tools after the cut-off were never asked about;
+  // reading them as "not installed" would publish a confident wrong list.
+  if (batch.timedOut || batch.code !== 0) {
+    throw new Error(
+      batch.timedOut
+        ? `tool detection timed out in ${distro}`
+        : `tool detection exited with code ${batch.code} in ${distro}`
+    )
+  }
   const sections = parseToolsOutput(batch.stdout)
   const interop = parseInteropBinaries(batch.stdout)
   const windowsMounts = parseWindowsMounts(batch.stdout)

@@ -342,7 +342,10 @@ export class SnapshotStore {
               'hermes',
               () => this.provider.getHermes(distro),
               (v) => {
-                s.hermes = v
+                // null is "could not ask", never "not installed" (that is
+                // installed: false): one slow tick must not blank the card.
+                // A distro switch builds fresh sections, which is the reset.
+                s.hermes = v ?? s.hermes
               }
             ),
             this.collectDns(distro, s)
@@ -569,7 +572,7 @@ export class SnapshotStore {
       'docker',
       () => read.call(this.provider, distro),
       (v) => {
-        s.docker = v
+        s.docker = v ?? s.docker
       }
     )
   }
@@ -582,7 +585,7 @@ export class SnapshotStore {
       'disk consumers',
       () => read.call(this.provider, distro),
       (v) => {
-        s.diskConsumers = v
+        s.diskConsumers = v ?? s.diskConsumers
       }
     )
   }
@@ -611,7 +614,7 @@ export class SnapshotStore {
       'download markers',
       () => read.call(this.provider, distro),
       (v) => {
-        s.zoneIdentifier = v
+        s.zoneIdentifier = v ?? s.zoneIdentifier
       }
     )
   }
@@ -627,7 +630,8 @@ export class SnapshotStore {
       'drive mounts',
       () => read.call(this.provider, distro),
       (v) => {
-        s.driveMounts = v
+        // Same rule as Hermes: null is a failed read, an empty table is drives: [].
+        s.driveMounts = v ?? s.driveMounts
       }
     )
   }
@@ -643,7 +647,7 @@ export class SnapshotStore {
       'defender',
       () => read.call(this.provider),
       (v) => {
-        s.defender = v
+        s.defender = v ?? s.defender
       }
     )
   }
@@ -656,7 +660,7 @@ export class SnapshotStore {
       'watch limits',
       () => read.call(this.provider, distro),
       (v) => {
-        s.inotify = v
+        s.inotify = v ?? s.inotify
       }
     )
   }

@@ -7,7 +7,7 @@ import {
   splitMountOptions
 } from '../../../src/main/wsl/drive-mounts'
 import { parseMounts } from '../../../src/main/wsl/wsl-config'
-import type { DistroRunner } from '../../../src/main/wsl/contracts'
+import type { DistroRunner, RunResult } from '../../../src/main/wsl/contracts'
 import { SECTION_MARKER } from '../../../src/main/wsl/system'
 import { joinSections, ok } from './collectors/helpers'
 
@@ -32,13 +32,13 @@ function probe(mounts = MOUNTS, conf = WSLCONF): string {
   return joinSections(mounts, conf)
 }
 
-function runner(stdout: string): DistroRunner {
+function runner(stdout: string, result: Partial<RunResult> = {}): DistroRunner {
   return {
     async runWsl() {
       return ok('')
     },
     async runInDistro() {
-      return ok(stdout)
+      return { ...ok(stdout), ...result }
     },
     async disposeAll() {
       /* nothing spawned */
@@ -195,6 +195,23 @@ describe('collectDriveMounts', () => {
       }
     }
     expect(await collectDriveMounts(dead, 'Ubuntu')).toBeNull()
+  })
+
+  it('degrades to unknown when the read is cut off by the timeout', async () => {
+    // Half a mount table: /mnt/c made it out, /mnt/d did not.
+    const cut = MOUNTS.split('\n').slice(0, 2).join('\n')
+    const partial = runner(cut, { timedOut: true, code: null })
+    expect(await collectDriveMounts(partial, 'Ubuntu')).toBeNull()
+  })
+
+  it('degrades to unknown on a non-zero exit', async () => {
+    expect(await collectDriveMounts(runner(probe(), { code: 1 }), 'Ubuntu')).toBeNull()
+  })
+
+  it('rejects an invalid distro name before running anything', async () => {
+    await expect(collectDriveMounts(runner(probe()), 'bad name; rm -rf /')).rejects.toThrow(
+      /Invalid WSL distro/
+    )
   })
 })
 
