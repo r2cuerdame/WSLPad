@@ -279,6 +279,19 @@ function checkPortFirewall(dash: DashboardSnapshot): DoctorCheckResult {
   const firewall = dash.firewall
   const listeningPorts = dash.ports.filter((p) => p.listening)
 
+  if (dash.portsCollectionStatus === 'pending' || dash.portsCollectionStatus === 'failed') {
+    return {
+      id: 'port-firewall',
+      title: 'Port/firewall reachability',
+      verdict: 'unknown',
+      evidence:
+        dash.portsCollectionStatus === 'failed'
+          ? 'Listening ports query failed; port reachability is unknown.'
+          : 'Listening ports were not collected yet.',
+      command: null
+    }
+  }
+
   if (!firewall) {
     return {
       id: 'port-firewall',
@@ -358,6 +371,19 @@ function checkVsCodeServer(dash: DashboardSnapshot): DoctorCheckResult {
       p.command.includes('vscode-server') ||
       p.command.includes('code-server')
   )
+
+  if (dash.processesCollectionStatus === 'pending' || dash.processesCollectionStatus === 'failed') {
+    return {
+      id: 'vscode-server',
+      title: 'VS Code Server state',
+      verdict: 'unknown',
+      evidence:
+        dash.processesCollectionStatus === 'failed'
+          ? 'Running process query failed; VS Code Server state is unknown.'
+          : 'Running processes were not collected yet.',
+      command: null
+    }
+  }
 
   if (vscodeProcs.length === 0) {
     return {

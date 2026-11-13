@@ -565,7 +565,11 @@
       "copyCommand": "コマンドラインをコピー",
       "findExecutable": "実行ファイルをエクスプローラーで探す",
       "prepareKill": "kill コマンドを準備",
-      "searchPlaceholder": "プロセスを絞り込み"
+      "searchPlaceholder": "プロセスを絞り込み",
+      "noMatches": "条件に一致するプロセスがありません",
+      "notCollected": "実行中のプロセス一覧はまだ取得されていません。",
+      "queryFailed": "実行中のプロセス一覧の取得に失敗しました。プロセスが実行中かどうかは不明です。",
+      "refreshFailed": "最新のプロセス一覧の取得に失敗したため、前回の結果を表示しています。"
     },
     "services": {
       "title": "サービス",
@@ -701,7 +705,10 @@
         "unknown": "不明"
       },
       "reachabilityUnknownHint": "Windows のポート一覧かファイアウォールを読み取れなかったため、このポートがどこまで届くかは分かりません。",
-      "reachabilityWindowsRow": "Windows 側のリスナーです。WSL の到達範囲のルールは当てはまりません。"
+      "reachabilityWindowsRow": "Windows 側のリスナーです。WSL の到達範囲のルールは当てはまりません。",
+      "notCollected": "ディストリビューション内の待ち受けポート一覧はまだ取得されていません。",
+      "queryFailed": "ディストリビューション内の待ち受けポート一覧の取得に失敗しました。ポートの有無は不明です。",
+      "refreshFailed": "最新の待ち受けポート一覧の取得に失敗したため、前回の結果を表示しています。"
     },
     "warnings": {
       "title": "警告",
@@ -752,7 +759,10 @@
     },
     "detail": {
       "itemCount": "{{count}} 個の項目",
-      "toolsInstalled": "{{total}} 個中 {{installed}} 個インストール済み"
+      "toolsInstalled": "{{total}} 個中 {{installed}} 個インストール済み",
+      "notCollected": "未取得",
+      "queryFailed": "取得失敗 — 状態不明",
+      "staleItems": "{{count}} 件 (最新の更新に失敗)"
     }
   },
   "explorer": {

@@ -565,7 +565,11 @@
       "copyCommand": "複製命令列",
       "findExecutable": "在檔案總管中尋找執行檔",
       "prepareKill": "準備 kill 命令",
-      "searchPlaceholder": "篩選處理程序"
+      "searchPlaceholder": "篩選處理程序",
+      "noMatches": "沒有符合篩選條件的處理程序",
+      "notCollected": "尚未收集執行中的處理程序清單。",
+      "queryFailed": "查詢執行中的處理程序清單失敗。無法判斷是否有處理程序正在執行。",
+      "refreshFailed": "最近一次處理程序清單查詢失敗，目前顯示上一次成功的清單。"
     },
     "services": {
       "title": "服務",
@@ -701,7 +705,10 @@
         "unknown": "未知"
       },
       "reachabilityUnknownHint": "無法讀取 Windows 連接埠清單或防火牆，因此不清楚這個連接埠能傳多遠。",
-      "reachabilityWindowsRow": "這是 Windows 端的監聽項目：WSL 的可達性規則不適用於它。"
+      "reachabilityWindowsRow": "這是 Windows 端的監聽項目：WSL 的可達性規則不適用於它。",
+      "notCollected": "尚未收集散佈套件內的監聽連接埠清單。",
+      "queryFailed": "查詢散佈套件內的監聽連接埠清單失敗。無法判斷是否有連接埠正在監聽。",
+      "refreshFailed": "最近一次監聽連接埠清單查詢失敗，目前顯示上一次成功的清單。"
     },
     "warnings": {
       "title": "警告",
@@ -752,7 +759,10 @@
     },
     "detail": {
       "itemCount": "{{count}} 個項目",
-      "toolsInstalled": "已安裝 {{installed}} 個，共 {{total}} 個"
+      "toolsInstalled": "已安裝 {{installed}} 個，共 {{total}} 個",
+      "notCollected": "尚未收集",
+      "queryFailed": "查詢失敗 — 狀態不明",
+      "staleItems": "{{count}} 項（最近一次重新整理失敗）"
     }
   },
   "explorer": {

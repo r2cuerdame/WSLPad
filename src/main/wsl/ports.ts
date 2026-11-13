@@ -1,8 +1,8 @@
 import { RUNNER_TIMEOUT_MS } from '@shared/constants'
 import type { PortInfo } from '@shared/types'
-import { WslNotAvailableError, type DistroRunner } from './contracts'
+import type { DistroRunner } from './contracts'
 
-const SS_SCRIPT = 'ss -tulnpH 2>/dev/null || true'
+const SS_SCRIPT = 'ss -tulnpH'
 
 // users:(("name",pid=123,fd=4),...) — only the first owner is surfaced.
 const USERS_RE = /users:\(\("([^"]*)",pid=(\d+)/
@@ -52,11 +52,17 @@ export function parseSs(text: string): PortInfo[] {
 }
 
 export async function collectPorts(runner: DistroRunner, distro: string): Promise<PortInfo[]> {
-  try {
-    const res = await runner.runInDistro(distro, SS_SCRIPT, { timeoutMs: RUNNER_TIMEOUT_MS })
-    return parseSs(res.stdout)
-  } catch (err) {
-    if (err instanceof WslNotAvailableError) throw err
-    return []
+  const res = await runner.runInDistro(distro, SS_SCRIPT, { timeoutMs: RUNNER_TIMEOUT_MS })
+  if (res.timedOut) {
+    throw new Error(`ss timed out after ${RUNNER_TIMEOUT_MS}ms in ${distro}`)
   }
+  if (res.code !== 0) {
+    const detail = res.stderr.trim()
+    throw new Error(
+      detail
+        ? `ss exited with code ${res.code} in ${distro}: ${detail}`
+        : `ss exited with code ${res.code} in ${distro}`
+    )
+  }
+  return parseSs(res.stdout)
 }

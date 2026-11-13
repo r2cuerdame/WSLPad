@@ -565,7 +565,11 @@
       "copyCommand": "Copy command line",
       "findExecutable": "Find executable in Explorer",
       "prepareKill": "Prepare kill command",
-      "searchPlaceholder": "Filter processes"
+      "searchPlaceholder": "Filter processes",
+      "noMatches": "No process matches the filter",
+      "notCollected": "Process list has not been collected yet.",
+      "queryFailed": "Could not query running processes. Whether any process is running is unknown.",
+      "refreshFailed": "The latest process query failed; showing the previous list."
     },
     "services": {
       "title": "Services",
@@ -701,7 +705,10 @@
         "unknown": "Unknown"
       },
       "reachabilityUnknownHint": "The Windows port table or the firewall could not be read, so how far this port carries is unknown.",
-      "reachabilityWindowsRow": "A Windows listener: the WSL reachability rules do not apply to it."
+      "reachabilityWindowsRow": "A Windows listener: the WSL reachability rules do not apply to it.",
+      "notCollected": "Listening ports inside the distribution have not been collected yet.",
+      "queryFailed": "Could not query listening ports inside the distribution. Whether any port is listening is unknown.",
+      "refreshFailed": "The latest listening-port query failed; showing the previous list."
     },
     "warnings": {
       "title": "Warnings",
@@ -752,7 +759,10 @@
     },
     "detail": {
       "itemCount": "{{count}} items",
-      "toolsInstalled": "{{installed}} of {{total}} installed"
+      "toolsInstalled": "{{installed}} of {{total}} installed",
+      "notCollected": "Not collected yet",
+      "queryFailed": "Query failed — status unknown",
+      "staleItems": "{{count}} items (latest refresh failed)"
     }
   },
   "explorer": {

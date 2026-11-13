@@ -70,6 +70,8 @@ interface DashboardSections {
   terminalProfiles: TerminalProfilesInfo | null
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
+  /** Status of usable process data; a later failed refresh retains a successful last-good read. */
+  processesCollectionStatus: 'pending' | 'succeeded' | 'failed'
   services: ServiceInfo[]
   servicesCollected: boolean
   ports: PortInfo[]
@@ -152,6 +154,7 @@ function sectionsFor(summary: DistroSummary): DashboardSections {
     terminalProfiles: null,
     environment: [],
     processes: [],
+    processesCollectionStatus: 'pending',
     services: [],
     servicesCollected: false,
     ports: [],
@@ -286,6 +289,12 @@ export class SnapshotStore {
               () => this.provider.getProcesses(distro),
               (v) => {
                 s.processes = v
+                s.processesCollectionStatus = 'succeeded'
+              },
+              () => {
+                if (s.processesCollectionStatus !== 'succeeded') {
+                  s.processesCollectionStatus = 'failed'
+                }
               }
             ),
             this.collect(

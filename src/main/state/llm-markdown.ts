@@ -143,11 +143,21 @@ function windowsSide(bound: boolean | null, process: string | null): string {
   return process === null ? ' — Windows: bound' : ` — Windows: bound by ${process}`
 }
 
-function pushPorts(lines: string[], dash: DashboardSnapshot): void {
+function pushPorts(
+  lines: string[],
+  dash: DashboardSnapshot,
+  warnings: readonly { id: string }[] = []
+): void {
   lines.push('## Listening ports')
   const listening = dash.ports.filter((p) => p.listening)
   if (listening.length === 0) {
-    lines.push('- None')
+    if (dash.portsCollectionStatus === 'failed') {
+      lines.push('- Unknown (listening port query failed)')
+    } else if (dash.portsCollectionStatus === 'pending') {
+      lines.push('- Unknown (not collected yet)')
+    } else {
+      lines.push('- None')
+    }
   } else {
     for (const port of listening.slice(0, 30)) {
       const proc = port.processName ?? 'unknown'
@@ -155,6 +165,12 @@ function pushPorts(lines: string[], dash: DashboardSnapshot): void {
       const win = windowsSide(port.windowsBound ?? null, port.windowsProcess ?? null)
       lines.push(`- ${port.protocol} ${port.localAddress}:${port.port} — ${proc}${pid}${win}`)
     }
+  }
+  if (
+    warnings.some((w) => w.id === 'runner-failed-ports') ||
+    dash.warnings.some((w) => w.id === 'runner-failed-ports')
+  ) {
+    lines.push('- Note: latest listening-port refresh failed; showing previous results')
   }
   lines.push('')
 }
@@ -238,7 +254,7 @@ function defaultMarkdown(s: WslPadSnapshot): string {
     pushTools(lines, dash)
     pushHermes(lines, dash)
     pushServices(lines, dash)
-    pushPorts(lines, dash)
+    pushPorts(lines, dash, s.warnings)
     pushWindowsPorts(lines, dash)
     pushEnvironment(lines, dash)
     pushPaths(lines, dash)

@@ -137,4 +137,34 @@ describe('portOwnership', () => {
     // has changed and this test should be the thing that says so.
     expect(portOwnership.length).toBe(2)
   })
+
+  it('reports distribution ownership as unknown rather than empty when distro ports are pending or failed', () => {
+    const ownNone = portOwnership(dashWith({ ports: [], windowsPorts: [] }), 9999)
+    expect(describeOwnership(ownNone, { portsStatus: 'pending' })).toContain('unknown')
+    expect(describeOwnership(ownNone, { portsStatus: 'pending' })).not.toContain('Nothing is listening')
+    expect(describeOwnership(ownNone, { portsStatus: 'failed' })).toContain('query failed')
+
+    const ownWinOnly = portOwnership(
+      dashWith({
+        ports: [],
+        windowsPorts: [
+          {
+            protocol: 'tcp',
+            localAddress: '0.0.0.0',
+            port: 445,
+            pid: 4,
+            processName: 'System',
+            listening: true,
+            localhostUrl: null,
+            fromWsl: false
+          }
+        ]
+      }),
+      445
+    )
+    const msg = describeOwnership(ownWinOnly, { portsStatus: 'failed' })
+    expect(msg).toContain('System')
+    expect(msg).toContain('query failed')
+    expect(msg).not.toContain('not by anything inside the distribution')
+  })
 })

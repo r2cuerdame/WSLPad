@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { LocaleCode, ProcessInfo } from '@shared/types'
+import type { CollectionStatus, LocaleCode, ProcessInfo } from '@shared/types'
 import { formatDuration, formatPercent } from '@shared/format'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import VirtualList from '../components/VirtualList'
-import { CloseIcon, FolderIcon } from '../components/Icons'
+import { CloseIcon, FolderIcon, WarningIcon } from '../components/Icons'
 
 const ROW_HEIGHT = 30
 const FOCUS_CLEAR_MS = 3000
@@ -17,9 +17,15 @@ const dirname = (p: string): string => p.replace(/\/[^/]*$/, '') || '/'
 
 export interface ProcessesCardProps {
   processes: ProcessInfo[]
+  collectionStatus?: CollectionStatus
+  refreshFailed?: boolean
 }
 
-export default function ProcessesCard({ processes }: ProcessesCardProps): React.JSX.Element {
+export default function ProcessesCard({
+  processes,
+  collectionStatus = 'succeeded',
+  refreshFailed = false
+}: ProcessesCardProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const locale = i18n.language as LocaleCode
   const { prepareCommand, pushToast, navigateExplorer, focusPid, setFocusPid } = useApp()
@@ -89,75 +95,100 @@ export default function ProcessesCard({ processes }: ProcessesCardProps): React.
       }
     >
       <div ref={bodyRef}>
-        <div className="proc-row proc-head">
-          <button type="button" className="th-btn" onClick={() => clickSort('pid')}>
-            {t('dashboard.processes.pid')}
-            {arrow('pid')}
-          </button>
-          <span>{t('dashboard.processes.user')}</span>
-          <button type="button" className="th-btn" onClick={() => clickSort('cpu')}>
-            {t('dashboard.processes.cpu')}
-            {arrow('cpu')}
-          </button>
-          <button type="button" className="th-btn" onClick={() => clickSort('mem')}>
-            {t('dashboard.processes.memory')}
-            {arrow('mem')}
-          </button>
-          <span>{t('dashboard.processes.time')}</span>
-          <span>{t('dashboard.processes.command')}</span>
-          <span />
-        </div>
-        <VirtualList
-          items={sorted}
-          rowHeight={ROW_HEIGHT}
-          scrollToIndex={focusIndex !== undefined && focusIndex >= 0 ? focusIndex : undefined}
-          render={(p) => {
-            const exe = p.executablePath
-            return (
-              <div
-                key={p.pid}
-                className={p.pid === focusPid ? 'proc-row focused' : 'proc-row'}
-                style={{ height: ROW_HEIGHT }}
-              >
-                <span className="mono">{p.pid}</span>
-                <span className="truncate">{p.user}</span>
-                <span>{formatPercent(locale, p.cpuPercent)}</span>
-                <span>{formatPercent(locale, p.memPercent)}</span>
-                <span>{formatDuration(locale, p.elapsedSeconds)}</span>
-                <span className="mono truncate" title={p.command}>
-                  {p.command}
-                </span>
-                <span className="row-actions">
-                  <CopyButton
-                    text={p.command}
-                    toastKey="toast.copiedCommand"
-                    labelKey="dashboard.processes.copyCommand"
-                    size={13}
-                  />
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={t('dashboard.processes.prepareKill')}
-                    title={t('dashboard.processes.prepareKill')}
-                    onClick={() => prepareKill(p.pid)}
-                  >
-                    <CloseIcon size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={t('dashboard.processes.findExecutable')}
-                    title={t('dashboard.processes.findExecutable')}
-                    disabled={!exe}
-                    onClick={() => exe && navigateExplorer(dirname(exe))}
-                  >
-                    <FolderIcon size={13} />
-                  </button>
-                </span>
+        {collectionStatus === 'failed' ? (
+          <div className="notice-warn" role="alert">
+            <WarningIcon size={14} />
+            <span>{t('dashboard.processes.queryFailed')}</span>
+          </div>
+        ) : collectionStatus === 'pending' ? (
+          <div className="dim" role="status">
+            {t('dashboard.processes.notCollected')}
+          </div>
+        ) : refreshFailed ? (
+          <div className="notice-warn" role="alert">
+            <WarningIcon size={14} />
+            <span>{t('dashboard.processes.refreshFailed')}</span>
+          </div>
+        ) : null}
+        {collectionStatus === 'succeeded' ? (
+          sorted.length === 0 ? (
+            <div className="dim">
+              {query.trim() ? t('dashboard.processes.noMatches') : t('common.none')}
+            </div>
+          ) : (
+            <>
+              <div className="proc-row proc-head">
+                <button type="button" className="th-btn" onClick={() => clickSort('pid')}>
+                  {t('dashboard.processes.pid')}
+                  {arrow('pid')}
+                </button>
+                <span>{t('dashboard.processes.user')}</span>
+                <button type="button" className="th-btn" onClick={() => clickSort('cpu')}>
+                  {t('dashboard.processes.cpu')}
+                  {arrow('cpu')}
+                </button>
+                <button type="button" className="th-btn" onClick={() => clickSort('mem')}>
+                  {t('dashboard.processes.memory')}
+                  {arrow('mem')}
+                </button>
+                <span>{t('dashboard.processes.time')}</span>
+                <span>{t('dashboard.processes.command')}</span>
+                <span />
               </div>
-            )
-          }}
-        />
+              <VirtualList
+                items={sorted}
+                rowHeight={ROW_HEIGHT}
+                scrollToIndex={focusIndex !== undefined && focusIndex >= 0 ? focusIndex : undefined}
+                render={(p) => {
+                  const exe = p.executablePath
+                  return (
+                    <div
+                      key={p.pid}
+                      className={p.pid === focusPid ? 'proc-row focused' : 'proc-row'}
+                      style={{ height: ROW_HEIGHT }}
+                    >
+                      <span className="mono">{p.pid}</span>
+                      <span className="truncate">{p.user}</span>
+                      <span>{formatPercent(locale, p.cpuPercent)}</span>
+                      <span>{formatPercent(locale, p.memPercent)}</span>
+                      <span>{formatDuration(locale, p.elapsedSeconds)}</span>
+                      <span className="mono truncate" title={p.command}>
+                        {p.command}
+                      </span>
+                      <span className="row-actions">
+                        <CopyButton
+                          text={p.command}
+                          toastKey="toast.copiedCommand"
+                          labelKey="dashboard.processes.copyCommand"
+                          size={13}
+                        />
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label={t('dashboard.processes.prepareKill')}
+                          title={t('dashboard.processes.prepareKill')}
+                          onClick={() => prepareKill(p.pid)}
+                        >
+                          <CloseIcon size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label={t('dashboard.processes.findExecutable')}
+                          title={t('dashboard.processes.findExecutable')}
+                          disabled={!exe}
+                          onClick={() => exe && navigateExplorer(dirname(exe))}
+                        >
+                          <FolderIcon size={13} />
+                        </button>
+                      </span>
+                    </div>
+                  )
+                }}
+              />
+            </>
+          )
+        ) : null}
       </div>
     </Card>
   )

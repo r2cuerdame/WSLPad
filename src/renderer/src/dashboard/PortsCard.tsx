@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { PortInfo, PortProtocol, PortReachability, WindowsPortInfo } from '@shared/types'
+import type {
+  CollectionStatus,
+  PortInfo,
+  PortProtocol,
+  PortReachability,
+  WindowsPortInfo
+} from '@shared/types'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
-import { ExternalIcon, SearchIcon } from '../components/Icons'
+import { ExternalIcon, SearchIcon, WarningIcon } from '../components/Icons'
 
 const STORAGE_KEY = 'wslpad.dashboard.ports.windowsOnly'
 
@@ -72,9 +78,16 @@ export interface PortsCardProps {
   ports: PortInfo[]
   /** Windows host listeners; absent when the snapshot has no Windows view. */
   windowsPorts?: WindowsPortInfo[]
+  collectionStatus?: CollectionStatus
+  refreshFailed?: boolean
 }
 
-export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps): React.JSX.Element {
+export default function PortsCard({
+  ports,
+  windowsPorts = [],
+  collectionStatus = 'succeeded',
+  refreshFailed = false
+}: PortsCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { setFocusPid } = useApp()
   const [showWindowsOnly, setShowWindowsOnly] = useState(readStoredWindowsOnly)
@@ -245,8 +258,25 @@ export default function PortsCard({ ports, windowsPorts = [] }: PortsCardProps):
         </>
       }
     >
+      {collectionStatus === 'failed' ? (
+        <div className="notice-warn" role="alert">
+          <WarningIcon size={14} />
+          <span>{t('dashboard.ports.queryFailed')}</span>
+        </div>
+      ) : collectionStatus === 'pending' ? (
+        <div className="dim" role="status">
+          {t('dashboard.ports.notCollected')}
+        </div>
+      ) : refreshFailed ? (
+        <div className="notice-warn" role="alert">
+          <WarningIcon size={14} />
+          <span>{t('dashboard.ports.refreshFailed')}</span>
+        </div>
+      ) : null}
       {rows.length === 0 ? (
-        <div className="dim">{filtering ? t('dashboard.ports.noMatches') : t('common.none')}</div>
+        collectionStatus === 'succeeded' || filtering ? (
+          <div className="dim">{filtering ? t('dashboard.ports.noMatches') : t('common.none')}</div>
+        ) : null
       ) : (
         <div className="dash-table-wrap dash-scroll">
           <table className="dash-table">

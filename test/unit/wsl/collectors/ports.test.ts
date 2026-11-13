@@ -94,11 +94,41 @@ describe('collectPorts', () => {
     expect(runner.calls[0]).toContain('ss -tulnpH')
   })
 
-  it('returns [] when the runner fails', async () => {
-    const runner = fakeRunner(() => {
+  it('does not swallow runner errors, timeouts, or non-zero exit codes as []', async () => {
+    const throwingRunner = fakeRunner(() => {
       throw new Error('boom')
     })
-    expect(await collectPorts(runner, 'Ubuntu-24.04')).toEqual([])
+    await expect(collectPorts(throwingRunner, 'Ubuntu-24.04')).rejects.toThrow('boom')
+
+    const timedOutRunner = fakeRunner(() => ({
+      stdout: SS_OUTPUT,
+      stderr: '',
+      code: 0,
+      timedOut: true
+    }))
+    await expect(collectPorts(timedOutRunner, 'Ubuntu-24.04')).rejects.toThrow(/timed out/)
+
+    const missingToolRunner = fakeRunner(() => ({
+      stdout: '',
+      stderr: '/bin/sh: 1: ss: not found',
+      code: 127,
+      timedOut: false
+    }))
+    await expect(collectPorts(missingToolRunner, 'Ubuntu-24.04')).rejects.toThrow(/exited with code 127/)
+
+    const failedRunner = fakeRunner(() => ({
+      stdout: '',
+      stderr: 'Cannot open netlink socket',
+      code: 1,
+      timedOut: false
+    }))
+    await expect(collectPorts(failedRunner, 'Ubuntu-24.04')).rejects.toThrow(/exited with code 1/)
+  })
+
+  it('returns [] only on a genuine empty exit-0 non-timed-out result', async () => {
+    const emptyRunner = fakeRunner(() => ok(''))
+    expect(await collectPorts(emptyRunner, 'Ubuntu-24.04')).toEqual([])
+    expect(emptyRunner.calls[0]).not.toContain('|| true')
   })
 
   it('passes WslNotAvailableError through', async () => {

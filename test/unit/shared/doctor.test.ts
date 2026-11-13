@@ -536,6 +536,34 @@ describe('Environment Doctor (issue #89)', () => {
     expect(check.evidence).toContain('unknown reachability')
   })
 
+  it('keeps port-firewall and vscode-server unknown when ports or processes are pending or failed', () => {
+    const pendingReport = runDoctor(
+      makeDash({
+        ports: [],
+        portsCollectionStatus: 'pending',
+        processes: [],
+        processesCollectionStatus: 'pending'
+      })
+    )
+    expect(pendingReport.checks.find((c) => c.id === 'port-firewall')?.verdict).toBe('unknown')
+    expect(pendingReport.checks.find((c) => c.id === 'vscode-server')?.evidence).toContain('not collected')
+
+    const failedReport = runDoctor(
+      makeDash({
+        ports: [],
+        portsCollectionStatus: 'failed',
+        processes: [],
+        processesCollectionStatus: 'failed'
+      })
+    )
+    const fwFailed = failedReport.checks.find((c) => c.id === 'port-firewall')!
+    expect(fwFailed.verdict).toBe('unknown')
+    expect(fwFailed.evidence).toContain('failed')
+    const vscFailed = failedReport.checks.find((c) => c.id === 'vscode-server')!
+    expect(vscFailed.verdict).toBe('unknown')
+    expect(vscFailed.evidence).toContain('failed')
+  })
+
   // ---- git/ssh config -----------------------------------------------------
 
   it('healthy when git installed on ext4 with config files', () => {

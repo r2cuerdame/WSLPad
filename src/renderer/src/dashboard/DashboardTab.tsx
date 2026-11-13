@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { LocaleCode, WarningInfo } from '@shared/types'
+import type { CollectionStatus, LocaleCode, WarningInfo } from '@shared/types'
+import { collectionSucceeded } from '@shared/dev-env-context'
 import { formatNumber } from '@shared/format'
 import { useApp } from '../store'
 import { WarningIcon } from '../components/Icons'
@@ -137,6 +138,44 @@ export default function DashboardTab(): React.JSX.Element {
   // a failure: a blocked inbound default or a resolver Windows no longer feeds.
   const networkIssue = networkNeedsAttention(dash.firewall, dash.dns)
 
+  const processesCollected = collectionSucceeded(dash, 'processes')
+  const processesStatus: CollectionStatus = processesCollected
+    ? 'succeeded'
+    : (dash.processesCollectionStatus ?? 'pending')
+  const processesRefreshFailed = warnings.some((w) => w.id === 'runner-failed-processes')
+
+  const portsCollected = collectionSucceeded(dash, 'ports')
+  const portsStatus: CollectionStatus = portsCollected
+    ? 'succeeded'
+    : (dash.portsCollectionStatus ?? 'pending')
+  const portsRefreshFailed = warnings.some((w) => w.id === 'runner-failed-ports')
+
+  const collectionBadge = (
+    collected: boolean,
+    status: CollectionStatus,
+    refreshFailed: boolean,
+    total: number
+  ): ReactNode =>
+    collected
+      ? count(total, refreshFailed ? 'err' : undefined)
+      : dot(
+          status === 'failed' ? 'err' : 'unknown',
+          status === 'failed'
+            ? t('dashboard.detail.queryFailed')
+            : t('dashboard.detail.notCollected')
+        )
+
+  const collectionSubtitle = (
+    status: CollectionStatus,
+    refreshFailed: boolean,
+    total: number
+  ): string => {
+    if (status === 'failed') return t('dashboard.detail.queryFailed')
+    if (status === 'pending') return t('dashboard.detail.notCollected')
+    if (refreshFailed) return t('dashboard.detail.staleItems', { count: total })
+    return items(total)
+  }
+
   const gatewayRunning = dash.hermes?.gatewayStatus === 'running'
   const openclawRunning = (findOpenClaw(dash.tools)?.runningProcesses ?? 0) > 0
   const dockerRunning = dash.docker?.daemonRunning === true
@@ -163,9 +202,14 @@ export default function DashboardTab(): React.JSX.Element {
       openclawRunning ? t('common.running') : t('common.notDetected')
     ),
     environment: count(dash.environment.length),
-    processes: count(dash.processes.length),
+    processes: collectionBadge(
+      processesCollected,
+      processesStatus,
+      processesRefreshFailed,
+      dash.processes.length
+    ),
     services: count(dash.services.length),
-    ports: count(portRowCount),
+    ports: collectionBadge(portsCollected, portsStatus, portsRefreshFailed, portRowCount),
     warnings: count(warnings.length, warnings.length > 0 ? 'err' : undefined)
   }
 
@@ -182,9 +226,9 @@ export default function DashboardTab(): React.JSX.Element {
       defaultValue: '{{installed}} of {{total}} installed'
     }),
     environment: items(dash.environment.length),
-    processes: items(dash.processes.length),
+    processes: collectionSubtitle(processesStatus, processesRefreshFailed, dash.processes.length),
     services: items(dash.services.length),
-    ports: items(portRowCount),
+    ports: collectionSubtitle(portsStatus, portsRefreshFailed, portRowCount),
     warnings: warnings.length > 0 ? items(warnings.length) : t('dashboard.warnings.empty')
   }
 
@@ -281,11 +325,24 @@ export default function DashboardTab(): React.JSX.Element {
       case 'environment':
         return <EnvironmentCard env={dash.environment} />
       case 'processes':
-        return <ProcessesCard processes={dash.processes} />
+        return (
+          <ProcessesCard
+            processes={dash.processes}
+            collectionStatus={processesStatus}
+            refreshFailed={processesRefreshFailed}
+          />
+        )
       case 'services':
         return <ServicesCard services={dash.services} systemdEnabled={dash.system.systemdEnabled} />
       case 'ports':
-        return <PortsCard ports={dash.ports} windowsPorts={dash.windowsPorts} />
+        return (
+          <PortsCard
+            ports={dash.ports}
+            windowsPorts={dash.windowsPorts}
+            collectionStatus={portsStatus}
+            refreshFailed={portsRefreshFailed}
+          />
+        )
       case 'warnings':
         return <WarningsCard warnings={warnings} />
     }

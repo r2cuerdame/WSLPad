@@ -565,7 +565,11 @@
       "copyCommand": "复制命令行",
       "findExecutable": "在资源管理器中定位可执行文件",
       "prepareKill": "准备 kill 命令",
-      "searchPlaceholder": "筛选进程"
+      "searchPlaceholder": "筛选进程",
+      "noMatches": "没有符合条件的进程",
+      "notCollected": "尚未采集正在运行的进程列表。",
+      "queryFailed": "查询正在运行的进程列表失败。无法确定是否有进程正在运行。",
+      "refreshFailed": "最近一次进程列表查询失败，正在显示上一次成功的结果。"
     },
     "services": {
       "title": "服务",
@@ -701,7 +705,10 @@
         "unknown": "未知"
       },
       "reachabilityUnknownHint": "无法读取 Windows 端口列表或防火墙，因此不清楚这个端口能传多远。",
-      "reachabilityWindowsRow": "这是 Windows 侧的监听端口：WSL 的可达性规则对它不适用。"
+      "reachabilityWindowsRow": "这是 Windows 侧的监听端口：WSL 的可达性规则对它不适用。",
+      "notCollected": "尚未采集发行版内的监听端口列表。",
+      "queryFailed": "查询发行版内的监听端口列表失败。无法确定是否有端口正在监听。",
+      "refreshFailed": "最近一次监听端口列表查询失败，正在显示上一次成功的结果。"
     },
     "warnings": {
       "title": "警告",
@@ -752,7 +759,10 @@
     },
     "detail": {
       "itemCount": "{{count}} 个项目",
-      "toolsInstalled": "已安装 {{installed}} 个，共 {{total}} 个"
+      "toolsInstalled": "已安装 {{installed}} 个，共 {{total}} 个",
+      "notCollected": "尚未采集",
+      "queryFailed": "查询失败 — 状态未知",
+      "staleItems": "{{count}} 项（最近一次刷新失败）"
     }
   },
   "explorer": {
