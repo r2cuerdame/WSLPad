@@ -15,6 +15,7 @@ import { assertValidDistroName } from './escape'
 import { SECTION_MARKER, splitSections } from './system'
 import { decodeConfigFile, normalizeBool, parseIni, WSL_CONF_PATH } from './wsl-config'
 import { runHostCommand, type HostCommandRunner } from './windows-ports'
+import { POWERSHELL_HIDDEN_ARGS } from '../hidden-process'
 
 export const RESOLV_CONF_PATH = '/etc/resolv.conf'
 
@@ -165,8 +166,7 @@ const POWERSHELL = 'powershell.exe'
  * Windows produces byte-identical output, one IPv4 address per line.
  */
 const PS_ARGS = [
-  '-NoProfile',
-  '-NonInteractive',
+  ...POWERSHELL_HIDDEN_ARGS,
   '-ExecutionPolicy',
   'Bypass',
   '-Command',
@@ -176,10 +176,11 @@ const PS_ARGS = [
 /**
  * The adapter's servers change when the network does, not by the second, while
  * every read pays a full PowerShell start. The answer — readable or not — is
- * reused for this long so the 15 s medium tier does not spawn four shells a
- * minute; the distro side of the card is re-read on every tick regardless.
+ * reused for this long so the 15 s medium tier does not start a console
+ * process every other tick; a VPN that connects shows up within two minutes,
+ * and the distro side of the card is re-read on every tick regardless.
  */
-const WINDOWS_DNS_TTL_MS = 30000
+const WINDOWS_DNS_TTL_MS = 120000
 
 export interface DnsDeps {
   run?: HostCommandRunner

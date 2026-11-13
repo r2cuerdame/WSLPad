@@ -414,7 +414,7 @@ describe('trashEntries with a local POSIX shell', () => {
   const shellRunner = (): MockRunner => {
     let shell = 'sh'
     if (process.platform === 'win32') {
-      const git = spawnSync('git', ['--exec-path'], { encoding: 'utf8' })
+      const git = spawnSync('git', ['--exec-path'], { encoding: 'utf8', windowsHide: true })
       if (git.status === 0) {
         const candidate = resolve(git.stdout.trim(), '../../../usr/bin/sh.exe')
         if (existsSync(candidate)) shell = candidate
@@ -423,7 +423,8 @@ describe('trashEntries with a local POSIX shell', () => {
     return new MockRunner().on((script, call) => {
       // Windows also supplies a different find.exe; use POSIX utilities here.
       const result = spawnSync(shell, ['-c', 'PATH=/usr/bin:/bin:$PATH\n' + script], {
-        timeout: 10000
+        timeout: 10000,
+        windowsHide: true
       })
       if (result.error) throw result.error
       return ok(

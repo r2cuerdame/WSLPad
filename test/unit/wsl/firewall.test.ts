@@ -95,21 +95,23 @@ describe('parseFirewallOutput', () => {
 })
 
 describe('createFirewallCollector', () => {
-  it('asks powershell for the WSL VM creator id without a profile', async () => {
+  it('asks a hidden powershell for the WSL VM creator id without a profile', async () => {
     const { run, calls } = makeRunner(() => REAL_OUTPUT)
     const info = await createFirewallCollector({ run }).collect()
 
     expect(info.defaultInbound).toBe('Block')
     expect(calls).toHaveLength(1)
     expect(calls[0].file).toBe('powershell.exe')
-    expect(calls[0].args.slice(0, 5)).toEqual([
+    expect(calls[0].args.slice(0, 7)).toEqual([
       '-NoProfile',
       '-NonInteractive',
+      '-WindowStyle',
+      'Hidden',
       '-ExecutionPolicy',
       'Bypass',
       '-Command'
     ])
-    const script = calls[0].args[5]
+    const script = calls[0].args[7]
     expect(script).toContain(WSL_VM_CREATOR_ID)
     expect(script).toContain('Get-NetFirewallHyperVVMSetting')
     expect(script).toContain('Get-NetFirewallHyperVRule')

@@ -1,5 +1,6 @@
-import { spawn, type ChildProcess } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import type { PortInfo, PortProtocol, WindowsPortInfo } from '@shared/types'
+import { spawnHidden } from '../hidden-process'
 
 /**
  * Windows-side listener table (goal.md §6.10, extended). This is a HOST query:
@@ -159,7 +160,7 @@ export const runHostCommand: HostCommandRunner = (file, args, timeoutMs) =>
   new Promise<string>((resolve, reject) => {
     let child: ChildProcess
     try {
-      child = spawn(file, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] })
+      child = spawnHidden(file, args, ['ignore', 'pipe', 'ignore'])
     } catch (err) {
       reject(err instanceof Error ? err : new Error(String(err)))
       return
@@ -208,6 +209,49 @@ export const runHostCommand: HostCommandRunner = (file, args, timeoutMs) =>
     })
   })
 
+/**
+ * One host-wide `tasklist /fo csv /nh` shared by every collector that needs
+ * it (the port table's process names, the WSL VM's working set), so the same
+ * console tool is not started twice for the same answer.
+ */
+export interface TasklistSnapshot {
+  /** Raw tasklist text no older than `maxAgeMs`; 0 asks for a fresh read. */
+  read(maxAgeMs: number): Promise<string>
+}
+
+export function createTasklistSnapshot(
+  run: HostCommandRunner = runHostCommand,
+  now: () => number = Date.now
+): TasklistSnapshot {
+  let text: string | null = null
+  let readAt = 0
+  let inFlight: { startedAt: number; pending: Promise<string> } | null = null
+  // 0 means "started after this call", which no earlier read can be.
+  const fresh = (at: number, maxAgeMs: number): boolean => maxAgeMs > 0 && now() - at < maxAgeMs
+  return {
+    read(maxAgeMs: number): Promise<string> {
+      if (text !== null && fresh(readAt, maxAgeMs)) return Promise.resolve(text)
+      // A read already under way counts as of the moment it started.
+      if (inFlight !== null && fresh(inFlight.startedAt, maxAgeMs)) return inFlight.pending
+      const startedAt = now()
+      const pending = run('tasklist', ['/fo', 'csv', '/nh'], TASKLIST_TIMEOUT_MS).then((out) => {
+        if (startedAt >= readAt) {
+          text = out
+          readAt = startedAt
+        }
+        return out
+      })
+      const entry = { startedAt, pending }
+      inFlight = entry
+      const clear = (): void => {
+        if (inFlight === entry) inFlight = null
+      }
+      pending.then(clear, clear)
+      return pending
+    }
+  }
+}
+
 export interface WindowsPortCollector {
   /** Rejects when the Windows port table cannot be read at all. */
   collect(): Promise<WindowsPortInfo[]>
@@ -217,6 +261,8 @@ export interface WindowsPortCollectorOptions {
   /** A host-wide socket scan is expensive; 15 seconds matches the medium tier. */
   ttlMs?: number
   now?: () => number
+  /** Shared process table; a private one over `run` by default. */
+  tasklist?: TasklistSnapshot
 }
 
 export function createWindowsPortCollector(
@@ -225,6 +271,7 @@ export function createWindowsPortCollector(
 ): WindowsPortCollector {
   const ttlMs = options.ttlMs ?? 15000
   const now = options.now ?? Date.now
+  const tasklist = options.tasklist ?? createTasklistSnapshot(run, now)
   let cached: WindowsPortInfo[] | null = null
   let cachedAt = 0
   let inFlight: Promise<WindowsPortInfo[]> | null = null
@@ -236,9 +283,9 @@ export function createWindowsPortCollector(
   const unnamedPids = new Set<number>()
 
   const refreshNames = async (): Promise<void> => {
-    const args = ['/fo', 'csv', '/nh']
     try {
-      const parsed = parseTasklistCsv(await run('tasklist', args, TASKLIST_TIMEOUT_MS))
+      // Fresh: the pid that triggered this refresh may be seconds old.
+      const parsed = parseTasklistCsv(await tasklist.read(0))
       if (parsed.size === 0) return
       nameByPid.clear()
       unnamedPids.clear()

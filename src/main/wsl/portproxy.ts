@@ -28,10 +28,10 @@ const PORTPROXY_TIMEOUT_MS = 6000
 
 /**
  * Forwarding rules are edited by hand, never by the second, and each read is a
- * process start. One answer serves this long so the medium tier does not spawn
- * a netsh every poll.
+ * console process start. One answer serves this long so the medium tier does
+ * not start a netsh every poll.
  */
-const DEFAULT_TTL_MS = 60000
+const DEFAULT_TTL_MS = 300000
 
 export const UNREADABLE = 'The Windows port forwarding table could not be read'
 

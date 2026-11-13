@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { WslRunner } from '../../src/main/wsl/runner'
 import { listDistros } from '../../src/main/wsl/distros'
 import { collectConfigFiles } from '../../src/main/wsl/config-files'
@@ -61,12 +61,33 @@ describe.skipIf(!liveWslTestsEnabled)('live collectors', () => {
     expect(procs[0].command).toBeTruthy()
   })
 
-  it('collects services without throwing regardless of systemd', async (ctx) => {
+  it('collects services without throwing regardless of systemd, alone or batched with a tick', async (ctx) => {
     if (distro === null) return ctx.skip()
     const { system } = await collectSystemInfo(runner, distro)
     const services = await collectServices(runner, distro, system.systemdEnabled)
     expect(Array.isArray(services)).toBe(true)
     if (system.systemdEnabled === true) expect(services.length).toBeGreaterThan(0)
+
+    // The polling path: one tick's collectors share a single wsl.exe and each
+    // still parses its own sections (services needs exactly four of them).
+    const batched = new WslRunner()
+    let launches = 0
+    batched.setTimingObserver(() => launches++)
+    const view = batched.coalesced()
+    const [again, procs, ports, sameServices] = await Promise.all([
+      collectSystemInfo(view, distro),
+      collectProcesses(view, distro),
+      collectPorts(view, distro),
+      collectServices(view, distro, system.systemdEnabled)
+    ])
+    // Results stream back before the batch process closes and is timed.
+    await vi.waitFor(() => expect(launches).toBeGreaterThan(0))
+    expect(launches).toBe(1)
+    expect(again.system.kernel).toBe(system.kernel)
+    expect(procs.length).toBeGreaterThan(0)
+    expect(Array.isArray(ports)).toBe(true)
+    expect(sameServices.map((s) => s.name).sort()).toEqual(services.map((s) => s.name).sort())
+    expect(batched.answeredRecently(distro, 10000)).toBe(true)
   })
 
   it('collects ports without throwing', async (ctx) => {

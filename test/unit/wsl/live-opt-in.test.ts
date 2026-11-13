@@ -28,7 +28,8 @@ describe('default test suite host safety', () => {
           cwd: process.cwd(),
           encoding: 'utf8',
           timeout: 120000,
-          env
+          env,
+          windowsHide: true
         }
       )
       const attempts = existsSync(log) ? readFileSync(log, 'utf8') : ''

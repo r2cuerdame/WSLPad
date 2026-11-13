@@ -37,7 +37,7 @@ describe('shellQuote', () => {
   reportLiveWslSkip('POSIX shell round-trip')
   it.skipIf(!liveWslTestsEnabled)('round-trips hostile strings through a real POSIX shell', (ctx) => {
     try {
-      execFileSync('wsl.exe', ['--exec', '/bin/sh', '-c', 'true'], { timeout: 15000 })
+      execFileSync('wsl.exe', ['--exec', '/bin/sh', '-c', 'true'], { timeout: 15000, windowsHide: true })
     } catch {
       return ctx.skip()
     }
@@ -46,7 +46,7 @@ describe('shellQuote', () => {
       const printed = execFileSync(
         'wsl.exe',
         ['--exec', '/bin/sh', '-c', `printf %s ${quoted}`],
-        { timeout: 15000 }
+        { timeout: 15000, windowsHide: true }
       ).toString('utf8')
       expect(printed).toBe(value)
     }

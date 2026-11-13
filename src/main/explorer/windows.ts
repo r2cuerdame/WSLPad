@@ -6,7 +6,6 @@
  * Electron is imported lazily inside places()/trash() so this module stays
  * loadable (and unit-testable) outside an Electron runtime.
  */
-import { execFile } from 'child_process'
 import { randomUUID } from 'crypto'
 import { EventEmitter } from 'events'
 import { constants as FS } from 'fs'
@@ -42,6 +41,7 @@ import type {
   WindowsPlace
 } from '@shared/types'
 import { ExplorerError, type ExplorerErrorCode, type ExplorerListOpts } from '../wsl/contracts'
+import { execFileHidden } from '../hidden-process'
 
 const BINARY_SNIFF_BYTES = 8000
 const HIDDEN_CACHE_MS = 2000
@@ -251,16 +251,14 @@ function queryHiddenNames(dir: string): Promise<Set<string>> {
       resolve(new Set())
       return
     }
-    execFile(
+    execFileHidden(
       'cmd.exe',
       // /s keeps the inner quotes intact after cmd strips the outer pair.
       ['/d', '/s', '/c', `"chcp 65001 >nul & dir /a:h /b "${dir}""`],
       {
-        windowsHide: true,
         windowsVerbatimArguments: true,
         timeout: HIDDEN_QUERY_TIMEOUT_MS,
-        maxBuffer: HIDDEN_QUERY_MAX_BYTES,
-        encoding: 'utf8'
+        maxBuffer: HIDDEN_QUERY_MAX_BYTES
       },
       (err, stdout) => {
         // `dir` exits non-zero when nothing is hidden — an empty set either way.

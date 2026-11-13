@@ -130,3 +130,106 @@ describe('PollingScheduler', () => {
     sched.stop()
   })
 })
+
+describe('PollingScheduler off screen (minimized, hidden, tray)', () => {
+  let store: FakeStore
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    store = makeStore()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('stretches every tier to the background floor while the window is off screen', () => {
+    const sched = new PollingScheduler(asStore(store), intervals(), false)
+    sched.start()
+    // Initial data is still collected once at start.
+    expect(store.refreshFast).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(59_999)
+    expect(store.refreshFast).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(1)
+    expect(store.refreshFast).toHaveBeenCalledTimes(2)
+    expect(store.refreshMedium).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(240_000)
+    expect(store.refreshMedium).toHaveBeenCalledTimes(2)
+    expect(store.refreshSlow).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(600_000)
+    expect(store.refreshSlow).toHaveBeenCalledTimes(2)
+    // 15 minutes off screen: 16 fast ticks instead of the 301 a 3 s tier makes.
+    expect(store.refreshFast).toHaveBeenCalledTimes(16)
+    sched.stop()
+  })
+
+  it('keeps a configured interval that is already longer than the floor', () => {
+    const sched = new PollingScheduler(asStore(store), intervals({ slowMs: 600_000 }), false)
+    sched.start()
+    vi.advanceTimersByTime(600_000)
+    expect(store.refreshSlow).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(300_000)
+    expect(store.refreshSlow).toHaveBeenCalledTimes(2)
+    sched.stop()
+  })
+
+  it('slows down when the window leaves the screen, without an extra refresh', () => {
+    const sched = new PollingScheduler(asStore(store), intervals())
+    sched.start()
+    vi.advanceTimersByTime(3000)
+    expect(store.refreshFast).toHaveBeenCalledTimes(2)
+    sched.setForeground(false)
+    expect(store.refreshFast).toHaveBeenCalledTimes(2)
+    vi.advanceTimersByTime(57_000)
+    expect(store.refreshFast).toHaveBeenCalledTimes(2)
+    vi.advanceTimersByTime(3000)
+    expect(store.refreshFast).toHaveBeenCalledTimes(3)
+    sched.stop()
+  })
+
+  it('refreshes stale tiers at once when the window comes back, then ticks fast again', () => {
+    const sched = new PollingScheduler(asStore(store), intervals(), false)
+    sched.start()
+    vi.advanceTimersByTime(20_000)
+    sched.setForeground(true)
+    // fast (20 s old > 3 s) and medium (20 s > 15 s) are stale; slow (20 s < 60 s) is not.
+    expect(store.refreshFast).toHaveBeenCalledTimes(2)
+    expect(store.refreshMedium).toHaveBeenCalledTimes(2)
+    expect(store.refreshSlow).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(3000)
+    expect(store.refreshFast).toHaveBeenCalledTimes(3)
+    sched.stop()
+  })
+
+  it('does not re-run tiers that are still fresh when the window flickers back', () => {
+    const sched = new PollingScheduler(asStore(store), intervals())
+    sched.start()
+    sched.setForeground(false)
+    sched.setForeground(true)
+    expect(store.refreshFast).toHaveBeenCalledTimes(1)
+    expect(store.refreshMedium).toHaveBeenCalledTimes(1)
+    expect(store.refreshSlow).toHaveBeenCalledTimes(1)
+    sched.stop()
+  })
+
+  it('stays silent while paused, whatever the window does', () => {
+    const sched = new PollingScheduler(asStore(store), intervals({ paused: true }), false)
+    sched.start()
+    sched.setForeground(true)
+    vi.advanceTimersByTime(120_000)
+    expect(store.refreshFast).not.toHaveBeenCalled()
+    sched.stop()
+  })
+
+  it('ignores a repeated state', () => {
+    const sched = new PollingScheduler(asStore(store), intervals())
+    sched.start()
+    vi.advanceTimersByTime(2000)
+    sched.setForeground(true)
+    vi.advanceTimersByTime(1000)
+    // The fast timer was not re-armed by the no-op call: it still fires at 3 s.
+    expect(store.refreshFast).toHaveBeenCalledTimes(2)
+    expect(sched.isForeground()).toBe(true)
+    sched.stop()
+  })
+})

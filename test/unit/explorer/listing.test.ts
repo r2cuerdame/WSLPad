@@ -173,7 +173,7 @@ describe('parseFindListing', () => {
     expect(parseFindListing('/d', text).map((e) => e.name)).toEqual(['whole'])
   })
 
-  it.skipIf(spawnSync('sh', ['-c', "find . -maxdepth 0 -printf ''"]).status !== 0)(
+  it.skipIf(spawnSync('sh', ['-c', "find . -maxdepth 0 -printf ''"], { windowsHide: true }).status !== 0)(
     'reads back what GNU find prints for the listing format',
     async () => {
       const runner = new MockRunner()
@@ -184,7 +184,8 @@ describe('parseFindListing', () => {
         writeFileSync(join(dir, 'plain.txt'), 'hello')
         mkdirSync(join(dir, 'sub'))
         const out = spawnSync('sh', ['-c', `find . -mindepth 1 -maxdepth 1 -printf ${format}`], {
-          cwd: dir
+          cwd: dir,
+          windowsHide: true
         })
         expect(out.status).toBe(0)
         const text = decodeWslOutput(out.stdout, 'utf8', true)
@@ -369,19 +370,19 @@ describe('listTree', () => {
     expect(entries.map((entry) => entry.name)).toEqual(['contents.txt'])
   })
 
-  it.skipIf(spawnSync('sh', ['-c', 'exit 0']).status !== 0)(
+  it.skipIf(spawnSync('sh', ['-c', 'exit 0'], { windowsHide: true }).status !== 0)(
     'generates a script accepted by the POSIX shell parser',
     async () => {
       const runner = new MockRunner()
       await listTree(runner, 'Ubuntu', '/home/u')
       const script = runner.calls[0].script
-      const parsed = spawnSync('sh', ['-n', '-c', script], { encoding: 'utf8' })
+      const parsed = spawnSync('sh', ['-n', '-c', script], { encoding: 'utf8', windowsHide: true })
       expect(parsed.stderr).toBe('')
       expect(parsed.status).toBe(0)
 
       // Prove this check catches the original regression, even without WSL/GUI.
       const unquoted = script.replace("'('", '(').replace("')'", ')')
-      expect(spawnSync('sh', ['-n', '-c', unquoted]).status).not.toBe(0)
+      expect(spawnSync('sh', ['-n', '-c', unquoted], { windowsHide: true }).status).not.toBe(0)
     }
   )
 
