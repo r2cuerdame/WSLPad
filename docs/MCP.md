@@ -56,8 +56,8 @@ at-a-glance status badge):
 | `GetResourceUsage` | CPU, memory, swap, disks, load, process count |
 | `GetImportantPaths` | Auto-detected important paths + Windows mappings |
 | `GetConfigurationFiles` | wsl.conf/.wslconfig/rc files existence & paths |
-| `GetInstalledTools` | Detected dev tools with versions and install method |
-| `GetToolStatus` | One tool's detection detail (`{ tool }`) |
+| `GetInstalledTools` | Detected dev tools with versions and install method; `tools: null` with `collectionStatus` until the first detection completes |
+| `GetToolStatus` | One tool's detection detail (`{ tool }`); `tool: null` with `collectionStatus` until the first detection completes |
 | `GetHermesStatus` | Hermes install/gateway/dashboard, connected messengers, profiles ("agents"), active sessions, scheduled jobs, ports/services |
 | `GetEnvironment` | Env var names + masked values (secrets never raw) |
 | `GetProcesses` | Process table (PID, user, CPU %, memory %, elapsed time, command line) |

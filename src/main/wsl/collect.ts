@@ -5,6 +5,9 @@ import type {
   DistroSummary,
   DiskConsumersInfo,
   DockerInfo,
+  DriveMountsInfo,
+  HermesInfo,
+  InotifyInfo,
   ZoneIdentifierInfo
 } from '@shared/types'
 import { WslNotAvailableError, type DistroRunner, type WslProvider } from './contracts'
@@ -155,6 +158,22 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     return fresh
   }
 
+  // No TTL for these three: each read is one cheap script, so every tick asks
+  // again. Only a failed read (null) falls back to the previous answer.
+  const driveMountsCache = new Map<string, DriveMountsInfo>()
+  const inotifyCache = new Map<string, InotifyInfo>()
+  const hermesCache = new Map<string, HermesInfo>()
+  const lastGood = async <T>(
+    cache: Map<string, T>,
+    distro: string,
+    read: () => Promise<T | null>
+  ): Promise<T | null> => {
+    const fresh = await read()
+    if (fresh === null) return cache.get(distro) ?? null
+    cache.set(distro, fresh)
+    return fresh
+  }
+
   return {
     async isAvailable(): Promise<boolean> {
       try {
@@ -299,7 +318,7 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     },
 
     getDriveMounts(distro) {
-      return collectDriveMounts(runner, distro)
+      return lastGood(driveMountsCache, distro, () => collectDriveMounts(runner, distro))
     },
 
     getDefender() {
@@ -307,7 +326,7 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     },
 
     getInotify(distro) {
-      return collectInotify(runner, distro)
+      return lastGood(inotifyCache, distro, () => collectInotify(runner, distro))
     },
 
     getServiceLog(distro, unit, scope, lines) {
@@ -319,7 +338,7 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     },
 
     async getHermes(distro) {
-      const base = await detectHermes(runner, distro)
+      const base = await lastGood(hermesCache, distro, () => detectHermes(runner, distro))
       if (base === null || !base.installed) return base
       const detail = await hermesCliDetail(distro)
       return detail === null ? base : { ...base, ...detail }

@@ -850,6 +850,21 @@ describe('detectTools', () => {
     expect(tools.find((t) => t.id === 'docker')?.installed).toBe(false)
   })
 
+  it('fails instead of reporting unreached tools as missing when the sweep times out', async () => {
+    const partial = 'TOOL:git\nPATH:/usr/bin/git\nVER:git version 2.43.0\nPROC:0\n'
+    const runner = new FakeRunner((script) =>
+      script === USER_SERVICES_SCRIPT ? ok(SERVICES_FIXTURE) : ok(partial, null, true)
+    )
+    await expect(detectTools(runner, 'Ubuntu-24.04')).rejects.toThrow(/timed out/)
+  })
+
+  it('fails instead of reporting tools as missing when the sweep exits non-zero', async () => {
+    const runner = new FakeRunner((script) =>
+      script === USER_SERVICES_SCRIPT ? ok(SERVICES_FIXTURE) : ok('', 1)
+    )
+    await expect(detectTools(runner, 'Ubuntu-24.04')).rejects.toThrow(/code 1/)
+  })
+
   it('returns empty services when the services call fails', async () => {
     const runner = new FakeRunner(toolsResponder(TOOLS_FIXTURE, new Error('systemctl unavailable')))
     const tools = await detectTools(runner, 'Ubuntu-24.04')

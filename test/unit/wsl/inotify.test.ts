@@ -6,20 +6,20 @@ import {
   raiseWatchesCommand
 } from '../../../src/main/wsl/inotify'
 import { RECOMMENDED_WATCHES, watchesAreLow } from '../../../src/shared/inotify'
-import type { DistroRunner } from '../../../src/main/wsl/contracts'
+import type { DistroRunner, RunResult } from '../../../src/main/wsl/contracts'
 import { SECTION_MARKER } from '../../../src/main/wsl/system'
 import { joinSections, ok } from './collectors/helpers'
 
 /** The command every InotifyInfo carries; irrelevant to the judgements below. */
 const RAISE = raiseWatchesCommand('Ubuntu')
 
-function runner(stdout: string): DistroRunner {
+function runner(stdout: string, result: Partial<RunResult> = {}): DistroRunner {
   return {
     async runWsl() {
       return ok('')
     },
     async runInDistro() {
-      return ok(stdout)
+      return { ...ok(stdout), ...result }
     },
     async disposeAll() {
       /* nothing spawned */
@@ -125,6 +125,21 @@ describe('collectInotify', () => {
       }
     }
     expect(await collectInotify(dead, 'Ubuntu')).toBeNull()
+  })
+
+  it('degrades to unknown when the read is cut off by the timeout', async () => {
+    // The first value made it out before the cut-off; it must not become a
+    // card that knows the watches and silently lacks the instances.
+    const partial = runner('524288\n', { timedOut: true, code: null })
+    expect(await collectInotify(partial, 'Ubuntu')).toBeNull()
+  })
+
+  it('degrades to unknown on a non-zero exit', async () => {
+    expect(await collectInotify(runner(joinSections('524288', '256'), { code: 1 }), 'Ubuntu')).toBeNull()
+  })
+
+  it('rejects an invalid distro name before running anything', async () => {
+    await expect(collectInotify(runner(''), 'bad name; rm -rf /')).rejects.toThrow(/Invalid WSL distro/)
   })
 })
 

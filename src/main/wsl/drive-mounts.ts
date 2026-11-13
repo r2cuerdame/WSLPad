@@ -12,6 +12,7 @@
 import { RUNNER_TIMEOUT_MS } from '@shared/constants'
 import type { DriveMountInfo, DriveMountsInfo } from '@shared/types'
 import type { DistroRunner } from './contracts'
+import { assertValidDistroName } from './escape'
 import { SECTION_MARKER, splitSections } from './system'
 import {
   isDrvFsMount,
@@ -128,10 +129,14 @@ export async function collectDriveMounts(
   runner: DistroRunner,
   distro: string
 ): Promise<DriveMountsInfo | null> {
+  assertValidDistroName(distro)
   try {
     const res = await runner.runInDistro(distro, DRIVE_MOUNTS_SCRIPT, {
       timeoutMs: RUNNER_TIMEOUT_MS
     })
+    // Both reads end in `|| true`, so only a cut-off run exits non-zero: a
+    // mount table read half-way would drop drives and still look complete.
+    if (res.timedOut || res.code !== 0) return null
     return parseDriveMounts(res.stdout)
   } catch {
     // A stopped or wedged distro has no mounts to report; that is unknown.

@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DefenderInfo } from '@shared/types'
 import type { DistroRunner, RunResult } from '../../../src/main/wsl/contracts'
+import { joinSections } from './collectors/helpers'
 
 const collectDefender = vi.fn<() => Promise<DefenderInfo | null>>()
 vi.mock('../../../src/main/wsl/defender', () => ({ collectDefender }))
 
 const { createRealProvider } = await import('../../../src/main/wsl/collect')
+const { DRIVE_MOUNTS_SCRIPT } = await import('../../../src/main/wsl/drive-mounts')
+const { INOTIFY_SCRIPT } = await import('../../../src/main/wsl/inotify')
+const { HERMES_SCRIPT } = await import('../../../src/main/wsl/detectors/hermes')
 
 const ok: RunResult = { stdout: '', stderr: '', code: 0, timedOut: false }
 
@@ -61,5 +65,43 @@ describe('createRealProvider', () => {
     collectDefender.mockResolvedValueOnce(defender(false))
     expect(await provider.getDefender?.()).toEqual(defender(false))
     expect(collectDefender).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps the last good drive mounts, watch limits and Hermes per distro on a failed read', async () => {
+    const answers = new Map<string, RunResult | Error>([
+      [DRIVE_MOUNTS_SCRIPT, { ...ok, stdout: '/dev/sdd / ext4 rw 0 0\nC:\\134 /mnt/c 9p rw,aname=drvfs;path=C:\\;metadata 0 0' }],
+      [INOTIFY_SCRIPT, { ...ok, stdout: joinSections('524288', '256') }],
+      [HERMES_SCRIPT, { ...ok, stdout: 'DATA:/home/dev/.hermes\n' }]
+    ])
+    const runner = fakeRunner(false)
+    runner.runInDistro.mockImplementation(async (_distro: string, script: string) => {
+      const answer = answers.get(script) ?? ok
+      if (answer instanceof Error) throw answer
+      return answer
+    })
+    const provider = createRealProvider(runner)
+    const mounts = await provider.getDriveMounts?.('Ubuntu')
+    const inotify = await provider.getInotify?.('Ubuntu')
+    const hermes = await provider.getHermes('Ubuntu')
+    expect(mounts?.drives.map((d) => d.point)).toEqual(['/mnt/c'])
+    expect(inotify?.maxUserWatches).toBe(524288)
+    expect(hermes?.installed).toBe(true)
+
+    // A cut-off mount read, a timed-out sysctl read and a failed Hermes query.
+    answers.set(DRIVE_MOUNTS_SCRIPT, { ...ok, stdout: '/dev/sdd / ext4 rw 0 0', code: 1 })
+    answers.set(INOTIFY_SCRIPT, { ...ok, stdout: '524288\n', code: null, timedOut: true })
+    answers.set(HERMES_SCRIPT, new Error('distro is busy'))
+    expect(await provider.getDriveMounts?.('Ubuntu')).toEqual(mounts)
+    expect(await provider.getInotify?.('Ubuntu')).toEqual(inotify)
+    expect(await provider.getHermes('Ubuntu')).toEqual(hermes)
+
+    // Another distro never inherits the first one's answers.
+    expect(await provider.getDriveMounts?.('Debian')).toBeNull()
+    expect(await provider.getInotify?.('Debian')).toBeNull()
+    expect(await provider.getHermes('Debian')).toBeNull()
+
+    // A fresh answer replaces the remembered one.
+    answers.set(INOTIFY_SCRIPT, { ...ok, stdout: joinSections('1048576', '512') })
+    expect((await provider.getInotify?.('Ubuntu'))?.maxUserWatches).toBe(1048576)
   })
 })
