@@ -412,6 +412,28 @@ describe('snapshotToMarkdown secret masking', () => {
     expect(md).toContain(`token=${MASKED_VALUE}`)
     expect(md).toContain('memory=8GB')
   })
+
+  it('masks hyphenated and dotted secret keys in reconstructed .wslconfig and wsl.conf', () => {
+    const customSnap = makeSnapshot({
+      dashboard: makeDashboard({
+        wslSettings: wslConfig({
+          settings: [
+            setting('memory', 'wsl2', 'wslconfig', '8GB'),
+            setting('api-token', 'wsl2', 'wslconfig', SECRET),
+            setting('systemd', 'boot', 'wsl-conf', 'true'),
+            setting('auth.key', 'user', 'wsl-conf', 'linux-auth-secret-val')
+          ]
+        })
+      })
+    })
+    const md = snapshotToMarkdown(customSnap, 'bug-report')
+    expect(md).not.toContain(SECRET)
+    expect(md).not.toContain('linux-auth-secret-val')
+    expect(md).toContain(`api-token=${MASKED_VALUE}`)
+    expect(md).toContain(`auth.key=${MASKED_VALUE}`)
+    expect(md).toContain('memory=8GB')
+    expect(md).toContain('systemd=true')
+  })
 })
 
 describe('snapshotToJson', () => {
@@ -424,5 +446,41 @@ describe('snapshotToJson', () => {
   it('pretty-prints with two-space indentation', () => {
     const json = snapshotToJson(makeSnapshot())
     expect(json).toContain('\n  "schemaVersion": 1')
+  })
+
+  it('sanitizes unmasked secret environment variables and wslSettings entries before export', () => {
+    const snap = makeSnapshot({
+      dashboard: makeDashboard({
+        environment: [envVar('GITHUB_TOKEN', SECRET), envVar('EDITOR', 'vim')],
+        wslSettings: wslConfig({
+          settings: [
+            setting('memory', 'wsl2', 'wslconfig', '8GB'),
+            {
+              ...setting('api-token', 'wsl2', 'wslconfig', SECRET),
+              effectiveValue: 'eff-secret-999',
+              note: `Declared ${SECRET} but the system reports eff-secret-999.`
+            }
+          ]
+        })
+      })
+    })
+
+    const json = snapshotToJson(snap)
+    expect(json).not.toContain(SECRET)
+    expect(json).not.toContain('eff-secret-999')
+
+    const parsed = JSON.parse(json)
+    expect(parsed.dashboard.environment[0].maskedValue).toBe(MASKED_VALUE)
+    expect(parsed.dashboard.environment[1].maskedValue).toBe('vim')
+    expect(parsed.dashboard.wslSettings.settings[0]).toMatchObject({
+      key: 'memory',
+      declaredValue: '8GB'
+    })
+    expect(parsed.dashboard.wslSettings.settings[1]).toMatchObject({
+      key: 'api-token',
+      declaredValue: MASKED_VALUE,
+      effectiveValue: MASKED_VALUE,
+      note: `Declared ${MASKED_VALUE} but the system reports ${MASKED_VALUE}.`
+    })
   })
 })

@@ -24,7 +24,7 @@ import {
 } from './constants'
 import { addExclusionCommand, defenderCoverage, suggestedExclusion } from './defender-coverage'
 import { watchesAreLow } from './inotify'
-import { isSecretName } from './masking'
+import { isSecretName, sanitizeWslSettings } from './masking'
 import { automountRootFromSettings, classifyPathSide, isCrossBoundary } from './path-boundary'
 import type {
   DashboardSnapshot,
@@ -608,23 +608,18 @@ function buildStorage(dash: DashboardSnapshot | null, automountRoot: string, b: 
 }
 
 function buildConfigs(dash: DashboardSnapshot | null, b: Bounder): DevEnvConfigs {
-  const wsl = dash?.wslSettings ?? null
+  const wsl = sanitizeWslSettings(dash?.wslSettings ?? null)
   const declared = (wsl?.settings ?? []).filter((s) => s.declaredValue !== null)
   const settingsCut = b.cap(
     'configs.settings',
-    declared.map((s) => {
-      // The same rule the environment collector applies: a key that looks
-      // like a credential never carries its value out of the snapshot.
-      const secret = isSecretName(s.key)
-      return {
-        key: s.key,
-        section: s.section,
-        scope: s.scope,
-        declaredValue: secret && s.declaredValue !== null ? MASKED_VALUE : s.declaredValue,
-        effectiveValue: secret && s.effectiveValue !== null ? MASKED_VALUE : s.effectiveValue,
-        verdict: s.verdict
-      }
-    }),
+    declared.map((s) => ({
+      key: s.key,
+      section: s.section,
+      scope: s.scope,
+      declaredValue: s.declaredValue,
+      effectiveValue: s.effectiveValue,
+      verdict: s.verdict
+    })),
     LIMITS.settings
   )
   const files = (dash?.configuration ?? [])
@@ -773,7 +768,7 @@ function buildChecks(s: WslPadSnapshot, dash: DashboardSnapshot | null): DevEnvC
   }
 
   // WSL settings
-  const wsl = dash.wslSettings
+  const wsl = sanitizeWslSettings(dash.wslSettings)
   if (wsl === null) {
     out.push(check('wsl-settings', 'unknown', '.wslconfig and /etc/wsl.conf have not been read.'))
   } else {

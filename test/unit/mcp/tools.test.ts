@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { MASKED_VALUE } from '@shared/constants'
-import type { EnvironmentVariableInfo, FileEntry } from '@shared/types'
+import type { EnvironmentVariableInfo, FileEntry, WslConfigInfo } from '@shared/types'
 import { maskTextFileContent } from '../../../src/main/mcp/masking'
 import type { McpDeps } from '../../../src/main/mcp/server'
 import { createMcpServer } from '../../../src/main/mcp/tools'
@@ -135,6 +135,89 @@ describe('snapshot-backed tools', () => {
     const secret = dashboard.environment.find((v) => v.name === 'API_TOKEN')
     expect(secret?.maskedValue).toBe(MASKED_VALUE)
     expect(JSON.stringify(result)).not.toContain(RAW_SECRET)
+  })
+
+  it('GetWslSettings and GetDashboardSnapshot mask secret wslSettings values even when raw in snapshot', async () => {
+    const rawSettings: WslConfigInfo = {
+      wslconfigPath: 'C:\\Users\\user\\.wslconfig',
+      wslconfigExists: true,
+      wslConfPath: '/etc/wsl.conf',
+      wslConfExists: true,
+      restartPending: false,
+      vmStartedAt: '2026-07-30T09:00:00.000Z',
+      networkingModeDeclared: 'mirrored',
+      networkingModeEffective: 'mirrored',
+      platform: null,
+      interop: null,
+      defaultUser: null,
+      settings: [
+        {
+          key: 'memory',
+          section: 'wsl2',
+          scope: 'windows',
+          declaredValue: '8GB',
+          effectiveValue: '8GB',
+          origin: 'wslconfig',
+          provenance: 'user',
+          verdict: 'applied',
+          note: null
+        },
+        {
+          key: 'api-token',
+          section: 'wsl2',
+          scope: 'windows',
+          declaredValue: RAW_SECRET,
+          effectiveValue: 'effective-raw-secret',
+          origin: 'wslconfig',
+          provenance: 'user',
+          verdict: 'unknown-key',
+          note: `Declared ${RAW_SECRET} and system reported effective-raw-secret.`
+        },
+        {
+          key: 'proxy_password',
+          section: 'user',
+          scope: 'linux',
+          declaredValue: 'linux-raw-secret',
+          effectiveValue: null,
+          origin: 'wsl-conf',
+          provenance: 'user',
+          verdict: 'unknown-key',
+          note: 'WSL ignores this key.'
+        }
+      ]
+    }
+    const base = makeSnapshot()
+    const snapshot = makeSnapshot({
+      dashboard: { ...base.dashboard!, wslSettings: rawSettings }
+    })
+    const client = await connect(makeDeps({ snapshot }))
+
+    const wslRes = await call(client, 'GetWslSettings')
+    const wslOut = wslRes.structuredContent?.wslSettings as WslConfigInfo
+    expect(JSON.stringify(wslRes)).not.toContain(RAW_SECRET)
+    expect(JSON.stringify(wslRes)).not.toContain('effective-raw-secret')
+    expect(JSON.stringify(wslRes)).not.toContain('linux-raw-secret')
+    expect(wslOut.settings[0]).toMatchObject({ key: 'memory', declaredValue: '8GB' })
+    expect(wslOut.settings[1]).toMatchObject({
+      key: 'api-token',
+      declaredValue: MASKED_VALUE,
+      effectiveValue: MASKED_VALUE,
+      note: `Declared ${MASKED_VALUE} and system reported ${MASKED_VALUE}.`
+    })
+    expect(wslOut.settings[2]).toMatchObject({
+      key: 'proxy_password',
+      declaredValue: MASKED_VALUE,
+      effectiveValue: null,
+      note: 'WSL ignores this key.'
+    })
+
+    const dashRes = await call(client, 'GetDashboardSnapshot')
+    const dashOut = dashRes.structuredContent?.dashboard as { wslSettings: WslConfigInfo }
+    expect(JSON.stringify(dashRes)).not.toContain(RAW_SECRET)
+    expect(JSON.stringify(dashRes)).not.toContain('effective-raw-secret')
+    expect(JSON.stringify(dashRes)).not.toContain('linux-raw-secret')
+    expect(dashOut.wslSettings.settings[1].declaredValue).toBe(MASKED_VALUE)
+    expect(dashOut.wslSettings.settings[2].declaredValue).toBe(MASKED_VALUE)
   })
 
   it('dashboard-section tools fail with "no data yet" when there is no dashboard', async () => {
@@ -342,6 +425,47 @@ describe('maskTextFileContent', () => {
     expect(masked.content).toContain(`export GITHUB_TOKEN=${MASKED_VALUE}`)
     expect(masked.content).toContain('export EDITOR=vim')
     expect(masked.warning).toBeNull()
+  })
+
+  it('masks ini secret assignments with hyphens, dots, equals whitespace, CRLF and empty values', () => {
+    const raw = [
+      '[wsl2]',
+      'api-token = ini-secret-1',
+      'auth.key=ini-secret-2',
+      '  proxy_password\t=\tini-secret-3',
+      'secret-empty =',
+      'memory = 8GB',
+      'networkingMode=mirrored'
+    ].join('\r\n')
+    const masked = maskTextFileContent('/mnt/c/Users/user/.wslconfig', raw)
+    expect(masked.content).not.toContain('ini-secret-1')
+    expect(masked.content).not.toContain('ini-secret-2')
+    expect(masked.content).not.toContain('ini-secret-3')
+    expect(masked.content).toContain(`api-token = ${MASKED_VALUE}\r\n`)
+    expect(masked.content).toContain(`auth.key=${MASKED_VALUE}\r\n`)
+    expect(masked.content).toContain(`  proxy_password\t=\t${MASKED_VALUE}\r\n`)
+    expect(masked.content).toContain(`secret-empty =${MASKED_VALUE}\r\nmemory = 8GB`)
+    expect(masked.content).toContain('networkingMode=mirrored')
+  })
+
+  it('masks hyphenated and dotted INI secret lines returned by GetTextFile', async () => {
+    const deps = makeDeps()
+    vi.spyOn(deps.explorer, 'resolvePath').mockResolvedValue('/etc/wsl.conf')
+    vi.spyOn(deps.explorer, 'readText').mockResolvedValue({
+      content: '[boot]\nsystemd=true\n[auth]\napi-token = file-secret-1\nauth.key = file-secret-2\n',
+      encoding: 'utf-8',
+      truncated: false,
+      sizeBytes: 78,
+      writable: false
+    })
+    const client = await connect(deps)
+    const result = await call(client, 'GetTextFile', { path: '/etc/wsl.conf' })
+    const content = result.structuredContent?.content as string
+    expect(content).not.toContain('file-secret-1')
+    expect(content).not.toContain('file-secret-2')
+    expect(content).toContain(`api-token = ${MASKED_VALUE}`)
+    expect(content).toContain(`auth.key = ${MASKED_VALUE}`)
+    expect(content).toContain('systemd=true')
   })
 
   it('warns on sensitive paths without touching non-secret content', () => {
@@ -609,6 +733,51 @@ describe('the developer environment context tools', () => {
     expect(json).not.toContain('API_TOKEN')
     const context = result.structuredContent?.context as { path: { secretVariableCount: number } }
     expect(context.path.secretVariableCount).toBe(1)
+  })
+
+  it('masks secret wslSettings notes and values in developer context and doctor', async () => {
+    const base = makeSnapshot()
+    const snapshot = makeSnapshot({
+      dashboard: {
+        ...base.dashboard!,
+        wslSettings: {
+          wslconfigPath: 'C:\\Users\\user\\.wslconfig',
+          wslconfigExists: true,
+          wslConfPath: '/etc/wsl.conf',
+          wslConfExists: true,
+          restartPending: false,
+          vmStartedAt: null,
+          networkingModeDeclared: null,
+          networkingModeEffective: null,
+          platform: null,
+          interop: null,
+          defaultUser: null,
+          settings: [
+            {
+              key: 'api-token',
+              section: 'wsl2',
+              scope: 'windows',
+              declaredValue: RAW_SECRET,
+              effectiveValue: null,
+              origin: 'wslconfig',
+              provenance: 'user',
+              verdict: 'unknown-key',
+              note: `Declared ${RAW_SECRET} in config.`
+            }
+          ]
+        }
+      }
+    })
+    const client = await connect(makeDeps({ snapshot }))
+
+    const ctxRes = await call(client, 'GetDeveloperEnvironmentContext')
+    expect(JSON.stringify(ctxRes)).not.toContain(RAW_SECRET)
+    expect(ctxRes.content[0].text).not.toContain(RAW_SECRET)
+    expect(ctxRes.content[0].text).toContain(`api-token=${MASKED_VALUE}`)
+
+    const docRes = await call(client, 'GetEnvironmentDoctor')
+    expect(JSON.stringify(docRes)).not.toContain(RAW_SECRET)
+    expect(docRes.content[0].text).toContain(MASKED_VALUE)
   })
 
   it('still answers, with unknowns, when no dashboard has been collected', async () => {

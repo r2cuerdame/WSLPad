@@ -1,4 +1,11 @@
 import { MASKED_VALUE, SECRET_NAME_PATTERNS } from './constants'
+import type {
+  DashboardSnapshot,
+  EnvironmentVariableInfo,
+  WslConfigInfo,
+  WslPadSnapshot,
+  WslSettingInfo
+} from './types'
 
 /** True when the variable name matches a secret pattern (goal.md §6.7). */
 export function isSecretName(name: string): boolean {
@@ -40,4 +47,69 @@ export function isSensitivePath(linuxPath: string): boolean {
   if (/\/(\.netrc|\.npmrc|\.pgpass)$/.test(p)) return true
   if (/credentials(\.json)?$/i.test(p)) return true
   return false
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function redactValueInNote(note: string, raw: string | null): string {
+  if (raw === null || raw === '' || raw === MASKED_VALUE) return note
+  const left = /^[A-Za-z0-9_]/.test(raw) ? '(?<![A-Za-z0-9_])' : ''
+  const right = /[A-Za-z0-9_]$/.test(raw) ? '(?![A-Za-z0-9_])' : ''
+  return note.replace(new RegExp(`${left}${escapeRegExp(raw)}${right}`, 'g'), MASKED_VALUE)
+}
+
+/** Defense in depth: mask secret env values even if a collector slips. */
+export function sanitizeEnvironment(
+  env: readonly EnvironmentVariableInfo[]
+): EnvironmentVariableInfo[] {
+  return env.map((v) =>
+    v.isSecret || isSecretName(v.name) ? { ...v, maskedValue: MASKED_VALUE } : v
+  )
+}
+
+/** Mask declared/effective values and any embedded raw values in notes for secret-named settings. */
+export function sanitizeWslSetting(setting: WslSettingInfo): WslSettingInfo {
+  if (!isSecretName(setting.key)) return setting
+  let note = setting.note
+  if (note !== null) {
+    note = redactValueInNote(note, setting.declaredValue)
+    note = redactValueInNote(note, setting.effectiveValue)
+  }
+  return {
+    ...setting,
+    declaredValue: setting.declaredValue === null ? null : MASKED_VALUE,
+    effectiveValue: setting.effectiveValue === null ? null : MASKED_VALUE,
+    note
+  }
+}
+
+/** Defense in depth: sanitize secret-named entries in WSL settings. */
+export function sanitizeWslSettings(wsl: WslConfigInfo): WslConfigInfo
+export function sanitizeWslSettings(wsl: WslConfigInfo | null): WslConfigInfo | null
+export function sanitizeWslSettings(wsl: WslConfigInfo | null): WslConfigInfo | null {
+  if (wsl === null) return null
+  return {
+    ...wsl,
+    settings: wsl.settings.map(sanitizeWslSetting)
+  }
+}
+
+/** Defense in depth: sanitize secret fields on a dashboard snapshot before serialization/egress. */
+export function sanitizeDashboard(dash: DashboardSnapshot): DashboardSnapshot {
+  return {
+    ...dash,
+    environment: sanitizeEnvironment(dash.environment),
+    wslSettings: sanitizeWslSettings(dash.wslSettings)
+  }
+}
+
+/** Defense in depth: sanitize secret fields on a full snapshot before serialization/egress. */
+export function sanitizeSnapshot(snapshot: WslPadSnapshot): WslPadSnapshot {
+  if (snapshot.dashboard === null) return snapshot
+  return {
+    ...snapshot,
+    dashboard: sanitizeDashboard(snapshot.dashboard)
+  }
 }

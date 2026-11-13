@@ -1,3 +1,4 @@
+import { MASKED_VALUE } from '@shared/constants'
 import type { LlmPreset } from '@shared/ipc'
 import type {
   DashboardSnapshot,
@@ -8,6 +9,7 @@ import type {
 } from '@shared/types'
 import { buildDevEnvContext } from '@shared/dev-env-context'
 import { devEnvContextToMarkdown, fmtBytesPlain as fmtBytes } from '@shared/dev-env-context-markdown'
+import { isSecretName, sanitizeSnapshot } from '@shared/masking'
 import packageJson from '../../../package.json'
 import { maskTextFileContent } from '../mcp/masking'
 
@@ -408,7 +410,8 @@ function iniFromSettings(settings: WslSettingInfo[], origin: SettingOrigin): str
   for (const setting of settings) {
     if (setting.origin !== origin || setting.declaredValue === null) continue
     const entries = sections.get(setting.section) ?? []
-    entries.push(`${setting.key}=${setting.declaredValue}`)
+    const value = isSecretName(setting.key) ? MASKED_VALUE : setting.declaredValue
+    entries.push(`${setting.key}=${value}`)
     sections.set(setting.section, entries)
   }
   if (sections.size === 0) return null
@@ -534,7 +537,7 @@ export function snapshotToMarkdown(s: WslPadSnapshot, preset: LlmPreset = 'defau
   return defaultMarkdown(s)
 }
 
-/** JSON export button (goal.md §12) — the snapshot is already masked by construction. */
+/** JSON export button (goal.md §12) — defense-in-depth sanitization before serialization. */
 export function snapshotToJson(s: WslPadSnapshot): string {
-  return JSON.stringify(s, null, 2)
+  return JSON.stringify(sanitizeSnapshot(s), null, 2)
 }
