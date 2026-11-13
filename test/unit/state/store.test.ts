@@ -3,12 +3,14 @@ import type {
   DiskImageInfo,
   MemoryReconciliation,
   ResourceInfo,
+  WindowsPortInfo,
   WslConfigInfo,
   WslPadSnapshot
 } from '@shared/types'
 import { PROBE_BACKOFF_BASE_MS, PROBE_TRUST_MS } from '@shared/constants'
 import { SnapshotStore } from '../../../src/main/state/store'
 import { DiagnosticsService } from '../../../src/main/state/diagnostics'
+import { createPortProxyCollector } from '../../../src/main/wsl/portproxy'
 import {
   clock,
   debian,
@@ -16,7 +18,10 @@ import {
   firewall,
   makeProvider,
   mcpStatus,
+  port,
   resources,
+  svc,
+  system,
   ubuntu,
   type FakeProvider
 } from './helpers'
@@ -767,5 +772,251 @@ describe('SnapshotStore liveness gate', () => {
     await s.refreshFast()
     expect(s.get().dashboard?.resources.cpuPercent).toBe(10)
     expect(s.get().warnings.some((w) => w.id === 'distro-unresponsive')).toBe(false)
+  })
+})
+
+function deferred<T>(): {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (err: unknown) => void
+} {
+  let resolve!: (value: T) => void
+  let reject!: (err: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+const NETSH_SAMPLE_TABLE = [
+  '',
+  'Listen on ipv4:             Connect to ipv4:',
+  '',
+  'Address         Port        Address         Port',
+  '--------------- ----------  --------------- ----------',
+  '0.0.0.0         8080        172.20.128.7    8080',
+  '127.0.0.1       5173        172.20.144.2    5173',
+  ''
+].join('\n')
+
+function windowsPort(portNumber = 8080): WindowsPortInfo {
+  return {
+    protocol: 'tcp',
+    localAddress: '0.0.0.0',
+    port: portNumber,
+    pid: 4,
+    processName: 'wslrelay',
+    listening: true,
+    localhostUrl: `http://127.0.0.1:${portNumber}`,
+    fromWsl: true
+  }
+}
+
+describe('SnapshotStore cross-tier reconciliation', () => {
+  it('updates port reachability immediately once firewall and networking mode arrive', async () => {
+    const p = {
+      ...makeProvider(),
+      getWindowsPorts: vi.fn(async () => [windowsPort(8080)]),
+      getFirewall: vi.fn(async () => firewall({ defaultInbound: 'Allow' })),
+      getWslSettings: vi.fn(async () => wslSettings())
+    }
+    p.getPorts.mockResolvedValue([{ ...port(8080), localAddress: '0.0.0.0' }])
+
+    const store = new SnapshotStore(p)
+    await store.initialize()
+
+    await store.refreshFast()
+    expect(store.get().dashboard?.ports[0]?.reachability).toBe('unknown')
+
+    await store.refreshMedium()
+    expect(store.get().dashboard?.ports[0]?.reachability).toBe('unknown')
+
+    await store.refreshSlow()
+    expect(store.get().dashboard?.ports[0]?.reachability).toBe('lan')
+    expect(p.getPorts).toHaveBeenCalledTimes(1)
+  })
+
+  it('converges port reachability when fast, medium, and slow run concurrently or host firewall arrives last', async () => {
+    const fwDeferred = deferred<ReturnType<typeof firewall>>()
+    const settingsDeferred = deferred<ReturnType<typeof wslSettings>>()
+    const p = {
+      ...makeProvider(),
+      getWindowsPorts: vi.fn(async () => [windowsPort(8080)]),
+      getFirewall: vi.fn(() => fwDeferred.promise),
+      getWslSettings: vi.fn(() => settingsDeferred.promise)
+    }
+    p.getPorts.mockResolvedValue([{ ...port(8080), localAddress: '0.0.0.0' }])
+
+    const store = new SnapshotStore(p)
+    await store.initialize()
+
+    const pending = Promise.all([store.refreshFast(), store.refreshMedium(), store.refreshSlow()])
+    // Fast finishes before firewall and networking mode settle.
+    await Promise.resolve()
+    await Promise.resolve()
+    settingsDeferred.resolve(wslSettings())
+    await Promise.resolve()
+    fwDeferred.resolve(firewall({ defaultInbound: 'Block' }))
+    await pending
+
+    expect(store.get().dashboard?.ports[0]?.reachability).toBe('windows-only')
+  })
+
+  it('re-evaluates portProxy via collector cache on system.ip arrival and change without standalone slow calls', async () => {
+    const standaloneProvider = {
+      ...makeProvider(),
+      getPortProxy: vi.fn(async (ip: string | null) => ({ rules: [], distroIp: ip, error: null }))
+    }
+    const standaloneStore = new SnapshotStore(standaloneProvider)
+    await standaloneStore.initialize()
+    await standaloneStore.refreshSlow()
+    expect(standaloneProvider.getPortProxy).not.toHaveBeenCalled()
+
+    const run = vi.fn().mockResolvedValue(NETSH_SAMPLE_TABLE)
+    const collector = createPortProxyCollector({ run })
+    const p = {
+      ...makeProvider(),
+      getPortProxy: vi.fn((ip: string | null) => collector.collect(ip))
+    }
+    p.getSystemInfo
+      .mockResolvedValueOnce(system({ ip: '172.20.144.2' }))
+      .mockResolvedValueOnce(system({ ip: '172.20.128.7' }))
+
+    const store = new SnapshotStore(p)
+    await store.initialize()
+
+    await store.refreshMedium()
+    expect(store.get().dashboard?.portProxy?.distroIp).toBeNull()
+    expect(store.get().dashboard?.portProxy?.rules.every((r) => r.verdict === 'unknown')).toBe(true)
+    expect(run).toHaveBeenCalledTimes(1)
+
+    await store.refreshSlow()
+    const firstSlow = store.get().dashboard?.portProxy
+    expect(firstSlow?.distroIp).toBe('172.20.144.2')
+    expect(firstSlow?.rules.find((r) => r.listenPort === 8080)?.verdict).toBe('stale')
+    expect(firstSlow?.rules.find((r) => r.listenPort === 5173)?.verdict).toBe('live')
+    expect(run).toHaveBeenCalledTimes(1)
+
+    await store.refreshSlow()
+    const secondSlow = store.get().dashboard?.portProxy
+    expect(secondSlow?.distroIp).toBe('172.20.128.7')
+    expect(secondSlow?.rules.find((r) => r.listenPort === 8080)?.verdict).toBe('live')
+    expect(secondSlow?.rules.find((r) => r.listenPort === 5173)?.verdict).toBe('stale')
+    expect(run).toHaveBeenCalledTimes(1)
+  })
+
+  it('serializes concurrent portProxy refresh across medium and slow and converges to the arrived IP', async () => {
+    const firstProxy = deferred<{ rules: []; distroIp: string | null; error: null }>()
+    const sysDeferred = deferred<ReturnType<typeof system>>()
+    let activePortProxy = 0
+    let maxConcurrent = 0
+
+    const p = {
+      ...makeProvider(),
+      getPortProxy: vi.fn(async (ip: string | null) => {
+        activePortProxy += 1
+        maxConcurrent = Math.max(maxConcurrent, activePortProxy)
+        try {
+          if (ip === null) return await firstProxy.promise
+          return { rules: [], distroIp: ip, error: null }
+        } finally {
+          activePortProxy -= 1
+        }
+      })
+    }
+    p.getSystemInfo.mockImplementation(() => sysDeferred.promise)
+
+    const store = new SnapshotStore(p)
+    await store.initialize()
+
+    const pending = Promise.all([store.refreshMedium(), store.refreshSlow()])
+    sysDeferred.resolve(system({ ip: '172.20.144.2' }))
+    await vi.waitFor(() => {
+      expect(p.getPortProxy).toHaveBeenCalledWith(null)
+    })
+    firstProxy.resolve({ rules: [], distroIp: null, error: null })
+    await pending
+
+    expect(maxConcurrent).toBe(1)
+    expect(p.getPortProxy).toHaveBeenNthCalledWith(1, null)
+    expect(p.getPortProxy).toHaveBeenNthCalledWith(2, '172.20.144.2')
+    expect(store.get().dashboard?.portProxy?.distroIp).toBe('172.20.144.2')
+  })
+
+  it('clears runner-failed-services on non-systemd distros sequentially and when getServices rejects late', async () => {
+    // Sequential: refreshMedium fails before refreshSlow sets systemdEnabled: false.
+    const seqProvider = {
+      ...makeProvider(),
+      getServices: vi.fn(async (_distro: string, systemdEnabled?: boolean | null) => {
+        if (systemdEnabled === false) return []
+        throw new Error('System has not been booted with systemd as init system')
+      })
+    }
+    seqProvider.getSystemInfo.mockResolvedValue(system({ systemdEnabled: false }))
+
+    const seqStore = new SnapshotStore(seqProvider)
+    await seqStore.initialize()
+    await seqStore.refreshMedium()
+    expect(seqStore.get().warnings.some((w) => w.id === 'runner-failed-services')).toBe(true)
+
+    await seqStore.refreshSlow()
+    expect(seqStore.get().dashboard?.services).toEqual([])
+    expect(seqStore.get().dashboard?.servicesCollected).toBe(true)
+    expect(seqStore.get().warnings.some((w) => w.id === 'runner-failed-services')).toBe(false)
+    expect(seqStore.get().warnings.some((w) => w.id === 'systemd-disabled')).toBe(true)
+
+    // Concurrent tail: getServices rejects AFTER refreshSlow already confirmed systemdEnabled: false.
+    const svcDeferred = deferred<ReturnType<typeof svc>[]>()
+    const concProvider = {
+      ...makeProvider(),
+      getServices: vi.fn(() => svcDeferred.promise)
+    }
+    concProvider.getSystemInfo.mockResolvedValue(system({ systemdEnabled: false }))
+
+    const concStore = new SnapshotStore(concProvider)
+    await concStore.initialize()
+    const medPromise = concStore.refreshMedium()
+    await concStore.refreshSlow()
+    expect(concStore.get().dashboard?.system.systemdEnabled).toBe(false)
+
+    svcDeferred.reject(new Error('systemctl failed'))
+    await medPromise
+
+    expect(concStore.get().dashboard?.services).toEqual([])
+    expect(concStore.get().dashboard?.servicesCollected).toBe(true)
+    expect(concStore.get().warnings.some((w) => w.id === 'runner-failed-services')).toBe(false)
+    expect(concStore.get().warnings.some((w) => w.id === 'systemd-disabled')).toBe(true)
+  })
+
+  it('keeps stopped distros un-woken and isolates per-distro explorer and terminal context on switch', async () => {
+    const p = {
+      ...makeProvider(),
+      getWindowsPorts: vi.fn(async () => [windowsPort(8080)]),
+      getFirewall: vi.fn(async () => firewall({ defaultInbound: 'Allow' })),
+      getWslSettings: vi.fn(async () => wslSettings())
+    }
+    p.getPorts.mockResolvedValue([{ ...port(8080), localAddress: '0.0.0.0' }])
+
+    const store = new SnapshotStore(p)
+    await store.initialize()
+    store.setExplorerContext({ distro: 'Ubuntu-24.04', currentPath: '/home/dev/u', showHidden: false })
+    store.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/home/dev/u', status: 'ready' })
+
+    await store.setDistro('Debian')
+    await Promise.all([store.refreshFast(), store.refreshMedium(), store.refreshSlow()])
+
+    expect(p.getPorts).not.toHaveBeenCalled()
+    expect(p.getFirewall).not.toHaveBeenCalled()
+    expect(p.getSystemInfo).not.toHaveBeenCalled()
+    expect(store.get().explorer.currentPath).toBeNull()
+    expect(store.get().terminal.cwd).toBeNull()
+
+    await store.setDistro('Ubuntu-24.04')
+    expect(store.get().explorer.currentPath).toBe('/home/dev/u')
+    expect(store.get().terminal.cwd).toBe('/home/dev/u')
+
+    await Promise.all([store.refreshFast(), store.refreshMedium(), store.refreshSlow()])
+    expect(store.get().dashboard?.ports[0]?.reachability).toBe('lan')
   })
 })

@@ -27,8 +27,6 @@ async function fixtureSnapshot(): Promise<WslPadSnapshot> {
   const store = new SnapshotStore(new FixtureWslProvider())
   await store.initialize()
   await Promise.all([store.refreshFast(), store.refreshMedium(), store.refreshSlow()])
-  // The reachability verdict needs the networking mode from the slow tier.
-  await store.refreshFast()
   store.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/mnt/c/Users/dev/src', status: 'ready' })
   store.setExplorerContext({ distro: 'Ubuntu-24.04', currentPath: '/home/dev', showHidden: false })
   store.setMcpStatus({

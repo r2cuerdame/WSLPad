@@ -515,6 +515,27 @@ describe('Environment Doctor (issue #89)', () => {
     expect(check.verdict).toBe('error')
   })
 
+  it('unknown when listening ports have unknown reachability even with valid firewall', () => {
+    const report = runDoctor(makeDash({
+      ports: [{
+        protocol: 'tcp',
+        localAddress: '0.0.0.0',
+        port: 8080,
+        pid: 42,
+        processName: 'node',
+        listening: true,
+        localhostUrl: 'http://127.0.0.1:8080',
+        windowsBound: false,
+        windowsProcess: null,
+        reachability: 'unknown',
+        reachabilityReason: 'WSL networking mode is not known yet'
+      }]
+    }))
+    const check = report.checks.find((c) => c.id === 'port-firewall')!
+    expect(check.verdict).toBe('unknown')
+    expect(check.evidence).toContain('unknown reachability')
+  })
+
   // ---- git/ssh config -----------------------------------------------------
 
   it('healthy when git installed on ext4 with config files', () => {

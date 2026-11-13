@@ -330,6 +330,17 @@ function checkPortFirewall(dash: DashboardSnapshot): DoctorCheckResult {
     }
   }
 
+  const unknown = listeningPorts.filter((p) => p.reachability === 'unknown')
+  if (unknown.length > 0) {
+    return {
+      id: 'port-firewall',
+      title: 'Port/firewall reachability',
+      verdict: 'unknown',
+      evidence: `${unknown.length} listening port(s) have unknown reachability. Firewall ${firewallState}, default inbound: ${firewall.defaultInbound}.`,
+      command: null
+    }
+  }
+
   return {
     id: 'port-firewall',
     title: 'Port/firewall reachability',
