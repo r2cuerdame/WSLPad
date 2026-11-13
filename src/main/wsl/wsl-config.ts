@@ -9,7 +9,8 @@
  * actually exhibits, and reports the difference — it never writes either file.
  */
 import { readFile, stat } from 'fs/promises'
-import { RUNNER_SLOW_TIMEOUT_MS, RUNNER_TIMEOUT_MS } from '@shared/constants'
+import { MASKED_VALUE, RUNNER_SLOW_TIMEOUT_MS, RUNNER_TIMEOUT_MS } from '@shared/constants'
+import { isSecretName } from '@shared/masking'
 import type {
   InteropInfo,
   SettingProvenance,
@@ -911,11 +912,15 @@ function declaredSetting(
 ): { setting: WslSettingInfo; covered: KnownKey | null } {
   const origin = ctx.scope === 'windows' ? 'wslconfig' : 'wsl-conf'
   const known = resolveKnown(findKnownKeys(entry.key), entry.section, ctx.scope)
+  const secret = isSecretName(entry.key)
+  const shownDeclared = secret ? MASKED_VALUE : entry.value
+  const maskEffective = (value: string | null): string | null =>
+    value === null ? null : secret ? MASKED_VALUE : value
   const base = {
     key: entry.key,
     section: entry.section,
     scope: ctx.scope,
-    declaredValue: entry.value,
+    declaredValue: shownDeclared,
     origin,
     // Provenance answers "did you choose this?", the verdict answers "did it
     // take effect?" — two separate questions. A key sitting in the wrong
@@ -982,14 +987,15 @@ function declaredSetting(
 
   const effective = observeEffective(known.section, known.key, ctx.observations)
   if (effective.value !== null) {
+    const shownEffective = maskEffective(effective.value)
     if (valuesMatch(known.key, entry.value, effective.value)) {
       return {
         covered: known,
         setting: {
           ...base,
-          effectiveValue: effective.value,
+          effectiveValue: shownEffective,
           verdict: 'applied',
-          note: join(effective.evidence, caseNote, duplicateNote)
+          note: join(secret ? null : effective.evidence, caseNote, duplicateNote)
         }
       }
     }
@@ -1003,17 +1009,17 @@ function declaredSetting(
         ? 'unsupported'
         : 'unknown'
     const why = ctx.fileNewerThanVm
-      ? `The running VM still reports ${effective.value}. Applies after wsl --shutdown.`
+      ? `The running VM still reports ${shownEffective}. Applies after wsl --shutdown.`
       : ctx.vmStartKnown
-        ? `The VM started after this file was saved and still reports ${effective.value}, so WSL did not honour ${entry.value} here.`
-        : `Declared ${entry.value} but the system reports ${effective.value}; WSLPad cannot tell whether a restart is pending.`
+        ? `The VM started after this file was saved and still reports ${shownEffective}, so WSL did not honour ${shownDeclared} here.`
+        : `Declared ${shownDeclared} but the system reports ${shownEffective}; WSLPad cannot tell whether a restart is pending.`
     return {
       covered: known,
       setting: {
         ...base,
-        effectiveValue: effective.value,
+        effectiveValue: shownEffective,
         verdict,
-        note: join(why, effective.evidence, caseNote, duplicateNote)
+        note: join(why, secret ? null : effective.evidence, caseNote, duplicateNote)
       }
     }
   }
@@ -1042,7 +1048,7 @@ function declaredSetting(
       verdict: 'unknown',
       note: join(
         'WSLPad cannot read this value back from a running system, so it cannot confirm it applied.',
-        effective.evidence,
+        secret ? null : effective.evidence,
         caseNote,
         duplicateNote
       )
@@ -1070,16 +1076,20 @@ function defaultProvenance(known: KnownKey, observed: string | null): SettingPro
 function defaultSetting(known: KnownKey, obs: WslObservations): WslSettingInfo {
   const effective = observeEffective(known.section, known.key, obs)
   const observed = effective.value
+  const secret = isSecretName(known.key)
+  const rawEffective = observed ?? known.defaultValue
   return {
     key: known.key,
     section: known.section,
     scope: known.scope,
     declaredValue: null,
-    effectiveValue: observed ?? known.defaultValue,
+    effectiveValue: rawEffective === null ? null : secret ? MASKED_VALUE : rawEffective,
     origin: observed !== null ? 'computed' : 'default',
     provenance: defaultProvenance(known, observed),
     verdict: 'not-set',
-    note: join(known.note ?? null, observed !== null ? effective.evidence : null)
+    note: secret
+      ? null
+      : join(known.note ?? null, observed !== null ? effective.evidence : null)
   }
 }
 

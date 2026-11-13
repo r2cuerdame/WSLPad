@@ -4,12 +4,11 @@ import { watchesAreLow } from '@shared/inotify'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import packageJson from '../../../package.json'
-import { MASKED_VALUE, MAX_TEXT_FILE_BYTES } from '@shared/constants'
+import { MAX_TEXT_FILE_BYTES } from '@shared/constants'
 import { buildDevEnvContext } from '@shared/dev-env-context'
 import { devEnvContextToMarkdown } from '@shared/dev-env-context-markdown'
 import type {
   DashboardSnapshot,
-  EnvironmentVariableInfo,
   FileEntryType,
   TextFileContent
 } from '@shared/types'
@@ -17,7 +16,12 @@ import { describeOwnership, portOwnership } from '@shared/port-ownership'
 import { terminalProfileSnippet } from '@shared/terminal-profile'
 import { ExplorerError, type ExplorerBackend } from '../wsl/contracts'
 import { assertValidLinuxPath } from '../wsl/escape'
-import { isSecretName, maskTextFileContent } from './masking'
+import {
+  maskTextFileContent,
+  sanitizeDashboard,
+  sanitizeEnvironment,
+  sanitizeWslSettings
+} from './masking'
 import type { McpDeps } from './server'
 
 const SERVER_VERSION = packageJson.version
@@ -107,13 +111,6 @@ const guard =
       return fail(errorMessage(err))
     }
   }
-
-/** Defense in depth: secret env values never leave via MCP even if a collector slips. */
-function sanitizeEnvironment(env: EnvironmentVariableInfo[]): EnvironmentVariableInfo[] {
-  return env.map((v) =>
-    v.isSecret || isSecretName(v.name) ? { ...v, maskedValue: MASKED_VALUE } : v
-  )
-}
 
 async function buildTree(
   explorer: ExplorerBackend,
@@ -223,7 +220,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
       withDashboard((dash) =>
         ok(`dashboard snapshot for ${dash.distro.name}`, {
           generatedAt: deps.getSnapshot().generatedAt,
-          dashboard: { ...dash, environment: sanitizeEnvironment(dash.environment) }
+          dashboard: sanitizeDashboard(dash)
         })
       )
     )
@@ -460,7 +457,7 @@ export function createMcpServer(deps: McpDeps): McpServer {
     },
     guard(() =>
       withDashboard((dash) => {
-        const s = dash.wslSettings
+        const s = sanitizeWslSettings(dash.wslSettings)
         if (s === null) {
           return ok('WSL settings are not available for this distribution', { wslSettings: null })
         }

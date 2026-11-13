@@ -1,3 +1,4 @@
+import { sanitizeSnapshot } from '@shared/masking'
 import type { DiagnosticsState, WslPadSnapshot } from '@shared/types'
 
 export interface DiagnosticBundleInfo {
@@ -7,7 +8,7 @@ export interface DiagnosticBundleInfo {
   osRelease: string
 }
 
-/** Snapshot values are already secret-masked at collection time. */
+/** Snapshot values are already secret-masked at collection time; sanitize again as defense in depth. */
 export function diagnosticBundleToJson(
   snapshot: WslPadSnapshot,
   diagnostics: DiagnosticsState,
@@ -26,7 +27,7 @@ export function diagnosticBundleToJson(
         arch: info.arch,
         osRelease: info.osRelease
       },
-      snapshot,
+      snapshot: sanitizeSnapshot(snapshot),
       diagnostics
     },
     null,

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { MASKED_VALUE } from '../../../src/shared/constants'
+import { isSecretName } from '../../../src/shared/masking'
 import type { WslSettingInfo } from '../../../src/shared/types'
 import { WslNotAvailableError, type DistroRunner } from '../../../src/main/wsl/contracts'
 import {
+  KNOWN_KEYS,
   buildWslConfigScript,
   compareVersions,
   createWslConfigCollector,
@@ -857,6 +860,67 @@ describe('reconcileSettings distro side', () => {
     expect(pick(settings, 'automount', 'enabled').declaredValue).toBeNull()
     expect(pick(settings, 'automount', 'enabled').effectiveValue).toBe('true')
   })
+
+  it('never overlaps KNOWN_KEYS with secret name patterns', () => {
+    for (const known of KNOWN_KEYS) {
+      expect(isSecretName(known.key)).toBe(false)
+    }
+  })
+
+  it('masks secret-named entries in .wslconfig and wsl.conf without altering official keys', () => {
+    const { settings } = reconcileSettings(
+      baseInput({
+        wslconfigEntries: parseIni(
+          '[wsl2]\nmemory=8GB\nprocessors=8\napi-key = wslconfig-secret-1\ntoken=wslconfig-secret-2\ntoken=wslconfig-secret-3'
+        ),
+        wslConfEntries: parseIni(
+          '[boot]\nsystemd=true\n[user]\nproxy_password = wslconf-secret-1\nauth.key=wslconf-secret-2'
+        ),
+        observations: observations({
+          processors: '8',
+          memTotalBytes: 8 * 1024 ** 3,
+          pid1Comm: 'systemd'
+        })
+      })
+    )
+
+    const json = JSON.stringify(settings)
+    for (const secret of [
+      'wslconfig-secret-1',
+      'wslconfig-secret-2',
+      'wslconfig-secret-3',
+      'wslconf-secret-1',
+      'wslconf-secret-2'
+    ]) {
+      expect(json).not.toContain(secret)
+    }
+
+    for (const [section, key] of [
+      ['wsl2', 'api-key'],
+      ['wsl2', 'token'],
+      ['user', 'proxy_password'],
+      ['user', 'auth.key']
+    ]) {
+      const row = pick(settings, section, key)
+      expect(row.declaredValue).toBe(MASKED_VALUE)
+      expect(row.effectiveValue).toBeNull()
+    }
+
+    expect(pick(settings, 'wsl2', 'memory')).toMatchObject({
+      declaredValue: '8GB',
+      verdict: 'applied'
+    })
+    expect(pick(settings, 'wsl2', 'processors')).toMatchObject({
+      declaredValue: '8',
+      effectiveValue: '8',
+      verdict: 'applied'
+    })
+    expect(pick(settings, 'boot', 'systemd')).toMatchObject({
+      declaredValue: 'true',
+      effectiveValue: 'true',
+      verdict: 'applied'
+    })
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -1059,6 +1123,47 @@ describe('createWslConfigCollector', () => {
     for (const verb of ['sudo', 'rm ', 'mv ', 'chmod', 'chown', 'tee', 'sed -i', '>>', 'wsl --']) {
       expect(script).not.toContain(verb)
     }
+  })
+
+  it('masks secret-named settings at collection time in both config files', async () => {
+    const probe = probeOutput({
+      wslConf:
+        '[boot]\nsystemd=true\n[auth]\ntoken = linux-raw-token\nproxy_password=linux-raw-pw\n',
+      wslConfExists: '1',
+      wslConfMtime: String(Math.floor((NOW - 2 * HOUR) / 1000)),
+      uptime: `${UPTIME}.00 1200.00`,
+      networkingMode: 'mirrored',
+      pid1: 'systemd',
+      nproc: '8',
+      meminfo: 'MemTotal:       8388608 kB\nSwapTotal:       2097152 kB'
+    })
+    const wslconfig =
+      '[wsl2]\nmemory=8GB\nnetworkingMode=mirrored\napi-key = win-raw-key\nauth.secret=win-raw-secret\n'
+
+    const info = await collector(wslconfig).collect(makeRunner(probe), 'Ubuntu')
+    const json = JSON.stringify(info)
+    for (const secret of ['linux-raw-token', 'linux-raw-pw', 'win-raw-key', 'win-raw-secret']) {
+      expect(json).not.toContain(secret)
+    }
+
+    expect(pick(info.settings, 'wsl2', 'api-key').declaredValue).toBe(MASKED_VALUE)
+    expect(pick(info.settings, 'wsl2', 'auth.secret').declaredValue).toBe(MASKED_VALUE)
+    expect(pick(info.settings, 'auth', 'token').declaredValue).toBe(MASKED_VALUE)
+    expect(pick(info.settings, 'auth', 'proxy_password').declaredValue).toBe(MASKED_VALUE)
+    expect(pick(info.settings, 'wsl2', 'memory')).toMatchObject({
+      declaredValue: '8GB',
+      verdict: 'applied'
+    })
+    expect(pick(info.settings, 'wsl2', 'networkingMode')).toMatchObject({
+      declaredValue: 'mirrored',
+      effectiveValue: 'mirrored',
+      verdict: 'applied'
+    })
+    expect(pick(info.settings, 'boot', 'systemd')).toMatchObject({
+      declaredValue: 'true',
+      effectiveValue: 'true',
+      verdict: 'applied'
+    })
   })
 })
 
