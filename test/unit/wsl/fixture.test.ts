@@ -447,6 +447,40 @@ describe('FixtureExplorerBackend', () => {
     expect(await backend.list(U, '/home/dev/remove-duplicate')).toEqual([])
   })
 
+  it('prevalidates removal permissions before deleting earlier batch items', async () => {
+    const backend = new FixtureExplorerBackend()
+
+    await expect(backend.remove(U, ['/home/dev/notes.md', '/etc/wsl.conf'])).rejects.toMatchObject({
+      code: 'EACCES',
+      path: '/etc/wsl.conf'
+    })
+
+    expect(backend.fs.getNode('/home/dev/notes.md')).not.toBeNull()
+    expect(backend.fs.getNode('/etc/wsl.conf')).not.toBeNull()
+  })
+
+  it('prevalidates missing removal targets before deleting earlier batch items', async () => {
+    const backend = new FixtureExplorerBackend()
+
+    await expect(
+      backend.remove(U, ['/home/dev/notes.md', '/home/dev/missing.txt'])
+    ).rejects.toMatchObject({ code: 'ENOENT', path: '/home/dev/missing.txt' })
+
+    expect(backend.fs.getNode('/home/dev/notes.md')).not.toBeNull()
+  })
+
+  it('removes a parent and a selected child together without a false ENOENT', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/remove-tree')
+    await backend.createFile(U, '/home/dev/remove-tree/child.txt')
+
+    await expect(
+      backend.remove(U, ['/home/dev/remove-tree', '/home/dev/remove-tree/child.txt'])
+    ).resolves.toBeUndefined()
+
+    expect(backend.fs.getNode('/home/dev/remove-tree')).toBeNull()
+  })
+
   it('copies and moves with a completion progress event', async () => {
     const backend = new FixtureExplorerBackend()
     const events: FileOpProgress[] = []
