@@ -178,6 +178,14 @@ function defaultMcpStatus(): McpStatus {
   }
 }
 
+function emptyExplorer(): ExplorerContext {
+  return { distro: null, currentPath: null, showHidden: false }
+}
+
+function emptyTerminal(): TerminalContext {
+  return { distro: null, cwd: null, status: 'disconnected' }
+}
+
 const MAX_TRACKED_RUNNER_FAILURES = 20
 
 /**
@@ -194,8 +202,10 @@ export class SnapshotStore {
   private distros: DistroSummary[] = []
   private selected: string | null = null
   private sections: DashboardSections | null = null
-  private explorer: ExplorerContext = { distro: null, currentPath: null, showHidden: false }
-  private terminal: TerminalContext = { distro: null, cwd: null, status: 'disconnected' }
+  private explorerUnselected: ExplorerContext = emptyExplorer()
+  private terminalUnselected: TerminalContext = emptyTerminal()
+  private explorerByDistro = new Map<string, ExplorerContext>()
+  private terminalByDistro = new Map<string, TerminalContext>()
   private mcp: McpStatus = defaultMcpStatus()
   private warnings: WarningInfo[] = []
   /** Last-good Windows listener table; null until one read succeeded. */
@@ -423,12 +433,37 @@ export class SnapshotStore {
   }
 
   setExplorerContext(ctx: ExplorerContext): void {
-    this.explorer = ctx
+    if (ctx.distro !== null) {
+      this.explorerByDistro.set(ctx.distro, ctx)
+    } else if (this.selected !== null) {
+      this.explorerByDistro.set(this.selected, ctx)
+    }
+    if (this.selected === null) {
+      this.explorerUnselected = ctx
+    }
+    // Background listings completing after a distro switch belong to that
+    // distro's remembered pane, not to the distro now on screen.
+    if (this.selected !== null && ctx.distro !== null && ctx.distro !== this.selected) {
+      return
+    }
     this.emit()
   }
 
   setTerminalContext(ctx: TerminalContext): void {
-    this.terminal = ctx
+    if (ctx.distro !== null) {
+      this.terminalByDistro.set(ctx.distro, ctx)
+    } else if (this.selected !== null) {
+      this.terminalByDistro.set(this.selected, ctx)
+    }
+    if (this.selected === null) {
+      this.terminalUnselected = ctx
+    }
+    // Sessions stay alive across switches; a prompt or exit in an unselected
+    // distro is remembered for when the user comes back without overwriting
+    // the selected distro's snapshot or diagnostics.
+    if (this.selected !== null && ctx.distro !== null && ctx.distro !== this.selected) {
+      return
+    }
     // A cd into /mnt/c is exactly when the slow-path warning matters; waiting
     // for the next poll would show it late and leave it up after cd ~.
     this.recomputeWarnings()
@@ -762,6 +797,19 @@ export class SnapshotStore {
 
   private applyDistroList(list: DistroSummary[]): void {
     this.distros = list
+    const present = new Set(list.map((d) => d.name))
+    for (const key of this.explorerByDistro.keys()) {
+      if (!present.has(key)) this.explorerByDistro.delete(key)
+    }
+    for (const key of this.terminalByDistro.keys()) {
+      if (!present.has(key)) this.terminalByDistro.delete(key)
+    }
+    if (this.explorerUnselected.distro !== null && !present.has(this.explorerUnselected.distro)) {
+      this.explorerUnselected = emptyExplorer()
+    }
+    if (this.terminalUnselected.distro !== null && !present.has(this.terminalUnselected.distro)) {
+      this.terminalUnselected = emptyTerminal()
+    }
     if (this.selected) {
       const cur = list.find((d) => d.name === this.selected)
       if (cur) {
@@ -791,6 +839,18 @@ export class SnapshotStore {
     this.runnerFailures = []
     // Liveness is a property of one distro: a new selection starts clean.
     this.probe = freshProbe()
+    this.explorerUnselected = emptyExplorer()
+    this.terminalUnselected = emptyTerminal()
+  }
+
+  private currentExplorer(): ExplorerContext {
+    if (this.selected === null) return this.explorerUnselected
+    return this.explorerByDistro.get(this.selected) ?? emptyExplorer()
+  }
+
+  private currentTerminal(): TerminalContext {
+    if (this.selected === null) return this.terminalUnselected
+    return this.terminalByDistro.get(this.selected) ?? emptyTerminal()
   }
 
   private runningSelected(): string | null {
@@ -800,9 +860,9 @@ export class SnapshotStore {
   }
 
   private recomputeWarnings(): void {
-    // Consoles are kept per distro, so the last status may belong to a shell
-    // the user switched away from; its cwd says nothing about this distro.
-    const terminal = this.terminal
+    // Consoles are kept per distro, so only the selected distro's session can
+    // put this distro's work across the 9P boundary.
+    const terminal = this.currentTerminal()
     const consoleCwd =
       this.selected === null || terminal.distro === null || terminal.distro === this.selected
         ? terminal.cwd
@@ -859,8 +919,8 @@ export class SnapshotStore {
       selectedDistro: this.selected,
       distros: this.distros,
       dashboard,
-      explorer: this.explorer,
-      terminal: this.terminal,
+      explorer: this.currentExplorer(),
+      terminal: this.currentTerminal(),
       mcp: this.mcp,
       liveness: this.liveness(),
       warnings: this.warnings
