@@ -179,7 +179,7 @@ export function parseFindListing(rootPath: string, text: string): FileEntry[] {
 }
 
 const dirGuard = (quoted: string): string =>
-  `if [ ! -e ${quoted} ]; then exit ${EXIT_ENOENT}; fi; ` +
+  `LC_ALL=C stat -L -- ${quoted} >/dev/null || exit $?; ` +
   `if [ ! -d ${quoted} ]; then exit ${EXIT_ENOTDIR}; fi`
 
 async function resolveSymlinkTargets(
@@ -208,7 +208,7 @@ export async function listDirectory(
 ): Promise<FileEntry[]> {
   assertValidLinuxPath(dirPath)
   const q = shellQuote(dirPath)
-  const script = `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 1 -printf '${FIND_FMT}'`
+  const script = `${dirGuard(q)}; LC_ALL=C find -H ${q} -mindepth 1 -maxdepth 1 -printf '${FIND_FMT}'`
   const result = await runner.runInDistro(distro, script, FIND_RUN_OPTS)
   // find exits non-zero when single entries are unreadable but still lists the
   // rest — only treat it as fatal when nothing came back at all.
@@ -231,17 +231,19 @@ export async function listTree(
   const q = shellQuote(dirPath)
   // -H follows a symlink when the requested tree root is itself a link, while
   // -type l includes child links so their targets can be checked below.
-  const script = `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 1 '(' -type d -o -type l ')' -printf '${FIND_FMT}'`
+  const script = `${dirGuard(q)}; LC_ALL=C find -H ${q} -mindepth 1 -maxdepth 1 '(' -type d -o -type l ')' -printf '${FIND_FMT}'`
   const result = await runner.runInDistro(distro, script, FIND_RUN_OPTS)
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
     throw explorerErrorFromResult(dirPath, result)
   }
   const entries = parseFindListing(dirPath, result.stdout)
   await resolveSymlinkTargets(runner, distro, entries)
-  return entries.filter((e) => e.type === 'directory' || (e.type === 'symlink' && e.targetType === 'directory'))
+  return entries.filter(
+    (e) => e.type === 'directory' || (e.type === 'symlink' && e.targetType === 'directory')
+  )
 }
 
-const STAT_FMT = '%F|%a|%U|%G|%s|%Y|%X|%i'
+const STAT_FMT = '%A\\0%a\\0%U\\0%G\\0%s\\0%Y\\0%X\\0%i\\0'
 
 export async function statPath(
   runner: DistroRunner,
@@ -251,35 +253,26 @@ export async function statPath(
   assertValidLinuxPath(path)
   const q = shellQuote(path)
   const script = [
-    `if [ ! -e ${q} ] && [ ! -L ${q} ]; then exit ${EXIT_ENOENT}; fi`,
-    `stat -c '${STAT_FMT}' ${q} || exit ${EXIT_UNKNOWN}`,
-    `if [ -L ${q} ]; then printf 'L|%s\\n' "$(readlink ${q})"; ` +
-      `if [ -d ${q} ]; then echo 'T|d'; elif [ -e ${q} ]; then echo 'T|f'; else echo 'T|x'; fi; fi`
+    `LC_ALL=C stat --printf '${STAT_FMT}' -- ${q} || exit $?`,
+    `if [ -L ${q} ]; then LC_ALL=C readlink -z -- ${q} || exit $?; ` +
+      `if [ -d ${q} ]; then printf 'd\\0'; elif [ -e ${q} ]; then printf 'f\\0'; else printf 'x\\0'; fi; fi`
   ].join('\n')
-  const result = await runner.runInDistro(distro, script)
+  const result = await runner.runInDistro(distro, script, { nulDelimited: true })
   if (result.code !== 0 || result.timedOut) throw explorerErrorFromResult(path, result)
-  const lines = result.stdout.split('\n').filter((l) => l.length > 0)
-  const fields = (lines[0] ?? '').split('|')
-  if (fields.length < 8) {
+  const fields = result.stdout.split('\0')
+  const isLink = fields[0]?.startsWith('l')
+  if (!result.stdout.endsWith('\0') || fields.length !== (isLink ? 11 : 9)) {
     throw new ExplorerError('UNKNOWN', path, `Unexpected stat output for ${path}`, {
       stderr: result.stderr || undefined
     })
   }
-  const [typeName, octal, owner, group, sizeStr, mtimeStr, atimeStr, inodeStr] = fields
-  const type: FileEntryType = typeName.includes('directory')
-    ? 'directory'
-    : typeName.includes('symbolic link')
-      ? 'symlink'
-      : typeName.includes('regular')
-        ? 'file'
-        : 'other'
-  let symlinkTarget: string | null = null
-  let targetType: 'file' | 'directory' | null = null
-  for (const line of lines.slice(1)) {
-    if (line.startsWith('L|')) symlinkTarget = line.slice(2) || null
-    else if (line === 'T|d') targetType = 'directory'
-    else if (line === 'T|f') targetType = 'file'
-  }
+  const [mode, octal, owner, group, sizeStr, mtimeStr, atimeStr, inodeStr] = fields
+  const type: FileEntryType =
+    mode[0] === 'd' ? 'directory' : mode[0] === 'l' ? 'symlink' : mode[0] === '-' ? 'file' : 'other'
+  // Link targets are opaque: newlines and pipes are legal filename characters.
+  const symlinkTarget = isLink ? fields[8] : null
+  const targetType =
+    isLink && fields[9] === 'd' ? 'directory' : isLink && fields[9] === 'f' ? 'file' : null
   const name = linuxBasename(path)
   const size = Number.parseInt(sizeStr, 10)
   const inode = Number.parseInt(inodeStr, 10)
@@ -310,7 +303,7 @@ export async function resolveRealPath(
 ): Promise<string> {
   assertValidLinuxPath(path)
   const q = shellQuote(path)
-  const result = await runner.runInDistro(distro, `realpath -z -e -- ${q}`, {
+  const result = await runner.runInDistro(distro, `LC_ALL=C realpath -z -e -- ${q}`, {
     nulDelimited: true
   })
   if (result.code !== 0 || result.timedOut) throw explorerErrorFromResult(path, result)
@@ -341,6 +334,8 @@ export async function searchDirectory(
   const q = shellQuote(dirPath)
   const pattern = shellQuote(`*${sanitized}*`)
   // -H follows the requested root if navigation landed on a directory symlink.
+  // find keeps the distro locale: under C, -iname stops folding non-ASCII case
+  // (École vs école). Its stderr is discarded; dirGuard owns the diagnostics.
   const script =
     `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 4 -iname ${pattern} ` +
     `-printf '${FIND_FMT}' 2>/dev/null | head -z -n 200`
