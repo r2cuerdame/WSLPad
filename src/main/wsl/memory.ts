@@ -11,6 +11,7 @@ import {
   type HostCommandRunner,
   type TasklistSnapshot
 } from './windows-ports'
+import { decodeConfigFile, parseIni } from './wsl-config'
 
 /**
  * Windows-vs-Linux memory reconciliation (microsoft/WSL#4166). Task Manager's
@@ -111,6 +112,12 @@ export function parseVmProcessMemory(text: string): number | null {
 export interface WslConfigMemorySettings {
   /** [wsl2] memory=, in bytes; null when unset or not a documented size. */
   memoryBytes: number | null
+  /**
+   * Whether [wsl2] memory= is written at all. A declared value that cannot be
+   * read is not the same as no value: the ceiling is then unknown, not the
+   * half-of-RAM default.
+   */
+  memoryDeclared: boolean
   /** [experimental] autoMemoryReclaim=; null when unset. */
   autoMemoryReclaim: string | null
 }
@@ -129,36 +136,24 @@ function parseSize(value: string): number | null {
  * The two .wslconfig keys this section needs. Section membership is enforced:
  * `memory` outside [wsl2] and `autoMemoryReclaim` outside [experimental] are
  * not applied by WSL, so they are not reported as being in effect either.
+ * Lines are read by the same INI reader as the settings table, so a trailing
+ * comment or a commented header means the same thing on both cards.
  */
 export function parseWslConfigMemory(text: string): WslConfigMemorySettings {
-  let section = ''
   let memoryBytes: number | null = null
+  let memoryDeclared = false
   let autoMemoryReclaim: string | null = null
-  for (const raw of text.split('\n')) {
-    const line = raw.trim()
-    if (line === '' || line.startsWith('#') || line.startsWith(';')) continue
-    const header = /^\[([^\]]*)\]$/.exec(line)
-    if (header !== null) {
-      section = header[1].trim().toLowerCase()
-      continue
+  for (const { section, key, value } of parseIni(text)) {
+    const lower = key.toLowerCase()
+    if (section === 'wsl2' && lower === 'memory') {
+      memoryDeclared = true
+      memoryBytes = parseSize(value)
     }
-    const eq = line.indexOf('=')
-    if (eq <= 0) continue
-    const key = line.slice(0, eq).trim().toLowerCase()
-    const value = line.slice(eq + 1).trim()
-    if (section === 'wsl2' && key === 'memory') memoryBytes = parseSize(value)
-    if (section === 'experimental' && key === 'automemoryreclaim' && value !== '') {
+    if (section === 'experimental' && lower === 'automemoryreclaim' && value !== '') {
       autoMemoryReclaim = value.toLowerCase()
     }
   }
-  return { memoryBytes, autoMemoryReclaim }
-}
-
-/** .wslconfig is hand-edited, so Notepad's UTF-16LE and UTF-8 BOMs both occur. */
-function decodeIni(buf: Buffer): string {
-  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) return buf.toString('utf16le').slice(1)
-  const text = buf.toString('utf8')
-  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
+  return { memoryBytes, memoryDeclared, autoMemoryReclaim }
 }
 
 export interface MemoryCollector {
@@ -177,12 +172,15 @@ export interface MemoryCollectorOptions {
 }
 
 function ceilingOf(
-  declaredBytes: number | null,
+  config: WslConfigMemorySettings,
   hostTotalBytes: number | null
 ): Pick<MemoryReconciliation, 'vmLimitBytes' | 'vmLimitSource'> {
-  if (declaredBytes !== null) {
-    return { vmLimitBytes: declaredBytes, vmLimitSource: 'wslconfig' }
+  if (config.memoryBytes !== null) {
+    return { vmLimitBytes: config.memoryBytes, vmLimitSource: 'wslconfig' }
   }
+  // Written but unreadable: WSL's own reading of it is not known, so neither
+  // is the ceiling — the default would claim a limit nobody chose.
+  if (config.memoryDeclared) return { vmLimitBytes: null, vmLimitSource: 'unknown' }
   // Documented WSL2 default on current builds: half of host RAM.
   if (hostTotalBytes !== null) {
     return { vmLimitBytes: Math.floor(hostTotalBytes / 2), vmLimitSource: 'computed-default' }
@@ -236,10 +234,10 @@ export function createMemoryCollector(options: MemoryCollectorOptions = {}): Mem
 
   const readConfig = async (): Promise<WslConfigMemorySettings> => {
     try {
-      return parseWslConfigMemory(decodeIni(await readFile(wslconfigPath)))
+      return parseWslConfigMemory(decodeConfigFile(await readFile(wslconfigPath)))
     } catch {
       // Absent .wslconfig is the common case, not a failure.
-      return { memoryBytes: null, autoMemoryReclaim: null }
+      return { memoryBytes: null, memoryDeclared: false, autoMemoryReclaim: null }
     }
   }
 
@@ -263,7 +261,7 @@ export function createMemoryCollector(options: MemoryCollectorOptions = {}): Mem
       const hostTotalBytes = readHostTotal()
       return {
         hostTotalBytes,
-        ...ceilingOf(config.memoryBytes, hostTotalBytes),
+        ...ceilingOf(config, hostTotalBytes),
         vmmemWorkingSetBytes,
         guestTotalBytes: guest.totalBytes,
         guestUsedBytes: guest.usedBytes,
