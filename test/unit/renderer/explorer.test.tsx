@@ -7,6 +7,7 @@ import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
 import { AppStoreProvider, useApp } from '@renderer/store'
 import ExplorerTab from '@renderer/explorer/ExplorerTab'
+import { entrySide, normalizeWindowsPath, resolveWindowsPath } from '@renderer/explorer/fsAdapter'
 import { INTERNAL_DND_TYPE } from '@renderer/explorer/FileList'
 import { SPLIT_STORAGE_KEY } from '@renderer/explorer/Splitter'
 import { sortEntries } from '@renderer/explorer/useExplorer'
@@ -378,6 +379,87 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+describe('fsAdapter path and symlink helpers', () => {
+  it('strips Win32 and NT device prefixes in normalizeWindowsPath and uppercases drive letters', () => {
+    expect(normalizeWindowsPath('\\\\?\\c:\\Users\\Shared\\')).toBe('C:\\Users\\Shared')
+    expect(normalizeWindowsPath('\\??\\d:\\')).toBe('D:\\')
+    expect(normalizeWindowsPath('\\\\?\\UNC\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\')).toBe(
+      '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev'
+    )
+    expect(normalizeWindowsPath('\\??\\UNC\\wsl$\\Debian\\etc')).toBe('\\\\wsl$\\Debian\\etc')
+  })
+
+  it('resolves device-prefixed and root-relative targets in resolveWindowsPath', () => {
+    expect(resolveWindowsPath('C:\\Users\\dev', '\\\\?\\c:\\Users\\Shared')).toBe('C:\\Users\\Shared')
+    expect(resolveWindowsPath('C:\\Users\\dev', '\\??\\C:\\Users\\Shared\\..')).toBe('C:\\Users')
+    expect(
+      resolveWindowsPath('C:\\Users\\dev', '\\\\?\\UNC\\wsl.localhost\\Ubuntu-24.04\\home\\dev')
+    ).toBe('\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev')
+    expect(resolveWindowsPath('C:\\Users\\dev', '\\??\\UNC\\wsl$\\Debian\\etc')).toBe(
+      '\\\\wsl$\\Debian\\etc'
+    )
+    expect(resolveWindowsPath('c:\\Users\\dev', '\\Users\\Shared')).toBe('C:\\Users\\Shared')
+    expect(resolveWindowsPath('C:\\Users\\dev', '/Users/Shared/../Public')).toBe('C:\\Users\\Public')
+    expect(
+      resolveWindowsPath('\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev', '\\etc\\wsl.conf')
+    ).toBe('\\\\wsl.localhost\\Ubuntu-24.04\\etc\\wsl.conf')
+  })
+
+  it('judges entrySide by the resolved symlink destination on both Linux and Windows', () => {
+    expect(
+      entrySide(
+        entry({
+          name: 'rel-win',
+          path: '/home/dev/rel-win',
+          type: 'symlink',
+          symlinkTarget: '../../mnt/c/Users/dev'
+        })
+      )
+    ).toBe('windows-mount')
+    expect(
+      entrySide(
+        entry({
+          name: 'custom-win',
+          path: '/home/dev/custom-win',
+          type: 'symlink',
+          symlinkTarget: '../../drives/d/work'
+        }),
+        '/drives/'
+      )
+    ).toBe('windows-mount')
+    expect(
+      entrySide(
+        entry({
+          name: 'back-to-ext4',
+          path: '/home/dev/back-to-ext4',
+          type: 'symlink',
+          symlinkTarget: '/mnt/c/../../home/dev/docs'
+        })
+      )
+    ).toBe('ext4')
+    expect(
+      entrySide(
+        winEntry({
+          name: 'wsl-junc',
+          path: 'C:\\Users\\dev\\wsl-junc',
+          type: 'symlink',
+          symlinkTarget: '\\\\?\\UNC\\wsl.localhost\\Ubuntu-24.04\\home\\dev'
+        })
+      )
+    ).toBe('unc')
+    expect(
+      entrySide(
+        winEntry({
+          name: 'c-from-unc',
+          path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\c-from-unc',
+          type: 'symlink',
+          symlinkTarget: 'C:\\Users\\Shared'
+        })
+      )
+    ).toBe('unknown')
+  })
+})
+
 describe('sortEntries', () => {
   const items: FileEntry[] = [
     entry({ name: 'beta.txt', path: '/x/beta.txt' }),
@@ -537,6 +619,100 @@ describe('windows pane navigation', () => {
       expect(api.windows.list).toHaveBeenCalledWith('C:\\Users\\Shared', { showHidden: false })
     )
     expect(api.windows.readText).not.toHaveBeenCalled()
+  })
+
+  it('normalizes device-prefixed and drive-root-relative symlink folders so opening and Up work', async () => {
+    const customWin: Record<string, FileEntry[]> = {
+      ...windowsListings,
+      [WIN_HOME]: [
+        winEntry({ name: 'notes.txt', path: `${WIN_HOME}\\notes.txt` }),
+        winEntry({
+          name: 'device-junction',
+          path: `${WIN_HOME}\\device-junction`,
+          type: 'symlink',
+          symlinkTarget: '\\\\?\\c:\\Users\\Shared',
+          targetType: 'directory',
+          sizeBytes: null
+        }),
+        winEntry({
+          name: 'root-rel-junction',
+          path: `${WIN_HOME}\\root-rel-junction`,
+          type: 'symlink',
+          symlinkTarget: '\\Users\\Public',
+          targetType: 'directory',
+          sizeBytes: null
+        }),
+        winEntry({
+          name: 'wsl-device-link',
+          path: `${WIN_HOME}\\wsl-device-link`,
+          type: 'symlink',
+          symlinkTarget: '\\??\\UNC\\wsl.localhost\\Ubuntu-24.04\\home\\dev',
+          targetType: 'directory',
+          sizeBytes: null
+        })
+      ],
+      'C:\\Users': [
+        winEntry({ name: 'dev', path: WIN_HOME, type: 'directory', sizeBytes: null }),
+        winEntry({ name: 'Shared', path: 'C:\\Users\\Shared', type: 'directory', sizeBytes: null }),
+        winEntry({ name: 'Public', path: 'C:\\Users\\Public', type: 'directory', sizeBytes: null })
+      ],
+      'C:\\Users\\Shared': [winEntry({ name: 'shared.txt', path: 'C:\\Users\\Shared\\shared.txt' })],
+      'C:\\Users\\Public': [winEntry({ name: 'public.txt', path: 'C:\\Users\\Public\\public.txt' })],
+      '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev': [
+        winEntry({ name: 'bashrc', path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\bashrc' })
+      ],
+      '\\\\wsl.localhost\\Ubuntu-24.04\\home': [
+        winEntry({
+          name: 'dev',
+          path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev',
+          type: 'directory',
+          sizeBytes: null
+        })
+      ]
+    }
+    api.windows.list.mockImplementation(async (path: string) => customWin[path] ?? [])
+
+    await renderExplorer()
+    const win = pane('windows')
+
+    fireEvent.doubleClick(within(win).getByText('device-junction'))
+    await waitFor(() =>
+      expect(api.windows.list).toHaveBeenCalledWith('C:\\Users\\Shared', { showHidden: false })
+    )
+    await within(win).findByText('shared.txt')
+
+    fireEvent.click(within(win).getByRole('button', { name: 'Up' }))
+    await waitFor(() =>
+      expect(api.windows.list).toHaveBeenCalledWith('C:\\Users', { showHidden: false })
+    )
+
+    fireEvent.click(within(win).getByRole('button', { name: 'Home' }))
+    await within(win).findByText('root-rel-junction')
+
+    fireEvent.doubleClick(within(win).getByText('root-rel-junction'))
+    await waitFor(() =>
+      expect(api.windows.list).toHaveBeenCalledWith('C:\\Users\\Public', { showHidden: false })
+    )
+    await within(win).findByText('public.txt')
+
+    fireEvent.click(within(win).getByRole('button', { name: 'Home' }))
+    await within(win).findByText('wsl-device-link')
+
+    fireEvent.doubleClick(within(win).getByText('wsl-device-link'))
+    await waitFor(() =>
+      expect(api.windows.list).toHaveBeenCalledWith(
+        '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev',
+        { showHidden: false }
+      )
+    )
+    await within(win).findByText('bashrc')
+
+    fireEvent.click(within(win).getByRole('button', { name: 'Up' }))
+    await waitFor(() =>
+      expect(api.windows.list).toHaveBeenCalledWith('\\\\wsl.localhost\\Ubuntu-24.04\\home', {
+        showHidden: false
+      })
+    )
   })
 })
 
@@ -844,6 +1020,168 @@ describe('filesystem boundary badge', () => {
     await renderExplorer()
     expect(rowBadges('windows')).toEqual([])
     expect(pane('windows').querySelector('.pane-header .side-badge')).toBeNull()
+  })
+
+  it('resolves relative and .. symlink targets on Linux before judging the boundary', async () => {
+    api.explorer.list.mockImplementation(async (path: string) => {
+      if (path === LINUX_HOME) {
+        return [
+          entry({ name: 'config.json', path: `${LINUX_HOME}/config.json` }),
+          entry({
+            name: 'back-to-ext4',
+            path: `${LINUX_HOME}/back-to-ext4`,
+            type: 'symlink',
+            symlinkTarget: '/mnt/c/../../home/dev/docs',
+            targetType: 'directory'
+          }),
+          entry({
+            name: 'rel-winlink',
+            path: `${LINUX_HOME}/rel-winlink`,
+            type: 'symlink',
+            symlinkTarget: '../../mnt/c/Users/dev',
+            targetType: 'directory'
+          })
+        ]
+      }
+      return linuxListings[path] ?? []
+    })
+
+    await renderExplorer()
+    expect(rowBadges('linux')).toEqual(['windows-mount'])
+    const relRow = within(pane('linux')).getByText('rel-winlink').closest('.fl-row') as HTMLElement
+    const ext4Row = within(pane('linux')).getByText('back-to-ext4').closest('.fl-row') as HTMLElement
+    expect(relRow.querySelector('.side-badge')?.getAttribute('data-side')).toBe('windows-mount')
+    expect(ext4Row.querySelector('.side-badge')).toBeNull()
+  })
+
+  it('honors a custom [automount] root for relative Linux symlinks', async () => {
+    snapshot.dashboard!.wslSettings = {
+      wslconfigPath: 'C:\\Users\\dev\\.wslconfig',
+      wslconfigExists: false,
+      wslConfPath: '/etc/wsl.conf',
+      wslConfExists: true,
+      restartPending: false,
+      vmStartedAt: null,
+      networkingModeDeclared: null,
+      networkingModeEffective: 'nat',
+      platform: null,
+      interop: null,
+      defaultUser: null,
+      settings: [
+        {
+          key: 'root',
+          section: 'automount',
+          scope: 'linux',
+          declaredValue: '/drives/',
+          effectiveValue: '/drives/',
+          origin: 'wsl-conf',
+          provenance: 'user',
+          verdict: 'applied',
+          note: null
+        }
+      ]
+    }
+    api.explorer.list.mockImplementation(async (path: string) => {
+      if (path === LINUX_HOME) {
+        return [
+          entry({ name: 'config.json', path: `${LINUX_HOME}/config.json` }),
+          entry({
+            name: 'custom-drive-link',
+            path: `${LINUX_HOME}/custom-drive-link`,
+            type: 'symlink',
+            symlinkTarget: '../../drives/d/work',
+            targetType: 'directory'
+          }),
+          entry({
+            name: 'unmounted-mnt-link',
+            path: `${LINUX_HOME}/unmounted-mnt-link`,
+            type: 'symlink',
+            symlinkTarget: '../../mnt/c/Users/dev',
+            targetType: 'directory'
+          })
+        ]
+      }
+      return linuxListings[path] ?? []
+    })
+
+    await renderExplorer()
+    expect(rowBadges('linux')).toEqual(['windows-mount'])
+    const customRow = within(pane('linux'))
+      .getByText('custom-drive-link')
+      .closest('.fl-row') as HTMLElement
+    const mntRow = within(pane('linux'))
+      .getByText('unmounted-mnt-link')
+      .closest('.fl-row') as HTMLElement
+    expect(customRow.querySelector('.side-badge')?.getAttribute('data-side')).toBe('windows-mount')
+    expect(mntRow.querySelector('.side-badge')).toBeNull()
+  })
+
+  it('badges device-prefixed WSL shares on Windows and omits false unc badges on C: links inside a WSL share', async () => {
+    const wslShareDir = '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev'
+    api.windows.list.mockImplementation(async (path: string) => {
+      if (path === WIN_HOME) {
+        return [
+          winEntry({ name: 'notes.txt', path: `${WIN_HOME}\\notes.txt` }),
+          winEntry({
+            name: 'device-c-link',
+            path: `${WIN_HOME}\\device-c-link`,
+            type: 'symlink',
+            symlinkTarget: '\\\\?\\C:\\Users\\Shared',
+            targetType: 'directory'
+          }),
+          winEntry({
+            name: 'nt-wsl-link',
+            path: `${WIN_HOME}\\nt-wsl-link`,
+            type: 'symlink',
+            symlinkTarget: '\\??\\UNC\\wsl$\\Debian\\etc',
+            targetType: 'directory'
+          }),
+          winEntry({
+            name: 'win32-wsl-link',
+            path: `${WIN_HOME}\\win32-wsl-link`,
+            type: 'symlink',
+            symlinkTarget: `\\\\?\\UNC\\wsl.localhost\\Ubuntu-24.04\\home\\dev`,
+            targetType: 'directory'
+          })
+        ]
+      }
+      if (path === wslShareDir) {
+        return [
+          winEntry({ name: 'bashrc', path: `${wslShareDir}\\bashrc` }),
+          winEntry({
+            name: 'plain-c-link',
+            path: `${wslShareDir}\\plain-c-link`,
+            type: 'symlink',
+            symlinkTarget: 'C:\\Users\\Shared',
+            targetType: 'directory'
+          }),
+          winEntry({
+            name: 'prefixed-c-link',
+            path: `${wslShareDir}\\prefixed-c-link`,
+            type: 'symlink',
+            symlinkTarget: '\\\\?\\C:\\Users\\Shared',
+            targetType: 'directory'
+          })
+        ]
+      }
+      return windowsListings[path] ?? []
+    })
+
+    await renderExplorer()
+    const win = pane('windows')
+    expect(rowBadges('windows')).toEqual(['unc', 'unc'])
+    const driveRow = within(win).getByText('device-c-link').closest('.fl-row') as HTMLElement
+    expect(driveRow.querySelector('.side-badge')).toBeNull()
+
+    fireEvent.doubleClick(within(win).getByText('win32-wsl-link'))
+    await waitFor(() =>
+      expect(api.windows.list).toHaveBeenCalledWith(wslShareDir, { showHidden: false })
+    )
+    await within(win).findByText('bashrc')
+
+    const headerBadge = win.querySelector('.pane-header .side-badge') as HTMLElement
+    expect(headerBadge.getAttribute('data-side')).toBe('unc')
+    expect(rowBadges('windows')).toEqual([])
   })
 })
 
