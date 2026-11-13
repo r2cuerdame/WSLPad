@@ -864,10 +864,21 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async exportToWindows(distro: string, paths: string[], windowsDir: string): Promise<string> {
     this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
+    if (windowsDir === WINDOWS_ROOT || windowsDir === '::ThisPC') {
+      throw new ExplorerError('UNKNOWN', windowsDir, 'Refusing to operate on This PC')
+    }
+    const destDirLinux = convertWindowsToLinux(distro, windowsDir)
+    if (destDirLinux === null) {
+      throw new ExplorerError('UNKNOWN', windowsDir, `Path is not mappable: ${windowsDir}`)
+    }
     const uniquePaths = this.checkBatch(paths, 'export')
     for (const path of uniquePaths) {
       const node = this.fs.getNode(this.fs.normalizePath(path), false)
       if (!node) throw new ExplorerError('ENOENT', path, `No such file or directory: ${path}`)
+      if (!node.readable) throw this.accessDenied(path, node)
+      if (isInsideLinux(destDirLinux, path)) {
+        throw new ExplorerError('UNKNOWN', path, `Cannot export ${path} into itself`)
+      }
     }
     const opId = `fixture-op-${++this.opCounter}`
     this.emit(this.doneProgress(opId, 'export', uniquePaths.length, windowsDir))
