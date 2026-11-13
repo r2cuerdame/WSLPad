@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { IpcChannels } from '@shared/ipc'
+import { statPath } from '../../../src/main/explorer/listing'
+import { MockRunner, ok } from '../explorer/mock-runner'
 
 const handles = new Map<string, (...args: unknown[]) => unknown>()
 const shellOpenPath = vi.fn()
@@ -88,6 +90,23 @@ describe('registerIpcHandlers', () => {
     }
   })
 
+  it('opens the directory itself using locale-independent stat metadata', async () => {
+    const runner = new MockRunner().on(() =>
+      ok(['drwxr-xr-x', '755', 'u', 'g', '4096', '1', '1', '9', ''].join('\0'))
+    )
+    const windowsPath = '\\\\wsl.localhost\\Ubuntu\\home\\dev'
+    registerIpcHandlers({
+      store: { get: () => ({ selectedDistro: 'Ubuntu' }) },
+      explorer: {
+        stat: (distro: string, path: string) => statPath(runner, distro, path),
+        convertPath: async () => windowsPath
+      }
+    } as never)
+    await handles.get(IpcChannels.openInWindowsExplorer)!({}, '/home/dev')
+    expect(shellOpenPath).toHaveBeenCalledWith(windowsPath)
+    expect(shellShowItemInFolder).not.toHaveBeenCalled()
+  })
+
   it('returns the full TerminalSessionInfo including distro and error and syncs SnapshotStore', async () => {
     const failedInfo = {
       sessionId: 'term-Ubuntu-24.04',
@@ -103,10 +122,7 @@ describe('registerIpcHandlers', () => {
       cwd: '/mnt/c/Users/dev',
       error: null
     }
-    const ensure = vi
-      .fn()
-      .mockResolvedValueOnce(failedInfo)
-      .mockResolvedValueOnce(readyInfo)
+    const ensure = vi.fn().mockResolvedValueOnce(failedInfo).mockResolvedValueOnce(readyInfo)
     const setTerminalContext = vi.fn()
     registerIpcHandlers({
       terminals: { ensure },

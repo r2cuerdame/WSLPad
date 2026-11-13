@@ -9,6 +9,7 @@ import {
   listTree,
   octalToRwx,
   parseFindListing,
+  resolveRealPath,
   sanitizeSearchQuery,
   searchDirectory,
   statPath
@@ -173,37 +174,36 @@ describe('parseFindListing', () => {
     expect(parseFindListing('/d', text).map((e) => e.name)).toEqual(['whole'])
   })
 
-  it.skipIf(spawnSync('sh', ['-c', "find . -maxdepth 0 -printf ''"], { windowsHide: true }).status !== 0)(
-    'reads back what GNU find prints for the listing format',
-    async () => {
-      const runner = new MockRunner()
-      await listDirectory(runner, 'Ubuntu', '/home/u', true)
-      const format = /-printf ('[^']*')/.exec(runner.calls[0].script)?.[1]
-      const dir = mkdtempSync(join(tmpdir(), 'wslpad-find-'))
-      try {
-        writeFileSync(join(dir, 'plain.txt'), 'hello')
-        mkdirSync(join(dir, 'sub'))
-        const out = spawnSync('sh', ['-c', `find . -mindepth 1 -maxdepth 1 -printf ${format}`], {
-          cwd: dir,
-          windowsHide: true
-        })
-        expect(out.status).toBe(0)
-        const text = decodeWslOutput(out.stdout, 'utf8', true)
-        expect(text).toContain('/\0\n')
-        const entries = parseFindListing('/home/u', text)
-        expect(
-          entries
-            .map(({ name, path, type, sizeBytes }) => ({ name, path, type, sizeBytes }))
-            .sort((a, b) => a.name.localeCompare(b.name))
-        ).toEqual([
-          { name: 'plain.txt', path: '/home/u/plain.txt', type: 'file', sizeBytes: 5 },
-          { name: 'sub', path: '/home/u/sub', type: 'directory', sizeBytes: null }
-        ])
-      } finally {
-        rmSync(dir, { recursive: true, force: true })
-      }
+  it.skipIf(
+    spawnSync('sh', ['-c', "find . -maxdepth 0 -printf ''"], { windowsHide: true }).status !== 0
+  )('reads back what GNU find prints for the listing format', async () => {
+    const runner = new MockRunner()
+    await listDirectory(runner, 'Ubuntu', '/home/u', true)
+    const format = /-printf ('[^']*')/.exec(runner.calls[0].script)?.[1]
+    const dir = mkdtempSync(join(tmpdir(), 'wslpad-find-'))
+    try {
+      writeFileSync(join(dir, 'plain.txt'), 'hello')
+      mkdirSync(join(dir, 'sub'))
+      const out = spawnSync('sh', ['-c', `find . -mindepth 1 -maxdepth 1 -printf ${format}`], {
+        cwd: dir,
+        windowsHide: true
+      })
+      expect(out.status).toBe(0)
+      const text = decodeWslOutput(out.stdout, 'utf8', true)
+      expect(text).toContain('/\0\n')
+      const entries = parseFindListing('/home/u', text)
+      expect(
+        entries
+          .map(({ name, path, type, sizeBytes }) => ({ name, path, type, sizeBytes }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      ).toEqual([
+        { name: 'plain.txt', path: '/home/u/plain.txt', type: 'file', sizeBytes: 5 },
+        { name: 'sub', path: '/home/u/sub', type: 'directory', sizeBytes: null }
+      ])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
-  )
+  })
 })
 
 describe('explorerErrorFromResult', () => {
@@ -291,7 +291,9 @@ describe('listDirectory', () => {
 
   it('lists and resolves symlinks whose name and target contain pipes', async () => {
     const runner = new MockRunner()
-      .on((script) => (script.includes('-printf') ? ok('l|777|u|u|6|1.0|1|a|b/../c|d\n') : undefined))
+      .on((script) =>
+        script.includes('-printf') ? ok('l|777|u|u|6|1.0|1|a|b/../c|d\n') : undefined
+      )
       .on((script) => (script.startsWith('for p in') ? ok('d\n') : undefined))
     const entries = await listDirectory(runner, 'Ubuntu', '/home/u', true)
     expect(entries).toHaveLength(1)
@@ -387,19 +389,20 @@ describe('listTree', () => {
   )
 
   it('lists directories and resolved directory symlinks only', async () => {
-    const runner = new MockRunner()
-      .on((script) =>
-        script.includes('find -H')
-          ? ok([
+    const runner = new MockRunner().on((script) =>
+      script.includes('find -H')
+        ? ok(
+            [
               'd|755|u|u|4096|1.0|1|sub/',
               'l|777|u|u|3|1.0|1|dir-link/sub',
               'l|777|u|u|4|1.0|1|file-link/file',
               'l|777|u|u|7|1.0|1|broken-link/missing'
-            ].join('\n'))
-          : script.includes('if [ -d')
-            ? ok('d\nf\nx\n')
-            : undefined
-      )
+            ].join('\n')
+          )
+        : script.includes('if [ -d')
+          ? ok('d\nf\nx\n')
+          : undefined
+    )
     const entries = await listTree(runner, 'Ubuntu', '/home/u')
     expect(entries.map((entry) => [entry.name, entry.type, entry.targetType])).toEqual([
       ['sub', 'directory', null],
@@ -433,8 +436,20 @@ describe('listTree', () => {
 describe('statPath', () => {
   it('parses stat output and fills the windows path', async () => {
     const runner = new MockRunner().on((script) =>
-      script.includes('stat -c')
-        ? ok('regular file|644|user|group|2048|1721718313|1721718000|123456\n')
+      script.includes('stat --printf')
+        ? ok(
+            [
+              '-rw-r--r--',
+              '644',
+              'user',
+              'group',
+              '2048',
+              '1721718313',
+              '1721718000',
+              '123456',
+              ''
+            ].join('\0')
+          )
         : undefined
     )
     const stat = await statPath(runner, 'Ubuntu-24.04', '/home/u/config.json')
@@ -455,8 +470,8 @@ describe('statPath', () => {
 
   it('parses symlink target and resolved type', async () => {
     const runner = new MockRunner().on((script) =>
-      script.includes('stat -c')
-        ? ok('symbolic link|777|u|g|11|1|1|9\nL|/etc/hosts\nT|f\n')
+      script.includes('stat --printf')
+        ? ok(['lrwxrwxrwx', '777', 'u', 'g', '11', '1', '1', '9', '/etc/hosts', 'f', ''].join('\0'))
         : undefined
     )
     const stat = await statPath(runner, 'Ubuntu', '/home/u/link')
@@ -468,6 +483,108 @@ describe('statPath', () => {
   it('throws ENOENT for missing paths', async () => {
     const runner = new MockRunner().on(() => fail(40))
     await expect(statPath(runner, 'Ubuntu', '/gone')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it.each([
+    ['drwxr-xr-x', '4096', 'directory', null],
+    ['-rw-r--r--', '12', 'file', 12],
+    ['-rw-r--r--', '0', 'file', 0],
+    ['prw-r--r--', '0', 'other', 0]
+  ])('classifies mode %s without localized type names', async (mode, size, type, sizeBytes) => {
+    const runner = new MockRunner().on(() =>
+      ok([mode, '755', 'u', 'g', size, '1', '1', '9', ''].join('\0'))
+    )
+    await expect(statPath(runner, 'Ubuntu', '/item')).resolves.toMatchObject({ type, sizeBytes })
+    expect(runner.calls[0].opts?.nulDelimited).toBe(true)
+    expect(runner.calls[0].script).toContain('LC_ALL=C stat --printf')
+    expect(runner.calls[0].script).not.toContain('%F')
+  })
+
+  it.each(['/etc/hosts', 'line\nbreak\n', 'pipe|target\nT|d\nT|f\n'])(
+    'preserves the complete link target %j without interpreting its contents',
+    async (target) => {
+      const runner = new MockRunner().on(() =>
+        ok(['lrwxrwxrwx', '777', 'u', 'g', '11', '1', '1', '9', target, 'x', ''].join('\0'))
+      )
+      await expect(statPath(runner, 'Ubuntu', '/link')).resolves.toMatchObject({
+        type: 'symlink',
+        symlinkTarget: target,
+        targetType: null
+      })
+    }
+  )
+
+  it('rejects a truncated NUL record', async () => {
+    const runner = new MockRunner().on(() =>
+      ok(['lrwxrwxrwx', '777', 'u', 'g', '11', '1', '1', '9', 'partial'].join('\0'))
+    )
+    await expect(statPath(runner, 'Ubuntu', '/link')).rejects.toMatchObject({ code: 'UNKNOWN' })
+  })
+
+  it('executes the stat protocol in POSIX sh for files and directories', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'wslpad-stat-'))
+    writeFileSync(join(root, 'empty'), '')
+    const runner = new MockRunner().on((script) => {
+      const result = spawnSync('sh', ['-c', script], {
+        cwd: root,
+        encoding: 'utf8',
+        windowsHide: true
+      })
+      if (result.error) throw result.error
+      return result.status === 0 ? ok(result.stdout) : fail(result.status ?? 99, result.stderr)
+    })
+    try {
+      // Git's POSIX shell and WSL both expose the temporary cwd through $PWD.
+      const pwd = spawnSync('sh', ['-c', 'pwd'], { cwd: root, encoding: 'utf8', windowsHide: true })
+      expect(pwd.status).toBe(0)
+      const path = pwd.stdout.trim()
+      await expect(statPath(runner, 'Ubuntu', path)).resolves.toMatchObject({
+        type: 'directory',
+        sizeBytes: null
+      })
+      await expect(statPath(runner, 'Ubuntu', `${path}/empty`)).resolves.toMatchObject({
+        type: 'file',
+        sizeBytes: 0
+      })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('locale-independent filesystem errors', () => {
+  const operations = [
+    ['stat', (runner: MockRunner) => statPath(runner, 'Ubuntu', '/parent/child')],
+    ['list', (runner: MockRunner) => listDirectory(runner, 'Ubuntu', '/parent/child', true)],
+    ['tree', (runner: MockRunner) => listTree(runner, 'Ubuntu', '/parent/child')],
+    ['realpath', (runner: MockRunner) => resolveRealPath(runner, 'Ubuntu', '/parent/child')]
+  ] as const
+
+  describe.each(operations)('%s', (_name, operation) => {
+    it.each([
+      ['Permission denied', 'EACCES'],
+      ['Not a directory', 'ENOTDIR'],
+      ['No such file or directory', 'ENOENT']
+    ])('preserves %s from a failing command', async (message, code) => {
+      // Execute the generated POSIX shell with failing command stand-ins. The
+      // inaccessible path must reach stat rather than a lossy test -e guard.
+      const runner = new MockRunner().on((script) => {
+        const result = spawnSync(
+          'sh',
+          [
+            '-c',
+            `
+stat() { [ "$LC_ALL" = C ] || exit 99; printf '%s\\n' '${message}' >&2; return 1; }
+realpath() { stat; }
+${script}`
+          ],
+          { encoding: 'utf8', windowsHide: true }
+        )
+        if (result.error) throw result.error
+        return fail(result.status ?? 99, result.stderr)
+      })
+      await expect(operation(runner)).rejects.toMatchObject({ code })
+    })
   })
 })
 
@@ -502,7 +619,10 @@ describe('search', () => {
     const runner = new MockRunner().on((script) =>
       script.includes('-iname')
         ? ok(
-            records('f|644|u|g|9|1.0|2|sub\ndir/hit\n1.txt/', 'l|777|u|g|3|1.0|3|a/b\nc/hit\nlink/t\nx') +
+            records(
+              'f|644|u|g|9|1.0|2|sub\ndir/hit\n1.txt/',
+              'l|777|u|g|3|1.0|3|a/b\nc/hit\nlink/t\nx'
+            ) +
               // The runner may still cut off a final record at its output cap.
               'f|644|u|g|9|1.0|1|hit\ncu'
           )
@@ -533,10 +653,7 @@ describe('search', () => {
   it('follows a directory symlink search root and returns nested matches', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes("find -H '/home/u/link'")
-        ? ok(
-            'f|644|u|g|9|1.0|2|child/hit.txt/\n' +
-              'd|755|u|g|4096|1.0|2|child/hit-dir/\n'
-          )
+        ? ok('f|644|u|g|9|1.0|2|child/hit.txt/\n' + 'd|755|u|g|4096|1.0|2|child/hit-dir/\n')
         : undefined
     )
 
