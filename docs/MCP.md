@@ -53,7 +53,7 @@ at-a-glance status badge):
 | `GetSelectedDistro` | The distro WSLPad currently targets, and whether it is still answering probes |
 | `GetDashboardSnapshot` | The full dashboard snapshot (cached, masked) |
 | `GetSystemInfo` | Kernel, hostname, user, HOME, shell, systemd, IP |
-| `GetResourceUsage` | CPU, memory, swap, disks, load, process count |
+| `GetResourceUsage` | CPU, memory, swap, disks, load, process count; a disk's `exists` is `false` only when `df` finished and found nothing there, and `null` when `df` did not finish for that mount (unknown, never "not mounted") |
 | `GetImportantPaths` | Auto-detected important paths + Windows mappings |
 | `GetConfigurationFiles` | wsl.conf/.wslconfig/rc files existence & paths |
 | `GetInstalledTools` | Detected dev tools with versions and install method; `tools: null` with `collectionStatus` until the first detection completes |

@@ -130,6 +130,7 @@
       "loadAvg": "平均負載",
       "processes": "處理程序",
       "notMounted": "未掛載",
+      "diskUnknown": "未知（未讀取）",
       "of": "{{used}}，共 {{total}}",
       "hostMemory": "Windows 記憶體",
       "vmLimit": "WSL 記憶體上限",

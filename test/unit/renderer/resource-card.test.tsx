@@ -385,4 +385,24 @@ describe('ResourceCard existing rows', () => {
     expect(rowValue('Load average')).toBe('0.5  0.4  0.3')
     expect(rowValue('Processes')).toBe('42')
   })
+
+  it('shows a disk df did not finish as unknown, not as "Not mounted" (issue #318)', async () => {
+    const unread = { exists: null, totalBytes: null, usedBytes: null, availableBytes: null, usePercent: null }
+    await renderCard(MEMORY, {
+      ...RESOURCES,
+      disks: [
+        { ...RESOURCES.disks[0] },
+        { mountPoint: '/home', ...unread },
+        { mountPoint: '/mnt/c', ...unread }
+      ]
+    })
+
+    expect(rowValue('Root filesystem')).toBe('40 GB of 100 GB')
+    expect(rowValue('/home')).toBe('Unknown (not read)')
+    expect(rowValue('/mnt/c')).toBe('Unknown (not read)')
+    expect(screen.queryByText('Not mounted')).toBeNull()
+    // the other figures are unaffected
+    expect(rowValue('CPU')).toBe('12.5%')
+    expect(rowValue('Memory')).toBe('2 GB of 16 GB')
+  })
 })

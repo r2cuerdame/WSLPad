@@ -528,14 +528,15 @@ function buildStorage(dash: DashboardSnapshot | null, automountRoot: string, b: 
     disks.map((d) => ({
       mountPoint: d.mountPoint,
       side: classifyPathSide(d.mountPoint, automountRoot),
-      exists: d.exists,
+      // older snapshots may lack the field: unknown, not missing
+      exists: d.exists ?? null,
       totalBytes: d.totalBytes,
       availableBytes: d.availableBytes,
       usePercent: d.usePercent
     })),
     LIMITS.filesystems
   )
-  const root = disks.find((d) => d.mountPoint === '/' && d.exists) ?? null
+  const root = disks.find((d) => d.mountPoint === '/' && d.exists === true) ?? null
   const image = dash?.disk ?? null
   const mounts = dash?.driveMounts ?? null
   const drivesCut = b.cap(
@@ -967,7 +968,7 @@ function buildChecks(s: WslPadSnapshot, dash: DashboardSnapshot | null): DevEnvC
   }
 
   // Disk headroom
-  const root = dash.resources.disks.find((d) => d.mountPoint === '/' && d.exists) ?? null
+  const root = dash.resources.disks.find((d) => d.mountPoint === '/' && d.exists === true) ?? null
   if (root === null || root.usePercent === null) {
     out.push(check('disk-headroom', 'unknown', 'Free space on / has not been read.'))
   } else {

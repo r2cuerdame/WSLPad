@@ -130,6 +130,7 @@
       "loadAvg": "Carga media",
       "processes": "Procesos",
       "notMounted": "No montado",
+      "diskUnknown": "Desconocido (no leído)",
       "of": "{{used}} de {{total}}",
       "hostMemory": "Memoria de Windows",
       "vmLimit": "Límite de memoria de WSL",

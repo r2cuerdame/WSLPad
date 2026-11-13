@@ -91,7 +91,7 @@ export function computeWarnings(input: WarningComputeInput): WarningInfo[] {
     }
 
     for (const disk of dash.resources.disks) {
-      if (disk.exists && disk.usePercent !== null && disk.usePercent >= 90) {
+      if (disk.exists === true && disk.usePercent !== null && disk.usePercent >= 90) {
         out.push({
           id: `disk-low-${disk.mountPoint === '/' ? 'root' : slug(disk.mountPoint)}`,
           severity: 'warning',

@@ -130,6 +130,7 @@
       "loadAvg": "Charge moyenne",
       "processes": "Processus",
       "notMounted": "Non monté",
+      "diskUnknown": "Inconnu (non lu)",
       "of": "{{used}} sur {{total}}",
       "hostMemory": "Mémoire Windows",
       "vmLimit": "Limite de mémoire WSL",

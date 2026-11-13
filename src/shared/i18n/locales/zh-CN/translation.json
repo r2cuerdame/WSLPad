@@ -130,6 +130,7 @@
       "loadAvg": "平均负载",
       "processes": "进程",
       "notMounted": "未挂载",
+      "diskUnknown": "未知（未读取）",
       "of": "{{used}}，共 {{total}}",
       "hostMemory": "Windows 内存",
       "vmLimit": "WSL 内存上限",

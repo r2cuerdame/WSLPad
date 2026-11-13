@@ -130,6 +130,7 @@
       "loadAvg": "Load average",
       "processes": "Processes",
       "notMounted": "Not mounted",
+      "diskUnknown": "Unknown (not read)",
       "of": "{{used}} of {{total}}",
       "hostMemory": "Windows memory",
       "vmLimit": "WSL memory limit",

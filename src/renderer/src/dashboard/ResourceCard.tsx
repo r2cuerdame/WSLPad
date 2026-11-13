@@ -93,13 +93,16 @@ export default function ResourceCard({
       <span className="res-label" title={disk.mountPoint}>
         {diskLabel(disk.mountPoint)}
       </span>
-      {disk.exists ? (
+      {disk.exists === true ? (
         <>
           <Bar percent={disk.usePercent} />
           <span className="res-value">{ofText(disk.usedBytes, disk.totalBytes)}</span>
         </>
-      ) : (
+      ) : disk.exists === false ? (
         <span className="res-value dim">{t('dashboard.resources.notMounted')}</span>
+      ) : (
+        // df did not finish for this mount: unknown, never "not mounted"
+        <span className="res-value dim">{t('dashboard.resources.diskUnknown')}</span>
       )}
     </div>
   )

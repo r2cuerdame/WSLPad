@@ -81,6 +81,16 @@ describe('computeWarnings', () => {
     expect(low[0].id).toBe('disk-low-root')
   })
 
+  it('never warns about a full disk from a mount that was not read (issue #318)', () => {
+    const dashboard = makeDashboard({
+      resources: resources(10, {
+        disks: [{ ...disk('/', 95), exists: null }, { ...disk('/mnt/c', 97), exists: false }]
+      })
+    })
+    const out = computeWarnings(input({ dashboard }))
+    expect(out.filter((w) => w.messageKey === 'warnings.diskLow')).toEqual([])
+  })
+
   it('flags hermes executable without a data dir', () => {
     const dashboard = makeDashboard({ hermes: hermes({ dataDir: null }) })
     const out = computeWarnings(input({ dashboard }))

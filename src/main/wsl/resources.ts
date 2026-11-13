@@ -16,11 +16,15 @@ const FAST_SCRIPT = [
 ].join('\n')
 
 // df can stall on slow /mnt/c metadata, so it runs separately with the slow
-// timeout. Each requested mount gets its own marker; a missing mount simply
-// produces an empty block.
+// timeout. Each requested mount gets its own start marker and, once df has
+// returned for it, a done marker. A done block without a row is a mount that
+// is really missing; a block that never reached its done marker (timeout, a
+// failed run, truncated output) is unknown, never "not mounted".
+const DF_DONE_MARKER = `${SECTION_MARKER}-done`
 const DF_SCRIPT =
   `for m in ${DISK_MOUNT_POINTS.join(' ')}; do ` +
-  `printf '${SECTION_MARKER} %s\\n' "$m"; df -P -B1 "$m" 2>/dev/null || true; done`
+  `printf '${SECTION_MARKER} %s\\n' "$m"; df -P -B1 "$m" 2>/dev/null || true; ` +
+  `printf '${DF_DONE_MARKER} %s\\n' "$m"; done`
 
 export interface ProcStatSample {
   totalTicks: number
@@ -125,13 +129,22 @@ export function parseDfP(text: string): DfRow[] {
   return rows
 }
 
-/** Parse the per-mount DF_SCRIPT output into DiskUsage entries. */
+/**
+ * Parse the per-mount DF_SCRIPT output into DiskUsage entries. Only a block
+ * closed by its done marker is evidence: it yields the row, or exists:false
+ * when df found nothing. Anything else — no output at all, or a run cut off
+ * part-way — leaves that mount exists:null.
+ */
 export function parseDfBlocks(text: string): DiskUsage[] {
   const blocks = new Map<string, string[]>()
+  const done = new Set<string>()
   let current: string[] | null = null
   for (const line of text.split('\n')) {
     const t = line.trim()
-    if (t.startsWith(`${SECTION_MARKER} `)) {
+    if (t.startsWith(`${DF_DONE_MARKER} `)) {
+      done.add(t.slice(DF_DONE_MARKER.length + 1))
+      current = null
+    } else if (t.startsWith(`${SECTION_MARKER} `)) {
       current = []
       blocks.set(t.slice(SECTION_MARKER.length + 1), current)
     } else if (current !== null) {
@@ -140,11 +153,12 @@ export function parseDfBlocks(text: string): DiskUsage[] {
   }
   return DISK_MOUNT_POINTS.map((mountPoint) => {
     const block = blocks.get(mountPoint)
-    const row = block === undefined ? undefined : parseDfP(block.join('\n'))[0]
+    const finished = block !== undefined && done.has(mountPoint)
+    const row = finished ? parseDfP(block.join('\n'))[0] : undefined
     if (row === undefined) {
       return {
         mountPoint,
-        exists: false,
+        exists: finished ? false : null,
         totalBytes: null,
         usedBytes: null,
         availableBytes: null,
@@ -182,6 +196,9 @@ function cpuPercentFrom(distro: string, sample: ProcStatSample | null): number |
   return Math.min(100, Math.max(0, Math.round(percent * 10) / 10))
 }
 
+// A timed-out or failed run still hands back whatever stdout arrived: the
+// parsers only trust what is complete (df's done markers, whole /proc lines),
+// so a partial run degrades to null per field instead of to a false answer.
 async function runOrNull(
   runner: DistroRunner,
   distro: string,

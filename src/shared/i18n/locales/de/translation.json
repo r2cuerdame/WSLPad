@@ -130,6 +130,7 @@
       "loadAvg": "Durchschnittslast",
       "processes": "Prozesse",
       "notMounted": "Nicht eingehängt",
+      "diskUnknown": "Unbekannt (nicht gelesen)",
       "of": "{{used}} von {{total}}",
       "hostMemory": "Windows-Arbeitsspeicher",
       "vmLimit": "WSL-Speicherlimit",

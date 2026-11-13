@@ -130,6 +130,7 @@
       "loadAvg": "평균 부하",
       "processes": "프로세스",
       "notMounted": "마운트되지 않음",
+      "diskUnknown": "미확인 (읽지 못함)",
       "of": "{{total}} 중 {{used}}",
       "hostMemory": "Windows 메모리",
       "vmLimit": "WSL 메모리 상한",

@@ -62,8 +62,9 @@ function pushResources(lines: string[], dash: DashboardSnapshot): void {
   if (res.loadAvg) lines.push(`- Load average: ${res.loadAvg.join(', ')}`)
   if (res.processCount !== null) lines.push(`- Processes: ${res.processCount}`)
   for (const disk of res.disks) {
-    if (!disk.exists) {
-      lines.push(`- Disk ${disk.mountPoint}: not mounted`)
+    if (disk.exists !== true) {
+      // null means df did not finish for this mount — unknown, not missing
+      lines.push(`- Disk ${disk.mountPoint}: ${disk.exists === false ? 'not mounted' : 'unknown'}`)
       continue
     }
     const pct = disk.usePercent === null ? 'unknown' : `${disk.usePercent}%`

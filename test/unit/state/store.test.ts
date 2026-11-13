@@ -18,6 +18,7 @@ import { createPortProxyCollector } from '../../../src/main/wsl/portproxy'
 import {
   clock,
   debian,
+  disk,
   dns,
   firewall,
   hermes,
@@ -186,6 +187,79 @@ describe('SnapshotStore', () => {
     const after = store.get()
     expect(after.dashboard?.resources.cpuPercent).toBe(55)
     expect(after.warnings.some((w) => w.messageKey === 'warnings.runnerFailed')).toBe(false)
+  })
+
+  describe('disk usage that was not read (issue #318)', () => {
+    const unknownDisk = (mountPoint: string): ResourceInfo['disks'][number] => ({
+      mountPoint,
+      exists: null,
+      totalBytes: null,
+      usedBytes: null,
+      availableBytes: null,
+      usePercent: null
+    })
+    const missingDisk = (mountPoint: string): ResourceInfo['disks'][number] => ({
+      ...unknownDisk(mountPoint),
+      exists: false
+    })
+
+    it('stays unknown when the very first read did not finish', async () => {
+      provider.getResources.mockResolvedValue(
+        resources(10, { disks: [unknownDisk('/'), unknownDisk('/home'), unknownDisk('/mnt/c')] })
+      )
+      await store.initialize()
+      await store.refreshFast()
+      const disks = store.get().dashboard?.resources.disks ?? []
+      expect(disks.map((d) => d.exists)).toEqual([null, null, null])
+    })
+
+    it('keeps the last answered value per mount, then takes the next answer', async () => {
+      provider.getResources.mockResolvedValue(
+        resources(10, { disks: [disk('/', 40), disk('/mnt/c', 70), missingDisk('/mnt/d')] })
+      )
+      await store.initialize()
+      await store.refreshFast()
+
+      // /mnt/c timed out this tick, / still answered with a new value
+      provider.getResources.mockResolvedValue(
+        resources(20, { disks: [disk('/', 41), unknownDisk('/mnt/c'), unknownDisk('/mnt/d')] })
+      )
+      await store.refreshFast()
+      let disks = store.get().dashboard?.resources.disks ?? []
+      expect(store.get().dashboard?.resources.cpuPercent).toBe(20)
+      expect(disks.map((d) => [d.mountPoint, d.exists, d.usePercent])).toEqual([
+        ['/', true, 41],
+        ['/mnt/c', true, 70],
+        ['/mnt/d', false, null]
+      ])
+
+      // the next finished read replaces the kept value
+      provider.getResources.mockResolvedValue(
+        resources(30, { disks: [disk('/', 42), disk('/mnt/c', 75), disk('/mnt/d', 5)] })
+      )
+      await store.refreshFast()
+      disks = store.get().dashboard?.resources.disks ?? []
+      expect(disks.map((d) => [d.mountPoint, d.exists, d.usePercent])).toEqual([
+        ['/', true, 42],
+        ['/mnt/c', true, 75],
+        ['/mnt/d', true, 5]
+      ])
+    })
+
+    it("never carries one distro's disks into another after a switch", async () => {
+      provider.listDistros.mockResolvedValue([ubuntu(), debian('Running')])
+      provider.getResources.mockResolvedValue(resources(10, { disks: [disk('/', 88)] }))
+      await store.initialize()
+      await store.refreshFast()
+      expect(store.get().dashboard?.resources.disks[0].usePercent).toBe(88)
+
+      provider.getResources.mockResolvedValue(resources(10, { disks: [unknownDisk('/')] }))
+      await store.setDistro('Debian')
+      const snap = store.get()
+      expect(snap.selectedDistro).toBe('Debian')
+      expect(provider.getResources).toHaveBeenLastCalledWith('Debian')
+      expect(snap.dashboard?.resources.disks).toEqual([unknownDisk('/')])
+    })
   })
 
   it('skips an overlapping refresh of the same tier', async () => {

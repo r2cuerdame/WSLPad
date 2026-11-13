@@ -58,7 +58,12 @@ export interface SystemInfo {
 
 export interface DiskUsage {
   mountPoint: string
-  exists: boolean
+  /**
+   * true: df answered with a row. false: df finished and found nothing there.
+   * null: df did not finish for this mount (timeout, failed run) — unknown,
+   * never "not mounted".
+   */
+  exists: boolean | null
   totalBytes: number | null
   usedBytes: number | null
   availableBytes: number | null
@@ -1536,7 +1541,8 @@ export interface DevEnvPorts {
 export interface DevEnvFilesystem {
   mountPoint: string
   side: PathSide
-  exists: boolean
+  /** null: the disk read did not finish for this mount (see DiskUsage.exists) */
+  exists: boolean | null
   totalBytes: number | null
   availableBytes: number | null
   usePercent: number | null
