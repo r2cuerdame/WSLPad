@@ -672,7 +672,33 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const files = this.ensureTrashDir('files')
     const info = this.ensureTrashDir('info')
     const entries = await this.listTrash(distro)
-    for (const trashName of trashNames) {
+    const uniqueNames = [...new Set(trashNames)]
+    const plannedChildren = new Map<FsNode, Map<string, FsNode>>()
+    const plannedChild = (parent: FsNode, name: string): FsNode | null =>
+      parent.children?.get(name) ?? plannedChildren.get(parent)?.get(name) ?? null
+    const resolveDir = (path: string): FsNode => {
+      let current: FsNode | null = this.fs.root
+      const normalized = this.fs.normalizePath(path)
+      const segments = normalized === '/' ? [] : normalized.slice(1).split('/')
+      for (const segment of segments) {
+        current = this.fs.resolveLink(current)
+        if (!current) throw new ExplorerError('ENOENT', path, `No such directory: ${path}`)
+        if (current.type !== 'directory' || !current.children) {
+          throw new ExplorerError('ENOTDIR', path, `Not a directory: ${path}`)
+        }
+        if (!current.readable) throw this.accessDenied(path, current)
+        current = plannedChild(current, segment)
+        if (!current) throw new ExplorerError('ENOENT', path, `No such directory: ${path}`)
+      }
+      current = this.fs.resolveLink(current)
+      if (!current) throw new ExplorerError('ENOENT', path, `No such directory: ${path}`)
+      if (current.type !== 'directory' || !current.children) {
+        throw new ExplorerError('ENOTDIR', path, `Not a directory: ${path}`)
+      }
+      if (!current.readable) throw this.accessDenied(path, current)
+      return current
+    }
+    const toRestore = uniqueNames.map((trashName) => {
       const entry = entries.find((e) => e.trashName === trashName)
       if (entry === undefined) {
         throw new ExplorerError('ENOENT', trashName, `Nothing in the trash is called ${trashName}`)
@@ -682,11 +708,23 @@ export class FixtureExplorerBackend implements ExplorerBackend {
         throw new ExplorerError('ENOENT', entry.originalPath, 'The trashed copy is gone')
       }
       const dest = this.fs.normalizePath(entry.originalPath)
-      if (this.fs.getNode(dest) !== null) {
+      const parentPath = dest.replace(/\/[^/]*$/, '') || '/'
+      const parent = resolveDir(parentPath)
+      if (!parent.writable) throw this.accessDenied(dest, parent)
+      const name = dest.slice(dest.lastIndexOf('/') + 1)
+      if (plannedChild(parent, name) !== null) {
         throw new ExplorerError('EEXIST', dest, `${dest} already exists`)
       }
-      const parentPath = dest.replace(/\/[^/]*$/, '') || '/'
-      const parent = this.requireDir(parentPath)
+      let children = plannedChildren.get(parent)
+      if (!children) {
+        children = new Map()
+        plannedChildren.set(parent, children)
+      }
+      children.set(name, node)
+      return { trashName, node, dest, parent }
+    })
+
+    for (const { trashName, node, dest, parent } of toRestore) {
       files.children?.delete(trashName)
       node.name = dest.slice(dest.lastIndexOf('/') + 1)
       this.fs.attach(parent, node)
