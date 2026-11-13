@@ -1808,11 +1808,17 @@ export interface TerminalSessionInfo {
   cwd: string | null
   /** why the session could not start — null whenever the console is healthy */
   error: string | null
+  /** Bounded scrollback captured so switching distros or attaching mid-spawn restores output. */
+  transcript?: string
+  /** Monotonic chunk sequence corresponding to `transcript`, used to deduplicate in-flight `onData`. */
+  seq?: number
 }
 
 export interface TerminalDataEvent {
   sessionId: string
   data: string
+  /** Monotonic chunk sequence within this session. */
+  seq?: number
 }
 
 export interface TerminalStatusEvent {

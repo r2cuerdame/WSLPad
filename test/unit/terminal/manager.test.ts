@@ -36,11 +36,18 @@ describe('TerminalManager', () => {
     await expect(manager.ensure('bad;name')).rejects.toThrow(/Invalid WSL distro name/)
   })
 
-  it('routes pty output to onData tagged with the session id', async () => {
+  it('routes pty output to onData tagged with the session id and monotonic seq', async () => {
     const { manager, factory, dataEvents } = makeManager()
     await manager.ensure('Ubuntu')
     factory.pty.emit('hello\r\n')
-    expect(dataEvents).toEqual([{ sessionId: 'term-Ubuntu', data: 'hello\r\n' }])
+    factory.pty.emit('world\r\n')
+    expect(dataEvents).toEqual([
+      { sessionId: 'term-Ubuntu', data: 'hello\r\n', seq: 1 },
+      { sessionId: 'term-Ubuntu', data: 'world\r\n', seq: 2 }
+    ])
+    const reused = await manager.ensure('Ubuntu')
+    expect(reused.transcript).toBe('hello\r\nworld\r\n')
+    expect(reused.seq).toBe(2)
   })
 
   it('routes input, resize, setCwd and getState by session id', async () => {
@@ -80,13 +87,16 @@ describe('TerminalManager', () => {
     expect(factory.spawnCount).toBe(1)
   })
 
-  it('respawns a session after the shell disconnects', async () => {
+  it('respawns a session after the shell disconnects and resets transcript/seq', async () => {
     const { manager, factory } = makeManager()
     await manager.ensure('Ubuntu')
-    factory.pty.emit(PROMPT)
+    factory.pty.emit('stale output\r\n' + PROMPT)
+    expect((await manager.ensure('Ubuntu')).transcript).toContain('stale output')
     factory.pty.exit(0)
     const info = await manager.ensure('Ubuntu')
     expect(info.status).toBe('running')
+    expect(info.transcript).toBe('')
+    expect(info.seq).toBe(0)
     expect(factory.spawnCount).toBe(2)
   })
 
