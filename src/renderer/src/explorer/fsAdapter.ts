@@ -1,6 +1,6 @@
 import { WINDOWS_ROOT } from '@shared/constants'
 import type { ExplorerListOptions } from '@shared/ipc'
-import { classifyPathSide } from '@shared/path-boundary'
+import { classifyPathSide, stripWindowsDevicePrefix } from '@shared/path-boundary'
 import type {
   DirSizeResult,
   FileEntry,
@@ -56,9 +56,18 @@ export function shQuote(value: string): string {
  */
 export function entrySide(entry: FileEntry, automountRoot?: string | null): PathSide {
   const target = entry.symlinkTarget
-  const absoluteTarget =
-    typeof target === 'string' && (target.startsWith('/') || /^[\\/]{2}/.test(target))
-  return classifyPathSide(absoluteTarget ? target : entry.path, automountRoot)
+  if (typeof target !== 'string' || target.length === 0) {
+    return classifyPathSide(entry.path, automountRoot)
+  }
+  const cleanPath = stripWindowsDevicePrefix(entry.path)
+  if (cleanPath.startsWith('/') && !cleanPath.startsWith('//')) {
+    const cleanTarget = stripWindowsDevicePrefix(target)
+    const resolved = /^[\\/]{2}/.test(cleanTarget)
+      ? cleanTarget
+      : resolveLinuxPath(parentPath(cleanPath), target)
+    return classifyPathSide(resolved, automountRoot)
+  }
+  return classifyPathSide(resolveWindowsPath(windowsParent(cleanPath), target), automountRoot)
 }
 
 export function normalizeLinuxPath(input: string): string | null {
@@ -77,9 +86,11 @@ export function isWindowsDriveRoot(path: string): boolean {
 }
 
 export function windowsParent(path: string): string {
-  if (path === WINDOWS_ROOT || isWindowsDriveRoot(path)) return WINDOWS_ROOT
-  const unc = path.startsWith('\\\\')
-  const body = unc ? path.slice(2) : path
+  if (path === WINDOWS_ROOT) return WINDOWS_ROOT
+  const clean = stripWindowsDevicePrefix(path).replace(/\//g, '\\')
+  if (isWindowsDriveRoot(clean)) return WINDOWS_ROOT
+  const unc = clean.startsWith('\\\\')
+  const body = unc ? clean.slice(2) : clean
   const idx = body.lastIndexOf('\\')
   if (idx < 0) return WINDOWS_ROOT
   const head = body.slice(0, idx)
@@ -104,11 +115,12 @@ export function normalizeWindowsPath(input: string): string | null {
   const trimmed = input.trim()
   if (trimmed.length === 0 || trimmed.includes('\0')) return null
   if (trimmed.toLowerCase() === WINDOWS_ROOT.toLowerCase()) return WINDOWS_ROOT
-  const unc = /^[\\/]{2}/.test(trimmed)
-  let value = trimmed.replace(/\//g, '\\')
+  const stripped = stripWindowsDevicePrefix(trimmed)
+  const unc = /^[\\/]{2}/.test(stripped)
+  let value = stripped.replace(/\//g, '\\')
   if (unc) {
     value = `\\\\${value.slice(2).replace(/\\{2,}/g, '\\')}`
-    if (!/^\\\\[^\\]+/.test(value)) return null
+    if (!/^\\\\[^\\?]+/.test(value)) return null
   } else {
     value = value.replace(/\\{2,}/g, '\\')
     if (/^[A-Za-z]:$/.test(value)) return `${value[0].toUpperCase()}:\\`
@@ -118,15 +130,34 @@ export function normalizeWindowsPath(input: string): string | null {
   return isWindowsDriveRoot(value) ? value : value.replace(/\\+$/, '')
 }
 
+function windowsRootPrefix(path: string): string | null {
+  const stripped = stripWindowsDevicePrefix(path)
+  if (/^[A-Za-z]:/.test(stripped)) return `${stripped[0].toUpperCase()}:`
+  if (/^[\\/]{2}/.test(stripped)) {
+    const parts = stripped.replace(/\//g, '\\').slice(2).split('\\').filter(Boolean)
+    if (parts.length > 0) return `\\\\${parts.slice(0, 2).join('\\')}`
+  }
+  return null
+}
+
 /** Resolve a relative Windows symlink target against its containing directory. */
 export function resolveWindowsPath(baseDir: string, target: string): string {
-  const raw = /^[A-Za-z]:[\\/]/.test(target) || /^[\\/]{2}/.test(target)
-    ? target
-    : `${baseDir}\\${target}`
+  const cleanBase = stripWindowsDevicePrefix(baseDir)
+  const cleanTarget = stripWindowsDevicePrefix(target)
+  let raw: string
+  if (/^[A-Za-z]:(?:[\\/]|$)/.test(cleanTarget) || /^[\\/]{2}/.test(cleanTarget)) {
+    raw = cleanTarget
+  } else if (/^[\\/](?![\\/])/.test(cleanTarget)) {
+    const root = windowsRootPrefix(cleanBase)
+    raw = root !== null ? `${root}${cleanTarget}` : `${cleanBase}\\${cleanTarget}`
+  } else {
+    raw = `${cleanBase}\\${cleanTarget}`
+  }
   const value = raw.replace(/\//g, '\\')
   const unc = value.startsWith('\\\\')
-  const prefix = unc ? '\\\\' : value.slice(0, 2)
-  const parts = value.slice(unc ? 2 : 2).split('\\').filter(Boolean)
+  if (!unc && !/^[A-Za-z]:/.test(value)) return value
+  const prefix = unc ? '\\\\' : `${value[0].toUpperCase()}:`
+  const parts = value.slice(2).split('\\').filter(Boolean)
   const protectedParts = unc ? 2 : 0
   const normalized: string[] = []
   for (const part of parts) {
