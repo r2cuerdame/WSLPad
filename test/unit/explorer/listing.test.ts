@@ -615,6 +615,19 @@ describe('search', () => {
     expect(script).toContain("-printf '%y|%m|%u|%g|%s|%T@|%d|%P/%l\\0\\n'")
   })
 
+  it('keeps the distro locale for -iname so non-ASCII names still fold case', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('-iname') ? ok('f|644|u|g|9|1.0|1|École.txt/') : undefined
+    )
+    const hits = await searchDirectory(runner, 'Ubuntu', '/home/u', 'école')
+    expect(hits.map((hit) => hit.name)).toEqual(['École.txt'])
+    const script = runner.calls[0].script
+    // Only the guard is pinned to C for parseable diagnostics; find is not.
+    expect(script).toContain("LC_ALL=C stat -L -- '/home/u'")
+    expect(script).toMatch(/; find -H '\/home\/u' -mindepth 1 -maxdepth 4 -iname '\*école\*'/)
+    expect(script).not.toContain('LC_ALL=C find')
+  })
+
   it('returns nested hits with newline names and targets as one entry each', async () => {
     const runner = new MockRunner().on((script) =>
       script.includes('-iname')

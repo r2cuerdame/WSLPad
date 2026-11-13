@@ -334,8 +334,10 @@ export async function searchDirectory(
   const q = shellQuote(dirPath)
   const pattern = shellQuote(`*${sanitized}*`)
   // -H follows the requested root if navigation landed on a directory symlink.
+  // find keeps the distro locale: under C, -iname stops folding non-ASCII case
+  // (École vs école). Its stderr is discarded; dirGuard owns the diagnostics.
   const script =
-    `${dirGuard(q)}; LC_ALL=C find -H ${q} -mindepth 1 -maxdepth 4 -iname ${pattern} ` +
+    `${dirGuard(q)}; find -H ${q} -mindepth 1 -maxdepth 4 -iname ${pattern} ` +
     `-printf '${FIND_FMT}' 2>/dev/null | head -z -n 200`
   const result = await runner.runInDistro(distro, script, FIND_RUN_OPTS)
   if (result.timedOut || (result.code !== 0 && !result.stdout)) {
