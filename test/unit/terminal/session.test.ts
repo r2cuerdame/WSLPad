@@ -301,4 +301,69 @@ describe('ConsoleSession without the rc (degraded shell)', () => {
     expect(factory.syncWrites).toHaveLength(0)
     expect(session.status).toBe('ready')
   })
+
+  it('stays ready after commands, since no marker would ever end "running"', async () => {
+    const factory = new MockFactory()
+    factory.markerless = true
+    const { session, statuses } = await started(factory)
+
+    session.write('ls\r')
+    factory.pty.emit('ls\r\nfile1  file2\r\n$ ')
+    session.write('echo hi\n')
+    factory.pty.emit('echo hi\r\nhi\r\n$ ')
+    // Prepare in Console only fills the input line while ready.
+    expect(session.status).toBe('ready')
+    expect(statuses.map((s) => s.status)).not.toContain('running')
+    expect(factory.pty.input).toBe('ls\recho hi\n')
+  })
+
+  it('waits for a sudo password and is ready again once it is submitted', async () => {
+    const factory = new MockFactory()
+    factory.markerless = true
+    const { session } = await started(factory)
+
+    session.write('sudo apt update\r')
+    expect(session.status).toBe('ready')
+    factory.pty.emit('sudo apt update\r\n[sudo] password for dev: ')
+    expect(session.status).toBe('waiting-sudo')
+    session.write('wrong\r')
+    expect(session.status).toBe('ready')
+    factory.pty.emit('\r\nSorry, try again.\r\n[sudo] password for dev: ')
+    expect(session.status).toBe('waiting-sudo')
+    session.write('hunter2\r')
+    expect(session.status).toBe('ready')
+    // the old prompt left in the parse tail does not re-trigger on new output
+    factory.pty.emit('\r\nReading package lists...')
+    expect(session.status).toBe('ready')
+  })
+
+  it('is ready again when the sudo password prompt is cancelled', async () => {
+    const factory = new MockFactory()
+    factory.markerless = true
+    const { session } = await started(factory)
+
+    session.write('sudo -v\r')
+    factory.pty.emit('[sudo] password for dev: ')
+    expect(session.status).toBe('waiting-sudo')
+    session.write('\x03')
+    expect(session.status).toBe('ready')
+    factory.pty.emit('^C\r\n$ ')
+    expect(session.status).toBe('ready')
+  })
+})
+
+describe('ConsoleSession sudo prompt cancellation', () => {
+  it('leaves waiting-sudo on Ctrl+C and is ready on the next prompt marker', async () => {
+    const { session, factory } = await started()
+    factory.pty.emit(PROMPT)
+    session.write('sudo apt update\r')
+    factory.pty.emit('[sudo] password for dev: ')
+    expect(session.status).toBe('waiting-sudo')
+    session.write('\x03')
+    expect(session.status).toBe('running')
+    factory.pty.emit('^C\r\n')
+    expect(session.status).toBe('running')
+    factory.pty.emit(PROMPT)
+    expect(session.status).toBe('ready')
+  })
 })
