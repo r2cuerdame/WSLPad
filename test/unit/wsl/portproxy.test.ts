@@ -88,6 +88,34 @@ describe('judgeRules', () => {
     // A working rule reported as dead would send the user to fix what works.
     expect(judgeRules([rule('172.20.128.7')], null)[0].verdict).toBe('unknown')
   })
+
+  it('calls an old address in the WSL range stale even across /16s', () => {
+    expect(judgeRules([rule('172.20.128.7')], '172.29.112.5')[0].verdict).toBe('stale')
+  })
+
+  it('calls an address in the distro /16 stale under a custom range', () => {
+    expect(judgeRules([rule('192.168.80.9')], '192.168.80.2')[0].verdict).toBe('stale')
+  })
+
+  it('does not call a forward to another machine on the LAN broken', () => {
+    // A NAS or another PC: repointing it at WSL would break a working setup.
+    expect(judgeRules([rule('192.168.1.50')], '172.20.144.2')[0].verdict).toBe('elsewhere')
+    expect(judgeRules([rule('10.0.0.5')], '172.20.144.2')[0].verdict).toBe('elsewhere')
+  })
+
+  it('treats the whole loopback block as Windows itself', () => {
+    expect(judgeRules([rule('127.0.0.2')], '172.20.144.2')[0].verdict).toBe('elsewhere')
+    expect(judgeRules([rule('127.255.255.254')], '172.20.144.2')[0].verdict).toBe('elsewhere')
+  })
+
+  it('claims nothing when the distro address is not IPv4', () => {
+    // hostname -I can lead with IPv6; v4tov4 rules cannot be compared to it.
+    const verdicts = judgeRules(
+      [rule('172.20.128.7'), rule('192.168.1.50'), rule('127.0.0.1')],
+      '2001:db8::5'
+    ).map((r) => r.verdict)
+    expect(verdicts).toEqual(['unknown', 'unknown', 'unknown'])
+  })
 })
 
 describe('repairCommand', () => {
@@ -142,6 +170,17 @@ describe('createPortProxyCollector', () => {
     expect(run).toHaveBeenCalledTimes(1)
     expect(first.rules[0].verdict).toBe('live')
     expect(second.rules[0].verdict).toBe('stale')
+  })
+
+  it('leaves LAN forwards alone and judges nothing against an IPv6 address', async () => {
+    const table = [KOREAN_TABLE, '0.0.0.0         9000        192.168.1.50    9000'].join('\n')
+    const collector = createPortProxyCollector({ run: vi.fn(async () => table) })
+
+    const v4 = await collector.collect('172.20.144.2')
+    expect(v4.rules.map((r) => r.verdict)).toEqual(['stale', 'live', 'elsewhere'])
+
+    const v6 = await collector.collect('2001:db8::5')
+    expect(v6.rules.map((r) => r.verdict)).toEqual(['unknown', 'unknown', 'unknown'])
   })
 
   it('reports why the table could not be read instead of "no rules"', async () => {
