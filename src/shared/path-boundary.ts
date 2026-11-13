@@ -23,6 +23,18 @@ const WSL_UNC_HOSTS = ['wsl.localhost', 'wsl$']
 /** `\\host\share…` or `//host/share…`, either separator, share optional. */
 const UNC_RE = /^[\\/]{2}([^\\/]+)(?:[\\/]+([^\\/]+))?/
 
+/**
+ * Strip Win32 (`\\?\`, `\\?\UNC\`) and NT (`\??\`, `\??\UNC\`) device prefixes
+ * that Windows `fs.readlink` returns on junctions and directory symlinks.
+ */
+export function stripWindowsDevicePrefix(path: string): string {
+  const uncPrefix = /^(?:[\\/]{2}\?|[\\/]\?\?)[\\/]unc[\\/]+/i
+  if (uncPrefix.test(path)) return path.replace(uncPrefix, '\\\\')
+  const drivePrefix = /^(?:[\\/]{2}\?|[\\/]\?\?)[\\/](?=[A-Za-z]:(?:[\\/]|$))/
+  if (drivePrefix.test(path)) return path.replace(drivePrefix, '')
+  return path
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -47,7 +59,7 @@ export function normalizeAutomountRoot(root: string | null | undefined): string 
  * WSLPad knows anything about.
  */
 export function wslUncDistro(path: string): string | null {
-  const match = UNC_RE.exec(path)
+  const match = UNC_RE.exec(stripWindowsDevicePrefix(path))
   if (match === null) return null
   if (!WSL_UNC_HOSTS.includes(match[1].toLowerCase())) return null
   return match[2] ?? null
@@ -55,7 +67,7 @@ export function wslUncDistro(path: string): string | null {
 
 /** True for a \\wsl.localhost / \\wsl$ location, with or without a share. */
 function isWslUnc(path: string): boolean {
-  const match = UNC_RE.exec(path)
+  const match = UNC_RE.exec(stripWindowsDevicePrefix(path))
   return match !== null && WSL_UNC_HOSTS.includes(match[1].toLowerCase())
 }
 
@@ -76,11 +88,12 @@ export function classifyPathSide(
   automountRoot?: string | null
 ): PathSide {
   if (typeof path !== 'string' || path.length === 0) return 'unknown'
-  if (/^[\\/]{2}/.test(path)) return isWslUnc(path) ? 'unc' : 'unknown'
-  if (!path.startsWith('/')) return 'unknown'
+  const normalized = stripWindowsDevicePrefix(path)
+  if (/^[\\/]{2}/.test(normalized)) return isWslUnc(normalized) ? 'unc' : 'unknown'
+  if (!normalized.startsWith('/')) return 'unknown'
   const root = normalizeAutomountRoot(automountRoot)
   // Drive mounts are one letter under the root: /mnt/c, /mnt/c/Users.
-  return new RegExp(`^${escapeRegExp(root)}[a-z](/|$)`, 'i').test(path)
+  return new RegExp(`^${escapeRegExp(root)}[a-z](/|$)`, 'i').test(normalized)
     ? 'windows-mount'
     : 'ext4'
 }

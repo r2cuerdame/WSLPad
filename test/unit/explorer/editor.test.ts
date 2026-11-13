@@ -119,6 +119,58 @@ describe('writeTextFile', () => {
     expect(script).not.toContain("> '/etc/a'\\''b.conf'")
   })
 
+  it('maps a missing parent directory to ENOENT before checking write access', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('*) exit 40 ;;') ? fail(40) : undefined
+    )
+
+    await expect(writeTextFile(runner, 'Ubuntu', '/home/u/gone/new.txt', 'content')).rejects.toMatchObject({
+      code: 'ENOENT',
+      path: '/home/u/gone/new.txt'
+    })
+    expect(runner.calls).toHaveLength(1)
+    const script = runner.calls[0].script
+    expect(script).toContain('LC_ALL=C stat -L "$d"')
+    expect(script).toContain('*"Permission denied"*) exit 43 ;;')
+    expect(script).toContain('*"Not a directory"*) exit 45 ;;')
+    expect(script.indexOf('*) exit 40 ;;')).toBeLessThan(
+      script.indexOf('if [ ! -e "$t" ] && [ ! -w "$d" ]')
+    )
+    expect(script.indexOf('*) exit 40 ;;')).toBeLessThan(script.indexOf('mktemp "$d/.wslpad-XXXXXX"'))
+  })
+
+  it('preserves EACCES when an ancestor hides an existing parent directory', async () => {
+    const runner = new MockRunner()
+      .on((script) => (script.includes('*"Permission denied"*) exit 43 ;;') ? fail(43) : undefined))
+      .on((script) => (script.includes('id -un') ? ok('root|drwx------\nrecuerdame\n') : undefined))
+
+    await expect(writeTextFile(runner, 'Ubuntu', '/root/private/new.txt', 'content')).rejects.toMatchObject({
+      code: 'EACCES',
+      path: '/root/private/new.txt',
+      detail: { owner: 'root', user: 'recuerdame' }
+    })
+    expect(runner.calls).toHaveLength(2)
+    const script = runner.calls[0].script
+    expect(script.indexOf('*"Permission denied"*) exit 43 ;;')).toBeLessThan(script.indexOf('*) exit 40 ;;'))
+  })
+
+  it('maps a file used as the parent directory to ENOTDIR', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('if [ ! -d "$d" ]') ? fail(45) : undefined
+    )
+
+    await expect(writeTextFile(runner, 'Ubuntu', '/home/u/file/child.txt', 'content')).rejects.toMatchObject({
+      code: 'ENOTDIR',
+      path: '/home/u/file/child.txt'
+    })
+    expect(runner.calls).toHaveLength(1)
+    const script = runner.calls[0].script
+    expect(script.indexOf('if [ ! -d "$d" ]')).toBeLessThan(
+      script.indexOf('if [ ! -e "$t" ] && [ ! -w "$d" ]')
+    )
+    expect(script.indexOf('if [ ! -d "$d" ]')).toBeLessThan(script.indexOf('mktemp "$d/.wslpad-XXXXXX"'))
+  })
+
   it('cleans up the tmp file on every failure branch', async () => {
     const runner = new MockRunner()
     await writeTextFile(runner, 'Ubuntu', '/f', 'x')

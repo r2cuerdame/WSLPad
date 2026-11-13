@@ -272,9 +272,10 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   handle(IpcChannels.explorerList, async (path, opts) => {
     const p = linuxPathSchema.parse(path)
     const o = listOptsSchema.parse(opts)
-    const entries = await deps.explorer.list(distro(), p, o)
+    const targetDistro = distro()
+    const entries = await deps.explorer.list(targetDistro, p, o)
     deps.store.setExplorerContext({
-      distro: deps.store.get().selectedDistro,
+      distro: targetDistro,
       currentPath: p,
       showHidden: o?.showHidden ?? false
     })
@@ -479,7 +480,12 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   // --- terminal -----------------------------------------------------------
   handle(IpcChannels.terminalEnsure, async (name) => {
     const info = await deps.terminals.ensure(distroNameSchema.parse(name))
-    return { sessionId: info.sessionId, status: info.status, cwd: info.cwd }
+    deps.store.setTerminalContext({
+      distro: info.distro,
+      cwd: info.cwd,
+      status: info.status
+    })
+    return info
   })
   handle(IpcChannels.terminalInput, (sessionId, data) =>
     deps.terminals.input(sessionIdSchema.parse(sessionId), z.string().max(65536).parse(data))
