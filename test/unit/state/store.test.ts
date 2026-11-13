@@ -8,6 +8,7 @@ import type {
 } from '@shared/types'
 import { PROBE_BACKOFF_BASE_MS, PROBE_TRUST_MS } from '@shared/constants'
 import { SnapshotStore } from '../../../src/main/state/store'
+import { DiagnosticsService } from '../../../src/main/state/diagnostics'
 import {
   clock,
   debian,
@@ -343,6 +344,227 @@ describe('SnapshotStore', () => {
     expect(snap.explorer.currentPath).toBe('/etc')
     expect(snap.terminal.status).toBe('ready')
     expect(seen.length).toBe(2)
+  })
+
+  it('setTerminalContext re-judges the Console cwd warning at once', async () => {
+    await store.initialize()
+    const seen: WslPadSnapshot[] = []
+    store.subscribe((s) => seen.push(s))
+    const has = (s: WslPadSnapshot | undefined) =>
+      (s?.warnings ?? []).some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+
+    store.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/mnt/c/Users/dev', status: 'ready' })
+    expect(has(seen.at(-1))).toBe(true)
+    expect(
+      store
+        .get()
+        .dashboard?.warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+    ).toBe(true)
+
+    store.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/home/dev', status: 'ready' })
+    expect(has(seen.at(-1))).toBe(false)
+    expect(
+      store
+        .get()
+        .dashboard?.warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+    ).toBe(false)
+  })
+
+  it('judges the Console cwd against the automount root in force', async () => {
+    const settings = wslSettings()
+    settings.settings.push({
+      key: 'root',
+      section: 'automount',
+      scope: 'linux',
+      declaredValue: '/',
+      effectiveValue: '/',
+      origin: 'wsl-conf',
+      provenance: 'user',
+      verdict: 'applied',
+      note: null
+    })
+    const s = new SnapshotStore({ ...provider, getWslSettings: vi.fn(async () => settings) })
+    await s.initialize()
+    await s.refreshSlow()
+    const has = () =>
+      s.get().warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+
+    s.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/c/Users/dev/project', status: 'ready' })
+    expect(has()).toBe(true)
+    s.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/mnt/c/cache', status: 'ready' })
+    expect(has()).toBe(false)
+  })
+
+  it("does not blame the selected distro for another distro's Console cwd", async () => {
+    await store.initialize()
+    const has = () =>
+      store.get().warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+    store.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/mnt/c/Users/dev', status: 'ready' })
+    expect(has()).toBe(true)
+
+    await store.setDistro('Debian')
+    expect(has()).toBe(false)
+
+    await store.setDistro('Ubuntu-24.04')
+    expect(has()).toBe(true)
+  })
+
+  it('isolates Explorer and Console contexts per distro and restores them on switch back', async () => {
+    await store.initialize()
+    const hasSlowWarning = () =>
+      store.get().warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+
+    store.setExplorerContext({
+      distro: 'Ubuntu-24.04',
+      currentPath: '/mnt/c/Users/dev/docs',
+      showHidden: true
+    })
+    store.setTerminalContext({
+      distro: 'Ubuntu-24.04',
+      cwd: '/mnt/c/Users/dev',
+      status: 'ready'
+    })
+    expect(store.get().explorer).toEqual({
+      distro: 'Ubuntu-24.04',
+      currentPath: '/mnt/c/Users/dev/docs',
+      showHidden: true
+    })
+    expect(store.get().terminal).toEqual({
+      distro: 'Ubuntu-24.04',
+      cwd: '/mnt/c/Users/dev',
+      status: 'ready'
+    })
+    expect(hasSlowWarning()).toBe(true)
+
+    // Switching to stopped Debian must not expose Ubuntu's paths or status.
+    await store.setDistro('Debian')
+    expect(store.get().explorer).toEqual({
+      distro: null,
+      currentPath: null,
+      showHidden: false
+    })
+    expect(store.get().terminal).toEqual({
+      distro: null,
+      cwd: null,
+      status: 'disconnected'
+    })
+    expect(hasSlowWarning()).toBe(false)
+
+    // Using Explorer and Console on Debian must not overwrite Ubuntu's saved context.
+    store.setExplorerContext({ distro: 'Debian', currentPath: '/var/log', showHidden: false })
+    store.setTerminalContext({ distro: 'Debian', cwd: '/home/deb', status: 'ready' })
+    expect(store.get().explorer).toEqual({
+      distro: 'Debian',
+      currentPath: '/var/log',
+      showHidden: false
+    })
+    expect(store.get().terminal).toEqual({
+      distro: 'Debian',
+      cwd: '/home/deb',
+      status: 'ready'
+    })
+    expect(hasSlowWarning()).toBe(false)
+
+    // Switching back to Ubuntu immediately restores Ubuntu's paths and slow-path warning.
+    const emittedOnSwitch: WslPadSnapshot[] = []
+    const unsub = store.subscribe((s) => emittedOnSwitch.push(s))
+    await store.setDistro('Ubuntu-24.04')
+    unsub()
+
+    expect(emittedOnSwitch[0]?.explorer).toEqual({
+      distro: 'Ubuntu-24.04',
+      currentPath: '/mnt/c/Users/dev/docs',
+      showHidden: true
+    })
+    expect(emittedOnSwitch[0]?.terminal).toEqual({
+      distro: 'Ubuntu-24.04',
+      cwd: '/mnt/c/Users/dev',
+      status: 'ready'
+    })
+    expect(
+      emittedOnSwitch[0]?.warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+    ).toBe(true)
+    expect(store.get().explorer.currentPath).toBe('/mnt/c/Users/dev/docs')
+    expect(store.get().terminal.cwd).toBe('/mnt/c/Users/dev')
+    expect(hasSlowWarning()).toBe(true)
+  })
+
+  it('stores background context updates for unselected distros without emitting or polluting diagnostics', async () => {
+    await store.initialize()
+    const diagnostics = new DiagnosticsService(null, () => store.get())
+    const seen: WslPadSnapshot[] = []
+    store.subscribe((s) => {
+      diagnostics.observe(s)
+      seen.push(s)
+    })
+
+    store.setExplorerContext({ distro: 'Ubuntu-24.04', currentPath: '/home/dev', showHidden: false })
+    store.setTerminalContext({ distro: 'Ubuntu-24.04', cwd: '/home/dev', status: 'ready' })
+    const countBeforeBackground = seen.length
+
+    // Background activity on unselected Debian must not emit or trigger Ubuntu incidents/warnings.
+    store.setExplorerContext({ distro: 'Debian', currentPath: '/srv/deb', showHidden: true })
+    store.setTerminalContext({
+      distro: 'Debian',
+      cwd: '/mnt/c/Users/deb',
+      status: 'start-failed'
+    })
+
+    expect(seen.length).toBe(countBeforeBackground)
+    expect(store.get().explorer).toEqual({
+      distro: 'Ubuntu-24.04',
+      currentPath: '/home/dev',
+      showHidden: false
+    })
+    expect(store.get().terminal).toEqual({
+      distro: 'Ubuntu-24.04',
+      cwd: '/home/dev',
+      status: 'ready'
+    })
+    expect(
+      store.get().warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+    ).toBe(false)
+    expect(diagnostics.get().incidents.some((i) => i.kind === 'console-failed')).toBe(false)
+
+    // Once Debian is selected, its stored context and slow-path warning surface immediately.
+    await store.setDistro('Debian')
+    expect(store.get().explorer).toEqual({
+      distro: 'Debian',
+      currentPath: '/srv/deb',
+      showHidden: true
+    })
+    expect(store.get().terminal).toEqual({
+      distro: 'Debian',
+      cwd: '/mnt/c/Users/deb',
+      status: 'start-failed'
+    })
+    expect(
+      store.get().warnings.some((w) => w.messageKey === 'warnings.consoleCwdCrossBoundary')
+    ).toBe(true)
+  })
+
+  it('drops stored Explorer and Console contexts when a distro is removed from WSL', async () => {
+    await store.initialize()
+    store.setExplorerContext({ distro: 'Debian', currentPath: '/var/log', showHidden: true })
+    store.setTerminalContext({ distro: 'Debian', cwd: '/mnt/c/deb', status: 'ready' })
+
+    provider.listDistros.mockResolvedValueOnce([ubuntu()])
+    await store.refreshFast()
+
+    provider.listDistros.mockResolvedValue([ubuntu(), debian()])
+    await store.refreshFast()
+    await store.setDistro('Debian')
+
+    expect(store.get().explorer).toEqual({
+      distro: null,
+      currentPath: null,
+      showHidden: false
+    })
+    expect(store.get().terminal).toEqual({
+      distro: null,
+      cwd: null,
+      status: 'disconnected'
+    })
   })
 
   it('noteRunnerFailure feeds warnings without emitting', async () => {

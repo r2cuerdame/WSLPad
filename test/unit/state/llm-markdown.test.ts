@@ -95,6 +95,33 @@ describe('snapshotToMarkdown', () => {
     expect(md).toContain('- No dashboard data collected')
     expect(md.endsWith(KOREAN_BLOCK + '\n')).toBe(true)
   })
+
+  it('does not leak another distro Explorer or Console path into default or agent-context exports', () => {
+    const debianDash = makeDashboard({
+      distro: {
+        name: 'Debian',
+        state: 'Stopped',
+        wslVersion: 2,
+        isDefault: false,
+        osName: 'Debian GNU/Linux 12',
+        uncPath: '\\\\wsl.localhost\\Debian'
+      }
+    })
+    const snap = makeSnapshot({
+      selectedDistro: 'Debian',
+      dashboard: debianDash,
+      explorer: { distro: 'Ubuntu-24.04', currentPath: '/home/ubuntu-secret-dir', showHidden: false },
+      terminal: { distro: 'Ubuntu-24.04', cwd: '/mnt/c/Users/ubuntu-cwd', status: 'ready' }
+    })
+
+    const defaultMd = snapshotToMarkdown(snap, 'default')
+    expect(defaultMd).toContain('- Selected path: none')
+    expect(defaultMd).not.toContain('/home/ubuntu-secret-dir')
+
+    const agentMd = snapshotToMarkdown(snap, 'agent-context')
+    expect(agentMd).not.toContain('/home/ubuntu-secret-dir')
+    expect(agentMd).not.toContain('/mnt/c/Users/ubuntu-cwd')
+  })
 })
 
 // --- shared fixtures for the two presets -----------------------------------

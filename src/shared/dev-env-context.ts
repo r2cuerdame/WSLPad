@@ -186,6 +186,22 @@ function buildDistro(s: WslPadSnapshot, dash: DashboardSnapshot | null, b: Bound
   }
 }
 
+function selectedTerminalCwd(s: WslPadSnapshot): string | null {
+  if (s.selectedDistro !== null && s.terminal.distro !== s.selectedDistro) return null
+  return s.terminal.cwd
+}
+
+function selectedConsoleStatus(s: WslPadSnapshot): DevEnvWorkspace['consoleStatus'] {
+  if (s.terminal.distro === null) return null
+  if (s.selectedDistro !== null && s.terminal.distro !== s.selectedDistro) return null
+  return s.terminal.status
+}
+
+function selectedExplorerPath(s: WslPadSnapshot): string | null {
+  if (s.selectedDistro !== null && s.explorer.distro !== s.selectedDistro) return null
+  return s.explorer.currentPath
+}
+
 function buildWorkspace(
   s: WslPadSnapshot,
   dash: DashboardSnapshot | null,
@@ -193,9 +209,10 @@ function buildWorkspace(
   uncPath: string | null,
   b: Bounder
 ): DevEnvWorkspace {
-  const cwd = s.terminal.cwd
+  const cwd = selectedTerminalCwd(s)
+  const explorerPath = selectedExplorerPath(s)
   const cwdSide: PathSide = classifyPathSide(cwd, automountRoot)
-  const explorerSide: PathSide = classifyPathSide(s.explorer.currentPath, automountRoot)
+  const explorerSide: PathSide = classifyPathSide(explorerPath, automountRoot)
   const notes: string[] = []
   notes.push(
     `Windows drives are mounted under ${automountRoot}<drive>; files there are Windows-owned and ` +
@@ -231,8 +248,8 @@ function buildWorkspace(
     cwdSide,
     cwdWindowsPath: cwd === null ? null : windowsPathFor(cwd, uncPath, automountRoot),
     cwdCrossesBoundary: cwd === null ? null : isCrossBoundary(cwdSide),
-    consoleStatus: s.terminal.distro === null ? null : s.terminal.status,
-    explorerPath: s.explorer.currentPath,
+    consoleStatus: selectedConsoleStatus(s),
+    explorerPath,
     explorerSide,
     automountRoot,
     paths: paths.items,
@@ -1109,7 +1126,7 @@ function buildChecks(s: WslPadSnapshot, dash: DashboardSnapshot | null): DevEnvC
   }
 
   // Working directory
-  const cwd = s.terminal.cwd
+  const cwd = selectedTerminalCwd(s)
   if (cwd === null) {
     out.push(check('cwd-boundary', 'unknown', 'No Console working directory is known.'))
   } else if (isCrossBoundary(classifyPathSide(cwd, automountRootFromSettings(wsl?.settings)))) {

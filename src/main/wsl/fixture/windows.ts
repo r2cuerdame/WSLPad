@@ -232,22 +232,59 @@ class FixtureWindowsFs implements WindowsFs {
    * checked before the first one is touched, so a drive root or unparseable
    * path refuses the whole batch instead of leaving the items in front of it
    * already gone, and a path given twice is handled once rather than failing
-   * the second time with a false ENOENT/EEXIST.
+   * the second time with a false ENOENT/EEXIST. Windows names are
+   * case-insensitive, so "notes.txt" and "NOTES.TXT" are the same path; the
+   * first spelling given is the one kept.
    */
   private normalizeBatch(paths: readonly string[], refusal: string): string[] {
-    const normalized = [
-      ...new Set(
-        paths.map((path) => {
-          const { drive, segments } = this.parse(path)
-          return formatPath(drive, segments)
-        })
-      )
-    ]
+    const unique = new Map<string, string>()
+    for (const path of paths) {
+      const { drive, segments } = this.parse(path)
+      const formatted = formatPath(drive, segments)
+      const key = formatted.toLowerCase()
+      if (!unique.has(key)) unique.set(key, formatted)
+    }
+    const normalized = [...unique.values()]
     for (const p of normalized) {
       // formatPath only ends in a separator for a drive root ("C:\").
       if (p.endsWith('\\')) throw new ExplorerError('UNKNOWN', p, `${refusal} ${p}`)
     }
     return normalized
+  }
+
+  /**
+   * Every target is resolved and checked before the first one is touched, so a
+   * missing or read-only item anywhere in the batch refuses the whole batch
+   * instead of leaving the items in front of it already gone. An item that a
+   * selected real directory takes with it, or that a second path reaches
+   * through a junction, is dropped rather than failing with a false ENOENT. A
+   * junction only unlinks its own name, so items picked through it still go.
+   */
+  private mutationTargets(paths: readonly string[], verb: 'trash' | 'remove') {
+    const targets = this.normalizeBatch(paths, `Refusing to ${verb}`).map((path) => {
+      const { parent, node, name, normalized } = this.withParent(path)
+      if (!parent || !node) {
+        throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
+      }
+      if (!parent.writable) {
+        throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
+      }
+      return { parent, node, name, normalized }
+    })
+
+    return targets.filter(
+      (target, index) =>
+        targets.findIndex((other) => other.node === target.node) === index &&
+        !targets.some((other) => other.node.type === 'directory' && this.holds(other.node, target.node))
+    )
+  }
+
+  /** Whether `node` sits somewhere below `dir` without crossing a junction. */
+  private holds(dir: WinNode, node: WinNode): boolean {
+    for (const child of dir.children?.values() ?? []) {
+      if (child === node || (child.type === 'directory' && this.holds(child, node))) return true
+    }
+    return false
   }
 
   private requireDir(path: string): { node: WinNode; normalized: string } {
@@ -257,6 +294,18 @@ class FixtureWindowsFs implements WindowsFs {
       throw new ExplorerError('ENOTDIR', normalized, `ENOTDIR: ${normalized}`)
     }
     return { node, normalized }
+  }
+
+  /**
+   * Bytes held by a node and everything below it. A junction counts for
+   * nothing, so a link back up the tree is never walked.
+   */
+  private sizeOf(node: WinNode): number {
+    if (node.type === 'junction') return 0
+    if (node.type === 'file') return node.content?.length ?? 0
+    let sum = 0
+    for (const child of node.children?.values() ?? []) sum += this.sizeOf(child)
+    return sum
   }
 
   private join(base: string, name: string): string {
@@ -446,7 +495,14 @@ class FixtureWindowsFs implements WindowsFs {
     const opId = `fixture-win-op-${++this.opCounter}`
     const totalItems = srcs.length
     let doneItems = 0
-    let totalBytes = 0
+    // Sized up front, directories recursively, so the first event already
+    // carries the whole batch and doneBytes only grows as items complete.
+    const sizes = srcs.map((source) => {
+      const { node } = this.withParent(source)
+      return node ? this.sizeOf(node) : 0
+    })
+    const totalBytes = sizes.reduce((sum, size) => sum + size, 0)
+    let doneBytes = 0
     const errors: string[] = []
     const emit = (status: FileOpStatus, currentItem: string | null, error: string | null = null) =>
       this.emit({
@@ -456,11 +512,11 @@ class FixtureWindowsFs implements WindowsFs {
         totalItems,
         doneItems,
         totalBytes,
-        doneBytes: totalBytes,
+        doneBytes,
         currentItem,
         error
       })
-    for (const source of srcs) {
+    for (const [index, source] of srcs.entries()) {
       const { parent, node, name, normalized } = this.withParent(source)
       try {
         if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
@@ -468,7 +524,6 @@ class FixtureWindowsFs implements WindowsFs {
           const conflict = this.join(destPath, name)
           throw new ExplorerError('EEXIST', conflict, `EEXIST: ${conflict}`)
         }
-        totalBytes += node.content?.length ?? 0
         if (move) {
           if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
           parent.children?.delete(name.toLowerCase())
@@ -477,6 +532,7 @@ class FixtureWindowsFs implements WindowsFs {
         } else {
           this.attach(dest, this.clone(node))
         }
+        doneBytes += sizes[index]
       } catch (err) {
         errors.push(err instanceof Error ? err.message : String(err))
       }
@@ -488,20 +544,14 @@ class FixtureWindowsFs implements WindowsFs {
   }
 
   async trash(paths: string[]): Promise<void> {
-    for (const path of this.normalizeBatch(paths, 'Refusing to trash')) {
-      const { parent, node, name, normalized } = this.withParent(path)
-      if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
-      if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
+    for (const { parent, node, name, normalized } of this.mutationTargets(paths, 'trash')) {
       parent.children?.delete(name.toLowerCase())
       this.recycle.push({ originalPath: normalized, node })
     }
   }
 
   async remove(paths: string[]): Promise<void> {
-    for (const path of this.normalizeBatch(paths, 'Refusing to remove')) {
-      const { parent, node, name, normalized } = this.withParent(path)
-      if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
-      if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
+    for (const { parent, name } of this.mutationTargets(paths, 'remove')) {
       parent.children?.delete(name.toLowerCase())
     }
   }
@@ -541,7 +591,15 @@ class FixtureWindowsFs implements WindowsFs {
       node.mtime = FIXTURE_NEW_MTIME
       return
     }
-    if (!parent) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
+    if (!parent) {
+      // A file standing where the folder should be is ENOTDIR, as WindowsFs
+      // reports it, not a missing folder.
+      const { drive, segments } = this.parse(normalized)
+      if (this.nodeAt(formatPath(drive, segments.slice(0, -1)), true).node) {
+        throw new ExplorerError('ENOTDIR', normalized, `ENOTDIR: ${normalized}`)
+      }
+      throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
+    }
     if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
     const created = this.file(name, content)
     created.mtime = FIXTURE_NEW_MTIME
@@ -574,19 +632,13 @@ class FixtureWindowsFs implements WindowsFs {
     // requireDir follows a junction root, like stat() in WindowsFs; junctions
     // below it count for nothing, so a link back up the tree is never walked.
     const { node, normalized } = this.requireDir(path)
-    const sizeOf = (item: WinNode): number =>
-      item.type === 'junction'
-        ? 0
-        : item.type === 'file'
-          ? item.content?.length ?? 0
-          : [...(item.children?.values() ?? [])].reduce((sum, nested) => sum + sizeOf(nested), 0)
     const children = [...(node.children?.values() ?? [])].filter((child) => child.type !== 'junction')
     const entries = children.map((child) => {
       return {
         name: child.name,
         path: this.join(normalized, child.name),
         isDirectory: child.type === 'directory',
-        sizeBytes: sizeOf(child),
+        sizeBytes: this.sizeOf(child),
         partial: false
       }
     }).sort((a, b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0) || a.name.localeCompare(b.name))

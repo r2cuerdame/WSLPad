@@ -87,4 +87,86 @@ describe('registerIpcHandlers', () => {
       expect(shellOpenPath).not.toHaveBeenCalled()
     }
   })
+
+  it('returns the full TerminalSessionInfo including distro and error and syncs SnapshotStore', async () => {
+    const failedInfo = {
+      sessionId: 'term-Ubuntu-24.04',
+      distro: 'Ubuntu-24.04',
+      status: 'start-failed' as const,
+      cwd: null,
+      error: 'fixture: the distro is busy starting up'
+    }
+    const readyInfo = {
+      sessionId: 'term-Ubuntu-24.04',
+      distro: 'Ubuntu-24.04',
+      status: 'ready' as const,
+      cwd: '/mnt/c/Users/dev',
+      error: null
+    }
+    const ensure = vi
+      .fn()
+      .mockResolvedValueOnce(failedInfo)
+      .mockResolvedValueOnce(readyInfo)
+    const setTerminalContext = vi.fn()
+    registerIpcHandlers({
+      terminals: { ensure },
+      store: { setTerminalContext }
+    } as never)
+
+    const handler = handles.get(IpcChannels.terminalEnsure)
+    expect(handler).toBeDefined()
+
+    const first = await handler!({}, 'Ubuntu-24.04')
+    expect(first).toEqual(failedInfo)
+    expect(setTerminalContext).toHaveBeenNthCalledWith(1, {
+      distro: 'Ubuntu-24.04',
+      cwd: null,
+      status: 'start-failed'
+    })
+
+    const second = await handler!({}, 'Ubuntu-24.04')
+    expect(second).toEqual(readyInfo)
+    expect(setTerminalContext).toHaveBeenNthCalledWith(2, {
+      distro: 'Ubuntu-24.04',
+      cwd: '/mnt/c/Users/dev',
+      status: 'ready'
+    })
+  })
+
+  it('pins the queried distro in explorerList when selectedDistro changes mid-flight', async () => {
+    let selectedDistro = 'Ubuntu-24.04'
+    let resolveList!: (entries: unknown[]) => void
+    const list = vi.fn(
+      () =>
+        new Promise<unknown[]>((resolve) => {
+          resolveList = resolve
+        })
+    )
+    const setExplorerContext = vi.fn()
+    registerIpcHandlers({
+      store: {
+        get: () => ({ selectedDistro }),
+        setExplorerContext
+      },
+      explorer: { list }
+    } as never)
+
+    const handler = handles.get(IpcChannels.explorerList)
+    expect(handler).toBeDefined()
+
+    const pending = handler!({}, '/home/dev/projects', { showHidden: true })
+    expect(list).toHaveBeenCalledWith('Ubuntu-24.04', '/home/dev/projects', { showHidden: true })
+
+    // User switches distros before the Ubuntu directory listing finishes.
+    selectedDistro = 'Debian'
+    resolveList([])
+    const result = await pending
+
+    expect(result).toEqual([])
+    expect(setExplorerContext).toHaveBeenCalledWith({
+      distro: 'Ubuntu-24.04',
+      currentPath: '/home/dev/projects',
+      showHidden: true
+    })
+  })
 })

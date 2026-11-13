@@ -6,6 +6,7 @@ import type {
   TextFileContent,
   WslPadSnapshot
 } from '@shared/types'
+import { posix } from 'node:path'
 import type { McpDeps } from '../../../src/main/mcp/server'
 import {
   ExplorerError,
@@ -156,6 +157,10 @@ export class FakeExplorer implements ExplorerBackend {
       atime: ATIME,
       windowsPath: `\\\\wsl.localhost\\${distro}${path.replace(/\//g, '\\')}`
     }
+  }
+
+  async resolvePath(_distro: string, path: string): Promise<string> {
+    return posix.normalize(path)
   }
 
   async readText(_distro: string, path: string, maxBytes: number): Promise<TextFileContent> {

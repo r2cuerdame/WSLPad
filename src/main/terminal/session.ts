@@ -5,9 +5,12 @@ export interface ConsoleSessionOptions {
   sessionId: string
   distro: string
   factory: ConsoleBackendFactory
-  onData(data: string): void
+  onData(data: string, seq: number): void
   onStatus(ev: TerminalStatusEvent): void
 }
+
+/** Maximum characters of PTY scrollback retained per session for view restoration. */
+export const TRANSCRIPT_MAX_CHARS = 131_072
 
 /** Complete OSC sequence: ESC ] payload (BEL | ESC \). Payload never contains ESC/BEL. */
 // eslint-disable-next-line no-control-regex
@@ -35,10 +38,14 @@ export class ConsoleSession {
   private statusValue: ConsoleStatus = 'running'
   private cwdValue: string | null = null
   private errorValue: string | null = null
+  private transcriptValue = ''
+  private seqValue = 0
   private pendingCwd: string | null = null
   private typedInput = ''
   private parseBuf = ''
   private everReady = false
+  private atPrompt = false
+  private syncInFlight = false
   private disposed = false
 
   constructor(private readonly opts: ConsoleSessionOptions) {}
@@ -64,6 +71,10 @@ export class ConsoleSession {
   }
 
   async start(cols: number, rows: number): Promise<void> {
+    this.transcriptValue = ''
+    this.seqValue = 0
+    this.atPrompt = false
+    this.syncInFlight = false
     try {
       this.pty = await this.opts.factory.spawn(this.opts.distro, cols, rows)
       this.errorValue = null
@@ -87,8 +98,19 @@ export class ConsoleSession {
 
   write(data: string): void {
     if (this.disposed || !this.pty) return
-    this.trackInput(data)
+    const clearedByEdit = this.trackInput(data)
     this.pty.write(data)
+    if (
+      clearedByEdit &&
+      this.atPrompt &&
+      !this.syncInFlight &&
+      this.statusValue === 'path-sync-pending' &&
+      this.pendingCwd !== null
+    ) {
+      const target = this.pendingCwd
+      this.pendingCwd = null
+      void this.applyCwd(target)
+    }
   }
 
   resize(cols: number, rows: number): void {
@@ -102,7 +124,7 @@ export class ConsoleSession {
     // marker to clear the pending state — so the request is dropped rather
     // than parking the console in path-sync-pending forever.
     if (this.pty.supportsMarkers === false) return
-    if (this.statusValue === 'ready' && this.typedInput.length === 0) {
+    if (this.statusValue === 'ready' && this.typedInput.length === 0 && !this.syncInFlight) {
       this.setStatus('path-sync-pending')
       await this.applyCwd(path)
       return
@@ -121,12 +143,15 @@ export class ConsoleSession {
       distro: this.opts.distro,
       status: this.statusValue,
       cwd: this.cwdValue,
-      error: this.errorValue
+      error: this.errorValue,
+      transcript: this.transcriptValue,
+      seq: this.seqValue
     }
   }
 
   dispose(): void {
     this.disposed = true
+    this.atPrompt = false
     try {
       this.pty?.kill()
     } catch {
@@ -136,8 +161,11 @@ export class ConsoleSession {
   }
 
   private handleData(data: string): void {
+    this.seqValue += 1
+    const seq = this.seqValue
+    this.appendTranscript(data)
     // pass through untouched — xterm.js ignores the OSC 7/133 markers
-    this.opts.onData(data)
+    this.opts.onData(data, seq)
     this.parseBuf += data
     OSC_RE.lastIndex = 0
     let consumed = 0
@@ -156,8 +184,28 @@ export class ConsoleSession {
     if (rest.length > PARSE_BUF_MAX) rest = rest.slice(rest.length - PARSE_BUF_MAX)
     this.parseBuf = rest
     if (this.statusValue === 'running' && SUDO_RE.test(rest)) {
+      this.atPrompt = false
       this.setStatus('waiting-sudo')
     }
+  }
+
+  private appendTranscript(data: string): void {
+    if (data.length === 0) return
+    const combined = this.transcriptValue + data
+    if (combined.length <= TRANSCRIPT_MAX_CHARS) {
+      this.transcriptValue = combined
+      return
+    }
+    let start = combined.length - TRANSCRIPT_MAX_CHARS
+    // Preserve UTF-16 surrogate pair boundaries when trimming the oldest prefix.
+    const first = combined.charCodeAt(start)
+    if (first >= 0xdc00 && first <= 0xdfff && start > 0) {
+      const prev = combined.charCodeAt(start - 1)
+      if (prev >= 0xd800 && prev <= 0xdbff) {
+        start += 1
+      }
+    }
+    this.transcriptValue = combined.slice(start)
   }
 
   private handleOsc(payload: string): void {
@@ -174,7 +222,8 @@ export class ConsoleSession {
 
   private onPromptMarker(): void {
     this.everReady = true
-    if (this.pendingCwd !== null && this.typedInput.length === 0) {
+    this.atPrompt = true
+    if (this.pendingCwd !== null && this.typedInput.length === 0 && !this.syncInFlight) {
       const target = this.pendingCwd
       this.pendingCwd = null
       // stays path-sync-pending; the prompt after the sync '\r' flips to ready
@@ -185,52 +234,77 @@ export class ConsoleSession {
   }
 
   private async applyCwd(target: string): Promise<void> {
+    this.syncInFlight = true
     try {
-      await this.opts.factory.writeCwdSyncFile(this.opts.distro, this.opts.sessionId, target)
-    } catch {
-      // could not stage the sync file — drop the request instead of wedging
-      if (!this.disposed && this.statusValue === 'path-sync-pending') this.setStatus('ready')
-      return
+      try {
+        await this.opts.factory.writeCwdSyncFile(this.opts.distro, this.opts.sessionId, target)
+      } catch {
+        // could not stage the sync file — drop the request instead of wedging
+        if (
+          !this.disposed &&
+          this.statusValue === 'path-sync-pending' &&
+          this.pendingCwd === null
+        ) {
+          this.setStatus('ready')
+        }
+        return
+      }
+      if (this.disposed || !this.pty) return
+      if (this.typedInput.length > 0 || !this.atPrompt) {
+        // user began typing (or submitted a command) while the file was written — defer to the next prompt
+        this.pendingCwd ??= target
+        return
+      }
+      // bare '\r' on an empty prompt line renders a fresh prompt whose hook
+      // consumes the sync file — the user sees a new prompt line, never a cd
+      this.atPrompt = false
+      this.pty.write('\r')
+    } finally {
+      this.syncInFlight = false
     }
-    if (this.disposed || !this.pty) return
-    if (this.typedInput.length > 0) {
-      // user began typing while the file was written — defer to the next prompt
-      this.pendingCwd = target
-      return
-    }
-    // bare '\r' on an empty prompt line renders a fresh prompt whose hook
-    // consumes the sync file — the user sees a new prompt line, never a cd
-    this.pty.write('\r')
   }
 
-  private trackInput(data: string): void {
+  private trackInput(data: string): boolean {
     const clean = data.replace(INPUT_ESC_RE, '')
+    let clearedByEdit = false
     for (const ch of clean) {
       if (ch === '\r' || ch === '\n') {
+        clearedByEdit = false
         const submitted = this.typedInput.trim().length > 0
         this.typedInput = ''
         if (this.statusValue === 'waiting-sudo') {
+          this.atPrompt = false
           this.setStatus('running')
         } else if (
           submitted &&
           (this.statusValue === 'ready' || this.statusValue === 'path-sync-pending')
         ) {
+          this.atPrompt = false
           this.setStatus('running')
         }
       } else if (ch === '\x7f' || ch === '\b') {
-        this.typedInput = this.typedInput.slice(0, -1)
+        if (this.typedInput.length > 0) {
+          this.typedInput = this.typedInput.slice(0, -1)
+          if (this.typedInput.length === 0) {
+            clearedByEdit = true
+          }
+        }
       } else if (ch === '\x03') {
         // Ctrl+C abandons the current input line
+        clearedByEdit = false
         this.typedInput = ''
       } else if (ch >= ' ') {
+        clearedByEdit = false
         this.typedInput += ch
       }
     }
+    return clearedByEdit && this.typedInput.length === 0
   }
 
   private handleExit(): void {
     if (this.disposed) return
     this.pty = null
+    this.atPrompt = false
     // immediate exit before any prompt means wsl.exe could not start the shell
     this.setStatus(this.everReady ? 'disconnected' : 'distro-stopped')
   }

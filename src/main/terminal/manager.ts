@@ -77,7 +77,7 @@ export class TerminalManager {
       sessionId,
       distro,
       factory: this.factory,
-      onData: (data) => this.callbacks.onData({ sessionId, data }),
+      onData: (data, seq) => this.callbacks.onData({ sessionId, data, seq }),
       onStatus: (ev) => this.callbacks.onStatus(ev)
     })
     this.sessions.set(sessionId, session)

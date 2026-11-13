@@ -11,7 +11,7 @@ import {
 import { assertValidLinuxPath, shellQuote } from '../wsl/escape'
 import { collectDirSizes } from './dir-sizes'
 import { readTextFile, writeTextFile } from './editor'
-import { listDirectory, listTree, searchDirectory, statPath } from './listing'
+import { listDirectory, listTree, resolveRealPath, searchDirectory, statPath } from './listing'
 import {
   createEmptyFile,
   makeDirectory,
@@ -87,6 +87,8 @@ export function createRealExplorerBackend(runner: DistroRunner): ExplorerBackend
     tree: (distro, path) => listTree(runner, distro, path),
 
     stat: (distro, path) => statPath(runner, distro, path),
+
+    resolvePath: (distro, path) => resolveRealPath(runner, distro, path),
 
     mkdir: (distro, path) => makeDirectory(runner, distro, path),
 
