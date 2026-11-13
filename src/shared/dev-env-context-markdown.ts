@@ -303,10 +303,12 @@ function servicesSection(lines: string[], ctx: DevEnvContext): void {
 
 function portsSection(lines: string[], ctx: DevEnvContext): void {
   const p = ctx.ports
-  if (p.listeningCount === null && p.windowsOnlyCount === null) return
+  if (p.listeningCount === null && (p.windowsOnlyCount === null || p.windowsOnlyCount === 0)) return
   if (p.listeningCount === 0 && p.windowsOnlyCount === null) return
   lines.push('### Ports in use', '')
-  if (p.listeningCount === 0) {
+  if (p.listeningCount === null) {
+    lines.push('- Distro listening ports: unknown (not collected yet)')
+  } else if (p.listeningCount === 0) {
     lines.push('- Nothing is listening inside the distro')
   }
   for (const port of p.items) {

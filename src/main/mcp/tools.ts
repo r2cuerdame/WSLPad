@@ -8,6 +8,7 @@ import { MAX_TEXT_FILE_BYTES } from '@shared/constants'
 import { buildDevEnvContext, collectionSucceeded } from '@shared/dev-env-context'
 import { devEnvContextToMarkdown } from '@shared/dev-env-context-markdown'
 import type {
+  CollectionStatus,
   DashboardSnapshot,
   FileEntryType,
   TextFileContent
@@ -97,17 +98,41 @@ function fail(message: string): CallToolResult {
 }
 
 /**
- * Before the first completed tool read the list is empty, and "0 of 0" or
- * "tool not found" would both be confident wrong answers (Unknown, never zero).
+ * Before the first completed read the list is empty, and "0", "tool not found",
+ * or "process not found" would be confident wrong answers (Unknown, never zero).
  */
-function toolsNotRead(dash: DashboardSnapshot, field: 'tools' | 'tool'): CallToolResult {
-  const status = (dash as { toolsCollectionStatus?: string }).toolsCollectionStatus
+const TOOLS_NOT_READ = {
+  failed: 'tool detection failed: which developer tools are installed is unknown',
+  pending: 'tools not read yet: which developer tools are installed is unknown'
+}
+const PROCESSES_NOT_READ = {
+  failed: 'process list query failed: running processes are unknown',
+  pending: 'processes not read yet: running processes are unknown'
+}
+const PORTS_NOT_READ = {
+  failed: 'listening ports query failed: which ports are listening is unknown',
+  pending: 'listening ports not read yet: which ports are listening is unknown'
+}
+
+function sectionNotRead(
+  status: CollectionStatus | undefined,
+  messages: { failed: string; pending: string },
+  field: 'tools' | 'tool' | 'processes' | 'process' | 'ports'
+): CallToolResult {
   const failed = status === 'failed'
-  return ok(
-    failed
-      ? 'tool detection failed: which developer tools are installed is unknown'
-      : 'tools not read yet: which developer tools are installed is unknown',
-    { [field]: null, collectionStatus: failed ? 'failed' : 'pending' }
+  return ok(failed ? messages.failed : messages.pending, {
+    [field]: null,
+    collectionStatus: failed ? 'failed' : 'pending'
+  })
+}
+
+function hasRunnerFailureWarning(
+  snap: { warnings: readonly { id: string }[]; dashboard: { warnings: readonly { id: string }[] } | null },
+  warningId: string
+): boolean {
+  return (
+    snap.warnings.some((w) => w.id === warningId) ||
+    (snap.dashboard?.warnings ?? []).some((w) => w.id === warningId)
   )
 }
 
@@ -303,7 +328,9 @@ export function createMcpServer(deps: McpDeps): McpServer {
     },
     guard(() =>
       withDashboard((dash) => {
-        if (!collectionSucceeded(dash, 'tools')) return toolsNotRead(dash, 'tools')
+        if (!collectionSucceeded(dash, 'tools')) {
+          return sectionNotRead(dash.toolsCollectionStatus, TOOLS_NOT_READ, 'tools')
+        }
         const installed = dash.tools.filter((t) => t.installed).length
         return ok(`${installed} of ${dash.tools.length} known tool(s) installed`, {
           tools: dash.tools
@@ -323,7 +350,9 @@ export function createMcpServer(deps: McpDeps): McpServer {
     },
     guard(({ tool }: { tool: string }) =>
       withDashboard((dash) => {
-        if (!collectionSucceeded(dash, 'tools')) return toolsNotRead(dash, 'tool')
+        if (!collectionSucceeded(dash, 'tools')) {
+          return sectionNotRead(dash.toolsCollectionStatus, TOOLS_NOT_READ, 'tool')
+        }
         const needle = tool.toLowerCase()
         const found = dash.tools.find(
           (t) => t.id.toLowerCase() === needle || t.displayName.toLowerCase() === needle
@@ -378,9 +407,17 @@ export function createMcpServer(deps: McpDeps): McpServer {
       annotations: readOnly
     },
     guard(() =>
-      withDashboard((dash) =>
-        ok(`${dash.processes.length} process(es)`, { processes: dash.processes })
-      )
+      withDashboard((dash) => {
+        if (!collectionSucceeded(dash, 'processes')) {
+          return sectionNotRead(dash.processesCollectionStatus, PROCESSES_NOT_READ, 'processes')
+        }
+        const stale = hasRunnerFailureWarning(deps.getSnapshot(), 'runner-failed-processes')
+        const suffix = stale ? ' (latest query failed; showing previous list)' : ''
+        return ok(
+          `${dash.processes.length} process(es)${suffix}`,
+          stale ? { processes: dash.processes, stale: true } : { processes: dash.processes }
+        )
+      })
     )
   )
 
@@ -393,9 +430,22 @@ export function createMcpServer(deps: McpDeps): McpServer {
     },
     guard(({ pid }: { pid: number }) =>
       withDashboard((dash) => {
+        if (!collectionSucceeded(dash, 'processes')) {
+          return sectionNotRead(dash.processesCollectionStatus, PROCESSES_NOT_READ, 'process')
+        }
+        const stale = hasRunnerFailureWarning(deps.getSnapshot(), 'runner-failed-processes')
         const proc = dash.processes.find((p) => p.pid === pid)
-        if (proc === undefined) return fail(`process not found: pid ${pid}`)
-        return ok(`pid ${pid}: ${proc.command}`, { process: proc })
+        if (proc === undefined) {
+          return fail(
+            stale
+              ? `process not found in cached list (latest query failed): pid ${pid}`
+              : `process not found: pid ${pid}`
+          )
+        }
+        return ok(
+          `pid ${pid}: ${proc.command}${stale ? ' (latest query failed; showing previous list)' : ''}`,
+          stale ? { process: proc, stale: true } : { process: proc }
+        )
       })
     )
   )
@@ -433,7 +483,19 @@ export function createMcpServer(deps: McpDeps): McpServer {
       description: 'Get listening ports with owning process and Windows-reachable localhost URL.',
       annotations: readOnly
     },
-    guard(() => withDashboard((dash) => ok(`${dash.ports.length} port(s)`, { ports: dash.ports })))
+    guard(() =>
+      withDashboard((dash) => {
+        if (!collectionSucceeded(dash, 'ports')) {
+          return sectionNotRead(dash.portsCollectionStatus, PORTS_NOT_READ, 'ports')
+        }
+        const stale = hasRunnerFailureWarning(deps.getSnapshot(), 'runner-failed-ports')
+        const suffix = stale ? ' (latest query failed; showing previous list)' : ''
+        return ok(
+          `${dash.ports.length} port(s)${suffix}`,
+          stale ? { ports: dash.ports, stale: true } : { ports: dash.ports }
+        )
+      })
+    )
   )
 
   server.registerTool(
@@ -785,7 +847,23 @@ export function createMcpServer(deps: McpDeps): McpServer {
     guard(({ port }: { port: number }) =>
       withDashboard((dash) => {
         const owner = portOwnership(dash, port)
-        return ok(describeOwnership(owner), { ownership: owner })
+        const portsReady = collectionSucceeded(dash, 'ports')
+        const portsStale = hasRunnerFailureWarning(deps.getSnapshot(), 'runner-failed-ports')
+        const text =
+          describeOwnership(owner, { portsStatus: dash.portsCollectionStatus }) +
+          (portsReady && portsStale
+            ? ' (latest listening-port query failed; showing previous list)'
+            : '')
+        if (!portsReady && owner.linux === null) {
+          return ok(text, {
+            ownership: owner,
+            collectionStatus: dash.portsCollectionStatus === 'failed' ? 'failed' : 'pending'
+          })
+        }
+        return ok(
+          text,
+          portsReady && portsStale ? { ownership: owner, stale: true } : { ownership: owner }
+        )
       })
     )
   )

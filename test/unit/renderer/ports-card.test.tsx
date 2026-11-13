@@ -101,11 +101,20 @@ async function flush(): Promise<void> {
 
 async function renderCard(
   ports: PortInfo[] = WSL_PORTS,
-  windowsPorts: WindowsPortInfo[] | undefined = WINDOWS_PORTS
+  windowsPorts: WindowsPortInfo[] | undefined = WINDOWS_PORTS,
+  options: {
+    collectionStatus?: 'pending' | 'succeeded' | 'failed'
+    refreshFailed?: boolean
+  } = {}
 ): Promise<ReturnType<typeof render>> {
   const view = render(
     <AppStoreProvider>
-      <PortsCard ports={ports} windowsPorts={windowsPorts} />
+      <PortsCard
+        ports={ports}
+        windowsPorts={windowsPorts}
+        collectionStatus={options.collectionStatus}
+        refreshFailed={options.refreshFailed}
+      />
       <FocusProbe />
     </AppStoreProvider>
   )
@@ -368,9 +377,39 @@ describe('PortsCard filters', () => {
   })
 })
 
-describe('PortsCard empty state', () => {
+describe('PortsCard empty and failure states', () => {
   it('shows none when neither side has a listener', async () => {
     await renderCard([], [])
     expect(screen.getByText('None')).toBeTruthy()
+  })
+
+  it('distinguishes pending and initial failed states from None', async () => {
+    const view = await renderCard([], [], { collectionStatus: 'pending' })
+    expect(screen.queryByText('None')).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('not been collected yet')
+    view.unmount()
+
+    await renderCard([], [], { collectionStatus: 'failed' })
+    expect(screen.queryByText('None')).toBeNull()
+    expect(screen.getByRole('alert').textContent).toContain('Could not query listening ports')
+  })
+
+  it('keeps prior ports alongside a failure alert on later refresh failure, then clears on recovery', async () => {
+    const view = await renderCard(WSL_PORTS, [], {
+      collectionStatus: 'succeeded',
+      refreshFailed: true
+    })
+    expect(screen.getByRole('alert').textContent).toContain('latest listening-port query failed')
+    expect(bodyRows().length).toBeGreaterThan(0)
+
+    view.rerender(
+      <AppStoreProvider>
+        <PortsCard ports={WSL_PORTS} windowsPorts={[]} collectionStatus="succeeded" refreshFailed={false} />
+        <FocusProbe />
+      </AppStoreProvider>
+    )
+    await flush()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(bodyRows().length).toBeGreaterThan(0)
   })
 })

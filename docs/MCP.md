@@ -60,11 +60,11 @@ at-a-glance status badge):
 | `GetToolStatus` | One tool's detection detail (`{ tool }`); `tool: null` with `collectionStatus` until the first detection completes |
 | `GetHermesStatus` | Hermes install/gateway/dashboard, connected messengers, profiles ("agents"), active sessions, scheduled jobs, ports/services |
 | `GetEnvironment` | Env var names + masked values (secrets never raw) |
-| `GetProcesses` | Process table (PID, user, CPU %, memory %, elapsed time, command line) |
-| `GetProcess` | One process by PID from the cached list (`{ pid }`) |
+| `GetProcesses` | Process table (PID, user, CPU %, memory %, elapsed time, command line); `processes: null` with `collectionStatus` until the first collection completes |
+| `GetProcess` | One process by PID from the cached list (`{ pid }`); `process: null` with `collectionStatus` until the first collection completes |
 | `GetServices` | systemd service units with scope, load/active/sub state, and description |
 | `GetService` | One systemd unit by name (`{ name }`) |
-| `GetPorts` | Listening ports, each marked with whether Windows also binds it |
+| `GetPorts` | Listening ports, each marked with whether Windows also binds it; `ports: null` with `collectionStatus` until the first collection completes |
 | `GetDiskImage` | ext4.vhdx location, size on the Windows disk, reclaimable space |
 | `GetWslSettings` | Declared vs effective .wslconfig and wsl.conf, with verdicts, plus real interop state and the login user |
 | `GetFirewall` | Hyper-V firewall state for the WSL virtual machine |
@@ -78,7 +78,7 @@ at-a-glance status badge):
 | `GetFileInfo` | stat-level file properties |
 | `GetTextFile` | Bounded text file content (see limits below) |
 | `GetPathMapping` | Linux ↔ Windows path conversion (explicit failure) |
-| `GetPortOwner` | Who owns one port: the distro listener, the process behind it, the Windows-side listener, whether Windows can reach it, and any forwarding rule that mentions it (`{ port }`) |
+| `GetPortOwner` | Who owns one port: the distro listener, the process behind it, the Windows-side listener, whether Windows can reach it, and any forwarding rule that mentions it (`{ port }`); includes `collectionStatus` when distro ports have not been collected yet |
 | `GetCommandResolution` | Which binary a command name really runs: resolved path, every match on PATH in order, what the winner shadows, and whether it is a Windows executable on a Windows drive mount — /mnt/c by default, or wherever `[automount] root` moved it (`{ command }`) |
 | `GetZoneIdentifiers` | Count and location of the `*:Zone.Identifier` files Windows leaves behind, plus the cleanup command |
 | `GetTerminalProfiles` | Windows Terminal profiles, which distro each opens, and the JSON to add a missing one |

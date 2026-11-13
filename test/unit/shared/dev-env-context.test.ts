@@ -297,6 +297,71 @@ describe('buildDevEnvContext on sparse and empty snapshots', () => {
     store.dispose()
   })
 
+  it('tracks processes collection status separately from empty 0 and retains last-good stale state', async () => {
+    const provider = makeProvider()
+    const store = new SnapshotStore(provider)
+    await store.initialize()
+
+    const pending = buildDevEnvContext(store.get())
+    expect(pending.provenance.notCollected).toContain('processes')
+
+    provider.getProcesses.mockRejectedValueOnce(new Error('ps failed'))
+    await store.refreshFast()
+    const failed = buildDevEnvContext(store.get())
+    expect(failed.provenance.notCollected).toContain('processes')
+    expect(failed.provenance.staleQueries).toContain('processes')
+
+    provider.getProcesses.mockResolvedValueOnce([])
+    await store.refreshFast()
+    const empty = buildDevEnvContext(store.get())
+    expect(empty.provenance.notCollected).not.toContain('processes')
+    expect(empty.provenance.staleQueries).not.toContain('processes')
+
+    provider.getProcesses.mockRejectedValueOnce(new Error('ps failed again'))
+    await store.refreshFast()
+    const stale = buildDevEnvContext(store.get())
+    expect(stale.provenance.notCollected).not.toContain('processes')
+    expect(stale.provenance.staleQueries).toContain('processes')
+    store.dispose()
+
+    // Legacy snapshot without *CollectionStatus still treats populated arrays as collected.
+    const legacy = makeSnapshot()
+    delete legacy.dashboard!.processesCollectionStatus
+    delete legacy.dashboard!.portsCollectionStatus
+    const legacyCtx = buildDevEnvContext(legacy)
+    expect(legacyCtx.provenance.notCollected).not.toContain('processes')
+    expect(legacyCtx.provenance.notCollected).not.toContain('ports')
+  })
+
+  it('omits empty Ports heading or explains distro ports are unknown in markdown when windowsPorts exist', () => {
+    const snap = makeSnapshot()
+    if (!snap.dashboard) throw new Error('missing dashboard')
+    snap.dashboard = {
+      ...snap.dashboard,
+      ports: [],
+      portsCollectionStatus: 'failed',
+      windowsPorts: [
+        {
+          protocol: 'tcp',
+          localAddress: '127.0.0.1',
+          port: 5000,
+          pid: 100,
+          processName: 'winproc.exe',
+          listening: true,
+          localhostUrl: 'http://127.0.0.1:5000',
+          fromWsl: false
+        }
+      ]
+    }
+    const mdWithWin = devEnvContextToMarkdown(buildDevEnvContext(snap))
+    expect(mdWithWin).toContain('- Distro listening ports: unknown (not collected yet)')
+    expect(mdWithWin).not.toContain('- Nothing is listening inside the distro')
+
+    snap.dashboard.windowsPorts = []
+    const mdNoWin = devEnvContextToMarkdown(buildDevEnvContext(snap))
+    expect(mdNoWin).not.toContain('### Ports in use')
+  })
+
   it('keeps services unknown before the first query and after a failed first query', async () => {
     const provider = makeProvider()
     const store = new SnapshotStore(provider)

@@ -73,13 +73,17 @@ const CATEGORY_BY_TOOL_ID = new Map(TOOL_SPECS.map((spec) => [spec.id, spec.cate
 type ToolGroupKey = 'runtimes' | 'packageManagers' | 'tools'
 
 /** Older snapshots lack collector status; nonempty data still proves a completed read. */
-export function collectionSucceeded(dash: DashboardSnapshot | null, section: 'tools' | 'ports'): boolean {
+export function collectionSucceeded(
+  dash: DashboardSnapshot | null,
+  section: 'tools' | 'ports' | 'processes'
+): boolean {
   if (dash === null) return false
-  const tracked = dash as DashboardSnapshot & {
-    toolsCollectionStatus?: 'pending' | 'succeeded' | 'failed'
-    portsCollectionStatus?: 'pending' | 'succeeded' | 'failed'
-  }
-  const status = section === 'tools' ? tracked.toolsCollectionStatus : tracked.portsCollectionStatus
+  const status =
+    section === 'tools'
+      ? dash.toolsCollectionStatus
+      : section === 'ports'
+        ? dash.portsCollectionStatus
+        : dash.processesCollectionStatus
   return status === 'succeeded' || (status === undefined && dash[section].length > 0)
 }
 
@@ -1253,7 +1257,7 @@ function notCollectedSections(dash: DashboardSnapshot | null): DevEnvSectionId[]
   if (!collectionSucceeded(dash, 'tools')) out.push('tools')
   if (!collectionSucceeded(dash, 'ports')) out.push('ports')
   if (dash.environment.length === 0) out.push('environment')
-  if (dash.processes.length === 0) out.push('processes')
+  if (!collectionSucceeded(dash, 'processes')) out.push('processes')
   if (dash.servicesCollected !== true || dash.system.systemdEnabled === false) out.push('services')
   const nullable: Array<[DevEnvSectionId, unknown]> = [
     ['disk', dash.disk],

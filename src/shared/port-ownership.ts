@@ -1,4 +1,4 @@
-import type { DashboardSnapshot, PortOwnership } from './types'
+import type { CollectionStatus, DashboardSnapshot, PortOwnership } from './types'
 
 /**
  * Everything known about one port, gathered from the four places that each
@@ -39,17 +39,32 @@ export function portOwnership(dash: DashboardSnapshot, port: number): PortOwners
 }
 
 /** One sentence for a reader who wanted the answer, not the four tables. */
-export function describeOwnership(own: PortOwnership): string {
+export function describeOwnership(
+  own: PortOwnership,
+  context?: { portsStatus?: CollectionStatus }
+): string {
   const { port } = own
+  const portsStatus = context?.portsStatus
+  const portsUncollected = portsStatus === 'pending' || portsStatus === 'failed'
   if (own.linux === null && own.windows === null) {
+    if (portsUncollected) {
+      return portsStatus === 'failed'
+        ? `Listening ports query failed inside the distribution, and nothing is listening on port ${port} on Windows; whether a distribution process holds this port is unknown.`
+        : `Listening ports inside the distribution have not been read yet, and nothing is listening on port ${port} on Windows; whether a distribution process holds this port is unknown.`
+    }
     return `Nothing is listening on port ${port}, in the distribution or on Windows.`
   }
   if (own.linux === null && own.windows !== null) {
+    const tail = portsUncollected
+      ? portsStatus === 'failed'
+        ? 'distribution listening ports query failed, so whether anything inside the distribution also holds it is unknown.'
+        : 'distribution listening ports have not been read yet, so whether anything inside the distribution also holds it is unknown.'
+      : 'not by anything inside the distribution.'
     return (
       `Port ${port} is held on the Windows side by ` +
       `${own.windows.processName ?? 'an unidentified process'}` +
-      `${own.windows.pid === null ? '' : ` (pid ${own.windows.pid})`}, ` +
-      'not by anything inside the distribution.'
+      `${own.windows.pid === null ? '' : ` (pid ${own.windows.pid})`}${portsUncollected ? '; ' : ', '}` +
+      tail
     )
   }
   const linux = own.linux

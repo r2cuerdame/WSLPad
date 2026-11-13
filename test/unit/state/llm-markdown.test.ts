@@ -73,6 +73,42 @@ describe('snapshotToMarkdown', () => {
     expect(md).toContain('- HOME: /home/dev (exists)')
   })
 
+  it('distinguishes pending/failed listening ports from None and notes stale cached ports', () => {
+    const pendingMd = snapshotToMarkdown(
+      makeSnapshot({
+        dashboard: makeDashboard({ ports: [], portsCollectionStatus: 'pending' })
+      })
+    )
+    expect(pendingMd).toContain('- Unknown (not collected yet)')
+
+    const failedMd = snapshotToMarkdown(
+      makeSnapshot({
+        dashboard: makeDashboard({ ports: [], portsCollectionStatus: 'failed' })
+      })
+    )
+    expect(failedMd).toContain('- Unknown (listening port query failed)')
+
+    const staleMd = snapshotToMarkdown(
+      makeSnapshot({
+        dashboard: makeDashboard({
+          ports: [port(3000)],
+          portsCollectionStatus: 'succeeded'
+        }),
+        warnings: [
+          {
+            id: 'runner-failed-ports',
+            severity: 'warning',
+            messageKey: 'warnings.runnerFailed',
+            params: { command: 'ports' },
+            message: 'A background query failed: ports'
+          }
+        ]
+      })
+    )
+    expect(staleMd).toContain('tcp 127.0.0.1:3000')
+    expect(staleMd).toContain('latest listening-port refresh failed')
+  })
+
   it('includes warnings and the selected explorer path', () => {
     const snap = makeSnapshot({
       warnings: [

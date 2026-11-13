@@ -565,7 +565,11 @@
       "copyCommand": "Copiar linha de comando",
       "findExecutable": "Localizar executável no Explorador",
       "prepareKill": "Preparar comando kill",
-      "searchPlaceholder": "Filtrar processos"
+      "searchPlaceholder": "Filtrar processos",
+      "noMatches": "Nenhum processo corresponde ao filtro",
+      "notCollected": "A lista de processos em execução ainda não foi coletada.",
+      "queryFailed": "Não foi possível consultar os processos em execução. Não se sabe se há algum processo ativo.",
+      "refreshFailed": "A última consulta de processos falhou; exibindo a lista anterior."
     },
     "services": {
       "title": "Serviços",
@@ -701,7 +705,10 @@
         "unknown": "Desconhecido"
       },
       "reachabilityUnknownHint": "Não foi possível ler a tabela de portas do Windows nem o firewall, então não se sabe até onde esta porta chega.",
-      "reachabilityWindowsRow": "É uma porta em escuta do Windows: as regras de alcance do WSL não se aplicam a ela."
+      "reachabilityWindowsRow": "É uma porta em escuta do Windows: as regras de alcance do WSL não se aplicam a ela.",
+      "notCollected": "As portas em escuta na distribuição ainda não foram coletadas.",
+      "queryFailed": "Não foi possível consultar as portas em escuta na distribuição. Não se sabe se há alguma porta ativa.",
+      "refreshFailed": "A última consulta de portas em escuta falhou; exibindo a lista anterior."
     },
     "warnings": {
       "title": "Avisos",
@@ -752,7 +759,10 @@
     },
     "detail": {
       "itemCount": "{{count}} itens",
-      "toolsInstalled": "{{installed}} de {{total}} instalados"
+      "toolsInstalled": "{{installed}} de {{total}} instalados",
+      "notCollected": "Ainda não coletado",
+      "queryFailed": "Falha na consulta — estado desconhecido",
+      "staleItems": "{{count}} itens (falha na última atualização)"
     }
   },
   "explorer": {

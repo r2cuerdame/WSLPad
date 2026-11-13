@@ -565,7 +565,11 @@
       "copyCommand": "Copiar línea de comandos",
       "findExecutable": "Buscar el ejecutable en el Explorador",
       "prepareKill": "Preparar comando kill",
-      "searchPlaceholder": "Filtrar procesos"
+      "searchPlaceholder": "Filtrar procesos",
+      "noMatches": "Ningún proceso coincide con el filtro",
+      "notCollected": "La lista de procesos en ejecución aún no se ha recopilado.",
+      "queryFailed": "No se pudo consultar la lista de procesos en ejecución. Se desconoce si hay procesos en ejecución.",
+      "refreshFailed": "Error en la última consulta de procesos; se muestra la lista anterior."
     },
     "services": {
       "title": "Servicios",
@@ -701,7 +705,10 @@
         "unknown": "Desconocido"
       },
       "reachabilityUnknownHint": "No se pudo leer la tabla de puertos de Windows ni el firewall, así que no se sabe hasta dónde llega este puerto.",
-      "reachabilityWindowsRow": "Es un puerto a la escucha de Windows: las reglas de alcance de WSL no se le aplican."
+      "reachabilityWindowsRow": "Es un puerto a la escucha de Windows: las reglas de alcance de WSL no se le aplican.",
+      "notCollected": "Los puertos en escucha dentro de la distribución aún no se han recopilado.",
+      "queryFailed": "No se pudieron consultar los puertos en escucha dentro de la distribución. Se desconoce si hay algún puerto en escucha.",
+      "refreshFailed": "Error en la última consulta de puertos en escucha; se muestra la lista anterior."
     },
     "warnings": {
       "title": "Advertencias",
@@ -752,7 +759,10 @@
     },
     "detail": {
       "itemCount": "{{count}} elementos",
-      "toolsInstalled": "{{installed}} de {{total}} instalados"
+      "toolsInstalled": "{{installed}} de {{total}} instalados",
+      "notCollected": "Aún no recopilado",
+      "queryFailed": "Error en la consulta — estado desconocido",
+      "staleItems": "{{count}} elementos (error en la última actualización)"
     }
   },
   "explorer": {

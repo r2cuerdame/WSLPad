@@ -24,6 +24,7 @@ import {
   makeProvider,
   mcpStatus,
   port,
+  proc,
   resources,
   svc,
   system,
@@ -725,6 +726,76 @@ describe('SnapshotStore', () => {
     expect(store.get().dashboard?.tools.map((t) => t.id)).toEqual(['node'])
     expect(status(store)).toBe('succeeded')
     expect(toolsFailed(store)).toBe(true)
+  })
+
+  it('tracks processes and ports collection status, keeps last-good on later failure, and resets on setDistro', async () => {
+    const hasFailed = (st: SnapshotStore, cmd: 'processes' | 'ports') =>
+      st.get().warnings.some((w) => w.id === `runner-failed-${cmd}`)
+
+    await store.initialize()
+    expect(store.get().dashboard?.processesCollectionStatus).toBe('pending')
+    expect(store.get().dashboard?.portsCollectionStatus).toBe('pending')
+    expect(store.get().dashboard?.processes).toEqual([])
+    expect(store.get().dashboard?.ports).toEqual([])
+
+    // Initial failure marks failed (never succeeded) and raises warnings without fabricating 0.
+    provider.getProcesses.mockRejectedValueOnce(new Error('ps exited with code 127'))
+    provider.getPorts.mockRejectedValueOnce(new Error('ss timed out'))
+    await store.refreshFast()
+    expect(store.get().dashboard?.processes).toEqual([])
+    expect(store.get().dashboard?.ports).toEqual([])
+    expect(store.get().dashboard?.processesCollectionStatus).toBe('failed')
+    expect(store.get().dashboard?.portsCollectionStatus).toBe('failed')
+    expect(hasFailed(store, 'processes')).toBe(true)
+    expect(hasFailed(store, 'ports')).toBe(true)
+
+    // Genuine empty result clears failure and sets succeeded.
+    provider.getProcesses.mockResolvedValueOnce([])
+    provider.getPorts.mockResolvedValueOnce([])
+    await store.refreshFast()
+    expect(store.get().dashboard?.processesCollectionStatus).toBe('succeeded')
+    expect(store.get().dashboard?.portsCollectionStatus).toBe('succeeded')
+    expect(store.get().dashboard?.processes).toEqual([])
+    expect(store.get().dashboard?.ports).toEqual([])
+    expect(hasFailed(store, 'processes')).toBe(false)
+    expect(hasFailed(store, 'ports')).toBe(false)
+
+    // Normal populated query updates lists.
+    await store.refreshFast()
+    expect(store.get().dashboard?.processes.map((p) => p.pid)).toEqual([100])
+    expect(store.get().dashboard?.ports.map((p) => p.port)).toEqual([8080])
+
+    // Post-success failure keeps last-good lists and raises warnings.
+    provider.getProcesses.mockRejectedValueOnce(new Error('ps failed again'))
+    provider.getPorts.mockRejectedValueOnce(new Error('ss failed again'))
+    await store.refreshFast()
+    expect(store.get().dashboard?.processes.map((p) => p.pid)).toEqual([100])
+    expect(store.get().dashboard?.ports.map((p) => p.port)).toEqual([8080])
+    expect(store.get().dashboard?.processesCollectionStatus).toBe('succeeded')
+    expect(store.get().dashboard?.portsCollectionStatus).toBe('succeeded')
+    expect(hasFailed(store, 'processes')).toBe(true)
+    expect(hasFailed(store, 'ports')).toBe(true)
+
+    // Subsequent recovery replaces lists and clears failure warnings.
+    provider.getProcesses.mockResolvedValueOnce([proc(202)])
+    provider.getPorts.mockResolvedValueOnce([port(9090)])
+    await store.refreshFast()
+    expect(store.get().dashboard?.processes.map((p) => p.pid)).toEqual([202])
+    expect(store.get().dashboard?.ports.map((p) => p.port)).toEqual([9090])
+    expect(hasFailed(store, 'processes')).toBe(false)
+    expect(hasFailed(store, 'ports')).toBe(false)
+
+    // Switching distros resets both lists, statuses, and runner failure warnings.
+    provider.getProcesses.mockRejectedValueOnce(new Error('ps failed before switch'))
+    await store.refreshFast()
+    expect(hasFailed(store, 'processes')).toBe(true)
+    await store.setDistro('Debian')
+    expect(store.get().dashboard?.processes).toEqual([])
+    expect(store.get().dashboard?.ports).toEqual([])
+    expect(store.get().dashboard?.processesCollectionStatus).toBe('pending')
+    expect(store.get().dashboard?.portsCollectionStatus).toBe('pending')
+    expect(hasFailed(store, 'processes')).toBe(false)
+    expect(hasFailed(store, 'ports')).toBe(false)
   })
 
   it('never wakes a stopped distro for clock, firewall or dns', async () => {

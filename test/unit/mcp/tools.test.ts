@@ -277,6 +277,94 @@ describe('snapshot-backed tools', () => {
     expect(one.content[0].text).toContain('tool not found')
   })
 
+  it('process and port queries answer pending/failed instead of 0 or not found before first success', async () => {
+    for (const [status, procWord, portWord] of [
+      ['pending', 'not read yet', 'not read yet'],
+      ['failed', 'query failed', 'query failed']
+    ] as const) {
+      const snapshot = makeSnapshot()
+      const dash = snapshot.dashboard
+      if (dash === null) throw new Error('fixture dashboard missing')
+      snapshot.dashboard = {
+        ...dash,
+        processes: [],
+        processesCollectionStatus: status,
+        ports: [],
+        portsCollectionStatus: status,
+        windowsPorts: []
+      }
+      const client = await connect(makeDeps({ snapshot }))
+
+      const procs = await call(client, 'GetProcesses')
+      expect(procs.isError).toBeFalsy()
+      expect(procs.content[0].text).toContain(procWord)
+      expect(procs.structuredContent).toEqual({ processes: null, collectionStatus: status })
+
+      const oneProc = await call(client, 'GetProcess', { pid: 1234 })
+      expect(oneProc.isError).toBeFalsy()
+      expect(oneProc.content[0].text).toContain(procWord)
+      expect(oneProc.structuredContent).toEqual({ process: null, collectionStatus: status })
+
+      const ports = await call(client, 'GetPorts')
+      expect(ports.isError).toBeFalsy()
+      expect(ports.content[0].text).toContain(portWord)
+      expect(ports.structuredContent).toEqual({ ports: null, collectionStatus: status })
+
+      const owner = await call(client, 'GetPortOwner', { port: 8600 })
+      expect(owner.isError).toBeFalsy()
+      expect(owner.content[0].text).toContain('unknown')
+      expect(owner.content[0].text).not.toContain('Nothing is listening')
+      expect(owner.structuredContent?.collectionStatus).toBe(status)
+    }
+  })
+
+  it('process and port queries return 0 when collection succeeded empty and mark stale cached lists', async () => {
+    const emptySnap = makeSnapshot()
+    if (!emptySnap.dashboard) throw new Error('fixture dashboard missing')
+    emptySnap.dashboard = {
+      ...emptySnap.dashboard,
+      processes: [],
+      processesCollectionStatus: 'succeeded',
+      ports: [],
+      portsCollectionStatus: 'succeeded'
+    }
+    const emptyClient = await connect(makeDeps({ snapshot: emptySnap }))
+    const emptyProcs = await call(emptyClient, 'GetProcesses')
+    expect(emptyProcs.content[0].text).toContain('0 process(es)')
+    expect(emptyProcs.structuredContent).toEqual({ processes: [] })
+    const missingProc = await call(emptyClient, 'GetProcess', { pid: 1234 })
+    expect(missingProc.isError).toBe(true)
+    const emptyPorts = await call(emptyClient, 'GetPorts')
+    expect(emptyPorts.content[0].text).toContain('0 port(s)')
+    expect(emptyPorts.structuredContent).toEqual({ ports: [] })
+
+    const staleSnap = makeSnapshot({
+      warnings: [
+        {
+          id: 'runner-failed-processes',
+          severity: 'warning',
+          messageKey: 'warnings.runnerFailed',
+          params: { command: 'processes' },
+          message: 'A background query failed: processes'
+        },
+        {
+          id: 'runner-failed-ports',
+          severity: 'warning',
+          messageKey: 'warnings.runnerFailed',
+          params: { command: 'ports' },
+          message: 'A background query failed: ports'
+        }
+      ]
+    })
+    const staleClient = await connect(makeDeps({ snapshot: staleSnap }))
+    const staleProcs = await call(staleClient, 'GetProcesses')
+    expect(staleProcs.content[0].text).toContain('latest query failed; showing previous list')
+    expect(staleProcs.structuredContent?.stale).toBe(true)
+    const stalePorts = await call(staleClient, 'GetPorts')
+    expect(stalePorts.content[0].text).toContain('latest query failed; showing previous list')
+    expect(stalePorts.structuredContent?.stale).toBe(true)
+  })
+
   it('GetProcess finds by pid and fails for unknown pids', async () => {
     const client = await connect(makeDeps())
     const found = await call(client, 'GetProcess', { pid: 1234 })

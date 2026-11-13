@@ -565,7 +565,11 @@
       "copyCommand": "Befehlszeile kopieren",
       "findExecutable": "Programmdatei im Explorer suchen",
       "prepareKill": "kill-Befehl vorbereiten",
-      "searchPlaceholder": "Prozesse filtern"
+      "searchPlaceholder": "Prozesse filtern",
+      "noMatches": "Kein Prozess entspricht dem Filter",
+      "notCollected": "Die Liste der laufenden Prozesse wurde noch nicht erfasst.",
+      "queryFailed": "Die laufenden Prozesse konnten nicht abgefragt werden. Ob Prozesse laufen, ist unbekannt.",
+      "refreshFailed": "Die letzte Prozessabfrage ist fehlgeschlagen; die vorherige Liste wird angezeigt."
     },
     "services": {
       "title": "Dienste",
@@ -701,7 +705,10 @@
         "unknown": "Unbekannt"
       },
       "reachabilityUnknownHint": "Die Windows-Porttabelle oder die Firewall konnte nicht gelesen werden, daher ist unbekannt, wie weit dieser Port trägt.",
-      "reachabilityWindowsRow": "Ein lauschender Port von Windows: Die Erreichbarkeitsregeln von WSL gelten für ihn nicht."
+      "reachabilityWindowsRow": "Ein lauschender Port von Windows: Die Erreichbarkeitsregeln von WSL gelten für ihn nicht.",
+      "notCollected": "Die lauschenden Ports in der Distribution wurden noch nicht erfasst.",
+      "queryFailed": "Die lauschenden Ports in der Distribution konnten nicht abgefragt werden. Ob Ports lauschen, ist unbekannt.",
+      "refreshFailed": "Die letzte Port-Abfrage ist fehlgeschlagen; die vorherige Liste wird angezeigt."
     },
     "warnings": {
       "title": "Warnungen",
@@ -752,7 +759,10 @@
     },
     "detail": {
       "itemCount": "{{count}} Elemente",
-      "toolsInstalled": "{{installed}} von {{total}} installiert"
+      "toolsInstalled": "{{installed}} von {{total}} installiert",
+      "notCollected": "Noch nicht erfasst",
+      "queryFailed": "Abfrage fehlgeschlagen — Status unbekannt",
+      "staleItems": "{{count}} Einträge (letzte Aktualisierung fehlgeschlagen)"
     }
   },
   "explorer": {

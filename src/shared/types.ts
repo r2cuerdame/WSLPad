@@ -1104,6 +1104,8 @@ export interface DoctorReport {
   maskedMarkdown: string
 }
 
+export type CollectionStatus = 'pending' | 'succeeded' | 'failed'
+
 export interface DashboardSnapshot {
   distro: DistroDetails
   system: SystemInfo
@@ -1117,6 +1119,8 @@ export interface DashboardSnapshot {
   paths: ImportantPathInfo[]
   configuration: ConfigurationFileInfo[]
   tools: ToolInfo[]
+  /** Collection state of developer tools; omitted in legacy snapshots. */
+  toolsCollectionStatus?: CollectionStatus
   hermes: HermesInfo | null
   /** null until Docker has been queried in this distribution. */
   docker: DockerInfo | null
@@ -1134,10 +1138,14 @@ export interface DashboardSnapshot {
   terminalProfiles: TerminalProfilesInfo | null
   environment: EnvironmentVariableInfo[]
   processes: ProcessInfo[]
+  /** Collection state of running processes; omitted in legacy snapshots. */
+  processesCollectionStatus?: CollectionStatus
   services: ServiceInfo[]
   /** True once the service collector has completed successfully for this distro. */
   servicesCollected?: boolean
   ports: PortInfo[]
+  /** Collection state of listening ports; omitted in legacy snapshots. */
+  portsCollectionStatus?: CollectionStatus
   /** Listeners on the Windows host, so both sides of a port are visible. */
   windowsPorts: WindowsPortInfo[]
   /** null until the Windows firewall has been read — never assumed permissive. */

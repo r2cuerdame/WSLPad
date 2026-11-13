@@ -565,7 +565,11 @@
       "copyCommand": "Copier la ligne de commande",
       "findExecutable": "Trouver l'exécutable dans l'explorateur",
       "prepareKill": "Préparer la commande kill",
-      "searchPlaceholder": "Filtrer les processus"
+      "searchPlaceholder": "Filtrer les processus",
+      "noMatches": "Aucun processus ne correspond au filtre",
+      "notCollected": "La liste des processus en cours d'exécution n'a pas encore été collectée.",
+      "queryFailed": "Impossible d'interroger les processus en cours d'exécution. L'état des processus est inconnu.",
+      "refreshFailed": "La dernière interrogation des processus a échoué ; la liste précédente est affichée."
     },
     "services": {
       "title": "Services",
@@ -701,7 +705,10 @@
         "unknown": "Inconnue"
       },
       "reachabilityUnknownHint": "La table des ports Windows ou le pare-feu n'a pas pu être lu : la portée de ce port est donc inconnue.",
-      "reachabilityWindowsRow": "Un port en écoute côté Windows : les règles de portée de WSL ne s'y appliquent pas."
+      "reachabilityWindowsRow": "Un port en écoute côté Windows : les règles de portée de WSL ne s'y appliquent pas.",
+      "notCollected": "Les ports en écoute dans la distribution n'ont pas encore été collectés.",
+      "queryFailed": "Impossible d'interroger les ports en écoute dans la distribution. L'état des ports est inconnu.",
+      "refreshFailed": "La dernière interrogation des ports en écoute a échoué ; la liste précédente est affichée."
     },
     "warnings": {
       "title": "Avertissements",
@@ -752,7 +759,10 @@
     },
     "detail": {
       "itemCount": "{{count}} éléments",
-      "toolsInstalled": "{{installed}} sur {{total}} installés"
+      "toolsInstalled": "{{installed}} sur {{total}} installés",
+      "notCollected": "Pas encore collecté",
+      "queryFailed": "Échec de la requête — état inconnu",
+      "staleItems": "{{count}} éléments (échec de la dernière actualisation)"
     }
   },
   "explorer": {

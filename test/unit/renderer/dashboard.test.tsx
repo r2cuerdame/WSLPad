@@ -437,7 +437,7 @@ function makeApi(snapshot: WslPadSnapshot) {
       version: vi.fn(async () => '0.1.0'),
       quit: vi.fn(async () => undefined)
     },
-    onSnapshot: vi.fn(() => () => undefined),
+    onSnapshot: vi.fn((_cb: (snap: WslPadSnapshot) => void) => () => undefined),
     onOpProgress: vi.fn(() => () => undefined),
     onNavigateSettings: vi.fn(() => () => undefined)
   }
@@ -931,6 +931,186 @@ describe('ProcessesCard', () => {
     expect(screen.getByTestId('prepared').textContent).toBe('kill 4242')
     expect(api.terminal.input).not.toHaveBeenCalled()
     expect(api.terminal.ensure).not.toHaveBeenCalled()
+  })
+
+  it('distinguishes pending/failed from empty None and retains prior rows when refresh fails', async () => {
+    const view = render(
+      <AppStoreProvider>
+        <ProcessesCard processes={[]} collectionStatus="pending" />
+      </AppStoreProvider>
+    )
+    await flush()
+    expect(screen.queryByText('None')).toBeNull()
+    expect(screen.getByRole('status').textContent).toContain('not been collected yet')
+
+    view.rerender(
+      <AppStoreProvider>
+        <ProcessesCard processes={[]} collectionStatus="failed" />
+      </AppStoreProvider>
+    )
+    await flush()
+    expect(screen.queryByText('None')).toBeNull()
+    expect(screen.getByRole('alert').textContent).toContain('Could not query running processes')
+
+    view.rerender(
+      <AppStoreProvider>
+        <ProcessesCard
+          processes={makeSnapshot().dashboard!.processes}
+          collectionStatus="succeeded"
+          refreshFailed
+        />
+      </AppStoreProvider>
+    )
+    await flush()
+    expect(screen.getByRole('alert').textContent).toContain('latest process query failed')
+    expect(screen.getByText(/node server\.js/)).toBeTruthy()
+
+    view.rerender(
+      <AppStoreProvider>
+        <ProcessesCard processes={[]} collectionStatus="succeeded" refreshFailed={false} />
+      </AppStoreProvider>
+    )
+    await flush()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByText('None')).toBeTruthy()
+  })
+})
+
+describe('DashboardTab processes and ports failure/unknown lifecycle', () => {
+  it('shows unknown/failed instead of 0 before first success, keeps stale list with notice on failure, shows 0 only on empty success, and resets on distro switch', async () => {
+    let listener: ((snap: WslPadSnapshot) => void) | null = null
+    api.onSnapshot.mockImplementation((cb: (snap: WslPadSnapshot) => void) => {
+      listener = cb
+      return () => {
+        listener = null
+      }
+    })
+
+    const base = makeSnapshot()
+    const baseDash = base.dashboard!
+
+    // 1. Initial pending state (never collected yet)
+    const pendingSnap: WslPadSnapshot = {
+      ...base,
+      dashboard: {
+        ...baseDash,
+        processes: [],
+        processesCollectionStatus: 'pending',
+        ports: [],
+        portsCollectionStatus: 'pending',
+        windowsPorts: []
+      },
+      warnings: []
+    }
+    api.getSnapshot.mockResolvedValue(pendingSnap)
+    render(
+      <AppStoreProvider>
+        <DashboardTab />
+      </AppStoreProvider>
+    )
+    await flush()
+
+    expect(badgeText('processes')).not.toBe('0')
+    expect(badgeText('ports')).not.toBe('0')
+    expect(navItem('processes').querySelector('.dot-unknown')).not.toBeNull()
+    expect(navItem('ports').querySelector('.dot-unknown')).not.toBeNull()
+
+    fireEvent.click(navItem('processes'))
+    expect(screen.getByTestId('dashboard-detail').textContent).toContain('Not collected yet')
+    expect(screen.getByRole('status').textContent).toContain('not been collected yet')
+
+    // 2. Initial query failure
+    const initialFailSnap: WslPadSnapshot = {
+      ...pendingSnap,
+      dashboard: {
+        ...pendingSnap.dashboard!,
+        processesCollectionStatus: 'failed',
+        portsCollectionStatus: 'failed'
+      },
+      warnings: [
+        {
+          id: 'runner-failed-processes',
+          severity: 'warning',
+          messageKey: 'warnings.runnerFailed',
+          params: { command: 'processes' },
+          message: 'A background query failed: processes'
+        },
+        {
+          id: 'runner-failed-ports',
+          severity: 'warning',
+          messageKey: 'warnings.runnerFailed',
+          params: { command: 'ports' },
+          message: 'A background query failed: ports'
+        }
+      ]
+    }
+    act(() => listener?.(initialFailSnap))
+    fireEvent.click(navItem('processes'))
+    expect(navItem('processes').querySelector('.dot-err')).not.toBeNull()
+    expect(navItem('ports').querySelector('.dot-err')).not.toBeNull()
+    expect(screen.getByTestId('dashboard-detail').textContent).toContain('Query failed')
+    expect(screen.getByRole('alert').textContent).toContain('Could not query running processes')
+
+    fireEvent.click(navItem('ports'))
+    expect(screen.getByTestId('dashboard-detail').textContent).toContain('Query failed')
+    expect(screen.getByRole('alert').textContent).toContain('Could not query listening ports')
+
+    // 3. Populated success followed by later refresh failure retains list + displays failure notice
+    const staleSnap: WslPadSnapshot = {
+      ...initialFailSnap,
+      dashboard: {
+        ...baseDash,
+        processesCollectionStatus: 'succeeded',
+        portsCollectionStatus: 'succeeded'
+      }
+    }
+    act(() => listener?.(staleSnap))
+    expect(badgeText('processes')).toBe('2')
+    expect(navItem('processes').querySelector('.dash-nav-badge')?.className).toContain('badge-err')
+    expect(badgeText('ports')).toBe('1')
+    expect(navItem('ports').querySelector('.dash-nav-badge')?.className).toContain('badge-err')
+    expect(screen.getByTestId('dashboard-detail').textContent).toContain('latest refresh failed')
+    expect(screen.getByRole('alert').textContent).toContain('latest listening-port query failed')
+    expect(screen.getByText('node')).toBeTruthy()
+
+    // 4. Recovery clears failure alert and badge-err
+    const recoveredSnap: WslPadSnapshot = {
+      ...staleSnap,
+      warnings: []
+    }
+    act(() => listener?.(recoveredSnap))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(navItem('ports').querySelector('.dash-nav-badge')?.className).not.toContain('badge-err')
+    expect(screen.getByTestId('dashboard-detail').textContent).toContain('1 items')
+
+    // 5. Genuine empty [] after success shows 0
+    const genuineEmptySnap: WslPadSnapshot = {
+      ...recoveredSnap,
+      dashboard: {
+        ...recoveredSnap.dashboard!,
+        processes: [],
+        ports: [],
+        windowsPorts: []
+      }
+    }
+    act(() => listener?.(genuineEmptySnap))
+    expect(badgeText('processes')).toBe('0')
+    expect(badgeText('ports')).toBe('0')
+    expect(screen.getByText('None')).toBeTruthy()
+
+    // 6. Distro switch snapshot resets back to pending unknown (not 0)
+    const switchedSnap: WslPadSnapshot = {
+      ...pendingSnap,
+      selectedDistro: 'Debian',
+      dashboard: {
+        ...pendingSnap.dashboard!,
+        distro: { ...baseDash.distro, name: 'Debian' }
+      }
+    }
+    act(() => listener?.(switchedSnap))
+    expect(navItem('processes').querySelector('.dot-unknown')).not.toBeNull()
+    expect(navItem('ports').querySelector('.dot-unknown')).not.toBeNull()
+    expect(screen.queryByText('None')).toBeNull()
   })
 })
 

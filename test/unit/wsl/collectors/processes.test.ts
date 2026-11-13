@@ -61,11 +61,46 @@ describe('collectProcesses', () => {
     expect(runner.calls[0]).toContain('head -400')
   })
 
-  it('returns [] when the runner fails', async () => {
-    const runner = fakeRunner(() => {
+  it('does not swallow runner errors, timeouts, or non-zero exit codes as []', async () => {
+    const throwingRunner = fakeRunner(() => {
       throw new Error('boom')
     })
+    await expect(collectProcesses(throwingRunner, 'Ubuntu-24.04')).rejects.toThrow('boom')
+
+    const timedOutRunner = fakeRunner(() => ({
+      stdout: PS_OUTPUT,
+      stderr: '',
+      code: 0,
+      timedOut: true
+    }))
+    await expect(collectProcesses(timedOutRunner, 'Ubuntu-24.04')).rejects.toThrow(/timed out/)
+
+    const missingToolRunner = fakeRunner(() => ({
+      stdout: '',
+      stderr: '/bin/sh: 1: ps: not found',
+      code: 127,
+      timedOut: false
+    }))
+    await expect(collectProcesses(missingToolRunner, 'Ubuntu-24.04')).rejects.toThrow(/exited with code 127/)
+
+    const failedRunner = fakeRunner(() => ({
+      stdout: '',
+      stderr: 'error: unsupported option',
+      code: 1,
+      timedOut: false
+    }))
+    await expect(collectProcesses(failedRunner, 'Ubuntu-24.04')).rejects.toThrow(/exited with code 1/)
+  })
+
+  it('uses POSIX /bin/sh status propagation while preserving the 400-row cap', async () => {
+    const runner = fakeRunner(() => ok(''))
     expect(await collectProcesses(runner, 'Ubuntu-24.04')).toEqual([])
+    const script = runner.calls[0]
+    expect(script).toContain('head -400')
+    expect(script).toContain('--sort=-pcpu')
+    expect(script).toContain('141')
+    expect(script).not.toContain('pipefail')
+    expect(script).not.toContain('PIPESTATUS')
   })
 
   it('passes WslNotAvailableError through', async () => {
