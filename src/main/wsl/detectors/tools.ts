@@ -406,9 +406,13 @@ function homePath(candidate: string): string {
  *      reads the $v the preceding T left behind and stays quiet if it is set.
  *   C  config/install path probe (a builtin test, so it costs nothing).
  *   W  Windows-interop sweep for the '|name|name|' list it is handed.
+ *
+ * The mount read is WINDOWS_MOUNTS_SCRIPT: it prints `MNT:<point>` for every
+ * DrvFs mount and leaves them space-separated in $mr. The command resolver
+ * runs the same read, so the tool cards and GetCommandResolution agree on what
+ * a Windows path is.
  */
-const SCRIPT_PREAMBLE = `op=$PATH
-mr=
+export const WINDOWS_MOUNTS_SCRIPT = `mr=
 if [ -r /proc/mounts ]; then
   while read -r ms mp mt mo mrest; do
     mk=0
@@ -421,7 +425,10 @@ if [ -r /proc/mounts ]; then
     printf '%s\\n' "MNT:$mp"
   done < /proc/mounts
 fi
-M() {
+`
+
+const SCRIPT_PREAMBLE = `op=$PATH
+${WINDOWS_MOUNTS_SCRIPT}M() {
   if [ -n "$mr" ]; then
     for r in $mr; do
       case $1 in "$r" | "$r"/*) return 0 ;; esac
@@ -674,7 +681,10 @@ function isUnderMount(path: string, mounts: readonly string[]): boolean {
  * moved [automount] root elsewhere only says so in its mount table, so a mount
  * the probe actually reported outranks an otherwise ext4-looking path.
  */
-export function classifyToolPath(path: string | null, windowsMounts: string[]): PathSide {
+export function classifyToolPath(
+  path: string | null,
+  windowsMounts: readonly string[]
+): PathSide {
   const side = classifyPathSide(path)
   if (side === 'ext4' && path !== null && isUnderMount(path, windowsMounts)) return 'windows-mount'
   return side

@@ -1,13 +1,15 @@
 import type { CommandResolution } from '@shared/types'
 import type { DistroRunner } from './contracts'
+import { classifyToolPath, parseWindowsMounts, WINDOWS_MOUNTS_SCRIPT } from './detectors/tools'
 
 /**
  * Which binary a command name actually runs (issue #62).
  *
  * The question an agent asks constantly and no snapshot answers: `python` may
  * be a shim, a pyenv shell function, or — the classic WSL trap — a Windows
- * executable reached through `/mnt/c` because Windows' PATH is appended to the
- * distro's. `pip install` then writes somewhere the shell will never look.
+ * executable reached through a Windows drive mount (`/mnt/c` by default)
+ * because Windows' PATH is appended to the distro's. `pip install` then writes
+ * somewhere the shell will never look.
  *
  * Read-only: it resolves and reports, and never runs the command it found.
  */
@@ -32,6 +34,10 @@ const END = (name: string): string => `###WSLPAD_CMD_${name}_END`
  * localized word, which is why it is used instead of `type`. The PATH walk is
  * done in the shell rather than in TypeScript so the answer reflects the
  * distro's own PATH, including the Windows entries WSL appends.
+ *
+ * The MOUNTS section is the tools detector's own /proc/mounts read, so a distro
+ * that moved [automount] root (C: at /c or /windows/c) gets the same answer
+ * here as on its tool cards. It only reads the mount table.
  */
 export function buildResolveScript(command: string): string {
   if (!isResolvableCommand(command)) throw new Error(`not a command name: ${command}`)
@@ -51,6 +57,8 @@ for d in \${PATH:-}; do
 done
 IFS=$oldifs
 echo "${END('ALL')}"
+echo "${BEGIN('MOUNTS')}"
+${WINDOWS_MOUNTS_SCRIPT}echo "${END('MOUNTS')}"
 :`
 }
 
@@ -65,15 +73,20 @@ function section(text: string, name: string): string[] {
   return (to < 0 ? rest : rest.slice(0, to)).filter((line) => line.trim() !== '')
 }
 
-/** A path under /mnt/<drive> is a Windows executable reached through DrvFs. */
-export function isWindowsPath(path: string): boolean {
-  return /^\/mnt\/[a-z](\/|$)/i.test(path)
+/**
+ * A path under a Windows drive mount is a Windows executable reached through
+ * DrvFs. `mounts` are the DrvFs mount points the distro reported; empty means
+ * the table was not read, and the documented /mnt/<drive> layout decides.
+ */
+export function isWindowsPath(path: string, mounts: readonly string[] = []): boolean {
+  return classifyToolPath(path, mounts) === 'windows-mount'
 }
 
 export function parseResolution(command: string, stdout: string): CommandResolution {
   const pathEntries = section(stdout, 'PATH')
   const which = section(stdout, 'WHICH')[0]?.trim() ?? null
   const matches = section(stdout, 'ALL').map((line) => line.trim())
+  const mounts = parseWindowsMounts(section(stdout, 'MOUNTS').join('\n'))
 
   if (which === null) {
     return {
@@ -106,7 +119,7 @@ export function parseResolution(command: string, stdout: string): CommandResolut
     path: which,
     matches,
     pathEntries,
-    shadowedByWindows: isWindowsPath(which),
+    shadowedByWindows: isWindowsPath(which, mounts),
     // Everything the winner hides, in PATH order.
     shadows: matches.filter((m) => m !== which)
   }

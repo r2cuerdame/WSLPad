@@ -391,6 +391,46 @@ describe('tools shaped like the questions an agent actually asks', () => {
     ).toBe(true)
   })
 
+  it('warns about a Windows binary on a moved drive root without naming /mnt', async () => {
+    // [automount] root=/ puts C: at /c; the warning must not claim a /mnt path.
+    const client = await connect({
+      ...makeDeps(),
+      resolveCommand: async (_distro: string, command: string) => ({
+        command,
+        kind: 'file' as const,
+        path: '/c/Users/dev/AppData/Local/Microsoft/WindowsApps/python.exe',
+        matches: ['/c/Users/dev/AppData/Local/Microsoft/WindowsApps/python.exe'],
+        shadows: [],
+        pathEntries: ['/usr/bin', '/c/Windows'],
+        shadowedByWindows: true
+      })
+    })
+    const result = await call(client, 'GetCommandResolution', { command: 'python' })
+    expect(result.content[0].text).toContain(
+      'python resolves to /c/Users/dev/AppData/Local/Microsoft/WindowsApps/python.exe'
+    )
+    expect(result.content[0].text).toContain('a Windows executable reached through a Windows drive mount')
+    expect(result.content[0].text).not.toContain('/mnt')
+  })
+
+  it('adds no Windows warning to a Linux binary', async () => {
+    const client = await connect({
+      ...makeDeps(),
+      resolveCommand: async (_distro: string, command: string) => ({
+        command,
+        kind: 'file' as const,
+        path: '/usr/bin/python3',
+        matches: ['/usr/bin/python3'],
+        shadows: [],
+        pathEntries: ['/usr/bin', '/c/Windows'],
+        shadowedByWindows: false
+      })
+    })
+    const result = await call(client, 'GetCommandResolution', { command: 'python3' })
+    expect(result.content[0].text).toContain('python3 resolves to /usr/bin/python3')
+    expect(result.content[0].text).not.toContain('Windows executable')
+  })
+
   it('does not turn "could not look" into "not installed"', async () => {
     const client = await connect({ ...makeDeps(), resolveCommand: async () => null })
     const result = await call(client, 'GetCommandResolution', { command: 'python' })
