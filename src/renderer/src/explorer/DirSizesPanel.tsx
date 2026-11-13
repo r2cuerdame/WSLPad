@@ -38,6 +38,15 @@ export function DirSizesPanel(props: DirSizesPanelProps): React.JSX.Element | nu
     entry.sizeBytes === null
       ? t('explorer.dirSizes.unmeasured', { defaultValue: 'Not measured' })
       : (entry.partial ? '≥ ' : '') + formatBytes(entry.sizeBytes, lang)
+  const partialHint = t('explorer.dirSizes.partial', {
+    defaultValue: 'At least this much — part of it could not be read'
+  })
+  // A total that leaves out a floor, an unmeasured child or a skipped one is a
+  // minimum, not the folder's size.
+  const totalIsFloor =
+    result !== null &&
+    result.totalBytes !== null &&
+    (result.skipped > 0 || result.entries.some((e) => e.partial || e.sizeBytes === null))
 
   return (
     <section
@@ -121,13 +130,7 @@ export function DirSizesPanel(props: DirSizesPanelProps): React.JSX.Element | nu
                   </span>
                   <span
                     className={'dir-sizes-size mono' + (entry.sizeBytes === null ? ' dim' : '')}
-                    title={
-                      entry.partial
-                        ? t('explorer.dirSizes.partial', {
-                            defaultValue: 'At least this much — part of it could not be read'
-                          })
-                        : undefined
-                    }
+                    title={entry.partial ? partialHint : undefined}
                   >
                     {size(entry)}
                   </span>
@@ -136,13 +139,13 @@ export function DirSizesPanel(props: DirSizesPanelProps): React.JSX.Element | nu
             </ol>
           )}
           <footer className="dir-sizes-foot dim">
-            <span>
+            <span className="dir-sizes-total" title={totalIsFloor ? partialHint : undefined}>
               {t('explorer.dirSizes.total', {
                 defaultValue: 'Total {{size}}',
                 size:
                   result.totalBytes === null
                     ? t('common.unknown')
-                    : formatBytes(result.totalBytes, lang)
+                    : (totalIsFloor ? '≥ ' : '') + formatBytes(result.totalBytes, lang)
               })}
             </span>
             {result.skipped > 0 && (
