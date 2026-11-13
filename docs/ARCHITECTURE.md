@@ -75,12 +75,35 @@ interpolation goes through `shellQuote()`. Management commands
 Internal queries never touch the user's Console PTY and never appear in its
 transcript (goal.md §2.6).
 
+No internal query may open a window. Every child process starts through
+`src/main/hidden-process.ts` — `windowsHide: true` with every stdio slot piped
+or ignored (the combination that makes Windows apply CREATE_NO_WINDOW), never
+`detached` (wsl.exe then allocates a console of its own, which Windows Terminal
+shows) and never through a shell; PowerShell additionally runs with
+`-NoProfile -NonInteractive -WindowStyle Hidden`. ESLint forbids importing
+`child_process` anywhere else, and `test/unit/main/hidden-process.test.ts`
+fails on any launch that skips these rules, including in tests and scripts.
+
+What those flags cannot reach is the console WSL itself gives `wslhost.exe`
+on every `wsl.exe -d <distro>` start; on some Windows 11 builds with Windows
+Terminal as the default terminal that console flashes on screen. So polling
+collectors run through `WslRunner.coalesced()`: the in-distro scripts one tick
+starts share a single `wsl.exe`, each still run as its own `/bin/sh -c` between
+nonce markers and each answered as soon as it finishes. Explorer and Console
+actions keep the plain runner. A script that answered within the last 10 s
+stands in for the liveness probe, the installed-distro list
+(`wsl --list --verbose`) is reused for a minute, and host reads are cached
+(firewall, port proxy 5 min, Windows DNS 2 min, Defender and elevation
+10 min; one `tasklist` serves both the port table and the VM's memory).
+
 ### Single snapshot model (src/main/state)
 Dashboard UI, `Copy for LLM` markdown, JSON export and every MCP tool all read
 the same `WslPadSnapshot` produced by `SnapshotStore`. Collector failures keep
 the last good section and surface as warnings — the store never throws into
 the UI. Polling is tiered (3 s / 15 s / 60 s by default, user-adjustable within
-bounds) and fully stops when monitoring is paused.
+bounds) while the window is on screen, stretches to at least 1 min / 5 min /
+15 min while it is minimized, hidden or in the tray (stale tiers refresh the
+moment it comes back), and fully stops when monitoring is paused.
 
 The **Developer Environment Context** (`src/shared/dev-env-context.ts`) is a
 pure, versioned, bounded projection of that snapshot. The MCP tools

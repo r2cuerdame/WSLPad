@@ -18,6 +18,7 @@
  */
 import type { DefenderInfo } from '@shared/types'
 import { runHostCommand, type HostCommandRunner } from './windows-ports'
+import { POWERSHELL_HIDDEN_ARGS } from '../hidden-process'
 
 const TIMEOUT_MS = 12000
 
@@ -90,7 +91,7 @@ export async function collectDefender(
   try {
     const out = await run(
       'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-Command', DEFENDER_SCRIPT],
+      [...POWERSHELL_HIDDEN_ARGS, '-Command', DEFENDER_SCRIPT],
       TIMEOUT_MS
     )
     return parseDefender(out)

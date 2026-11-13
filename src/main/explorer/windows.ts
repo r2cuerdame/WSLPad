@@ -6,7 +6,6 @@
  * Electron is imported lazily inside places()/trash() so this module stays
  * loadable (and unit-testable) outside an Electron runtime.
  */
-import { execFile } from 'child_process'
 import { randomUUID } from 'crypto'
 import { EventEmitter } from 'events'
 import { constants as FS } from 'fs'
@@ -42,6 +41,7 @@ import type {
   WindowsPlace
 } from '@shared/types'
 import { ExplorerError, type ExplorerErrorCode, type ExplorerListOpts } from '../wsl/contracts'
+import { execFileHidden } from '../hidden-process'
 
 const BINARY_SNIFF_BYTES = 8000
 const HIDDEN_CACHE_MS = 2000
@@ -162,6 +162,45 @@ function isInside(child: string, parent: string): boolean {
   return c === p || c.startsWith(p.endsWith('\\') ? p : p + '\\')
 }
 
+/**
+ * Moving a selected directory also moves its selected descendants. Only omit
+ * those descendants when the selected ancestor is an actual directory;
+ * moving a directory symlink only moves the link itself.
+ */
+async function filterMovedDescendants(sources: string[]): Promise<string[]> {
+  const selectedDirectories = new Set<string>()
+  for (const parent of sources) {
+    const hasSelectedDescendant = sources.some(
+      (child) => child.toLowerCase() !== parent.toLowerCase() && isInside(child, parent)
+    )
+    if (!hasSelectedDescendant) continue
+    try {
+      if ((await lstat(parent)).isDirectory()) selectedDirectories.add(parent.toLowerCase())
+    } catch {
+      // Leave missing or inaccessible sources in the batch so the normal
+      // per-item operation reports their error instead of hiding it here.
+    }
+  }
+  const directories = [...selectedDirectories]
+  return sources.filter(
+    (source) =>
+      !directories.some(
+        (parent) => parent !== source.toLowerCase() && isInside(source, parent)
+      )
+  )
+}
+
+/** Windows paths are case-insensitive; retain the first normalized spelling. */
+function uniqueWindowsPaths(paths: string[]): string[] {
+  const unique = new Map<string, string>()
+  for (const path of paths) {
+    const normalized = normalizePath(path)
+    const key = normalized.toLowerCase()
+    if (!unique.has(key)) unique.set(key, normalized)
+  }
+  return [...unique.values()]
+}
+
 function isValidFileName(name: string): boolean {
   return (
     name.length > 0 &&
@@ -212,16 +251,14 @@ function queryHiddenNames(dir: string): Promise<Set<string>> {
       resolve(new Set())
       return
     }
-    execFile(
+    execFileHidden(
       'cmd.exe',
       // /s keeps the inner quotes intact after cmd strips the outer pair.
       ['/d', '/s', '/c', `"chcp 65001 >nul & dir /a:h /b "${dir}""`],
       {
-        windowsHide: true,
         windowsVerbatimArguments: true,
         timeout: HIDDEN_QUERY_TIMEOUT_MS,
-        maxBuffer: HIDDEN_QUERY_MAX_BYTES,
-        encoding: 'utf8'
+        maxBuffer: HIDDEN_QUERY_MAX_BYTES
       },
       (err, stdout) => {
         // `dir` exits non-zero when nothing is hidden — an empty set either way.
@@ -798,6 +835,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
 
     createFile: async (path) => {
       const p = normalizePath(path)
+      if (await exists(p)) throw new ExplorerError('EEXIST', p, `EEXIST: ${p}`)
       try {
         const handle = await open(p, 'wx')
         await handle.close()
@@ -827,7 +865,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
 
     copyMove: async (sources, destDir, move) => {
       const dest = normalizePath(destDir)
-      const srcs = [...new Set(sources.map(normalizePath))]
+      let srcs = uniqueWindowsPaths(sources)
       for (const source of srcs) {
         if (isDriveRoot(source)) {
           throw new ExplorerError(
@@ -854,6 +892,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
           )
         }
       }
+      if (move) srcs = await filterMovedDescendants(srcs)
       return startOp(move ? 'move' : 'copy', (opId, isCancelled) =>
         runCopyMove(opId, srcs, dest, move, isCancelled)
       )
@@ -951,8 +990,19 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
         // lstat calls a directory link or junction a link, never a directory.
         if (st.isDirectory()) throw new ExplorerError('EISDIR', p, `EISDIR: ${p}`)
         if (!(await canWrite(target))) throw new ExplorerError('EACCES', p, `EACCES: ${p}`)
-      } else if (!(await canWrite(win.dirname(p)))) {
-        throw new ExplorerError('EACCES', p, `EACCES: ${p}`)
+      } else {
+        // access(W_OK) fails the same way for a missing folder as for a locked
+        // one, so the parent is described first: only a folder that exists can
+        // turn the save away as EACCES — the fixture's order.
+        const parent = win.dirname(p)
+        try {
+          if (!(await stat(parent)).isDirectory()) {
+            throw new ExplorerError('ENOTDIR', p, `ENOTDIR: ${p}`)
+          }
+        } catch (err) {
+          throw toExplorerError(p, err)
+        }
+        if (!(await canWrite(parent))) throw new ExplorerError('EACCES', p, `EACCES: ${p}`)
       }
       // Write beside the target and swap it in, so a failure never leaves the
       // destination partially written (goal.md §7.6). ACL denials only show up
@@ -972,14 +1022,24 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
       // "This PC" is not a directory: there is nothing to walk from there.
       if (!needle || path === WINDOWS_ROOT) return []
       const root = normalizePath(path)
+      // A missing, non-directory or unreadable start is an error, not "no
+      // matches" — the same contract as the WSL and fixture backends.
+      try {
+        if (!(await stat(root)).isDirectory()) {
+          throw new ExplorerError('ENOTDIR', root, `ENOTDIR: ${root}`)
+        }
+      } catch (err) {
+        throw toExplorerError(root, err)
+      }
       const results: FileEntry[] = []
       const walk = async (dir: string, depth: number): Promise<void> => {
         if (results.length >= SEARCH_MAX_RESULTS) return
         let names: string[]
         try {
           names = await readdir(dir)
-        } catch {
-          // unreadable directories are skipped silently
+        } catch (err) {
+          if (depth === 1) throw toExplorerError(dir, err)
+          // unreadable directories below the start are skipped silently
           return
         }
         for (const name of names) {

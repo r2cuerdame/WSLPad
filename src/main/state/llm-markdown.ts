@@ -243,7 +243,11 @@ function defaultMarkdown(s: WslPadSnapshot): string {
   }
 
   pushWarnings(lines, s)
-  lines.push('## Explorer', `- Selected path: ${s.explorer.currentPath ?? 'none'}`, '')
+  const explorerPath =
+    s.selectedDistro === null || s.explorer.distro === s.selectedDistro
+      ? s.explorer.currentPath
+      : null
+  lines.push('## Explorer', `- Selected path: ${explorerPath ?? 'none'}`, '')
   lines.push(LLM_FOOTER)
   return lines.join('\n') + '\n'
 }

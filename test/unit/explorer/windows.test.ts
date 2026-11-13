@@ -234,6 +234,30 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
     expect(await codeOf(() => fs.createFile(target))).toBe('EEXIST')
   })
 
+  it('reports EEXIST when createFile targets an existing directory', async () => {
+    const target = dir('createfile-existing-directory')
+
+    expect(await codeOf(() => fs.createFile(target))).toBe('EEXIST')
+    await expect(fs.createFile(target)).rejects.toMatchObject({
+      code: 'EEXIST',
+      path: target
+    })
+  })
+
+  it('reports EEXIST when createFile targets a drive root', async () => {
+    expect(await codeOf(() => fs.createFile('C:\\'))).toBe('EEXIST')
+    await expect(fs.createFile('C:\\')).rejects.toMatchObject({
+      code: 'EEXIST',
+      path: 'C:\\'
+    })
+  })
+
+  it('keeps ENOENT when createFile parent directory is missing', async () => {
+    const target = join(root, 'createfile-missing-parent', 'new.txt')
+
+    expect(await codeOf(() => fs.createFile(target))).toBe('ENOENT')
+  })
+
   it('renames within the same directory and refuses conflicts and bad names', async () => {
     const base = dir('rename')
     const original = join(base, 'before.txt')
@@ -434,6 +458,84 @@ describe('createWindowsFs — copy and move', () => {
     }
   })
 
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('deduplicates case and separator variants for $kind', async ({ move, kind }) => {
+    const src = dir(`normalized-duplicate-${kind}`, 'src')
+    const dest = dir(`normalized-duplicate-${kind}`, 'dest')
+    const source = join(src, 'once.txt')
+    writeFileSync(source, 'once')
+
+    const events = await runOp(() =>
+      fs.copyMove([source, source.toUpperCase(), source.replaceAll('\\', '/')], dest, move)
+    )
+
+    expect(events.at(-1)).toMatchObject({
+      kind,
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1
+    })
+    expect(await readFile(join(dest, 'once.txt'), 'utf8')).toBe('once')
+    if (move) {
+      await expect(readFile(source, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    } else {
+      expect(await readFile(source, 'utf8')).toBe('once')
+    }
+  })
+
+  it('moves a selected directory and its child as one intact tree when the child comes first', async () => {
+    const parent = dir('move-overlap', 'src', 'folder')
+    const dest = dir('move-overlap', 'dest')
+    const child = join(parent, 'nested.txt')
+    writeFileSync(child, 'inside')
+
+    const events = await runOp(() => fs.copyMove([child, parent], dest, true))
+
+    expect(events.at(-1)).toMatchObject({
+      kind: 'move',
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1
+    })
+    expect(await readFile(join(dest, 'folder', 'nested.txt'), 'utf8')).toBe('inside')
+    await expect(readFile(child, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(dest, 'nested.txt'), 'utf8')).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
+  })
+
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('processes unrelated sources sequentially for $kind', async ({ move, kind }) => {
+    const src = dir(`unrelated-${kind}`, 'src')
+    const dest = dir(`unrelated-${kind}`, 'dest')
+    const first = join(src, 'first.txt')
+    const second = join(src, 'second.txt')
+    writeFileSync(first, 'first')
+    writeFileSync(second, 'second')
+
+    const events = await runOp(() => fs.copyMove([first, second], dest, move))
+
+    expect(events.at(-1)).toMatchObject({
+      kind,
+      status: 'done',
+      totalItems: 2,
+      doneItems: 2
+    })
+    expect(await readFile(join(dest, 'first.txt'), 'utf8')).toBe('first')
+    expect(await readFile(join(dest, 'second.txt'), 'utf8')).toBe('second')
+    if (move) {
+      await expect(readFile(first, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readFile(second, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    } else {
+      expect(await readFile(first, 'utf8')).toBe('first')
+      expect(await readFile(second, 'utf8')).toBe('second')
+    }
+  })
+
   it('copies directories recursively', async () => {
     const src = dir('copy-tree', 'src', 'pack', 'inner')
     const dest = dir('copy-tree', 'dest')
@@ -599,6 +701,36 @@ describe('createWindowsFs — text files', () => {
     expect(await codeOf(() => fs.writeText(base, 'nope'))).toBe('EISDIR')
   })
 
+  it('reports a missing parent folder as ENOENT, not a false EACCES', async () => {
+    const base = dir('write-no-parent')
+    expect(await codeOf(() => fs.writeText(join(base, 'gone', 'new.txt'), 'nope'))).toBe('ENOENT')
+    expect(await readdir(base)).toEqual([])
+  })
+
+  it('reports a file standing in for the parent folder as ENOTDIR', async () => {
+    const base = dir('write-file-parent')
+    const file = join(base, 'plain.txt')
+    writeFileSync(file, 'kept')
+    expect(await codeOf(() => fs.writeText(join(file, 'new.txt'), 'nope'))).toBe('ENOTDIR')
+    expect(await readFile(file, 'utf8')).toBe('kept')
+    expect(await readdir(base)).toEqual(['plain.txt'])
+  })
+
+  it.runIf(IS_WINDOWS)('still maps a write-denied existing parent folder to EACCES', async () => {
+    const base = dir('write-parent-denied')
+    const locked = dir('write-parent-denied', 'locked')
+    // A folder's read-only bit means nothing to access(W_OK) on Windows, so
+    // the ACL denial only surfaces when the temp file is created inside it.
+    execFileSync('icacls', [locked, '/deny', '*S-1-1-0:(WD)'], { windowsHide: true, stdio: 'ignore' })
+    try {
+      expect(await codeOf(() => fs.writeText(join(locked, 'new.txt'), 'nope'))).toBe('EACCES')
+    } finally {
+      execFileSync('icacls', [locked, '/remove:d', '*S-1-1-0'], { windowsHide: true, stdio: 'ignore' })
+    }
+    expect(await readdir(locked)).toEqual([])
+    expect(await readdir(base)).toEqual(['locked'])
+  })
+
   it.runIf(IS_WINDOWS)('writes through a file symlink to its target and keeps the link', async () => {
     const targets = dir('write-link', 'targets')
     const links = dir('write-link', 'links')
@@ -710,6 +842,33 @@ describe('createWindowsFs — search', () => {
     for (let i = 0; i < 205; i++) writeFileSync(join(base, `capped-${i}.txt`), 'x')
     expect((await fs.search(base, 'capped-')).length).toBe(200)
   })
+
+  it('rejects a missing start with ENOENT instead of an empty result', async () => {
+    const base = dir('search-missing')
+    expect(await codeOf(() => fs.search(join(base, 'gone'), 'needle'))).toBe('ENOENT')
+  })
+
+  it('rejects a file start with ENOTDIR instead of an empty result', async () => {
+    const base = dir('search-file')
+    const file = join(base, 'needle.txt')
+    writeFileSync(file, 'x')
+    expect(await codeOf(() => fs.search(file, 'needle'))).toBe('ENOTDIR')
+  })
+
+  it.runIf(IS_WINDOWS)('rejects an unreadable start with EACCES but skips unreadable subfolders', async () => {
+    const base = dir('search-denied')
+    const locked = dir('search-denied', 'locked')
+    writeFileSync(join(locked, 'needle-hidden.txt'), 'x')
+    writeFileSync(join(base, 'needle-visible.txt'), 'x')
+
+    execFileSync('icacls', [locked, '/deny', '*S-1-1-0:(RD)'], { windowsHide: true, stdio: 'ignore' })
+    try {
+      expect(await codeOf(() => fs.search(locked, 'needle'))).toBe('EACCES')
+      expect((await fs.search(base, 'needle')).map((e) => e.name)).toEqual(['needle-visible.txt'])
+    } finally {
+      execFileSync('icacls', [locked, '/remove:d', '*S-1-1-0'], { windowsHide: true, stdio: 'ignore' })
+    }
+  })
 })
 
 describe('createFixtureWindowsFs', () => {
@@ -784,6 +943,11 @@ describe('createFixtureWindowsFs', () => {
       'BINARY'
     )
     expect(await codeOf(() => fixture.writeText('C:\\Windows\\System32\\hosts', 'x'))).toBe('EACCES')
+    // The parent is described before its permission, in the same order as WindowsFs.
+    expect(await codeOf(() => fixture.writeText('C:\\Windows\\missing\\new.txt', 'x'))).toBe('ENOENT')
+    expect(
+      await codeOf(() => fixture.writeText('C:\\Users\\dev\\Documents\\notes.txt\\new.txt', 'x'))
+    ).toBe('ENOTDIR')
     expect(await codeOf(() => fixture.createFile('C:\\Windows\\System32\\evil.dll'))).toBe('EACCES')
     expect(await codeOf(() => fixture.mkdir('C:\\Windows\\System32\\drivers'))).toBe('EACCES')
     expect(await codeOf(() => fixture.list('C:\\Users\\dev\\missing'))).toBe('ENOENT')
@@ -892,6 +1056,102 @@ describe('createFixtureWindowsFs', () => {
   })
 
   it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('treats sources differing only in case as one item for $kind', async ({ move, kind }) => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((p) => events.push(p))
+    const notesBytes = 'Windows fixture notes\n'.length
+    // Windows names are case-insensitive: all three spell the same file.
+    await fixture.copyMove(
+      [
+        'C:\\Users\\dev\\Documents\\notes.txt',
+        'C:\\Users\\dev\\Documents\\NOTES.TXT',
+        'c:/users/DEV/documents/Notes.txt'
+      ],
+      'C:\\Users\\dev\\Desktop',
+      move
+    )
+    await waitFor(() => events.some((e) => e.status !== 'running'))
+
+    expect(events.filter((e) => e.status === 'running')).toHaveLength(1)
+    expect(events.at(-1)).toMatchObject({
+      kind,
+      status: 'done',
+      totalItems: 1,
+      doneItems: 1,
+      totalBytes: notesBytes,
+      doneBytes: notesBytes,
+      error: null
+    })
+    expect((await fixture.list('C:\\Users\\dev\\Desktop')).map((e) => e.name)).toEqual([
+      'notes.txt'
+    ])
+    expect((await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)).toEqual(
+      move ? [] : ['notes.txt']
+    )
+  })
+
+  it.each([
+    { move: false, kind: 'copy' },
+    { move: true, kind: 'move' }
+  ])('sizes a $kind batch up front, directories recursively, and counts bytes as items finish', async ({ move, kind }) => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((p) => events.push(p))
+    const notesBytes = 'Windows fixture notes\n'.length
+    const demoBytes = '# demo\n\nWindows fixture project.\n'.length
+    // The directory's bytes are its README, the same figure dirSizes reports.
+    expect((await fixture.dirSizes('C:\\Users\\dev\\projects', 'size-demo')).entries).toEqual([
+      expect.objectContaining({ name: 'demo', sizeBytes: demoBytes })
+    ])
+
+    await fixture.copyMove(
+      ['C:\\Users\\dev\\Documents\\notes.txt', 'C:\\Users\\dev\\projects\\demo'],
+      'C:\\Users\\dev\\Desktop',
+      move
+    )
+    await waitFor(() => events.some((e) => e.status !== 'running'))
+
+    // Every event, the first included, carries the whole batch's total.
+    expect(events.map((e) => e.totalBytes)).toEqual([
+      notesBytes + demoBytes,
+      notesBytes + demoBytes,
+      notesBytes + demoBytes
+    ])
+    expect(events.map((e) => [e.status, e.doneItems, e.doneBytes])).toEqual([
+      ['running', 1, notesBytes],
+      ['running', 2, notesBytes + demoBytes],
+      ['done', 2, notesBytes + demoBytes]
+    ])
+    expect(events.at(-1)).toMatchObject({ kind, error: null })
+  })
+
+  it('leaves the bytes of a failed item out of doneBytes', async () => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((p) => events.push(p))
+    const notesBytes = 'Windows fixture notes\n'.length
+    // C:\Users\dev already holds Documents (one notes.txt), so that item is EEXIST.
+    await fixture.copyMove(
+      ['C:\\Users\\dev\\Documents\\notes.txt', 'C:\\Users\\dev\\Documents'],
+      'C:\\Users\\dev',
+      false
+    )
+    await waitFor(() => events.some((e) => e.status !== 'running'))
+
+    expect(events.at(-1)).toMatchObject({
+      status: 'error',
+      totalItems: 2,
+      doneItems: 2,
+      totalBytes: notesBytes * 2,
+      doneBytes: notesBytes
+    })
+    expect(events.at(-1)?.error).toContain('EEXIST')
+  })
+
+  it.each([
     {
       move: false,
       kind: 'copy',
@@ -975,12 +1235,123 @@ describe('createFixtureWindowsFs', () => {
     const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
     const readme = 'C:\\Users\\dev\\projects\\demo\\README.md'
 
-    await fixture[verb]([notes, readme, notes, 'C:/Users/dev/Documents/notes.txt'])
+    await fixture[verb]([
+      notes,
+      readme,
+      notes,
+      'C:/Users/dev/Documents/notes.txt',
+      'C:\\USERS\\DEV\\DOCUMENTS\\NOTES.TXT'
+    ])
 
     expect(await fixture.list('C:\\Users\\dev\\Documents')).toEqual([])
     expect(await fixture.list('C:\\Users\\dev\\projects\\demo')).toEqual([])
     expect(await codeOf(() => fixture.stat(notes))).toBe('ENOENT')
   })
+
+  it.each(['trash', 'remove'] as const)(
+    'prevalidates the whole %s batch before changing earlier items',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+      const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+      const denied = 'C:\\Windows\\System32'
+
+      await expect(fixture[verb]([notes, denied])).rejects.toMatchObject({ code: 'EACCES' })
+
+      expect((await fixture.list('C:\\Users\\dev\\Documents')).map((entry) => entry.name)).toEqual([
+        'notes.txt'
+      ])
+    }
+  )
+
+  it.each(['trash', 'remove'] as const)(
+    'prevalidates missing targets before changing earlier items in a %s batch',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+      const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+
+      await expect(fixture[verb]([notes, 'C:\\Users\\dev\\Documents\\missing.txt'])).rejects.toMatchObject({
+        code: 'ENOENT'
+      })
+
+      expect((await fixture.list('C:\\Users\\dev\\Documents')).map((entry) => entry.name)).toEqual([
+        'notes.txt'
+      ])
+    }
+  )
+
+  it.each([
+    { verb: 'trash' as const, order: 'parent first' },
+    { verb: 'trash' as const, order: 'children first' },
+    { verb: 'remove' as const, order: 'parent first' },
+    { verb: 'remove' as const, order: 'children first' }
+  ])('handles parent and child targets together in a $verb batch ($order)', async ({ verb, order }) => {
+    const fixture = createFixtureWindowsFs()
+    const parent = 'C:\\Users\\dev\\projects'
+    const children = [`${parent}\\demo`, `${parent}\\DEMO\\README.md`]
+    const batch = order === 'parent first' ? [parent, ...children] : [...children, parent]
+
+    await expect(fixture[verb](batch)).resolves.toBeUndefined()
+
+    await expect(fixture.list(parent)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect((await fixture.list('C:\\Users\\dev')).map((e) => e.name)).not.toContain('projects')
+    expect((await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)).toEqual([
+      'notes.txt'
+    ])
+  })
+
+  it.each(['trash', 'remove'] as const)(
+    'unlinks a junction and still %ss the item selected through it',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+
+      await expect(
+        fixture[verb](['D:\\Library\\Media', 'D:\\Library\\Media\\clip.mp4'])
+      ).resolves.toBeUndefined()
+
+      expect((await fixture.list('D:\\Library')).map((e) => e.name)).toEqual(['playlist.m3u'])
+      expect(await fixture.list('D:\\Media')).toEqual([])
+    }
+  )
+
+  it.each(['trash', 'remove'] as const)(
+    'still %ss an item picked through a junction inside a selected directory',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+
+      await expect(
+        fixture[verb](['D:\\Library', 'D:\\Library\\Media\\clip.mp4'])
+      ).resolves.toBeUndefined()
+
+      expect((await fixture.list('D:\\')).map((e) => e.name)).toEqual(['Media'])
+      expect(await fixture.list('D:\\Media')).toEqual([])
+    }
+  )
+
+  it.each([
+    { verb: 'trash' as const, batch: ['D:\\Media', 'D:\\Library\\Media\\clip.mp4'] },
+    { verb: 'trash' as const, batch: ['D:\\Library\\Media\\clip.mp4', 'D:\\Media\\clip.mp4'] },
+    { verb: 'remove' as const, batch: ['D:\\Media', 'D:\\Library\\Media\\clip.mp4'] },
+    { verb: 'remove' as const, batch: ['D:\\Library\\Media\\clip.mp4', 'D:\\Media\\clip.mp4'] }
+  ])('$verb handles an item also reached through a junction once ($batch)', async ({ verb, batch }) => {
+    const fixture = createFixtureWindowsFs()
+
+    await expect(fixture[verb](batch)).resolves.toBeUndefined()
+
+    expect(await codeOf(() => fixture.stat('D:\\Media\\clip.mp4'))).toBe('ENOENT')
+    expect((await fixture.list('D:\\Library')).map((e) => e.name)).toContain('playlist.m3u')
+  })
+
+  it.each(['trash', 'remove'] as const)(
+    'deduplicates case-insensitive paths in a %s batch',
+    async (verb) => {
+      const fixture = createFixtureWindowsFs()
+      const notes = 'C:\\Users\\dev\\Documents\\notes.txt'
+      const caseVariant = 'C:\\Users\\dev\\Documents\\NOTES.TXT'
+
+      await expect(fixture[verb]([notes, caseVariant])).resolves.toBeUndefined()
+      expect(await codeOf(() => fixture.stat(notes))).toBe('ENOENT')
+    }
+  )
 
   it.each([
     { verb: 'trash' as const, bad: 'C:\\', message: 'Refusing to trash C:\\' },

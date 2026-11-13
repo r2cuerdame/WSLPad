@@ -5,7 +5,12 @@ import { RUNNER_TIMEOUT_MS } from '@shared/constants'
 import type { MemoryReconciliation } from '@shared/types'
 import { WslNotAvailableError, type DistroRunner } from './contracts'
 import { parseMeminfoKb } from './resources'
-import { runHostCommand, type HostCommandRunner } from './windows-ports'
+import {
+  createTasklistSnapshot,
+  runHostCommand,
+  type HostCommandRunner,
+  type TasklistSnapshot
+} from './windows-ports'
 
 /**
  * Windows-vs-Linux memory reconciliation (microsoft/WSL#4166). Task Manager's
@@ -15,7 +20,6 @@ import { runHostCommand, type HostCommandRunner } from './windows-ports'
  * the memory back is a prepared command the user runs (goal.md §2.2).
  */
 
-const TASKLIST_TIMEOUT_MS = 8000
 const MEMINFO_SCRIPT = 'cat /proc/meminfo 2>/dev/null || true'
 
 /** "Image Name","PID","Session Name","Session#","Mem Usage" — all fields quoted. */
@@ -164,6 +168,8 @@ export interface MemoryCollector {
 export interface MemoryCollectorOptions {
   /** Windows console tool runner; the real spawn by default. */
   run?: HostCommandRunner
+  /** Process table shared with the port collector; a private one over `run` by default. */
+  tasklist?: TasklistSnapshot
   /** Defaults to %USERPROFILE%\.wslconfig. */
   wslconfigPath?: string
   /** Host physical RAM; os.totalmem() costs nothing and needs no dependency. */
@@ -185,7 +191,7 @@ function ceilingOf(
 }
 
 export function createMemoryCollector(options: MemoryCollectorOptions = {}): MemoryCollector {
-  const run = options.run ?? runHostCommand
+  const tasklist = options.tasklist ?? createTasklistSnapshot(options.run ?? runHostCommand)
   const wslconfigPath = options.wslconfigPath ?? join(homedir(), '.wslconfig')
   const hostTotal = options.hostTotalBytes ?? totalmem
   // A full tasklist snapshot is host-wide and takes substantially longer than
@@ -207,7 +213,7 @@ export function createMemoryCollector(options: MemoryCollectorOptions = {}): Mem
 
   const fetchVmProcess = async (): Promise<number | null> => {
     try {
-      return parseVmProcessMemory(await run('tasklist', ['/fo', 'csv', '/nh'], TASKLIST_TIMEOUT_MS))
+      return parseVmProcessMemory(await tasklist.read(vmTtlMs))
     } catch {
       // No Windows process view — the VM figure stays unknown, never zero.
       return null

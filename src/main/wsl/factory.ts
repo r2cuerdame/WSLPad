@@ -50,7 +50,9 @@ export function createBackends(): Backends {
   }
   const runner = new WslRunner()
   return {
-    provider: createRealProvider(runner),
+    // Polling collectors share one wsl.exe per tick; Explorer and Console,
+    // which act on a user's click, keep the plain runner.
+    provider: createRealProvider(runner.coalesced()),
     explorer: createRealExplorerBackend(runner),
     windowsFs: createWindowsFs(),
     consoleFactory: createRealConsoleFactory(runner),

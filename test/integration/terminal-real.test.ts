@@ -8,7 +8,7 @@ import { liveWslTestsEnabled, reportLiveWslSkip } from '../support/live-wsl'
 
 function wslAvailable(): boolean {
   try {
-    execFileSync('wsl.exe', ['--exec', '/bin/sh', '-c', 'true'], { timeout: 20000 })
+    execFileSync('wsl.exe', ['--exec', '/bin/sh', '-c', 'true'], { timeout: 20000, windowsHide: true })
     return true
   } catch {
     return false

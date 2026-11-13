@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { MASKED_VALUE } from '@shared/constants'
+import { MASKED_VALUE, WINDOWS_ROOT } from '@shared/constants'
 import type { FileOpProgress } from '@shared/types'
 import { ExplorerError } from '../../../src/main/wsl/contracts'
 import { FixtureConsoleFactory } from '../../../src/main/wsl/fixture/console'
-import { FixtureExplorerBackend } from '../../../src/main/wsl/fixture/explorer'
+import { DIR_SIZE_CHILD_CAP } from '../../../src/main/explorer/dir-sizes'
+import { FixtureExplorerBackend, FixtureFilesystem } from '../../../src/main/wsl/fixture/explorer'
 import { FixtureWslProvider } from '../../../src/main/wsl/fixture/provider'
 
 const U = 'Ubuntu-24.04'
@@ -123,6 +124,62 @@ describe('FixtureWslProvider', () => {
 })
 
 describe('FixtureExplorerBackend', () => {
+  it('resolves symlink targets before interpreting following parent components', async () => {
+    const backend = new FixtureExplorerBackend()
+    const project = backend.fs.getNode('/home/dev/projects/wslpad-demo')
+    const home = backend.fs.getNode('/home/dev')
+    expect(project?.type).toBe('directory')
+    expect(home?.type).toBe('directory')
+    if (!project || !home) throw new Error('Fixture directories are missing')
+
+    backend.fs.attach(project, backend.fs.file('config.txt', 'symlink target config\n'))
+    backend.fs.attach(
+      home,
+      backend.fs.link('project-src', '/home/dev/projects/wslpad-demo/src')
+    )
+
+    const path = '/home/dev/project-src/../config.txt'
+    const resolved = await backend.resolvePath(U, path)
+    const file = await backend.readText(U, resolved, 1024)
+
+    expect(resolved).toBe('/home/dev/projects/wslpad-demo/config.txt')
+    expect(file.content).toBe('symlink target config\n')
+  })
+
+  it('reports an empty directory as a measured zero-byte result', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/empty-for-size')
+
+    await expect(backend.dirSizes(U, '/home/dev/empty-for-size', 'token')).resolves.toMatchObject({
+      path: '/home/dev/empty-for-size',
+      entries: [],
+      totalBytes: 0,
+      skipped: 0
+    })
+  })
+
+  it('caps measured children, counts skipped entries, and sorts unknown sizes last', async () => {
+    const fs = new FixtureFilesystem()
+    const directory = fs.attach(fs.getNode('/home/dev')!, fs.dir('size-fixture'))
+    for (let i = 0; i < DIR_SIZE_CHILD_CAP + 7; i++) {
+      const name = `child-${String(i).padStart(3, '0')}`
+      fs.attach(
+        directory,
+        fs.file(name, i === 1 ? '' : 'x'.repeat(i === 0 ? 3 : 1), { readable: i !== 0 })
+      )
+    }
+    const backend = new FixtureExplorerBackend(fs)
+
+    const result = await backend.dirSizes(U, '/home/dev/size-fixture', 'token')
+
+    expect(result.entries).toHaveLength(DIR_SIZE_CHILD_CAP)
+    expect(result.skipped).toBe(7)
+    expect(result.totalBytes).toBe(DIR_SIZE_CHILD_CAP - 2)
+    expect(result.entries[0]).toMatchObject({ name: 'child-002', sizeBytes: 1 })
+    expect(result.entries.at(-2)).toMatchObject({ name: 'child-001', sizeBytes: 0 })
+    expect(result.entries.at(-1)).toMatchObject({ name: 'child-000', sizeBytes: null })
+  })
+
   it('is deterministic: two backends list identical entries', async () => {
     const a = new FixtureExplorerBackend()
     const b = new FixtureExplorerBackend()
@@ -165,6 +222,20 @@ describe('FixtureExplorerBackend', () => {
     })
     const listedThroughLink = await backend.list(U, '/home/dev/link-to-projects')
     expect(listedThroughLink.map((e) => e.name)).toEqual(['wslpad-demo'])
+  })
+
+  it('includes directory symlinks in tree results but excludes file and broken symlinks', async () => {
+    const backend = new FixtureExplorerBackend()
+    const entries = await backend.tree(U, '/home/dev')
+    const names = entries.map((e) => e.name)
+    expect(names).toContain('projects')
+    expect(names).toContain('link-to-projects')
+    expect(entries.find((e) => e.name === 'link-to-projects')).toMatchObject({
+      type: 'symlink',
+      targetType: 'directory'
+    })
+    expect(names).not.toContain('notes.md')
+    expect(names).not.toContain('broken-link')
   })
 
   it('raises EACCES with ownership detail when listing /root', async () => {
@@ -294,6 +365,113 @@ describe('FixtureExplorerBackend', () => {
     expect(backend.fs.getNode('/home/dev/.local/share/Trash')).toBeNull()
   })
 
+  it('restores a trash entry given twice once', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/restore-duplicate')
+    await backend.createFile(U, '/home/dev/restore-duplicate/item.txt')
+    await backend.trash(U, ['/home/dev/restore-duplicate/item.txt'])
+
+    const entry = (await backend.listTrash(U)).find(
+      (candidate) => candidate.originalPath === '/home/dev/restore-duplicate/item.txt'
+    )
+    expect(entry).toBeDefined()
+    await backend.restoreTrash(U, [entry!.trashName, entry!.trashName])
+
+    expect((await backend.list(U, '/home/dev/restore-duplicate')).map((file) => file.name)).toEqual([
+      'item.txt'
+    ])
+    expect(await backend.listTrash(U)).toEqual([])
+  })
+
+  it('preflights every trash entry before restoring any file', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/restore-preflight')
+    await backend.createFile(U, '/home/dev/restore-preflight/first.txt')
+    await backend.createFile(U, '/home/dev/restore-preflight/second.txt')
+    await backend.trash(U, [
+      '/home/dev/restore-preflight/first.txt',
+      '/home/dev/restore-preflight/second.txt'
+    ])
+    const entries = await backend.listTrash(U)
+    const first = entries.find((entry) => entry.originalPath.endsWith('/first.txt'))!
+    const second = entries.find((entry) => entry.originalPath.endsWith('/second.txt'))!
+
+    await expect(backend.restoreTrash(U, [first.trashName, 'missing-entry', second.trashName]))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+
+    expect(await backend.list(U, '/home/dev/restore-preflight')).toEqual([])
+    expect((await backend.listTrash(U)).map((entry) => entry.trashName).sort()).toEqual(
+      [first.trashName, second.trashName].sort()
+    )
+  })
+
+  it('rejects destination conflicts before restoring earlier trash entries', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/restore-conflict')
+    await backend.createFile(U, '/home/dev/restore-conflict/first.txt')
+    await backend.createFile(U, '/home/dev/restore-conflict/second.txt')
+    await backend.trash(U, [
+      '/home/dev/restore-conflict/first.txt',
+      '/home/dev/restore-conflict/second.txt'
+    ])
+    const entries = await backend.listTrash(U)
+    const first = entries.find((entry) => entry.originalPath.endsWith('/first.txt'))!
+    const second = entries.find((entry) => entry.originalPath.endsWith('/second.txt'))!
+    await backend.createFile(U, '/home/dev/restore-conflict/second.txt')
+
+    await expect(backend.restoreTrash(U, [first.trashName, second.trashName]))
+      .rejects.toMatchObject({ code: 'EEXIST' })
+
+    expect((await backend.list(U, '/home/dev/restore-conflict')).map((file) => file.name)).toEqual([
+      'second.txt'
+    ])
+    expect((await backend.listTrash(U)).map((entry) => entry.trashName).sort()).toEqual(
+      [first.trashName, second.trashName].sort()
+    )
+  })
+
+  it('detects restore collisions through symlinked parent directories', async () => {
+    const backend = new FixtureExplorerBackend()
+    const directPath = '/home/dev/projects/alias-collision.txt'
+    const linkedPath = '/home/dev/link-to-projects/alias-collision.txt'
+    await backend.createFile(U, directPath)
+    await backend.trash(U, [directPath])
+    await backend.createFile(U, linkedPath)
+    await backend.trash(U, [linkedPath])
+
+    const entries = await backend.listTrash(U)
+    const direct = entries.find((entry) => entry.originalPath === directPath)!
+    const linked = entries.find((entry) => entry.originalPath === linkedPath)!
+    await expect(backend.restoreTrash(U, [direct.trashName, linked.trashName])).rejects.toMatchObject({
+      code: 'EEXIST'
+    })
+
+    expect(await backend.list(U, '/home/dev/projects')).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'alias-collision.txt' })])
+    )
+    expect((await backend.listTrash(U)).map((entry) => entry.trashName).sort()).toEqual(
+      [direct.trashName, linked.trashName].sort()
+    )
+  })
+
+  it('restores a directory before another trash entry beneath it', async () => {
+    const backend = new FixtureExplorerBackend()
+    const directory = '/home/dev/restore-parent'
+    const childPath = `${directory}/child.txt`
+    await backend.mkdir(U, directory)
+    await backend.createFile(U, childPath)
+    await backend.trash(U, [childPath])
+    await backend.trash(U, [directory])
+
+    const entries = await backend.listTrash(U)
+    const parent = entries.find((entry) => entry.originalPath === directory)!
+    const child = entries.find((entry) => entry.originalPath === childPath)!
+    await backend.restoreTrash(U, [parent.trashName, child.trashName])
+
+    expect((await backend.list(U, directory)).map((entry) => entry.name)).toEqual(['child.txt'])
+    expect(await backend.listTrash(U)).toEqual([])
+  })
+
   it('supports mkdir/createFile/writeText/readText/rename/remove', async () => {
     const backend = new FixtureExplorerBackend()
     await backend.mkdir(U, '/home/dev/scratch')
@@ -311,6 +489,30 @@ describe('FixtureExplorerBackend', () => {
     expect((dup as ExplorerError).code).toBe('EEXIST')
   })
 
+  it('treats a same-name rename as a no-op instead of a false EEXIST', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/rename-same')
+    await backend.createFile(U, '/home/dev/rename-same/a.txt')
+    await backend.createFile(U, '/home/dev/rename-same/b.txt')
+    await backend.mkdir(U, '/home/dev/rename-same/dir')
+    const before = await backend.list(U, '/home/dev/rename-same')
+
+    await backend.rename(U, '/home/dev/rename-same/a.txt', 'a.txt')
+    await backend.rename(U, '/home/dev/rename-same/dir', 'dir')
+    await backend.rename(U, '/etc/wsl.conf', 'wsl.conf')
+
+    expect(await backend.list(U, '/home/dev/rename-same')).toEqual(before)
+    await expect(
+      backend.rename(U, '/home/dev/rename-same/a.txt', 'b.txt')
+    ).rejects.toMatchObject({ code: 'EEXIST', message: 'Already exists: b.txt' })
+    await expect(
+      backend.rename(U, '/home/dev/rename-same/missing.txt', 'missing.txt')
+    ).rejects.toMatchObject({ code: 'ENOENT', path: '/home/dev/rename-same/missing.txt' })
+    await expect(
+      backend.rename(U, '/home/dev/rename-same/missing.txt', 'other.txt')
+    ).rejects.toMatchObject({ code: 'ENOENT', path: '/home/dev/rename-same/missing.txt' })
+  })
+
   it('removes a path given twice without a false missing-path error', async () => {
     const backend = new FixtureExplorerBackend()
     await backend.mkdir(U, '/home/dev/remove-duplicate')
@@ -322,6 +524,40 @@ describe('FixtureExplorerBackend', () => {
     ])
 
     expect(await backend.list(U, '/home/dev/remove-duplicate')).toEqual([])
+  })
+
+  it('prevalidates removal permissions before deleting earlier batch items', async () => {
+    const backend = new FixtureExplorerBackend()
+
+    await expect(backend.remove(U, ['/home/dev/notes.md', '/etc/wsl.conf'])).rejects.toMatchObject({
+      code: 'EACCES',
+      path: '/etc/wsl.conf'
+    })
+
+    expect(backend.fs.getNode('/home/dev/notes.md')).not.toBeNull()
+    expect(backend.fs.getNode('/etc/wsl.conf')).not.toBeNull()
+  })
+
+  it('prevalidates missing removal targets before deleting earlier batch items', async () => {
+    const backend = new FixtureExplorerBackend()
+
+    await expect(
+      backend.remove(U, ['/home/dev/notes.md', '/home/dev/missing.txt'])
+    ).rejects.toMatchObject({ code: 'ENOENT', path: '/home/dev/missing.txt' })
+
+    expect(backend.fs.getNode('/home/dev/notes.md')).not.toBeNull()
+  })
+
+  it('removes a parent and a selected child together without a false ENOENT', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/remove-tree')
+    await backend.createFile(U, '/home/dev/remove-tree/child.txt')
+
+    await expect(
+      backend.remove(U, ['/home/dev/remove-tree', '/home/dev/remove-tree/child.txt'])
+    ).resolves.toBeUndefined()
+
+    expect(backend.fs.getNode('/home/dev/remove-tree')).toBeNull()
   })
 
   it('copies and moves with a completion progress event', async () => {
@@ -382,6 +618,36 @@ describe('FixtureExplorerBackend', () => {
     ).rejects.toThrow('Cannot move /home/dev/projects/wslpad-demo into itself')
   })
 
+  it.each([
+    { move: false, kind: 'copy', dest: '/home/dev/projects' },
+    { move: true, kind: 'move', dest: '/home/dev/projects' },
+    { move: false, kind: 'copy', dest: '/home/dev/projects/wslpad-demo' },
+    { move: true, kind: 'move', dest: '/home/dev/projects/wslpad-demo' }
+  ])('refuses a $kind batch containing a source that includes its destination $dest', async ({
+    move,
+    kind,
+    dest
+  }) => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((progress) => events.push(progress))
+    const notes = '/home/dev/notes.md'
+    const source = '/home/dev/projects'
+
+    await expect(backend.copyMove(U, [notes, source], dest, move)).rejects.toThrow(
+      `Cannot ${kind} ${source} into itself`
+    )
+    const err = await backend.copyMove(U, [notes, source], dest, move).catch((e: unknown) => e)
+    expect((err as ExplorerError).code).toBe('UNKNOWN')
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(events).toEqual([])
+    expect((await backend.list(U, '/home/dev')).map((entry) => entry.name)).toContain('notes.md')
+    expect((await backend.list(U, dest)).map((entry) => entry.name)).not.toContain('notes.md')
+    await backend.mkdir(U, '/home/dev/batch-ok')
+    expect(await backend.copyMove(U, [notes], '/home/dev/batch-ok', move)).toBe('fixture-op-1')
+  })
+
   it('simulates import/export instantly with one progress event each', async () => {
     const backend = new FixtureExplorerBackend()
     const events: FileOpProgress[] = []
@@ -440,7 +706,112 @@ describe('FixtureExplorerBackend', () => {
     ])
   })
 
+  it.each([WINDOWS_ROOT, '::ThisPC'])('refuses the virtual Windows root %s', async (windowsDir) => {
+    const backend = new FixtureExplorerBackend()
+    await expect(
+      backend.exportToWindows(U, ['/home/dev/projects/wslpad-demo/README.md'], windowsDir)
+    ).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      path: windowsDir,
+      message: 'Refusing to operate on This PC'
+    })
+  })
+
+  it.each(['C:\\bad\0path', 'C:\\bad\npath', 'not a Windows path'])(
+    'rejects an invalid Windows export target %s',
+    async (windowsDir) => {
+      const backend = new FixtureExplorerBackend()
+      await expect(
+        backend.exportToWindows(U, ['/home/dev/projects/wslpad-demo/README.md'], windowsDir)
+      ).rejects.toMatchObject({
+        code: 'UNKNOWN',
+        path: windowsDir,
+        message: `Path is not mappable: ${windowsDir}`
+      })
+    }
+  )
+
+  it.each([
+    '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\projects\\wslpad-demo',
+    '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\projects\\wslpad-demo\\src'
+  ])('refuses to export a source into itself or its child target %s', async (windowsDir) => {
+    const backend = new FixtureExplorerBackend()
+    const source = '/home/dev/projects/wslpad-demo'
+    await expect(backend.exportToWindows(U, [source], windowsDir)).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      path: source,
+      message: `Cannot export ${source} into itself`
+    })
+  })
+
+  it('rejects unreadable source paths before emitting completion progress', async () => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((progress) => events.push(progress))
+    await expect(
+      backend.exportToWindows(
+        U,
+        ['/home/dev/projects/wslpad-demo/README.md', '/root'],
+        'C:\\Users\\dev\\Desktop'
+      )
+    ).rejects.toMatchObject({ code: 'EACCES', path: '/root' })
+    expect(events).toEqual([])
+  })
+
+  it.each([
+    { windowsPath: 'C:\\', message: 'Refusing to import drive root C:\\' },
+    { windowsPath: 'C:/', message: 'Refusing to import drive root C:/' },
+    { windowsPath: 'C:', message: 'Refusing to import drive root C:' },
+    { windowsPath: 'c:', message: 'Refusing to import drive root c:' },
+    { windowsPath: 'D:', message: 'Refusing to import drive root D:' },
+    { windowsPath: WINDOWS_ROOT, message: 'Refusing to use the This PC virtual root' },
+    { windowsPath: `\\\\wsl.localhost\\${U}`, message: 'Refusing to import /' }
+  ])('rejects import root $windowsPath before starting an operation', async ({
+    windowsPath,
+    message
+  }) => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    const before = (await backend.list(U, '/home/dev')).map((entry) => entry.name)
+    backend.onProgress((progress) => events.push(progress))
+
+    await expect(
+      backend.importFromWindows(U, [windowsPath], '/home/dev')
+    ).rejects.toMatchObject({ code: 'UNKNOWN', message })
+
+    expect(events).toEqual([])
+    expect((await backend.list(U, '/home/dev')).map((entry) => entry.name)).toEqual(before)
+  })
+
+  it('rejects an import batch containing a drive root before importing other files', async () => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((progress) => events.push(progress))
+
+    await expect(
+      backend.importFromWindows(U, ['C:\\Users\\dev\\report.pdf', 'C:\\'], '/home/dev')
+    ).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      message: 'Refusing to import drive root C:\\'
+    })
+
+    expect(events).toEqual([])
+    expect((await backend.list(U, '/home/dev')).map((entry) => entry.name)).not.toContain(
+      'report.pdf'
+    )
+  })
+
   describe.each(['/', '//', '///', '/./'])('refuses the root spelled %s', (root) => {
+    it.each(['mkdir', 'createFile'] as const)('%s reports EEXIST instead of a false ENOENT', async (operation) => {
+      const backend = new FixtureExplorerBackend()
+      const create = operation === 'mkdir' ? backend.mkdir.bind(backend) : backend.createFile.bind(backend)
+      await expect(create(U, root)).rejects.toMatchObject({
+        code: 'EEXIST',
+        path: root,
+        message: `Already exists: ${root}`
+      })
+    })
+
     it('in remove and trash instead of a false ENOENT', async () => {
       const backend = new FixtureExplorerBackend()
       await expect(backend.remove(U, [root])).rejects.toMatchObject({
@@ -491,6 +862,16 @@ describe('FixtureExplorerBackend', () => {
     })
   })
 
+  it.each(['mkdir', 'createFile'] as const)('%s preserves ENOENT for a missing parent', async (operation) => {
+    const backend = new FixtureExplorerBackend()
+    const create = operation === 'mkdir' ? backend.mkdir.bind(backend) : backend.createFile.bind(backend)
+    await expect(create(U, '/home/dev/missing-parent/new-item')).rejects.toMatchObject({
+      code: 'ENOENT',
+      path: '/home/dev/missing-parent/new-item',
+      message: 'No such directory for: /home/dev/missing-parent/new-item'
+    })
+  })
+
   it('refuses a remove batch naming the root before deleting its other items', async () => {
     const backend = new FixtureExplorerBackend()
     await expect(backend.remove(U, ['/home/dev/notes.md', '//'])).rejects.toMatchObject({
@@ -538,6 +919,45 @@ describe('FixtureExplorerBackend', () => {
     expect(fromRoot.map((e) => e.path)).toEqual(['/etc/wsl.conf'])
   })
 
+  it('returns no results when search sanitization removes the query', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.createFile(U, '/home/dev/***')
+    await backend.createFile(U, '/home/dev/   ')
+    await expect(backend.search(U, '/home/dev', '***')).resolves.toEqual([])
+    await expect(backend.search(U, '/home/dev', '   ')).resolves.toEqual([])
+  })
+
+  it('limits search traversal to four levels below the starting directory', async () => {
+    const backend = new FixtureExplorerBackend()
+    const root = '/home/dev/search-depth'
+    for (const dir of [
+      root,
+      `${root}/one`,
+      `${root}/one/two`,
+      `${root}/one/two/three`,
+      `${root}/one/two/three/four`
+    ]) {
+      await backend.mkdir(U, dir)
+    }
+    await backend.createFile(U, `${root}/one/two/three/needle-depth-4.txt`)
+    await backend.createFile(U, `${root}/one/two/three/four/needle-depth-5.txt`)
+
+    const paths = (await backend.search(U, root, 'needle')).map((entry) => entry.path)
+    expect(paths).toContain(`${root}/one/two/three/needle-depth-4.txt`)
+    expect(paths).not.toContain(`${root}/one/two/three/four/needle-depth-5.txt`)
+  })
+
+  it('caps search results at 200 entries', async () => {
+    const backend = new FixtureExplorerBackend()
+    const root = '/home/dev/search-many'
+    await backend.mkdir(U, root)
+    for (let i = 0; i < 201; i++) {
+      await backend.createFile(U, `${root}/needle-${String(i).padStart(3, '0')}.txt`)
+    }
+
+    await expect(backend.search(U, root, 'needle')).resolves.toHaveLength(200)
+  })
+
   it('converts paths between Linux and Windows forms', async () => {
     const backend = new FixtureExplorerBackend()
     expect(await backend.convertPath(U, '/mnt/c/Users/dev/file.txt', 'windows')).toBe(
@@ -553,6 +973,47 @@ describe('FixtureExplorerBackend', () => {
     const bad = await backend.convertPath(U, 'relative/path', 'linux').catch((e: unknown) => e)
     expect((bad as ExplorerError).code).toBe('UNKNOWN')
   })
+
+  it.each(['linux', 'windows'] as const)(
+    'refuses to convert the This PC virtual root to %s',
+    async (to) => {
+      const backend = new FixtureExplorerBackend()
+      await expect(backend.convertPath(U, WINDOWS_ROOT, to)).rejects.toMatchObject({
+        code: 'UNKNOWN',
+        message: 'Refusing to convert the This PC virtual root'
+      })
+    }
+  )
+
+  it.each([
+    ['C:', '/mnt/c'],
+    ['c:', '/mnt/c'],
+    ['D:', '/mnt/d']
+  ])('maps a bare Windows drive %s to %s', async (windowsPath, linuxPath) => {
+    const backend = new FixtureExplorerBackend()
+    await expect(backend.convertPath(U, windowsPath, 'linux')).resolves.toBe(linuxPath)
+  })
+
+  it.each([
+    '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev',
+    '\\\\wsl$\\ubuntu-24.04\\home\\dev'
+  ])('maps case-insensitive WSL UNC paths to Linux paths', async (windowsPath) => {
+    const backend = new FixtureExplorerBackend()
+    await expect(backend.convertPath(U, windowsPath, 'linux')).resolves.toBe('/home/dev')
+  })
+
+  it.each(['C:\\Users\\dev\\file\0.txt', 'C:\\Users\\dev\\file\n.txt'])(
+    'rejects path containing NUL or newline',
+    async (input) => {
+      const backend = new FixtureExplorerBackend()
+      for (const to of ['linux', 'windows'] as const) {
+        await expect(backend.convertPath(U, input, to)).rejects.toMatchObject({
+          code: 'UNKNOWN',
+          message: `Path is not mappable: ${JSON.stringify(input)}`
+        })
+      }
+    }
+  )
 
   it('parses the hermes fixture config with 4 MCP servers', async () => {
     const backend = new FixtureExplorerBackend()

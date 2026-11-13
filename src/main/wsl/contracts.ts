@@ -78,6 +78,12 @@ export interface DistroRunner {
   runInDistro(distro: string, script: string, opts?: RunOptions): Promise<RunResult>
   /** Optional bounded host-side command surface; used for Windows winget discovery only. */
   runHostCommand?(file: string, args: string[], opts?: RunOptions): Promise<RunResult>
+  /**
+   * Optional: whether a script finished inside this distro within `withinMs`.
+   * The liveness probe uses it to skip a wsl.exe start that would only prove
+   * what the last tick already showed.
+   */
+  answeredRecently?(distro: string, withinMs: number): boolean
   /** Kill every child process this runner still tracks. */
   disposeAll(): Promise<void>
 }
@@ -229,6 +235,8 @@ export interface ExplorerBackend {
   /** Immediate subdirectories only (lazy folder tree). */
   tree(distro: string, path: string): Promise<FileEntry[]>
   stat(distro: string, path: string): Promise<FileStat>
+  /** Resolve a path inside the distro, following symlinks and filesystem `..` semantics. */
+  resolvePath(distro: string, path: string): Promise<string>
   mkdir(distro: string, path: string): Promise<void>
   createFile(distro: string, path: string): Promise<void>
   rename(distro: string, path: string, newName: string): Promise<void>

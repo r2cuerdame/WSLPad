@@ -5,6 +5,7 @@ import {
   classifyPathSide,
   isCrossBoundary,
   normalizeAutomountRoot,
+  stripWindowsDevicePrefix,
   wslUncDistro
 } from '@shared/path-boundary'
 import type { WslSettingInfo } from '@shared/types'
@@ -58,6 +59,13 @@ describe('classifyPathSide', () => {
     expect(classifyPathSide('\\\\WSL.LOCALHOST\\Ubuntu')).toBe('unc')
   })
 
+  it('recognizes a wsl share behind Win32 and NT device prefixes', () => {
+    expect(classifyPathSide('\\\\?\\UNC\\wsl.localhost\\Ubuntu-24.04\\home\\dev')).toBe('unc')
+    expect(classifyPathSide('\\\\?\\unc\\WSL.LOCALHOST\\Ubuntu-24.04')).toBe('unc')
+    expect(classifyPathSide('\\??\\UNC\\wsl$\\Debian\\etc')).toBe('unc')
+    expect(classifyPathSide('//?/UNC/wsl.localhost/Ubuntu-24.04/home')).toBe('unc')
+  })
+
   it('refuses to judge paths that are not on either side of the boundary', () => {
     expect(classifyPathSide(null)).toBe('unknown')
     expect(classifyPathSide('')).toBe('unknown')
@@ -65,8 +73,12 @@ describe('classifyPathSide', () => {
     expect(classifyPathSide('relative/path')).toBe('unknown')
     // An ordinary file server is somebody else's filesystem, not a WSL one.
     expect(classifyPathSide('\\\\fileserver\\share\\docs')).toBe('unknown')
+    expect(classifyPathSide('\\\\?\\UNC\\fileserver\\share\\docs')).toBe('unknown')
+    expect(classifyPathSide('\\??\\UNC\\fileserver\\share\\docs')).toBe('unknown')
     // A plain drive letter read from Windows sits on neither side.
     expect(classifyPathSide('C:\\Users\\dev')).toBe('unknown')
+    expect(classifyPathSide('\\\\?\\C:\\Users\\Shared')).toBe('unknown')
+    expect(classifyPathSide('\\??\\C:\\Users\\Shared')).toBe('unknown')
   })
 })
 
@@ -91,12 +103,31 @@ describe('wslUncDistro', () => {
   it('names the distro a WSL share reaches into', () => {
     expect(wslUncDistro('\\\\wsl.localhost\\Ubuntu-24.04\\home')).toBe('Ubuntu-24.04')
     expect(wslUncDistro('//wsl$/Debian')).toBe('Debian')
+    expect(wslUncDistro('\\\\?\\UNC\\wsl.localhost\\Ubuntu-24.04\\home\\dev')).toBe('Ubuntu-24.04')
+    expect(wslUncDistro('\\??\\UNC\\wsl$\\Debian\\etc')).toBe('Debian')
+    expect(wslUncDistro('//?/unc/wsl.localhost/Arch/root')).toBe('Arch')
   })
 
   it('is null for anything that is not a WSL share', () => {
     expect(wslUncDistro('\\\\fileserver\\share')).toBeNull()
+    expect(wslUncDistro('\\\\?\\UNC\\fileserver\\share')).toBeNull()
     expect(wslUncDistro('/home/dev')).toBeNull()
     expect(wslUncDistro('C:\\Users')).toBeNull()
+    expect(wslUncDistro('\\\\?\\C:\\Users\\Shared')).toBeNull()
+    expect(wslUncDistro('\\??\\C:\\Users\\Shared')).toBeNull()
+  })
+})
+
+describe('stripWindowsDevicePrefix', () => {
+  it('normalizes Win32 and NT device prefixes for drives and UNC shares', () => {
+    expect(stripWindowsDevicePrefix('\\\\?\\UNC\\wsl.localhost\\Ubuntu-24.04\\home')).toBe(
+      '\\\\wsl.localhost\\Ubuntu-24.04\\home'
+    )
+    expect(stripWindowsDevicePrefix('\\??\\UNC\\wsl$\\Debian\\etc')).toBe('\\\\wsl$\\Debian\\etc')
+    expect(stripWindowsDevicePrefix('\\\\?\\C:\\Users\\Shared')).toBe('C:\\Users\\Shared')
+    expect(stripWindowsDevicePrefix('\\??\\C:\\Users\\Shared')).toBe('C:\\Users\\Shared')
+    expect(stripWindowsDevicePrefix('C:\\Users\\Shared')).toBe('C:\\Users\\Shared')
+    expect(stripWindowsDevicePrefix('/home/dev')).toBe('/home/dev')
   })
 })
 

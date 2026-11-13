@@ -1,5 +1,6 @@
 import type { FirewallInfo } from '@shared/types'
 import { runHostCommand, type HostCommandRunner } from './windows-ports'
+import { POWERSHELL_HIDDEN_ARGS } from '../hidden-process'
 
 /**
  * The firewall layer WSL traffic really crosses (issue #25). Packets to and
@@ -16,7 +17,7 @@ import { runHostCommand, type HostCommandRunner } from './windows-ports'
 export const WSL_VM_CREATOR_ID = '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}'
 
 const POWERSHELL = 'powershell.exe'
-const POWERSHELL_ARGS = ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command']
+const POWERSHELL_ARGS = [...POWERSHELL_HIDDEN_ARGS, '-ExecutionPolicy', 'Bypass', '-Command']
 
 /** One PowerShell start costs the better part of a second; bound it hard. */
 const FIREWALL_TIMEOUT_MS = 8000
@@ -24,9 +25,10 @@ const FIREWALL_TIMEOUT_MS = 8000
 /**
  * Firewall policy is edited by hand, never by the second, while every read
  * pays that full PowerShell start. Each answer — readable or not — is reused
- * for this long so the 15 s medium tier does not spawn four shells a minute.
+ * for this long, so the 15 s medium tier starts one console process every five
+ * minutes instead of four a minute.
  */
-const DEFAULT_TTL_MS = 60000
+const DEFAULT_TTL_MS = 300000
 
 /**
  * The Hyper-V firewall does not exist before Windows 11 22H2 with a recent WSL.

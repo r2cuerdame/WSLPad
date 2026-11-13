@@ -56,6 +56,74 @@ async function sizeOfPath(
   return Number.isFinite(n) && n >= 0 ? n : null
 }
 
+/** Do not fold `..`: its meaning depends on directory symlinks in the distro. */
+function transferPathKey(path: string): string {
+  return path.replace(/\/+/g, '/').replace(/\/\.(?=\/|$)/g, '').replace(/\/$/, '') || '/'
+}
+
+function windowsTransferPathKey(path: string): string {
+  const key = transferPathKey(path.replace(/\\/g, '/'))
+  // Drive paths follow Windows casing; the tail of a WSL UNC path is Linux
+  // and must keep its case so distinct files remain distinct.
+  return /^[A-Za-z]:\//.test(key) ? key.toLowerCase() : key
+}
+
+function uniqueTransferPaths(paths: string[], key: (path: string) => string): string[] {
+  const seen = new Set<string>()
+  return paths.filter((path) => {
+    const normalized = key(path)
+    if (seen.has(normalized)) return false
+    seen.add(normalized)
+    return true
+  })
+}
+
+/** cp -a includes descendants only through real directories, not directory links. */
+async function topLevelTransferPaths(
+  ctx: OpContext,
+  distro: string,
+  paths: string[],
+  key: (path: string) => string,
+  sourceForParent: (path: string) => Promise<string | null>
+): Promise<string[]> {
+  const keys = paths.map(key)
+  const selected: string[] = []
+  for (let i = 0; i < paths.length; i++) {
+    let covered = false
+    for (let j = 0; j < paths.length; j++) {
+      if (ctx.isCancelled()) return paths
+      if (i === j || !keys[i].startsWith(`${keys[j]}/`)) continue
+      // Resolving .. lexically could cross a symlink and omit a selected file.
+      if (keys[i].split('/').includes('..')) continue
+      try {
+        const source = await sourceForParent(paths[j])
+        if (source === null) continue
+        const directories = [source]
+        const parts = keys[i].slice(keys[j].length + 1).split('/')
+        for (const part of parts.slice(0, -1)) {
+          directories.push(joinLinuxPath(directories[directories.length - 1], part))
+        }
+        const guard = directories
+          .map((dir) => `[ -d ${shellQuote(dir)} ] && [ ! -L ${shellQuote(dir)} ]`)
+          .join(' && ')
+        const result = await ctx.runner.runInDistro(
+          distro,
+          `if ${guard}; then printf 'covered'; fi`,
+          { timeoutMs: RUNNER_SLOW_TIMEOUT_MS }
+        )
+        if (result.code === 0 && !result.timedOut && result.stdout === 'covered') {
+          covered = true
+          break
+        }
+      } catch {
+        // An unverified ancestor must not hide a separately selected item.
+      }
+    }
+    if (!covered) selected.push(paths[i])
+  }
+  return selected
+}
+
 export async function runImport(
   ctx: OpContext,
   opId: string,
@@ -66,7 +134,17 @@ export async function runImport(
   assertValidLinuxPath(destDir)
   // A path given twice is copied once: the second cp would only find the first
   // copy at the destination and report a false EEXIST, and count its bytes twice.
-  const uniqueWindowsPaths = [...new Set(windowsPaths)]
+  const uniqueWindowsPaths = await topLevelTransferPaths(
+    ctx,
+    distro,
+    uniqueTransferPaths(windowsPaths, windowsTransferPathKey),
+    windowsTransferPathKey,
+    async (path) => {
+      if (/^[A-Za-z]:[\\/]*$/.test(path)) return null
+      const source = transferPathKey(await resolveWindowsPath(ctx.runner, distro, path))
+      return isLinuxRoot(source) || isInsideLinux(destDir, source) ? null : source
+    }
+  )
   const totalItems = uniqueWindowsPaths.length
   let doneItems = 0
   let totalBytes = 0
@@ -99,10 +177,11 @@ export async function runImport(
           `Refusing to import drive root ${windowsPath}`
         )
       }
-      const source = await resolveWindowsPath(ctx.runner, distro, windowsPath)
-      if (isLinuxRoot(source)) {
-        throw new ExplorerError('UNKNOWN', source, `Refusing to import ${source}`)
+      const mappedSource = await resolveWindowsPath(ctx.runner, distro, windowsPath)
+      if (isLinuxRoot(mappedSource)) {
+        throw new ExplorerError('UNKNOWN', mappedSource, `Refusing to import ${mappedSource}`)
       }
+      const source = transferPathKey(mappedSource)
       // Same-distro UNC and /mnt/<drive> sources can contain destDir; cp -a
       // into its own subtree recurses until the timeout or a full disk.
       if (isInsideLinux(destDir, source)) {
@@ -113,7 +192,10 @@ export async function runImport(
         totalBytes += size
         emit('running', windowsPath)
       }
-      const dest = joinLinuxPath(destDir, windowsBasename(windowsPath))
+      const dest = joinLinuxPath(
+        destDir,
+        windowsBasename(transferPathKey(windowsPath.replace(/\\/g, '/')))
+      )
       const qd = shellQuote(dest)
       const script = `${existsGuard(qd)}; cp -a ${shellQuote(source)} ${qd}`
       const result = await ctx.runner.runInDistro(distro, script, {
@@ -143,8 +225,8 @@ export async function runExport(
   windowsDir: string
 ): Promise<void> {
   // Same as runImport: a path given twice is copied once, not refused as EEXIST.
-  const uniquePaths = [...new Set(paths)]
-  const totalItems = uniquePaths.length
+  let uniquePaths = uniqueTransferPaths(paths, transferPathKey)
+  let totalItems = uniquePaths.length
   let doneItems = 0
   let totalBytes = 0
   let doneBytes = 0
@@ -170,6 +252,12 @@ export async function runExport(
     emit('error', null, err instanceof Error ? err.message : String(err))
     return
   }
+  uniquePaths = await topLevelTransferPaths(ctx, distro, uniquePaths, transferPathKey, async (path) => {
+    assertValidLinuxPath(path)
+    const source = transferPathKey(path)
+    return isLinuxRoot(source) || isInsideLinux(destDirLinux, source) ? null : source
+  })
+  totalItems = uniquePaths.length
   for (const path of uniquePaths) {
     if (ctx.isCancelled()) {
       emit('cancelled', null)
@@ -182,14 +270,15 @@ export async function runExport(
       if (isInsideLinux(destDirLinux, path)) {
         throw new ExplorerError('UNKNOWN', path, `Cannot export ${path} into itself`)
       }
-      const size = await sizeOfPath(ctx.runner, distro, path)
+      const source = transferPathKey(path)
+      const size = await sizeOfPath(ctx.runner, distro, source)
       if (size !== null) {
         totalBytes += size
         emit('running', path)
       }
-      const dest = joinLinuxPath(destDirLinux, linuxBasename(path))
+      const dest = joinLinuxPath(destDirLinux, linuxBasename(source))
       const qd = shellQuote(dest)
-      const script = `${existsGuard(qd)}; cp -a ${shellQuote(path)} ${qd}`
+      const script = `${existsGuard(qd)}; cp -a ${shellQuote(source)} ${qd}`
       const result = await ctx.runner.runInDistro(distro, script, {
         timeoutMs: FILE_OP_TIMEOUT_MS
       })

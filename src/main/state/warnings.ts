@@ -1,5 +1,5 @@
 import { CLOCK_SKEW_WARN_SECONDS } from '@shared/constants'
-import { classifyPathSide, isCrossBoundary } from '@shared/path-boundary'
+import { automountRootFromSettings, classifyPathSide, isCrossBoundary } from '@shared/path-boundary'
 import type { DashboardSnapshot, DistroSummary, WarningInfo } from '@shared/types'
 
 export interface WarningComputeInput {
@@ -185,8 +185,11 @@ export function computeWarnings(input: WarningComputeInput): WarningInfo[] {
   // `npm install` run from here crosses 9P for each file it touches, which is
   // the single most common reason "WSL is slow" (microsoft/WSL#4197). Nothing
   // in the shell says so — the prompt looks exactly the same.
+  // Judged against the automount root in force: with root=/ the drives are /c,
+  // and with root=/drives a /mnt/c directory is just ext4.
   const cwd = input.consoleCwd
-  if (typeof cwd === 'string' && isCrossBoundary(classifyPathSide(cwd))) {
+  const automountRoot = automountRootFromSettings(dash?.wslSettings?.settings)
+  if (typeof cwd === 'string' && isCrossBoundary(classifyPathSide(cwd, automountRoot))) {
     out.push({
       id: 'console-cwd-cross-boundary',
       severity: 'info',
