@@ -97,8 +97,21 @@ export default function DiskConsumersBlock({
                   {row.path}
                 </div>
               </td>
-              <td className="num">
-                {row.bytes === null ? t('common.unknown') : formatBytes(locale, row.bytes)}
+              {/* A size du could only partly read is a floor, and says so —
+                  the same ≥ the Explorer uses for its own partial sizes. */}
+              <td
+                className="num"
+                title={
+                  row.bytes !== null && row.partial
+                    ? t('dashboard.disk.consumerPartial', {
+                        defaultValue: 'At least this much — part of it could not be read'
+                      })
+                    : undefined
+                }
+              >
+                {row.bytes === null
+                  ? t('common.unknown')
+                  : (row.partial ? '≥ ' : '') + formatBytes(locale, row.bytes)}
               </td>
               <td className="num">
                 {row.cleanup === null ? null : (

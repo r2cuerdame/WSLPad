@@ -226,6 +226,25 @@ describe('buildDevEnvContext over the fixture world', () => {
     expect(ctx.storage.topCaches).toHaveLength(DEV_ENV_CONTEXT_LIMITS.caches)
     expect(ctx.configs.toolConfigsOmitted).toBeGreaterThan(0)
   })
+
+  it('hands an agent a partly read cache as a minimum, not a size', async () => {
+    const snap = await fixtureSnapshot()
+    const dash = snap.dashboard
+    const consumers = dash?.diskConsumers ?? null
+    if (dash === null || consumers === null) throw new Error('fixture has no caches')
+    dash.diskConsumers = {
+      ...consumers,
+      consumers: consumers.consumers.map((c) => (c.id === 'logs' ? { ...c, partial: true } : c)),
+      partial: true
+    }
+    const ctx = buildDevEnvContext(snap)
+    expect(ctx.storage.topCaches.find((c) => c.id === 'logs')?.partial).toBe(true)
+    expect(ctx.storage.topCaches.find((c) => c.id === 'apt-cache')?.partial).toBe(false)
+    expect(ctx.storage.knownCachesPartial).toBe(true)
+    const md = devEnvContextToMarkdown(ctx)
+    expect(md).toMatch(/- Known caches: .* measured \(partial\) — logs at least /)
+    expect(md).not.toContain('apt-cache at least')
+  })
 })
 
 describe('buildDevEnvContext on sparse and empty snapshots', () => {

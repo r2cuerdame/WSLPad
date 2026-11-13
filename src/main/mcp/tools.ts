@@ -884,16 +884,24 @@ export function createMcpServer(deps: McpDeps): McpServer {
       annotations: readOnly
     },
     guard(() =>
-      withDashboard((dash) =>
-        dash.diskConsumers === null
-          ? ok('the known caches have not been measured yet', { diskConsumers: null })
-          : ok(
-              `${dash.diskConsumers.measuredBytes} bytes measured across ` +
-                `${dash.diskConsumers.consumers.filter((c) => c.exists).length} known cache(s)` +
-                (dash.diskConsumers.partial ? ', and something could not be measured' : ''),
-              { diskConsumers: dash.diskConsumers }
-            )
-      )
+      withDashboard((dash) => {
+        if (dash.diskConsumers === null) {
+          return ok('the known caches have not been measured yet', { diskConsumers: null })
+        }
+        const present = dash.diskConsumers.consumers.filter((c) => c.exists)
+        // A floor is named as one, so a caller never reads it as a final size.
+        const floors = present.filter((c) => c.partial && c.bytes !== null).map((c) => c.id)
+        return ok(
+          `${dash.diskConsumers.partial ? 'at least ' : ''}` +
+            `${dash.diskConsumers.measuredBytes} bytes measured across ` +
+            `${present.length} known cache(s)` +
+            (dash.diskConsumers.partial ? ', and something could not be measured' : '') +
+            (floors.length > 0
+              ? `; only partly readable, so sizes are minimums: ${floors.join(', ')}`
+              : ''),
+          { diskConsumers: dash.diskConsumers }
+        )
+      })
     )
   )
 

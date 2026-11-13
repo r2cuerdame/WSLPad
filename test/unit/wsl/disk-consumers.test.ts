@@ -62,7 +62,29 @@ describe('the consumers script', () => {
   it('asks about a path that is not there instead of assuming', () => {
     expect(buildConsumersScript()).toContain('missing')
   })
+
+  it("keeps du's exit status instead of losing it in a pipe", () => {
+    const script = buildConsumersScript()
+    // `du … | cut` reports cut's status; a du that hit a Permission denied
+    // would then read as complete.
+    expect(script).not.toMatch(/du -sxb "\$p" 2>\/dev\/null \|/)
+    expect(script).toContain('rc=$?')
+    expect(script).toMatch(/%s:%s\\n' '[a-z-]+' "\$p" "\$s" "\$rc"/)
+  })
 })
+
+/** Same distro, but run as a user who may not read /var/lib/docker or parts of /var/log. */
+const PARTIAL_OUTPUT = [
+  '###WSLPAD_DU_BEGIN',
+  'apt-cache|/var/cache/apt|354354783:0',
+  'journal|/var/log/journal|838860800:1',
+  'logs|/var/log|861074268:1',
+  'docker|/var/lib/docker|4096:1',
+  'trash|/home/hermes/.local/share/Trash|0:0',
+  'tmp|/tmp|:124',
+  'dnf-cache|/var/cache/dnf|missing',
+  '###WSLPAD_DU_END'
+].join('\n')
 
 describe('parseConsumers', () => {
   it('reads a real answer, biggest first', () => {
@@ -85,6 +107,41 @@ describe('parseConsumers', () => {
   it('leaves a size unknown when du could not report one', () => {
     const text = '###WSLPAD_DU_BEGIN\napt-cache|/var/cache/apt|\n###WSLPAD_DU_END'
     expect(parseConsumers(text)[0]).toMatchObject({ exists: true, bytes: null })
+  })
+
+  it('marks a size du could only partly read as a floor, not an answer', () => {
+    const docker = parseConsumers(PARTIAL_OUTPUT).find((c) => c.id === 'docker')
+    // A root-only Docker store read as 4 KB is exactly the culprit nobody suspects.
+    expect(docker).toMatchObject({ exists: true, bytes: 4096, partial: true })
+  })
+
+  it('keeps a complete read, a genuine zero, a timeout and a missing path as they were', () => {
+    const consumers = parseConsumers(PARTIAL_OUTPUT)
+    expect(consumers.find((c) => c.id === 'apt-cache')).toMatchObject({
+      bytes: 354_354_783,
+      partial: false
+    })
+    expect(consumers.find((c) => c.id === 'trash')).toMatchObject({ bytes: 0, partial: false })
+    // A du cut off by `timeout` printed nothing: unknown, not a floor of nothing.
+    expect(consumers.find((c) => c.id === 'tmp')).toMatchObject({
+      exists: true,
+      bytes: null,
+      partial: false
+    })
+    expect(consumers.find((c) => c.id === 'dnf-cache')).toMatchObject({
+      exists: false,
+      bytes: null,
+      partial: false
+    })
+  })
+
+  it('reads a row without a status as complete', () => {
+    expect(parseConsumers(REAL_OUTPUT).every((c) => !c.partial)).toBe(true)
+  })
+
+  it('keeps a path that carries the separator', () => {
+    const text = '###WSLPAD_DU_BEGIN\ntmp|/tmp/a|b|12:1\n###WSLPAD_DU_END'
+    expect(parseConsumers(text)[0]).toMatchObject({ path: '/tmp/a|b', bytes: 12, partial: true })
   })
 
   it('ignores rows for ids it does not know', () => {
@@ -111,8 +168,8 @@ describe('nesting', () => {
 
   it('does not mistake a sibling with a shared prefix for a parent', () => {
     const rows = markNesting([
-      { id: 'a', path: '/var/log', exists: true, bytes: 1, cleanup: null, needsRoot: false, containedIn: null },
-      { id: 'b', path: '/var/logs', exists: true, bytes: 1, cleanup: null, needsRoot: false, containedIn: null }
+      { id: 'a', path: '/var/log', exists: true, bytes: 1, partial: false, cleanup: null, needsRoot: false, containedIn: null },
+      { id: 'b', path: '/var/logs', exists: true, bytes: 1, partial: false, cleanup: null, needsRoot: false, containedIn: null }
     ])
     expect(rows.every((r) => r.containedIn === null)).toBe(true)
   })
@@ -131,6 +188,19 @@ describe('measuredTotal', () => {
     const text = '###WSLPAD_DU_BEGIN\napt-cache|/var/cache/apt|\ntmp|/tmp|10\n###WSLPAD_DU_END'
     expect(measuredTotal(parseConsumers(text))).toEqual({ bytes: 10, partial: true })
   })
+
+  it('says the total is a floor when a cache could only be partly read', () => {
+    const text =
+      '###WSLPAD_DU_BEGIN\napt-cache|/var/cache/apt|100:0\ndocker|/var/lib/docker|4096:1\n###WSLPAD_DU_END'
+    // The floor still counts — it is at least that much — but the sum is no answer.
+    expect(measuredTotal(parseConsumers(text))).toEqual({ bytes: 4196, partial: true })
+  })
+
+  it('says so even when the floor sits inside another row', () => {
+    const text =
+      '###WSLPAD_DU_BEGIN\nlogs|/var/log|500:0\njournal|/var/log/journal|300:1\n###WSLPAD_DU_END'
+    expect(measuredTotal(parseConsumers(text))).toEqual({ bytes: 500, partial: true })
+  })
 })
 
 describe('collectDiskConsumers', () => {
@@ -139,6 +209,12 @@ describe('collectDiskConsumers', () => {
     expect(info?.consumers).toHaveLength(CONSUMER_SPECS.length)
     expect(info?.measuredBytes).toBeGreaterThan(1_000_000_000)
     expect(info?.partial).toBe(false)
+  })
+
+  it('reports a partly unreadable cache as a floor in the total too', async () => {
+    const info = await collectDiskConsumers(new FakeRunner(ok(PARTIAL_OUTPUT)), 'Ubuntu')
+    expect(info?.partial).toBe(true)
+    expect(info?.consumers.find((c) => c.id === 'docker')?.partial).toBe(true)
   })
 
   it('answers nothing when the read was cut off, so the last answer stands', async () => {

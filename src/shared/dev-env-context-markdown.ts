@@ -369,7 +369,9 @@ function storageSection(lines: string[], ctx: DevEnvContext): void {
     facts.push(`- Memory: ${fmtBytesPlain(m.usedBytes)} used / ${fmtBytesPlain(m.totalBytes)}${limit}${swap}${cpus}`)
   }
   if (s.knownCachesBytes !== null) {
-    const top = s.topCaches.map((c) => `${c.id} ${fmtBytesPlain(c.bytes)}`).join(', ')
+    const top = s.topCaches
+      .map((c) => `${c.id} ${c.partial ? 'at least ' : ''}${fmtBytesPlain(c.bytes)}`)
+      .join(', ')
     facts.push(
       `- Known caches: ${fmtBytesPlain(s.knownCachesBytes)} measured` +
         (s.knownCachesPartial ? ' (partial)' : '') +
