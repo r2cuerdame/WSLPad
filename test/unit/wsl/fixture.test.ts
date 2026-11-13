@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { MASKED_VALUE } from '@shared/constants'
+import { MASKED_VALUE, WINDOWS_ROOT } from '@shared/constants'
 import type { FileOpProgress } from '@shared/types'
 import { ExplorerError } from '../../../src/main/wsl/contracts'
 import { FixtureConsoleFactory } from '../../../src/main/wsl/fixture/console'
@@ -625,6 +625,49 @@ describe('FixtureExplorerBackend', () => {
     expect((await backend.list(U, '/home/dev/duplicate-import')).map((e) => e.name)).toEqual([
       'report.pdf'
     ])
+  })
+
+  it.each([
+    { windowsPath: 'C:\\', message: 'Refusing to import drive root C:\\' },
+    { windowsPath: 'C:/', message: 'Refusing to import drive root C:/' },
+    { windowsPath: 'C:', message: 'Refusing to import drive root C:' },
+    { windowsPath: 'c:', message: 'Refusing to import drive root c:' },
+    { windowsPath: 'D:', message: 'Refusing to import drive root D:' },
+    { windowsPath: WINDOWS_ROOT, message: 'Refusing to use the This PC virtual root' },
+    { windowsPath: `\\\\wsl.localhost\\${U}`, message: 'Refusing to import /' }
+  ])('rejects import root $windowsPath before starting an operation', async ({
+    windowsPath,
+    message
+  }) => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    const before = (await backend.list(U, '/home/dev')).map((entry) => entry.name)
+    backend.onProgress((progress) => events.push(progress))
+
+    await expect(
+      backend.importFromWindows(U, [windowsPath], '/home/dev')
+    ).rejects.toMatchObject({ code: 'UNKNOWN', message })
+
+    expect(events).toEqual([])
+    expect((await backend.list(U, '/home/dev')).map((entry) => entry.name)).toEqual(before)
+  })
+
+  it('rejects an import batch containing a drive root before importing other files', async () => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((progress) => events.push(progress))
+
+    await expect(
+      backend.importFromWindows(U, ['C:\\Users\\dev\\report.pdf', 'C:\\'], '/home/dev')
+    ).rejects.toMatchObject({
+      code: 'UNKNOWN',
+      message: 'Refusing to import drive root C:\\'
+    })
+
+    expect(events).toEqual([])
+    expect((await backend.list(U, '/home/dev')).map((entry) => entry.name)).not.toContain(
+      'report.pdf'
+    )
   })
 
   describe.each(['/', '//', '///', '/./'])('refuses the root spelled %s', (root) => {
