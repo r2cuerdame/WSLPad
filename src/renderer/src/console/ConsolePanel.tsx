@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-import type { ConsoleStatus } from '@shared/types'
+import type { ConsoleStatus, TerminalDataEvent } from '@shared/types'
 import { CONSOLE_DEFAULTS, CONSOLE_DEFAULT_HEIGHT, CONSOLE_HEIGHT_BOUNDS } from '@shared/constants'
-import { classifyPathSide, isCrossBoundary } from '@shared/path-boundary'
+import { automountRootFromSettings, classifyPathSide, isCrossBoundary } from '@shared/path-boundary'
 import { useApp } from '../store'
 import './console.css'
 
@@ -62,6 +62,12 @@ export function ConsolePanel(): React.JSX.Element {
   )
   const [status, setStatus] = useState<ConsoleStatus>('disconnected')
   const [cwd, setCwd] = useState<string | null>(null)
+  // Same automount root the Explorer, Doctor and dashboard warning use, so the
+  // badge never disagrees with them about which side a directory is on.
+  const automountRoot = useMemo(
+    () => automountRootFromSettings(snapshot?.dashboard?.wslSettings?.settings),
+    [snapshot?.dashboard?.wslSettings?.settings]
+  )
   const [error, setError] = useState<string | null>(null)
   const [reconnectToken, setReconnectToken] = useState(0)
 
@@ -69,6 +75,11 @@ export function ConsolePanel(): React.JSX.Element {
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const sessionRef = useRef<string | null>(null)
+  const sessionDistroRef = useRef<string | null>(null)
+  const ensuringRef = useRef(false)
+  const pendingDataRef = useRef<TerminalDataEvent[]>([])
+  const lastSeqRef = useRef(0)
+  const queuedPathRef = useRef<{ distro: string; path: string } | null>(null)
   const statusRef = useRef<ConsoleStatus>('disconnected')
   const heightRef = useRef(height)
   const collapsedRef = useRef(collapsed)
@@ -153,43 +164,19 @@ export function ConsolePanel(): React.JSX.Element {
     safeFit()
   }, [fontSize, fontFamily, scrollback, safeFit])
 
-  // Session per selected distro; sessions persist in main across switches.
-  useEffect(() => {
-    if (!distro) return
-    let cancelled = false
-    sessionRef.current = null
-    termRef.current?.reset()
-    statusRef.current = 'disconnected'
-    setStatus('disconnected')
-    setCwd(null)
-    setError(null)
-    void window.wslpad.terminal
-      .ensure(distro)
-      .then((res) => {
-        if (cancelled) return
-        sessionRef.current = res.sessionId
-        statusRef.current = res.status
-        setStatus(res.status)
-        setCwd(res.cwd)
-        setError(res.error)
-        const term = termRef.current
-        if (term) void window.wslpad.terminal.resize(res.sessionId, term.cols, term.rows)
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          statusRef.current = 'disconnected'
-          setStatus('disconnected')
-          setError(err instanceof Error ? err.message : String(err))
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [distro, reconnectToken])
-
   useEffect(() => {
     const offData = window.wslpad.terminal.onData((ev) => {
-      if (ev.sessionId === sessionRef.current) termRef.current?.write(ev.data)
+      if (ev.sessionId === sessionRef.current) {
+        if (ev.seq !== undefined) {
+          if (ev.seq <= lastSeqRef.current) return
+          lastSeqRef.current = ev.seq
+        }
+        termRef.current?.write(ev.data)
+        return
+      }
+      if (ensuringRef.current) {
+        pendingDataRef.current.push(ev)
+      }
     })
     const offStatus = window.wslpad.terminal.onStatus((ev) => {
       if (ev.sessionId === sessionRef.current) {
@@ -205,6 +192,82 @@ export function ConsolePanel(): React.JSX.Element {
     }
   }, [])
 
+  // Session per selected distro; sessions persist in main across switches.
+  useEffect(() => {
+    sessionRef.current = null
+    sessionDistroRef.current = null
+    pendingDataRef.current = []
+    lastSeqRef.current = 0
+    if (!distro || (queuedPathRef.current && queuedPathRef.current.distro !== distro)) {
+      queuedPathRef.current = null
+    }
+    termRef.current?.reset()
+    statusRef.current = 'disconnected'
+    setStatus('disconnected')
+    setCwd(null)
+    setError(null)
+    if (!distro) {
+      ensuringRef.current = false
+      return
+    }
+    let cancelled = false
+    ensuringRef.current = true
+    void window.wslpad.terminal
+      .ensure(distro)
+      .then((res) => {
+        if (cancelled) return
+        ensuringRef.current = false
+        const buffered = pendingDataRef.current
+        pendingDataRef.current = []
+        const term = termRef.current
+        let seq = res.seq ?? 0
+        if (res.transcript) {
+          term?.write(res.transcript)
+        }
+        for (const ev of buffered) {
+          if (ev.sessionId !== res.sessionId) continue
+          if (ev.seq !== undefined && res.seq !== undefined) {
+            if (ev.seq <= seq) continue
+            seq = ev.seq
+          } else if (ev.seq !== undefined) {
+            seq = Math.max(seq, ev.seq)
+          }
+          term?.write(ev.data)
+        }
+        lastSeqRef.current = seq
+        sessionRef.current = res.sessionId
+        sessionDistroRef.current = distro
+        statusRef.current = res.status
+        setStatus(res.status)
+        setCwd(res.cwd)
+        setError(res.error)
+        if (term) void window.wslpad.terminal.resize(res.sessionId, term.cols, term.rows)
+        if (
+          !DEAD_STATUSES.includes(res.status) &&
+          queuedPathRef.current &&
+          queuedPathRef.current.distro === distro
+        ) {
+          const nextPath = queuedPathRef.current.path
+          queuedPathRef.current = null
+          void window.wslpad.terminal.setCwd(res.sessionId, nextPath)
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          ensuringRef.current = false
+          pendingDataRef.current = []
+          statusRef.current = 'disconnected'
+          setStatus('disconnected')
+          setError(err instanceof Error ? err.message : String(err))
+        }
+      })
+    return () => {
+      cancelled = true
+      ensuringRef.current = false
+      pendingDataRef.current = []
+    }
+  }, [distro, reconnectToken])
+
   // Self-healing (the 0.1.3 wedge): WSL is frequently still busy when WSLPad
   // autostarts at Windows login, and a single failed spawn used to leave a dead
   // panel with no way back short of restarting the app. Once the distro is
@@ -213,6 +276,9 @@ export function ConsolePanel(): React.JSX.Element {
   const distroRunning =
     distro !== null && snapshot?.distros.some((d) => d.name === distro && d.state === 'Running')
   const autoRetriesRef = useRef(0)
+  useEffect(() => {
+    autoRetriesRef.current = 0
+  }, [distro])
   useEffect(() => {
     if (!distroRunning) {
       autoRetriesRef.current = 0
@@ -269,10 +335,20 @@ export function ConsolePanel(): React.JSX.Element {
   // Explorer → Console path sync request (goal.md §8.4); main hides the cd.
   useEffect(() => {
     if (!pendingConsolePath) return
+    if (!distro) {
+      queuedPathRef.current = null
+      consumeConsolePath()
+      return
+    }
     const sid = sessionRef.current
-    if (sid) void window.wslpad.terminal.setCwd(sid, pendingConsolePath)
+    if (sid && sessionDistroRef.current === distro && !DEAD_STATUSES.includes(statusRef.current)) {
+      queuedPathRef.current = null
+      void window.wslpad.terminal.setCwd(sid, pendingConsolePath)
+    } else {
+      queuedPathRef.current = { distro, path: pendingConsolePath }
+    }
     consumeConsolePath()
-  }, [pendingConsolePath, consumeConsolePath])
+  }, [pendingConsolePath, consumeConsolePath, distro])
 
   const onResizeHandleMouseDown = (e: React.MouseEvent): void => {
     e.preventDefault()
@@ -322,7 +398,7 @@ export function ConsolePanel(): React.JSX.Element {
         )}
         {/* Said where it is paid: a shell in a Windows-mounted directory looks
             exactly like any other shell, and every file it touches crosses 9P. */}
-        {cwd && isCrossBoundary(classifyPathSide(cwd)) && (
+        {cwd && isCrossBoundary(classifyPathSide(cwd, automountRoot)) && (
           <span className="badge badge-warn" title={t('console.slowPathHint')}>
             {t('console.slowPath')}
           </span>

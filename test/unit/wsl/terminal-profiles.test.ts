@@ -59,6 +59,28 @@ describe('stripJsonComments', () => {
   it('drops the trailing commas Windows Terminal writes', () => {
     expect(JSON.parse(stripJsonComments('{ "a": [1, 2,], }'))).toEqual({ a: [1, 2] })
   })
+
+  it('keeps a comma before a bracket when it sits inside a string', () => {
+    // Only the JSON structure loses its trailing commas; a command or a name
+    // that happens to contain ", ]" or ", }" must reach the profile untouched.
+    const text = String.raw`{
+      "commandLine": "bash -c 'echo [a, ]'",
+      "name": "Ubuntu {v1, }",
+      "tricky": "say \"x, ]\" ,}",
+      "list": ["a, ]", "b",],
+    }`
+    expect(JSON.parse(stripJsonComments(text))).toEqual({
+      commandLine: "bash -c 'echo [a, ]'",
+      name: 'Ubuntu {v1, }',
+      tricky: 'say "x, ]" ,}',
+      list: ['a, ]', 'b']
+    })
+  })
+
+  it('drops a trailing comma that a comment separated from its bracket', () => {
+    const text = '{ "a": [1, 2, // last\n], /* end */ }'
+    expect(JSON.parse(stripJsonComments(text))).toEqual({ a: [1, 2] })
+  })
 })
 
 describe('distroFromCommandLine', () => {

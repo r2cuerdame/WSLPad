@@ -6,6 +6,7 @@ import {
   EXIT_EACCES,
   EXIT_EISDIR,
   EXIT_ENOENT,
+  EXIT_ENOTDIR,
   EXIT_UNKNOWN,
   explorerErrorFromResult
 } from './listing'
@@ -114,6 +115,14 @@ export async function writeTextFile(
     `if [ -d "$t" ]; then exit ${EXIT_EISDIR}; fi`,
     `if [ -e "$t" ] && [ ! -w "$t" ]; then exit ${EXIT_EACCES}; fi`,
     `d=$(dirname "$t")`,
+    `if ! parent_stat_error=$(LC_ALL=C stat -L "$d" 2>&1 >/dev/null); then`,
+    `  case "$parent_stat_error" in`,
+    `    *"Permission denied"*) exit ${EXIT_EACCES} ;;`,
+    `    *"Not a directory"*) exit ${EXIT_ENOTDIR} ;;`,
+    `    *) exit ${EXIT_ENOENT} ;;`,
+    `  esac`,
+    `fi`,
+    `if [ ! -d "$d" ]; then exit ${EXIT_ENOTDIR}; fi`,
     `if [ ! -e "$t" ] && [ ! -w "$d" ]; then exit ${EXIT_EACCES}; fi`,
     `tmp=$(mktemp "$d/.wslpad-XXXXXX") || exit ${EXIT_EACCES}`,
     `if ! base64 -d > "$tmp"; then rm -f "$tmp"; exit ${EXIT_UNKNOWN}; fi`,

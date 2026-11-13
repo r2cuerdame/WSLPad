@@ -406,6 +406,56 @@ describe('buildDevEnvContext on sparse and empty snapshots', () => {
     expect(ctx.provenance.staleQueries).toEqual(['docker'])
     expect(ctx.doctor.checks.find((c) => c.id === 'collectors')?.status).toBe('attention')
   })
+
+  it('ignores Explorer and Console contexts belonging to another distro', () => {
+    const debianDash = makeDashboard({
+      distro: {
+        name: 'Debian',
+        state: 'Stopped',
+        wslVersion: 2,
+        isDefault: false,
+        osName: 'Debian GNU/Linux 12',
+        uncPath: '\\\\wsl.localhost\\Debian'
+      }
+    })
+    const mismatched = makeSnapshot({
+      selectedDistro: 'Debian',
+      dashboard: debianDash,
+      explorer: { distro: 'Ubuntu-24.04', currentPath: '/home/ubuntu-only', showHidden: false },
+      terminal: { distro: 'Ubuntu-24.04', cwd: '/mnt/c/Users/ubuntu-only', status: 'ready' }
+    })
+
+    const ctx = buildDevEnvContext(mismatched)
+    expect(ctx.workspace).toMatchObject({
+      cwd: null,
+      cwdSide: 'unknown',
+      cwdWindowsPath: null,
+      cwdCrossesBoundary: null,
+      consoleStatus: null,
+      explorerPath: null,
+      explorerSide: 'unknown'
+    })
+    expect(ctx.doctor.checks.find((c) => c.id === 'cwd-boundary')).toMatchObject({
+      status: 'unknown',
+      summary: 'No Console working directory is known.'
+    })
+    const md = devEnvContextToMarkdown(ctx)
+    expect(md).not.toContain('/home/ubuntu-only')
+    expect(md).not.toContain('/mnt/c/Users/ubuntu-only')
+
+    // Unselected snapshots preserve the direct context values as before.
+    const unselected = buildDevEnvContext(
+      makeSnapshot({
+        selectedDistro: null,
+        dashboard: null,
+        explorer: { distro: 'Ubuntu-24.04', currentPath: '/home/dev', showHidden: false },
+        terminal: { distro: 'Ubuntu-24.04', cwd: '/mnt/c/Users/dev', status: 'ready' }
+      })
+    )
+    expect(unselected.workspace.cwd).toBe('/mnt/c/Users/dev')
+    expect(unselected.workspace.consoleStatus).toBe('ready')
+    expect(unselected.workspace.explorerPath).toBe('/home/dev')
+  })
 })
 
 describe('buildDevEnvContext bounds and masking', () => {

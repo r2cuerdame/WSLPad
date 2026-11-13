@@ -83,8 +83,11 @@ export function stripJsonComments(text: string): string {
     out += ch
     i++
   }
-  // Trailing commas, once comments are gone and only outside strings.
-  return out.replace(/,(\s*[}\]])/g, '$1')
+  // Trailing commas, once comments are gone and only outside strings: a string
+  // literal is matched whole and kept, so a name like "Ubuntu {v1, }" survives.
+  return out.replace(/"(?:[^"\\]|\\[\s\S])*"|,(\s*[}\]])/g, (match, tail?: string) =>
+    tail === undefined ? match : tail
+  )
 }
 
 /** `wsl.exe -d Ubuntu` / `--distribution "Ubuntu 24.04"` → the distro name. */

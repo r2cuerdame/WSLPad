@@ -14,13 +14,16 @@ import type {
   TextFileContent
 } from '@shared/types'
 import { WINDOWS_ROOT } from '@shared/constants'
+import { DIR_SIZE_CHILD_CAP } from '../../explorer/dir-sizes'
 import {
+  convertLinuxToWindows,
   convertWindowsToLinux,
   isInsideLinux,
   isLinuxRoot
 } from '../../explorer/path-convert'
+import { sanitizeSearchQuery } from '../../explorer/listing'
 import { ExplorerError, type ExplorerBackend, type ExplorerListOpts } from '../contracts'
-import { assertValidLinuxPath, isValidDistroName, isValidLinuxPath } from '../escape'
+import { assertValidLinuxPath, isValidDistroName } from '../escape'
 import {
   FIXTURE_HOME,
   FIXTURE_NEW_MTIME,
@@ -314,6 +317,40 @@ export class FixtureFilesystem {
     return followFinal ? this.resolveLink(node) : node
   }
 
+  /** Resolve an existing path while following each symlink before later `..` components. */
+  resolvePath(path: string): string | null {
+    const pending = path.split('/').filter((part) => part.length > 0)
+    const resolved: string[] = []
+    let linksFollowed = 0
+
+    while (pending.length > 0) {
+      const part = pending.shift()!
+      const currentPath = resolved.length === 0 ? '/' : `/${resolved.join('/')}`
+      const current = this.getNode(currentPath, true)
+      if (!current || current.type !== 'directory') return null
+      if (part === '.') continue
+      if (part === '..') {
+        resolved.pop()
+        continue
+      }
+
+      const node = current.children?.get(part)
+      if (!node) return null
+      if (node.type === 'symlink') {
+        if (++linksFollowed > 40 || !node.symlinkTarget) return null
+        if (node.symlinkTarget.startsWith('/')) resolved.length = 0
+        pending.unshift(...node.symlinkTarget.split('/').filter((segment) => segment.length > 0))
+      } else {
+        resolved.push(part)
+      }
+    }
+
+    const resolvedPath = resolved.length === 0 ? '/' : `/${resolved.join('/')}`
+    const node = this.getNode(resolvedPath, true)
+    if (!node || (path.endsWith('/') && node.type !== 'directory')) return null
+    return resolvedPath
+  }
+
   getWithParent(path: string): { parent: FsNode | null; node: FsNode | null; name: string } {
     const normalized = this.normalizePath(path)
     if (normalized === '/') return { parent: null, node: this.root, name: '/' }
@@ -466,7 +503,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async tree(distro: string, path: string): Promise<FileEntry[]> {
     const entries = await this.list(distro, path, { showHidden: true })
-    return entries.filter((e) => e.type === 'directory')
+    return entries.filter(
+      (e) => e.type === 'directory' || (e.type === 'symlink' && e.targetType === 'directory')
+    )
   }
 
   async stat(distro: string, path: string): Promise<FileStat> {
@@ -483,6 +522,14 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     }
   }
 
+  async resolvePath(distro: string, path: string): Promise<string> {
+    this.ensureDistro(distro, path)
+    assertValidLinuxPath(path)
+    const resolved = this.fs.resolvePath(path)
+    if (resolved === null) throw new ExplorerError('ENOENT', path, `No such file or directory: ${path}`)
+    return resolved
+  }
+
   async mkdir(distro: string, path: string): Promise<void> {
     this.createChild(distro, path, 'directory')
   }
@@ -495,8 +542,10 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     this.ensureDistro(distro, path)
     assertValidLinuxPath(path)
     const { parent, node, name } = this.fs.getWithParent(path)
-    if (!parent) throw new ExplorerError('ENOENT', path, `No such directory for: ${path}`)
+    // Existence first: the root has a node but no parent, and is EEXIST like
+    // the real backend's existsGuard reports it, not a false ENOENT.
     if (node) throw new ExplorerError('EEXIST', path, `Already exists: ${path}`)
+    if (!parent) throw new ExplorerError('ENOENT', path, `No such directory for: ${path}`)
     if (!parent.writable) throw this.accessDenied(path, parent)
     const created =
       type === 'directory'
@@ -515,6 +564,9 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const { parent, node, name } = this.fs.getWithParent(path)
     if (!parent || !node)
       throw new ExplorerError('ENOENT', path, `No such file or directory: ${path}`)
+    // Same name is a no-op, as renameEntry skips the mv; the entry itself must
+    // not read as an existing target.
+    if (name === newName) return
     if (!parent.writable) throw this.accessDenied(path, parent)
     if (parent.children?.has(newName)) {
       throw new ExplorerError('EEXIST', path, `Already exists: ${newName}`)
@@ -537,16 +589,21 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const destBase = this.fs.normalizePath(destDir)
     const dest = this.requireDir(destBase)
     if (!dest.writable) throw this.accessDenied(destBase, dest)
-    let last: string | null = null
-    for (const source of uniqueSources) {
-      const srcBase = this.fs.normalizePath(source)
-      if (destBase === srcBase || destBase.startsWith(srcBase + '/')) {
+    // Same order as the Windows backends: a source that contains the
+    // destination refuses the whole batch before the items in front of it
+    // are copied or moved away.
+    const srcBases = uniqueSources.map((source) => this.fs.normalizePath(source))
+    for (const srcBase of srcBases) {
+      if (isInsideLinux(destBase, srcBase)) {
         throw new ExplorerError(
           'UNKNOWN',
           srcBase,
           `Cannot ${move ? 'move' : 'copy'} ${srcBase} into itself`
         )
       }
+    }
+    let last: string | null = null
+    for (const srcBase of srcBases) {
       const { parent, node, name } = this.fs.getWithParent(srcBase)
       if (!parent || !node) {
         throw new ExplorerError('ENOENT', srcBase, `No such file or directory: ${srcBase}`)
@@ -621,7 +678,33 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     const files = this.ensureTrashDir('files')
     const info = this.ensureTrashDir('info')
     const entries = await this.listTrash(distro)
-    for (const trashName of trashNames) {
+    const uniqueNames = [...new Set(trashNames)]
+    const plannedChildren = new Map<FsNode, Map<string, FsNode>>()
+    const plannedChild = (parent: FsNode, name: string): FsNode | null =>
+      parent.children?.get(name) ?? plannedChildren.get(parent)?.get(name) ?? null
+    const resolveDir = (path: string): FsNode => {
+      let current: FsNode | null = this.fs.root
+      const normalized = this.fs.normalizePath(path)
+      const segments = normalized === '/' ? [] : normalized.slice(1).split('/')
+      for (const segment of segments) {
+        current = this.fs.resolveLink(current)
+        if (!current) throw new ExplorerError('ENOENT', path, `No such directory: ${path}`)
+        if (current.type !== 'directory' || !current.children) {
+          throw new ExplorerError('ENOTDIR', path, `Not a directory: ${path}`)
+        }
+        if (!current.readable) throw this.accessDenied(path, current)
+        current = plannedChild(current, segment)
+        if (!current) throw new ExplorerError('ENOENT', path, `No such directory: ${path}`)
+      }
+      current = this.fs.resolveLink(current)
+      if (!current) throw new ExplorerError('ENOENT', path, `No such directory: ${path}`)
+      if (current.type !== 'directory' || !current.children) {
+        throw new ExplorerError('ENOTDIR', path, `Not a directory: ${path}`)
+      }
+      if (!current.readable) throw this.accessDenied(path, current)
+      return current
+    }
+    const toRestore = uniqueNames.map((trashName) => {
       const entry = entries.find((e) => e.trashName === trashName)
       if (entry === undefined) {
         throw new ExplorerError('ENOENT', trashName, `Nothing in the trash is called ${trashName}`)
@@ -631,11 +714,23 @@ export class FixtureExplorerBackend implements ExplorerBackend {
         throw new ExplorerError('ENOENT', entry.originalPath, 'The trashed copy is gone')
       }
       const dest = this.fs.normalizePath(entry.originalPath)
-      if (this.fs.getNode(dest) !== null) {
+      const parentPath = dest.replace(/\/[^/]*$/, '') || '/'
+      const parent = resolveDir(parentPath)
+      if (!parent.writable) throw this.accessDenied(dest, parent)
+      const name = dest.slice(dest.lastIndexOf('/') + 1)
+      if (plannedChild(parent, name) !== null) {
         throw new ExplorerError('EEXIST', dest, `${dest} already exists`)
       }
-      const parentPath = dest.replace(/\/[^/]*$/, '') || '/'
-      const parent = this.requireDir(parentPath)
+      let children = plannedChildren.get(parent)
+      if (!children) {
+        children = new Map()
+        plannedChildren.set(parent, children)
+      }
+      children.set(name, node)
+      return { trashName, node, dest, parent }
+    })
+
+    for (const { trashName, node, dest, parent } of toRestore) {
       files.children?.delete(trashName)
       node.name = dest.slice(dest.lastIndexOf('/') + 1)
       this.fs.attach(parent, node)
@@ -654,14 +749,27 @@ export class FixtureExplorerBackend implements ExplorerBackend {
 
   async remove(distro: string, paths: string[]): Promise<void> {
     this.ensureDistro(distro, paths[0] ?? FIXTURE_HOME)
-    for (const path of this.checkBatch(paths, 'remove')) {
-      const base = this.fs.normalizePath(path)
+
+    // Normalize before deduplicating: different valid spellings can name the same node.
+    const uniquePaths = [
+      ...new Set(this.checkBatch(paths, 'remove').map((path) => this.fs.normalizePath(path)))
+    ]
+
+    // Validate every target before deleting any of them, so a later error cannot
+    // leave the earlier items permanently removed.
+    const targets = uniquePaths.map((base) => {
       const { parent, node, name } = this.fs.getWithParent(base)
       if (!parent || !node)
         throw new ExplorerError('ENOENT', base, `No such file or directory: ${base}`)
       if (!parent.writable) throw this.accessDenied(base, parent)
-      parent.children?.delete(name)
-    }
+      return { base, parent, name }
+    })
+
+    // Removing a selected directory already removes every selected descendant.
+    const topLevelTargets = targets.filter(
+      ({ base }) => !uniquePaths.some((candidate) => base.startsWith(`${candidate}/`))
+    )
+    for (const { parent, name } of topLevelTargets) parent.children?.delete(name)
   }
 
   async readText(distro: string, path: string, maxBytes: number): Promise<TextFileContent> {
@@ -715,10 +823,31 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   ): Promise<string> {
     this.ensureDistro(distro, destDir)
     assertValidLinuxPath(destDir)
-    const dest = this.requireDir(this.fs.normalizePath(destDir))
-    if (!dest.writable) throw this.accessDenied(destDir, dest)
     // Same as the real backend: a path given twice is imported once.
     const uniqueWindowsPaths = [...new Set(windowsPaths)]
+    // Reject roots across the whole batch before any fixture file is created.
+    for (const windowsPath of uniqueWindowsPaths) {
+      if (windowsPath === WINDOWS_ROOT) {
+        throw new ExplorerError(
+          'UNKNOWN',
+          windowsPath,
+          'Refusing to use the This PC virtual root'
+        )
+      }
+      if (/^[A-Za-z]:[\\/]*$/.test(windowsPath)) {
+        throw new ExplorerError(
+          'UNKNOWN',
+          windowsPath,
+          `Refusing to import drive root ${windowsPath}`
+        )
+      }
+      const linuxPath = convertWindowsToLinux(distro, windowsPath)
+      if (linuxPath !== null && isLinuxRoot(linuxPath)) {
+        throw new ExplorerError('UNKNOWN', linuxPath, `Refusing to import ${linuxPath}`)
+      }
+    }
+    const dest = this.requireDir(this.fs.normalizePath(destDir))
+    if (!dest.writable) throw this.accessDenied(destDir, dest)
     let last: string | null = null
     for (const windowsPath of uniqueWindowsPaths) {
       const name = windowsPath.split(/[\\/]/).filter(Boolean).pop() ?? 'imported'
@@ -765,9 +894,12 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     assertValidLinuxPath(path)
     const base = this.fs.normalizePath(path)
     const dir = this.requireDir(base)
-    let total: number | null = null
+    const children = [...(dir.children?.values() ?? [])]
+    const measured = children.slice(0, DIR_SIZE_CHILD_CAP)
+    const skipped = children.length - measured.length
+    let total: number | null = measured.length === 0 && children.length === 0 ? 0 : null
     const entries: DirSizeEntry[] = []
-    for (const child of dir.children?.values() ?? []) {
+    for (const child of measured) {
       const childPath = this.joinPath(base, child.name)
       // An unreadable subtree measures as unknown here exactly as du would.
       const size = child.readable ? this.subtreeBytes(child) : null
@@ -780,8 +912,13 @@ export class FixtureExplorerBackend implements ExplorerBackend {
         partial: false
       })
     }
-    entries.sort((a, b) => (b.sizeBytes ?? -1) - (a.sizeBytes ?? -1) || a.name.localeCompare(b.name))
-    return { path: base, entries, totalBytes: total, skipped: 0, cancelled: false, error: null }
+    entries.sort((a, b) => {
+      if (a.sizeBytes === null && b.sizeBytes === null) return a.name.localeCompare(b.name)
+      if (a.sizeBytes === null) return 1
+      if (b.sizeBytes === null) return -1
+      return b.sizeBytes - a.sizeBytes || a.name.localeCompare(b.name)
+    })
+    return { path: base, entries, totalBytes: total, skipped, cancelled: false, error: null }
   }
 
   /** Apparent bytes of a node and everything under it; symlinks count as 0. */
@@ -796,49 +933,50 @@ export class FixtureExplorerBackend implements ExplorerBackend {
   async search(distro: string, path: string, query: string): Promise<FileEntry[]> {
     this.ensureDistro(distro, path)
     assertValidLinuxPath(path)
-    const q = query.toLowerCase()
+    const q = sanitizeSearchQuery(query).toLowerCase()
+    if (!q) return []
     const results: FileEntry[] = []
-    const walk = (base: string, node: FsNode): void => {
-      if (results.length >= 1000 || !node.children) return
+    const walk = (base: string, node: FsNode, depth: number): void => {
+      if (results.length >= 200 || depth > 4 || !node.children) return
       for (const child of node.children.values()) {
+        if (results.length >= 200) return
         const childPath = this.joinPath(base, child.name)
-        if (q.length > 0 && child.name.toLowerCase().includes(q)) {
+        if (child.name.toLowerCase().includes(q)) {
           results.push(this.entry(childPath, child))
         }
         // Skip symlinks (cycle safety) and unreadable dirs like /root.
-        if (child.type === 'directory' && child.readable) walk(childPath, child)
+        if (child.type === 'directory' && child.readable) walk(childPath, child, depth + 1)
       }
     }
     const start = this.fs.normalizePath(path)
-    walk(start, this.requireDir(start))
+    walk(start, this.requireDir(start), 1)
     return results
   }
 
   async convertPath(distro: string, input: string, to: 'windows' | 'linux'): Promise<string> {
     this.ensureDistro(distro, '/')
+    if (input === WINDOWS_ROOT) {
+      throw new ExplorerError('UNKNOWN', input, 'Refusing to convert the This PC virtual root')
+    }
+    if (input.includes('\0') || input.includes('\n')) {
+      throw new ExplorerError(
+        'UNKNOWN',
+        input,
+        `Path is not mappable: ${JSON.stringify(input)}`
+      )
+    }
     if (to === 'windows') {
-      if (!isValidLinuxPath(input)) {
-        throw new ExplorerError('UNKNOWN', input, `Cannot convert path: ${input}`)
+      try {
+        return convertLinuxToWindows(distro, input)
+      } catch {
+        throw new ExplorerError('UNKNOWN', input, `Path is not mappable: ${input}`)
       }
-      const normalized = this.fs.normalizePath(input)
-      const drive = /^\/mnt\/([a-zA-Z])(\/.*)?$/.exec(normalized)
-      if (drive) {
-        const rest = (drive[2] ?? '').replace(/\//g, '\\')
-        return `${drive[1].toUpperCase()}:${rest === '' ? '\\' : rest}`
-      }
-      return toUncPath(distro, normalized)
     }
-    const driveMatch = /^([A-Za-z]):[\\/](.*)$/.exec(input)
-    if (driveMatch) {
-      const rest = driveMatch[2].replace(/\\/g, '/')
-      return this.fs.normalizePath(`/mnt/${driveMatch[1].toLowerCase()}/${rest}`)
+    const mapped = convertWindowsToLinux(distro, input)
+    if (mapped !== null) {
+      return mapped
     }
-    const uncPrefix = `\\\\wsl.localhost\\${distro}`
-    if (input.startsWith(uncPrefix)) {
-      const rest = input.slice(uncPrefix.length).replace(/\\/g, '/')
-      return this.fs.normalizePath(rest === '' ? '/' : rest)
-    }
-    throw new ExplorerError('UNKNOWN', input, `Cannot convert path: ${input}`)
+    throw new ExplorerError('UNKNOWN', input, `Path is not mappable: ${input}`)
   }
 
   onProgress(cb: (p: FileOpProgress) => void): () => void {
