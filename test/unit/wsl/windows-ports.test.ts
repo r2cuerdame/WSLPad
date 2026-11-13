@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from 'vitest'
 import type { PortInfo, WindowsPortInfo } from '@shared/types'
 import {
   correlatePorts,
+  createTasklistSnapshot,
   createWindowsPortCollector,
   parseNetstat,
   parseTasklistCsv,
   type HostCommandRunner
 } from '../../../src/main/wsl/windows-ports'
+import { createMemoryCollector } from '../../../src/main/wsl/memory'
 
 /** Korean Windows: the header and the section title are localized. */
 const NETSTAT_OUTPUT = [
@@ -257,5 +259,55 @@ describe('correlatePorts', () => {
     )
     expect(result.ports[0].windowsProcess).toBe('wslrelay.exe')
     expect(result.windowsPorts.every((w) => !w.fromWsl)).toBe(true)
+  })
+})
+
+describe('createTasklistSnapshot', () => {
+  it('reuses a read inside its age limit and reads again when asked for a fresh one', async () => {
+    let now = 0
+    const { run, calls } = makeRunner(
+      () => NETSTAT_OUTPUT,
+      () => TASKLIST_OUTPUT
+    )
+    const snapshot = createTasklistSnapshot(run, () => now)
+    expect(await snapshot.read(15000)).toBe(TASKLIST_OUTPUT)
+    now = 14000
+    await snapshot.read(15000)
+    expect(calls).toEqual(['tasklist'])
+    await snapshot.read(0)
+    expect(calls).toEqual(['tasklist', 'tasklist'])
+  })
+
+  it('lets concurrent readers share one tasklist start, except one that needs a fresh read', async () => {
+    const { run, calls } = makeRunner(
+      () => NETSTAT_OUTPUT,
+      () => TASKLIST_OUTPUT
+    )
+    const snapshot = createTasklistSnapshot(run, () => 0)
+    await Promise.all([snapshot.read(15000), snapshot.read(15000)])
+    expect(calls).toEqual(['tasklist'])
+    // A pid seen after the last read may be missing from it: 0 always reads again.
+    await Promise.all([snapshot.read(0), snapshot.read(15000)])
+    expect(calls).toEqual(['tasklist', 'tasklist'])
+  })
+
+  it('serves the port names and the VM working set from one tasklist', async () => {
+    const { run, calls } = makeRunner(
+      () => NETSTAT_OUTPUT,
+      () => TASKLIST_OUTPUT
+    )
+    const tasklist = createTasklistSnapshot(run)
+    const ports = createWindowsPortCollector(run, { ttlMs: 0, tasklist })
+    const memory = createMemoryCollector({
+      tasklist,
+      wslconfigPath: '/definitely/missing/.wslconfig',
+      hostTotalBytes: () => 16 * 1024 ** 3
+    })
+    await ports.collect()
+    await memory.collect(
+      { runWsl: vi.fn(), runInDistro: vi.fn(async () => ({ stdout: '', stderr: '', code: 0, timedOut: false })), disposeAll: vi.fn() },
+      'Ubuntu-24.04'
+    )
+    expect(calls).toEqual(['netstat', 'tasklist'])
   })
 })

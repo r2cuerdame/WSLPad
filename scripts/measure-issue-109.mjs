@@ -15,14 +15,15 @@ if (!['base', 'head'].includes(variant) || !Number.isFinite(seconds) || seconds 
 const root = resolve(import.meta.dirname, '..')
 const base = execFileSync('git', ['merge-base', 'HEAD', 'origin/main'], {
   cwd: root,
-  encoding: 'utf8'
+  encoding: 'utf8',
+  windowsHide: true
 }).trim()
 const collectorPaths = ['src/main/wsl/memory.ts', 'src/main/wsl/windows-ports.ts']
 const sources = new Map(
   collectorPaths.map((path) => [
     resolve(root, path),
     variant === 'base'
-      ? execFileSync('git', ['show', `${base}:${path}`], { cwd: root, encoding: 'utf8' })
+      ? execFileSync('git', ['show', `${base}:${path}`], { cwd: root, encoding: 'utf8', windowsHide: true })
       : readFileSync(resolve(root, path), 'utf8')
   ])
 )
@@ -64,8 +65,9 @@ const calls = { netstat: 0, tasklist: 0 }
 const childWallMs = { netstat: 0, tasklist: 0 }
 const hostProcess = () => {
   const command = `$p = Get-CimInstance Win32_Process -Filter 'ProcessId=${process.pid}'; $g = Get-Process -Id ${process.pid}; [pscustomobject]@{ ProcessId = $p.ProcessId; ThreadCount = $p.ThreadCount; ReadTransferCount = $p.ReadTransferCount; WriteTransferCount = $p.WriteTransferCount; PeakWorkingSetBytes = $g.PeakWorkingSet64 } | ConvertTo-Json -Compress`
-  return JSON.parse(execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
-    encoding: 'utf8'
+  return JSON.parse(execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', command], {
+    encoding: 'utf8',
+    windowsHide: true
   }))
 }
 const run = async (file, args, timeout) => {

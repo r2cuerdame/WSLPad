@@ -6,7 +6,7 @@ import { IpcChannels } from '@shared/ipc'
 import { updateLabel } from '@shared/update-label'
 import type { LocaleCode, Settings, SettingsPatch, UpdateStatus } from '@shared/types'
 import { AppTray } from './tray'
-import { createMainWindow, sendWhenRendererReady } from './window'
+import { createMainWindow, isWindowOnScreen, sendWhenRendererReady, watchOnScreen } from './window'
 import { registerIpcHandlers, removeIpcHandlers } from './ipc/handlers'
 import { createBackends, type Backends } from './wsl/factory'
 import { SnapshotStore } from './state/store'
@@ -178,7 +178,7 @@ export class WslPadApp {
     })
 
     const startHidden = shouldStartHidden(process.argv)
-    this.window = createMainWindow({ isQuitting: () => this.quitting, showOnReady: !startHidden })
+    this.window = this.openMainWindow(!startHidden)
     this.createTray()
     // E2E observability: Playwright's main-process evaluate reads this (no UI path).
     ;(globalThis as Record<string, unknown>).__wslpadTest = {
@@ -195,7 +195,10 @@ export class WslPadApp {
     }
 
     await this.store.initialize()
-    this.polling = new PollingScheduler(this.store, this.settings.get().monitoring)
+    // A window launched hidden at login starts on the background intervals,
+    // unless it was opened from the tray while the store was initializing.
+    const onScreen = !startHidden || (this.window !== null && isWindowOnScreen(this.window))
+    this.polling = new PollingScheduler(this.store, this.settings.get().monitoring, onScreen)
     if (!this.settings.get().monitoring.paused) this.polling.start()
 
     const mcpSettings = this.settings.get().mcp
@@ -306,9 +309,16 @@ export class WslPadApp {
     }
   }
 
+  /** Every main window reports whether it is on screen, which sets the polling pace. */
+  private openMainWindow(showOnReady: boolean): BrowserWindow {
+    const win = createMainWindow({ isQuitting: () => this.quitting, showOnReady })
+    watchOnScreen(win, (onScreen) => this.polling?.setForeground(onScreen))
+    return win
+  }
+
   showMainWindow(): void {
     if (!this.window || this.window.isDestroyed()) {
-      this.window = createMainWindow({ isQuitting: () => this.quitting, showOnReady: true })
+      this.window = this.openMainWindow(true)
       return
     }
     if (this.window.isMinimized()) this.window.restore()

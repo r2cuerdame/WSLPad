@@ -1,5 +1,6 @@
-import { PROBE_TIMEOUT_MS } from '@shared/constants'
+import { PROBE_REUSE_MS, PROBE_TIMEOUT_MS } from '@shared/constants'
 import type {
+  DefenderInfo,
   DistroDetails,
   DistroSummary,
   DiskConsumersInfo,
@@ -13,7 +14,7 @@ import { createDnsCollector } from './dns'
 import { detectDocker } from './docker'
 import { detectHermes, detectHermesCli, detectTools } from './detectors'
 import type { HermesCliDetail } from './detectors/hermes'
-import { listDistros } from './distros'
+import { createDistroLister } from './distros'
 import { collectEnvironment } from './environment'
 import { assertValidDistroName } from './escape'
 import { createDiskCollector } from './disk'
@@ -28,7 +29,7 @@ import { collectResources } from './resources'
 import { collectServices } from './services'
 import { readServiceLog } from './service-log'
 import { collectSystemInfo } from './system'
-import { createWindowsPortCollector } from './windows-ports'
+import { createTasklistSnapshot, createWindowsPortCollector } from './windows-ports'
 import { createWslConfigCollector } from './wsl-config'
 import { createTerminalProfilesCollector } from './terminal-profiles'
 import { detectZoneIdentifiers } from './zone-identifier'
@@ -63,15 +64,28 @@ const ZONE_TTL_MS = 300_000
 const CONSUMERS_TTL_MS = 300_000
 
 /**
+ * How long one Defender answer is reused. It is a PowerShell start that also
+ * asks whether WSLPad runs elevated — a fact fixed for the life of the process —
+ * and real-time protection or the exclusion list change by hand, not by the
+ * minute.
+ */
+const DEFENDER_TTL_MS = 600_000
+
+/**
  * Real WslProvider wiring all hidden-runner collectors (goal.md §9). The
  * fixture provider implements the same interface for WSLPAD_FIXTURE_MODE.
  */
 export function createRealProvider(runner: DistroRunner): WslProvider {
   // Raw env values stay in the main process; only revealEnv reads them back.
   const envRawCache = new Map<string, Map<string, string>>()
+  // Created once so the installed-distro list is reused across fast ticks.
+  const distroLister = createDistroLister(runner)
+  // One tasklist serves both the port table's process names and the VM's
+  // working set: the same console tool, started once for both.
+  const tasklist = createTasklistSnapshot()
   // Host-side table; created once so its pid → name cache survives polls.
-  const windowsPorts = createWindowsPortCollector()
-  const memoryDetail = createMemoryCollector()
+  const windowsPorts = createWindowsPortCollector(undefined, { tasklist })
+  const memoryDetail = createMemoryCollector({ tasklist })
   // Created once so the wsl.exe version it reads is looked up a single time.
   const wslSettings = createWslConfigCollector()
   // Created once so the Lxss registry read is cached across polls.
@@ -121,6 +135,16 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     return fresh
   }
 
+  // Same rule as the caches above: a failed refresh keeps the previous answer.
+  let defenderCache: { at: number; info: DefenderInfo } | null = null
+  const defenderInfo = async (): Promise<DefenderInfo | null> => {
+    if (defenderCache && Date.now() - defenderCache.at < DEFENDER_TTL_MS) return defenderCache.info
+    const fresh = await collectDefender()
+    if (fresh === null) return defenderCache?.info ?? null
+    defenderCache = { at: Date.now(), info: fresh }
+    return fresh
+  }
+
   const consumersCache = new Map<string, { at: number; info: DiskConsumersInfo }>()
   const consumersInfo = async (distro: string): Promise<DiskConsumersInfo | null> => {
     const cached = consumersCache.get(distro)
@@ -134,7 +158,7 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
   return {
     async isAvailable(): Promise<boolean> {
       try {
-        await listDistros(runner)
+        await distroLister.list()
         return true
       } catch {
         return false
@@ -142,7 +166,7 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     },
 
     listDistros(): Promise<DistroSummary[]> {
-      return listDistros(runner)
+      return distroLister.list()
     },
 
     /**
@@ -152,6 +176,9 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
      */
     async probeDistro(distro: string): Promise<boolean> {
       assertValidDistroName(distro)
+      // A script that finished in this distro a moment ago already proved it
+      // answers; one more wsl.exe start (and its wslhost console) adds nothing.
+      if (runner.answeredRecently?.(distro, PROBE_REUSE_MS)) return true
       try {
         const res = await runner.runInDistro(distro, 'true', { timeoutMs: PROBE_TIMEOUT_MS })
         return !res.timedOut && res.code === 0
@@ -164,7 +191,7 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
       assertValidDistroName(distro)
       let summary: DistroSummary | undefined
       try {
-        summary = (await listDistros(runner)).find((d) => d.name === distro)
+        summary = (await distroLister.list()).find((d) => d.name === distro)
       } catch (err) {
         if (err instanceof WslNotAvailableError) throw err
       }
@@ -276,7 +303,7 @@ export function createRealProvider(runner: DistroRunner): WslProvider {
     },
 
     getDefender() {
-      return collectDefender()
+      return defenderInfo()
     },
 
     getInotify(distro) {

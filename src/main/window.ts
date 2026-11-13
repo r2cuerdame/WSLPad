@@ -29,6 +29,32 @@ export function sendWhenRendererReady(
   send()
 }
 
+/**
+ * On screen: shown and not minimized. Focus is deliberately not consulted — a
+ * focused window is a visible one anyway, and Electron keeps reporting
+ * isFocused() === true for a window minimized from outside (measured on
+ * Windows 11 with Electron 33), with no blur event to correct it.
+ */
+export function isWindowOnScreen(win: BrowserWindow): boolean {
+  if (win.isDestroyed()) return false
+  return win.isVisible() && !win.isMinimized()
+}
+
+/**
+ * Report every on-screen / off-screen change of `win` (show, hide to tray,
+ * minimize, restore, focus, blur, destroy) to `onChange`.
+ */
+export function watchOnScreen(win: BrowserWindow, onChange: (onScreen: boolean) => void): void {
+  const report = (): void => onChange(isWindowOnScreen(win))
+  win.on('show', report)
+  win.on('hide', report)
+  win.on('minimize', report)
+  win.on('restore', report)
+  win.on('focus', report)
+  win.on('blur', report)
+  win.on('closed', () => onChange(false))
+}
+
 export function createMainWindow(host: MainWindowHost): BrowserWindow {
   const win = new BrowserWindow({
     width: 1180,

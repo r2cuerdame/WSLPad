@@ -28,6 +28,13 @@ export const POLL_BOUNDS = {
   mediumMs: { min: 5000, max: 120000 },
   slowMs: { min: 15000, max: 600000 }
 } as const
+/**
+ * Tier floors while the window is minimized, hidden or in the tray. Nothing on
+ * screen needs a 3 s tick then, and every in-distro query is a wsl.exe start
+ * that makes WSL open a wslhost console of its own; a longer configured
+ * interval still wins.
+ */
+export const POLL_BACKGROUND_MS = { fastMs: 60000, mediumMs: 300000, slowMs: 900000 } as const
 
 /**
  * Developer Environment Context (shared by MCP and Copy for LLM). The schema
@@ -90,6 +97,13 @@ export const PROBE_BACKOFF_BASE_MS = 5000
 export const PROBE_BACKOFF_MAX_MS = 60000
 /** A fresh success is trusted this long, so three tiers share one probe. */
 export const PROBE_TRUST_MS = 2000
+/**
+ * A script that finished inside the distro this recently stands in for the
+ * probe. Long enough to cover the gap between two foreground fast ticks, short
+ * enough that a distro wedged since then costs one batch timeout, after which
+ * the probe and its backoff take over again.
+ */
+export const PROBE_REUSE_MS = 10000
 
 /**
  * Clock drift that stops being noise (issue #28). Both clocks are read a round
