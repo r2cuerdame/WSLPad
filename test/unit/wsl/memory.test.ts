@@ -10,6 +10,8 @@ import {
   parseWslConfigMemory
 } from '../../../src/main/wsl/memory'
 import type { HostCommandRunner } from '../../../src/main/wsl/windows-ports'
+import { emptyObservations, parseIni, reconcileSettings } from '../../../src/main/wsl/wsl-config'
+import type { WslSettingInfo } from '../../../src/shared/types'
 import { fakeRunner, ok } from './collectors/helpers'
 
 const KB = 1024
@@ -139,8 +141,32 @@ describe('parseWslConfigMemory', () => {
   it('reads memory from [wsl2] and autoMemoryReclaim from [experimental]', () => {
     expect(parseWslConfigMemory(WSLCONFIG)).toEqual({
       memoryBytes: 12 * GIB,
+      memoryDeclared: true,
       autoMemoryReclaim: 'gradual'
     })
+  })
+
+  it('reads a value with a trailing comment and a commented header', () => {
+    expect(parseWslConfigMemory('[wsl2]\nmemory=8GB # note').memoryBytes).toBe(8 * GIB)
+    expect(parseWslConfigMemory('[wsl2]\nmemory = 8GB ; note').memoryBytes).toBe(8 * GIB)
+    expect(parseWslConfigMemory('[wsl2] # main\nmemory=8GB').memoryBytes).toBe(8 * GIB)
+    expect(parseWslConfigMemory('[experimental] # new\nautoMemoryReclaim=dropCache # x')).toEqual({
+      memoryBytes: null,
+      memoryDeclared: false,
+      autoMemoryReclaim: 'dropcache'
+    })
+  })
+
+  it('tells a declared but unreadable size apart from no declaration', () => {
+    expect(parseWslConfigMemory('[wsl2]\nmemory=lots')).toEqual({
+      memoryBytes: null,
+      memoryDeclared: true,
+      autoMemoryReclaim: null
+    })
+    expect(parseWslConfigMemory('[wsl2]\nprocessors=4').memoryDeclared).toBe(false)
+    // the last declaration still wins, readable or not
+    expect(parseWslConfigMemory('[wsl2]\nmemory=lots\nmemory=6GB').memoryBytes).toBe(6 * GIB)
+    expect(parseWslConfigMemory('[wsl2]\nmemory=6GB\nmemory=lots').memoryBytes).toBeNull()
   })
 
   it('accepts every documented size unit and spacing', () => {
@@ -153,17 +179,60 @@ describe('parseWslConfigMemory', () => {
     const wrong = ['[experimental]', 'memory=12GB', '[wsl2]', 'autoMemoryReclaim=gradual'].join(
       '\n'
     )
-    expect(parseWslConfigMemory(wrong)).toEqual({ memoryBytes: null, autoMemoryReclaim: null })
+    expect(parseWslConfigMemory(wrong)).toEqual({
+      memoryBytes: null,
+      memoryDeclared: false,
+      autoMemoryReclaim: null
+    })
   })
 
   it('rejects a size without a unit and ignores comments', () => {
     expect(parseWslConfigMemory('[wsl2]\nmemory=8192').memoryBytes).toBeNull()
-    expect(parseWslConfigMemory('[wsl2]\n# memory=4GB\n; memory=2GB').memoryBytes).toBeNull()
+    expect(parseWslConfigMemory('[wsl2]\n# memory=4GB\n; memory=2GB')).toEqual({
+      memoryBytes: null,
+      memoryDeclared: false,
+      autoMemoryReclaim: null
+    })
     expect(parseWslConfigMemory('').memoryBytes).toBeNull()
   })
 
   it('lets the last declaration of a key win', () => {
     expect(parseWslConfigMemory('[wsl2]\nmemory=4GB\nmemory=6GB').memoryBytes).toBe(6 * GIB)
+  })
+
+  it('agrees with the settings table about whether memory is declared', () => {
+    const observed = { ...emptyObservations(), memTotalBytes: Math.round(7.8 * GIB) }
+    const memoryRow = (text: string): WslSettingInfo => {
+      const { settings } = reconcileSettings({
+        wslconfigEntries: parseIni(text),
+        wslConfEntries: [],
+        observations: observed,
+        wslVersion: '2.3.26.0',
+        vmStartedAtMs: 1_000_000,
+        wslconfigMtimeMs: 0,
+        wslConfMtimeMs: 0
+      })
+      // A memory stranded in another section is its own row, flagged wrong-section.
+      const row = settings.find((s) => s.key.toLowerCase() === 'memory')
+      if (row === undefined) throw new Error('no memory row')
+      return row
+    }
+    const cases = [
+      '[wsl2] # limits\nmemory=8GB # half of 16',
+      '[wsl2]\nmemory = 8GB ; note',
+      '[wsl2]\nmemory=lots',
+      '[wsl2]\n# memory=8GB\nprocessors=4',
+      '[experimental]\nmemory=8GB'
+    ]
+    for (const text of cases) {
+      const row = memoryRow(text)
+      const card = parseWslConfigMemory(text)
+      expect(card.memoryDeclared, text).toBe(row.section === 'wsl2' && row.origin === 'wslconfig')
+      if (row.verdict === 'applied') expect(card.memoryBytes, text).toBe(8 * GIB)
+    }
+    expect(memoryRow(cases[0]).verdict).toBe('applied')
+    expect(memoryRow(cases[1]).verdict).toBe('applied')
+    expect(memoryRow(cases[4]).verdict).toBe('wrong-section')
   })
 })
 
@@ -171,14 +240,27 @@ describe('createMemoryCollector', () => {
   let dir: string
   let configPath: string
   let utf16Path: string
+  let utf16BePath: string
+  let commentedPath: string
+  let unreadablePath: string
+  let barePath: string
 
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), 'wslpad-memory-'))
     configPath = join(dir, '.wslconfig')
     utf16Path = join(dir, 'utf16.wslconfig')
+    utf16BePath = join(dir, 'utf16be.wslconfig')
+    commentedPath = join(dir, 'commented.wslconfig')
+    unreadablePath = join(dir, 'unreadable.wslconfig')
+    barePath = join(dir, 'bare.wslconfig')
     writeFileSync(configPath, WSLCONFIG, 'utf8')
     // Notepad's default for a re-saved .wslconfig: UTF-16LE with a BOM.
     writeFileSync(utf16Path, '\ufeff[wsl2]\r\nmemory=9GB\r\n', 'utf16le')
+    // Notepad's "UTF-16 BE" choice: the same text with every code unit swapped.
+    writeFileSync(utf16BePath, Buffer.from('\ufeff[wsl2]\r\nmemory=7GB\r\n', 'utf16le').swap16())
+    writeFileSync(commentedPath, '[wsl2] # limits\r\nmemory=8GB # half of 16\r\n', 'utf8')
+    writeFileSync(unreadablePath, '[wsl2]\r\nmemory=lots\r\n', 'utf8')
+    writeFileSync(barePath, '[wsl2]\r\nmemory=8192\r\n', 'utf8')
   })
 
   afterAll(() => {
@@ -275,6 +357,42 @@ describe('createMemoryCollector', () => {
     const detail = await collector.collect(guestRunner(), 'Ubuntu-24.04')
     expect(detail.vmLimitBytes).toBe(9 * GIB)
     expect(detail.vmLimitSource).toBe('wslconfig')
+  })
+
+  it('reads a .wslconfig saved as UTF-16 big-endian', async () => {
+    const collector = createMemoryCollector({
+      run: hostRunner(),
+      wslconfigPath: utf16BePath,
+      hostTotalBytes: () => 32 * GIB
+    })
+    const detail = await collector.collect(guestRunner(), 'Ubuntu-24.04')
+    expect(detail.vmLimitBytes).toBe(7 * GIB)
+    expect(detail.vmLimitSource).toBe('wslconfig')
+  })
+
+  it('reads the ceiling from lines carrying a trailing comment', async () => {
+    const collector = createMemoryCollector({
+      run: hostRunner(),
+      wslconfigPath: commentedPath,
+      hostTotalBytes: () => 32 * GIB
+    })
+    const detail = await collector.collect(guestRunner(), 'Ubuntu-24.04')
+    expect(detail.vmLimitBytes).toBe(8 * GIB)
+    expect(detail.vmLimitSource).toBe('wslconfig')
+  })
+
+  it('reports a declared but unreadable ceiling as unknown, not the default', async () => {
+    for (const wslconfigPath of [unreadablePath, barePath]) {
+      const collector = createMemoryCollector({
+        run: hostRunner(),
+        wslconfigPath,
+        hostTotalBytes: () => 32 * GIB
+      })
+      const detail = await collector.collect(guestRunner(), 'Ubuntu-24.04')
+      expect(detail.vmLimitBytes).toBeNull()
+      expect(detail.vmLimitSource).toBe('unknown')
+      expect(detail.hostTotalBytes).toBe(32 * GIB)
+    }
   })
 
   it('keeps the guest view when the Windows process cannot be listed', async () => {
