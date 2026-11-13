@@ -182,6 +182,11 @@ export class BatchStreamSplitter {
     return Buffer.concat(this.body)
   }
 
+  /** True once the first script's begin marker has been seen. */
+  get started(): boolean {
+    return this.index > 0 || this.inside
+  }
+
   /** Whatever came before the first marker — wsl.exe's own error, typically. */
   preamble(): Buffer {
     if (this.index === 0 && !this.inside) this.addPreamble(this.window)
@@ -228,6 +233,7 @@ interface QueuedScript {
  */
 export class WslRunner implements DistroRunner {
   private children = new Set<ChildProcess>()
+  private batchCancels = new Set<() => void>()
   private wslMissing = false
   private timingObserver: ((durationMs: number) => void) | null = null
   private queued = new Map<string, QueuedScript[]>()
@@ -307,22 +313,29 @@ export class WslRunner implements DistroRunner {
     const queue = this.queued.get(distro)
     this.queued.delete(distro)
     if (queue === undefined) return
-    for (const group of batchGroups(queue)) {
-      if (group.length === 1) {
-        const [only] = group
-        this.runInDistro(distro, only.script, only.opts).then(only.resolve, only.reject)
-      } else {
-        this.runBatch(distro, group)
-      }
+    // Shorter allowances run first so a slow query (such as /mnt/c df) does
+    // not sit ahead of fast /proc reads queued in the same tick; Array.sort is
+    // stable, so scripts sharing a timeout keep their arrival order.
+    const ordered = [...queue].sort(
+      (a, b) => (a.opts.timeoutMs ?? RUNNER_TIMEOUT_MS) - (b.opts.timeoutMs ?? RUNNER_TIMEOUT_MS)
+    )
+    for (const group of batchGroups(ordered)) {
+      this.dispatchGroup(distro, group)
+    }
+  }
+
+  private dispatchGroup(distro: string, group: QueuedScript[]): void {
+    if (group.length === 1) {
+      const [only] = group
+      this.runInDistro(distro, only.script, only.opts).then(only.resolve, only.reject)
+    } else if (group.length > 1) {
+      this.runBatch(distro, group)
     }
   }
 
   private runBatch(distro: string, items: QueuedScript[]): void {
     const nonce = randomBytes(8).toString('hex')
     const caps = items.map((item) => item.opts.maxOutputBytes ?? RUNNER_MAX_OUTPUT_BYTES)
-    // Sequential scripts: the batch gets the longest single allowance, and a
-    // script still running at that point reports timedOut like a single run.
-    const timeoutMs = Math.max(...items.map((item) => item.opts.timeoutMs ?? RUNNER_TIMEOUT_MS))
     const out = new BatchStreamSplitter(nonce, caps, true)
     const err = new BatchStreamSplitter(nonce, caps, false)
     const outDone: Array<{ body: Buffer; code: number | null } | undefined> = []
@@ -330,6 +343,10 @@ export class WslRunner implements DistroRunner {
     const settled = items.map(() => false)
     const started = this.timingObserver ? performance.now() : null
     let timedOut = false
+    let batchDisposed = false
+    const onDispose = (): void => {
+      batchDisposed = true
+    }
 
     const resultFor = (index: number, stdout: Buffer, stderr: Buffer, code: number | null, cut: boolean): RunResult => {
       const opts = items[index].opts
@@ -363,36 +380,89 @@ export class WslRunner implements DistroRunner {
       return
     }
     this.children.add(child)
+    this.batchCancels.add(onDispose)
 
-    const timer = setTimeout(() => {
-      timedOut = true
-      try {
-        child.kill()
-      } catch {
-        /* already gone */
-      }
-    }, timeoutMs)
+    let ended = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let timerIndex = -1
+    const end = (): void => {
+      ended = true
+      if (timer !== undefined) clearTimeout(timer)
+      this.children.delete(child)
+      this.batchCancels.delete(onDispose)
+      if (started !== null) this.timingObserver?.(performance.now() - started)
+    }
 
+    const settleRemaining = (code: number | null, cut: boolean): void => {
+      const runningOut = out.pendingBody()
+      const runningErr = err.pendingBody()
+      const preamble = err.preamble()
+      const cutIndex = out.index
+      const isolateTail = (cut || out.started) && !batchDisposed
+      const tail: QueuedScript[] = []
+      items.forEach((item, index) => {
+        if (settled[index]) return
+        settled[index] = true
+        const o = outDone[index]
+        if (o !== undefined) {
+          // stdout finished; stderr's marker was lost with the process.
+          this.answeredAt.set(distro, Date.now())
+          item.resolve(resultFor(index, o.body, errDone[index] ?? runningErr, o.code, false))
+          return
+        }
+        if (isolateTail && index > cutIndex) {
+          tail.push(item)
+          return
+        }
+        const running = cutIndex === index
+        const stderr = errDone[index] ?? (err.index === index ? runningErr : preamble)
+        item.resolve(
+          resultFor(index, running ? runningOut : Buffer.alloc(0), stderr, cut ? null : code, cut)
+        )
+      })
+      if (tail.length > 0) this.dispatchGroup(distro, tail)
+    }
+
+    // Each script gets its own allowance; when it finishes, the clock resets
+    // for the next script, and if it stalls, later scripts run in a fresh batch.
+    const armTimer = (forIndex: number): void => {
+      if (ended || timedOut || forIndex >= items.length || forIndex === timerIndex) return
+      timerIndex = forIndex
+      if (timer !== undefined) clearTimeout(timer)
+      const timeoutMs = items[forIndex].opts.timeoutMs ?? RUNNER_TIMEOUT_MS
+      timer = setTimeout(() => {
+        if (ended) return
+        timedOut = true
+        end()
+        try {
+          child.kill()
+        } catch {
+          /* already gone */
+        }
+        child.stdout?.destroy()
+        child.stderr?.destroy()
+        settleRemaining(null, true)
+      }, timeoutMs)
+    }
+    armTimer(0)
+
+    // Past the deadline nothing more is read, exactly like a single run: a
+    // script that finishes after the kill is still reported as timed out.
     child.stdout?.on('data', (chunk: Buffer) => {
+      if (ended || timedOut) return
       out.push(chunk, (index, body, code) => {
         outDone[index] = { body, code }
         tryResolve(index)
+        armTimer(out.index)
       })
     })
     child.stderr?.on('data', (chunk: Buffer) => {
+      if (ended || timedOut) return
       err.push(chunk, (index, body) => {
         errDone[index] = body
         tryResolve(index)
       })
     })
-
-    let ended = false
-    const end = (): void => {
-      ended = true
-      clearTimeout(timer)
-      this.children.delete(child)
-      if (started !== null) this.timingObserver?.(performance.now() - started)
-    }
 
     child.on('error', (spawnErr: NodeJS.ErrnoException) => {
       if (ended) return
@@ -409,24 +479,7 @@ export class WslRunner implements DistroRunner {
     child.on('close', (code) => {
       if (ended) return
       end()
-      const runningOut = out.pendingBody()
-      const runningErr = err.pendingBody()
-      const preamble = err.preamble()
-      items.forEach((item, index) => {
-        if (settled[index]) return
-        settled[index] = true
-        const o = outDone[index]
-        if (o !== undefined) {
-          // stdout finished; stderr's marker was lost with the process.
-          item.resolve(resultFor(index, o.body, errDone[index] ?? runningErr, o.code, false))
-          return
-        }
-        const running = out.index === index
-        const stderr = errDone[index] ?? (err.index === index ? runningErr : preamble)
-        item.resolve(
-          resultFor(index, running ? runningOut : Buffer.alloc(0), stderr, timedOut ? null : code, timedOut)
-        )
-      })
+      settleRemaining(code, timedOut)
     })
 
     child.stdin?.end()
@@ -531,6 +584,8 @@ export class WslRunner implements DistroRunner {
       for (const item of queue) item.reject(new Error('WSL runner disposed'))
     }
     this.queued.clear()
+    for (const cancel of this.batchCancels) cancel()
+    this.batchCancels.clear()
     for (const child of this.children) {
       try {
         child.kill()

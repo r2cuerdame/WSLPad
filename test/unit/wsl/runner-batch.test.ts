@@ -25,11 +25,12 @@ const { BatchStreamSplitter, WslRunner, batchDriver, batchGroups } = await impor
 const NONCE = 'abcdef0123456789'
 
 function findShell(): string | null {
-  const candidates = ['sh']
+  const candidates: string[] = []
   if (process.platform === 'win32') {
     const git = spawnSync('git', ['--exec-path'], { encoding: 'utf8', windowsHide: true })
     if (git.status === 0) candidates.push(resolve(git.stdout.trim(), '../../../usr/bin/sh.exe'))
   }
+  candidates.push('sh')
   for (const candidate of candidates) {
     const probe = spawnSync(candidate, ['-c', '/bin/sh -c "exit 7"'], { windowsHide: true })
     if (probe.status === 7) return candidate
@@ -220,6 +221,38 @@ describe.skipIf(shell === null)('WslRunner.coalesced (local POSIX shell)', () =>
     expect(cut.timedOut).toBe(true)
     expect(cut.code).toBeNull()
     expect(cut.stdout).toBe('start')
+  }, 30000)
+
+  it('runs later scripts in a fresh launch when an earlier script times out', async () => {
+    const view = runner().coalesced()
+    const [done, cut, after] = await Promise.all([
+      view.runInDistro('Ubuntu', 'printf first', { timeoutMs: 600 }),
+      view.runInDistro('Ubuntu', 'printf stalled; sleep 3', { timeoutMs: 600 }),
+      view.runInDistro('Ubuntu', 'printf recovered', { timeoutMs: 800 })
+    ])
+    expect(done).toEqual({ stdout: 'first', stderr: '', code: 0, timedOut: false })
+    expect(cut).toEqual({ stdout: 'stalled', stderr: '', code: null, timedOut: true })
+    expect(after).toEqual({ stdout: 'recovered', stderr: '', code: 0, timedOut: false })
+    expect(h.launches).toHaveLength(2)
+  }, 30000)
+
+  it('gives each script in a batch its own timeout allowance and orders shorter timeouts first', async () => {
+    const view = runner().coalesced()
+    const [slowAllowed, a, b] = await Promise.all([
+      view.runInDistro('Ubuntu', 'printf slow', { timeoutMs: 2000 }),
+      view.runInDistro('Ubuntu', 'sleep 0.5; printf a', { timeoutMs: 900 }),
+      view.runInDistro('Ubuntu', 'sleep 0.5; printf b', { timeoutMs: 900 })
+    ])
+    expect(h.launches).toHaveLength(1)
+    expect(h.launches[0].slice(6)).toEqual([
+      'sh',
+      'sleep 0.5; printf a',
+      'sleep 0.5; printf b',
+      'printf slow'
+    ])
+    expect(a).toEqual({ stdout: 'a', stderr: '', code: 0, timedOut: false })
+    expect(b).toEqual({ stdout: 'b', stderr: '', code: 0, timedOut: false })
+    expect(slowAllowed).toEqual({ stdout: 'slow', stderr: '', code: 0, timedOut: false })
   }, 30000)
 
   it('drops scripts still waiting for their batch when the runner is disposed', async () => {

@@ -201,9 +201,12 @@ export async function collectResources(
   runner: DistroRunner,
   distro: string
 ): Promise<ResourceInfo> {
+  // Enqueue DF_SCRIPT on the next microtask so every other collector started
+  // in the same Promise.all (including ps, which shares the slow allowance)
+  // lands ahead of potentially slow /mnt/c metadata in the coalesced batch.
   const [fastOut, dfOut] = await Promise.all([
     runOrNull(runner, distro, FAST_SCRIPT, RUNNER_TIMEOUT_MS),
-    runOrNull(runner, distro, DF_SCRIPT, RUNNER_SLOW_TIMEOUT_MS)
+    Promise.resolve().then(() => runOrNull(runner, distro, DF_SCRIPT, RUNNER_SLOW_TIMEOUT_MS))
   ])
 
   const sections = splitSections(fastOut ?? '')
