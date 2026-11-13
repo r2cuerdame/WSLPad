@@ -129,6 +129,45 @@ describe('parseDriveMounts', () => {
     expect(parseDriveMounts(probe('', WSLCONF))).toBeNull()
   })
 
+  it('finds the drives at the filesystem root when the root is /', () => {
+    const mounts = [
+      '/dev/sdd / ext4 rw,relatime 0 0',
+      'C:\\134 /c 9p rw,noatime,aname=drvfs;path=C:\\;uid=1000 0 0',
+      'D:\\134 /d 9p rw,noatime,aname=drvfs;path=D:\\;uid=1000 0 0',
+      'C:\\134Program\\040Files\\134Docker /Docker/host 9p rw,noatime,aname=drvfs;path=C:\\Prog 0 0'
+    ].join('\n')
+    const info = parseDriveMounts(probe(mounts, '[automount]\nroot=/\n'))
+    expect(info?.drives.map((d) => d.point)).toEqual(['/c', '/d'])
+  })
+
+  it('finds the drives under a deeper declared root', () => {
+    const mounts = [
+      '/dev/sdd / ext4 rw,relatime 0 0',
+      'C:\\134 /mnt/win/c 9p rw,noatime,aname=drvfs;path=C:\\;uid=1000 0 0',
+      'C:\\134Program\\040Files\\134Docker /Docker/host 9p rw,noatime,aname=drvfs;path=C:\\Prog 0 0'
+    ].join('\n')
+    for (const root of ['/mnt/win/', '/mnt/win']) {
+      const info = parseDriveMounts(probe(mounts, `[automount]\nroot=${root}\n`))
+      expect(info?.drives.map((d) => d.point)).toEqual(['/mnt/win/c'])
+    }
+  })
+
+  it('keeps the usual shape when no root is declared', () => {
+    const mounts = [
+      'C:\\134 /windir/c 9p rw,noatime,aname=drvfs;path=C:\\;uid=1000 0 0',
+      'C:\\134Program\\040Files\\134Docker /Docker/host 9p rw,noatime,aname=drvfs;path=C:\\Prog 0 0'
+    ].join('\n')
+    expect(parseDriveMounts(probe(mounts, ''))?.drives.map((d) => d.point)).toEqual(['/windir/c'])
+    const usual = parseDriveMounts(probe(MOUNTS, '[automount]\nroot=/mnt/\n'))
+    expect(usual?.drives.map((d) => d.point)).toEqual(['/mnt/c', '/mnt/d'])
+  })
+
+  it('still lists the running drives when a new root waits for a restart', () => {
+    // wsl.conf already says root=/, but the VM has not been restarted yet.
+    const info = parseDriveMounts(probe(MOUNTS, '[automount]\nroot=/\n'))
+    expect(info?.drives.map((d) => d.point)).toEqual(['/mnt/c', '/mnt/d'])
+  })
+
   it('reports an empty list when the file was read and holds no drives', () => {
     const info = parseDriveMounts(probe('/dev/sdd / ext4 rw 0 0', WSLCONF))
     expect(info?.drives).toEqual([])
