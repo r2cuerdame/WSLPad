@@ -162,6 +162,45 @@ function isInside(child: string, parent: string): boolean {
   return c === p || c.startsWith(p.endsWith('\\') ? p : p + '\\')
 }
 
+/**
+ * Moving a selected directory also moves its selected descendants. Only omit
+ * those descendants when the selected ancestor is an actual directory;
+ * moving a directory symlink only moves the link itself.
+ */
+async function filterMovedDescendants(sources: string[]): Promise<string[]> {
+  const selectedDirectories = new Set<string>()
+  for (const parent of sources) {
+    const hasSelectedDescendant = sources.some(
+      (child) => child.toLowerCase() !== parent.toLowerCase() && isInside(child, parent)
+    )
+    if (!hasSelectedDescendant) continue
+    try {
+      if ((await lstat(parent)).isDirectory()) selectedDirectories.add(parent.toLowerCase())
+    } catch {
+      // Leave missing or inaccessible sources in the batch so the normal
+      // per-item operation reports their error instead of hiding it here.
+    }
+  }
+  const directories = [...selectedDirectories]
+  return sources.filter(
+    (source) =>
+      !directories.some(
+        (parent) => parent !== source.toLowerCase() && isInside(source, parent)
+      )
+  )
+}
+
+/** Windows paths are case-insensitive; retain the first normalized spelling. */
+function uniqueWindowsPaths(paths: string[]): string[] {
+  const unique = new Map<string, string>()
+  for (const path of paths) {
+    const normalized = normalizePath(path)
+    const key = normalized.toLowerCase()
+    if (!unique.has(key)) unique.set(key, normalized)
+  }
+  return [...unique.values()]
+}
+
 function isValidFileName(name: string): boolean {
   return (
     name.length > 0 &&
@@ -828,7 +867,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
 
     copyMove: async (sources, destDir, move) => {
       const dest = normalizePath(destDir)
-      const srcs = [...new Set(sources.map(normalizePath))]
+      let srcs = uniqueWindowsPaths(sources)
       for (const source of srcs) {
         if (isDriveRoot(source)) {
           throw new ExplorerError(
@@ -855,6 +894,7 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
           )
         }
       }
+      if (move) srcs = await filterMovedDescendants(srcs)
       return startOp(move ? 'move' : 'copy', (opId, isCancelled) =>
         runCopyMove(opId, srcs, dest, move, isCancelled)
       )
