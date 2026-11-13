@@ -42,6 +42,7 @@ import type {
 } from '@shared/types'
 import { ExplorerError, type ExplorerErrorCode, type ExplorerListOpts } from '../wsl/contracts'
 import { execFileHidden } from '../hidden-process'
+import { byLargest } from './dir-sizes'
 
 const BINARY_SNIFF_BYTES = 8000
 const HIDDEN_CACHE_MS = 2000
@@ -596,7 +597,12 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
       } catch (err) {
         if (owner === root) throw err
         const entry = children.get(owner)
-        if (entry) entry.partial = true
+        if (entry) {
+          // A child that could not be opened at all has no number to floor:
+          // it is unmeasured, not an empty folder.
+          if (dir === owner) entry.sizeBytes = null
+          else entry.partial = true
+        }
         return
       }
       try {
@@ -679,18 +685,20 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
           } catch (err) {
             const code = (err as NodeJS.ErrnoException).code
             if (code === 'EACCES' || code === 'EPERM') {
-              children.set(full, { name: item.name, path: full, isDirectory: item.isDirectory(), sizeBytes: 0, partial: true })
+              // Not even its own metadata was readable: unmeasured, never 0 bytes.
+              children.set(full, { name: item.name, path: full, isDirectory: item.isDirectory(), sizeBytes: null, partial: false })
             } else if (code !== 'ENOENT') throw err
           }
         }
       } finally {
         await handle.close().catch(() => undefined)
       }
-      const entries = [...children.values()].sort((a, b) =>
-        a.sizeBytes === b.sizeBytes ? a.name.localeCompare(b.name) : (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0)
-      )
+      const entries = [...children.values()].sort(byLargest)
       result.entries = entries
-      result.totalBytes = entries.reduce((sum, entry) => sum + (entry.sizeBytes ?? 0), 0)
+      // An empty folder totals 0; a folder whose every child went unmeasured has no total.
+      let total: number | null = entries.length === 0 ? 0 : null
+      for (const entry of entries) if (entry.sizeBytes !== null) total = (total ?? 0) + entry.sizeBytes
+      result.totalBytes = total
       result.cancelled = op.cancelled || disposed
       return result
     } catch (err) {

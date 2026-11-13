@@ -57,6 +57,21 @@ describe('parseDuPartials', () => {
       "du: cannot access '/home/dev/gone': No such file or directory\n"
     expect([...parseDuPartials(stderr)]).toEqual(['/home/dev/projects/secret', '/home/dev/gone'])
   })
+
+  it('keeps a single quote inside the path in every form du prints it', () => {
+    const stderr =
+      // a quote and nothing else to escape: GNU switches to double quotes
+      `du: cannot read directory "/home/dev/o'brien/secret": Permission denied\n` +
+      // a quote next to a character double quotes would expand
+      "du: cannot read directory '/home/dev/o'\\''brien $x/vault': Permission denied\n" +
+      // a byte outside ASCII under LC_ALL=C, here the Korean folder 문서
+      "du: cannot read directory '/home/dev/'$'\\353\\254\\270\\354\\204\\234''/a': Permission denied\n"
+    expect([...parseDuPartials(stderr)]).toEqual([
+      "/home/dev/o'brien/secret",
+      "/home/dev/o'brien $x/vault",
+      '/home/dev/문서/a'
+    ])
+  })
 })
 
 describe('collectDirSizes', () => {
@@ -103,6 +118,65 @@ describe('collectDirSizes', () => {
     const result = await collectDirSizes(runner, 'Ubuntu', DIR, { children: [child('projects')] })
 
     expect(result.entries[0]).toMatchObject({ sizeBytes: 4096, partial: true })
+    expect(result.error).toBeNull()
+  })
+
+  it("credits a permission error under o'brien to o'brien and not to its sibling o", async () => {
+    const quoted = [child('o'), child("o'brien")]
+    const runner = new MockRunner().on((script) => {
+      expect(script).toContain("'/home/dev/o'\\''brien'")
+      return ok(
+        du([
+          [100, `${DIR}/o`],
+          [200, `${DIR}/o'brien`]
+        ]),
+        1,
+        `du: cannot read directory "/home/dev/o'brien/private": Permission denied\n`
+      )
+    })
+    const result = await collectDirSizes(runner, 'Ubuntu', DIR, { children: quoted })
+
+    expect(result.entries.map((e) => [e.name, e.sizeBytes, e.partial])).toEqual([
+      ["o'brien", 200, true],
+      ['o', 100, false]
+    ])
+  })
+
+  it('never marks a child partial when du has no number for it', async () => {
+    const runner = new MockRunner().on(() =>
+      ok(
+        du([[900, `${DIR}/projects`]]),
+        1,
+        "du: cannot access '/home/dev/.cache': Permission denied\n"
+      )
+    )
+    const result = await collectDirSizes(runner, 'Ubuntu', DIR, { children: CHILDREN })
+
+    expect(result.entries.find((e) => e.name === '.cache')).toMatchObject({
+      sizeBytes: null,
+      partial: false
+    })
+    expect(result.entries.find((e) => e.name === 'projects')).toMatchObject({
+      sizeBytes: 900,
+      partial: false
+    })
+  })
+
+  it('has no total when every child went unmeasured, unlike an empty folder', async () => {
+    const runner = new MockRunner().on(() =>
+      ok(
+        'garbage\n',
+        1,
+        "du: cannot access '/home/dev/projects': Permission denied\n" +
+          "du: cannot access '/home/dev/.cache': Permission denied\n" +
+          "du: cannot access '/home/dev/notes.md': Permission denied\n"
+      )
+    )
+    const result = await collectDirSizes(runner, 'Ubuntu', DIR, { children: CHILDREN })
+
+    expect(result.entries).toHaveLength(3)
+    expect(result.entries.every((e) => e.sizeBytes === null && !e.partial)).toBe(true)
+    expect(result.totalBytes).toBeNull()
     expect(result.error).toBeNull()
   })
 

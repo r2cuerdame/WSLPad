@@ -52,12 +52,70 @@ export function parseDuOutput(stdout: string): Map<string, number> {
 export function parseDuPartials(stderr: string): Set<string> {
   const partial = new Set<string>()
   for (const line of stderr.split('\n')) {
-    const match = /(?:cannot read directory|cannot access|Permission denied)[^']*'([^']+)'/.exec(
-      line
-    )
-    if (match !== null) partial.add(match[1])
+    const match = /(?:cannot read directory|cannot access|Permission denied)[^'"$]*/.exec(line)
+    if (match === null) continue
+    const path = readShellWord(line, match.index + match[0].length)
+    if (path !== null) partial.add(path)
   }
   return partial
+}
+
+const DOUBLE_QUOTE_ESCAPABLE = new Set(['"', '\\', '$', '`'])
+const ANSI_C_ESCAPES: Record<string, number> = { n: 10, t: 9, r: 13, a: 7, b: 8, f: 12, v: 11, e: 27 }
+
+/**
+ * Decode the quoted path GNU tools print in a diagnostic. A name with a single
+ * quote comes back as "…" or '…'\''…', and under LC_ALL=C a byte outside ASCII
+ * (a Korean folder name, say) comes back as $'\353\254\270'. Reading only up to
+ * the first single quote would credit the diagnostic to the wrong path, or to
+ * none, and the folder it belongs to would look completely measured.
+ */
+function readShellWord(text: string, start: number): string | null {
+  const bytes: number[] = []
+  const push = (chars: string): void => {
+    bytes.push(...Buffer.from(chars, 'utf8'))
+  }
+  let i = start
+  let quoted = false
+  while (i < text.length) {
+    const c = text[i]
+    if (c === "'") {
+      const end = text.indexOf("'", i + 1)
+      if (end < 0) return null
+      push(text.slice(i + 1, end))
+      i = end + 1
+    } else if (c === '"') {
+      let j = i + 1
+      for (; j < text.length && text[j] !== '"'; j++) {
+        if (text[j] === '\\' && DOUBLE_QUOTE_ESCAPABLE.has(text[j + 1] ?? '')) j++
+        push(text[j])
+      }
+      if (j >= text.length) return null
+      i = j + 1
+    } else if (c === '$' && text[i + 1] === "'") {
+      let j = i + 2
+      for (; j < text.length && text[j] !== "'"; j++) {
+        if (text[j] !== '\\') {
+          push(text[j])
+          continue
+        }
+        const next = text[++j] ?? ''
+        const octal = /^[0-7]{1,3}/.exec(text.slice(j, j + 3))
+        if (octal !== null) {
+          bytes.push(Number.parseInt(octal[0], 8) & 0xff)
+          j += octal[0].length - 1
+        } else if (next in ANSI_C_ESCAPES) bytes.push(ANSI_C_ESCAPES[next])
+        else push(next)
+      }
+      if (j >= text.length) return null
+      i = j + 1
+    } else if (c === '\\' && i + 1 < text.length) {
+      push(text[i + 1])
+      i += 2
+    } else break
+    quoted = true
+  }
+  return quoted && bytes.length > 0 ? Buffer.from(bytes).toString('utf8') : null
 }
 
 /** Which measured path a du diagnostic belongs to: itself or an ancestor of it. */
@@ -68,7 +126,8 @@ function ownerOf(reported: string, requested: string[]): string | null {
   return null
 }
 
-function byLargest(a: DirSizeEntry, b: DirSizeEntry): number {
+/** Largest first, unmeasured last; shared with the Windows pane's measurement. */
+export function byLargest(a: DirSizeEntry, b: DirSizeEntry): number {
   if (a.sizeBytes === null && b.sizeBytes === null) return a.name.localeCompare(b.name)
   // Unmeasured entries sink to the bottom: an unknown is not a small number.
   if (a.sizeBytes === null) return 1
@@ -155,7 +214,8 @@ export async function collectDirSizes(
       path: child.path,
       isDirectory: child.type === 'directory',
       sizeBytes: bytes ?? null,
-      partial: partials.has(child.path)
+      // Only a number can be a floor; an unmeasured child is unknown, not partial.
+      partial: bytes !== undefined && partials.has(child.path)
     }
   })
   entries.sort(byLargest)

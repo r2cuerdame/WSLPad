@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WslPadApi } from '@shared/ipc'
-import type { DirSizeResult, FileEntry, WslPadSnapshot } from '@shared/types'
+import type { DirSizeEntry, DirSizeResult, FileEntry, WslPadSnapshot } from '@shared/types'
 import { PANE_SPLIT_BOUNDS, PANE_SPLIT_DEFAULT, WINDOWS_ROOT } from '@shared/constants'
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
@@ -1219,6 +1219,63 @@ describe('directory sizes', () => {
     expect(rows).toEqual(['logs/', 'config.json', 'a.txt'])
     // An unmeasured child says so instead of showing a zero.
     expect(panel.textContent).toContain('Not measured')
+  })
+
+  const sized = (name: string, sizeBytes: number | null, partial = false): DirSizeEntry => ({
+    name,
+    path: `${LINUX_HOME}/${name}`,
+    isDirectory: true,
+    sizeBytes,
+    partial
+  })
+
+  async function measuredTotal(result: Omit<DirSizeResult, 'path'>): Promise<HTMLElement> {
+    api.explorer.dirSizes.mockResolvedValueOnce({ path: LINUX_HOME, ...result })
+    await renderExplorer()
+    fireEvent.click(measureButton('linux') as HTMLElement)
+    const panel = await within(pane('linux')).findByRole('region', { name: 'Directory sizes' })
+    await waitFor(() => expect(panel.getAttribute('aria-busy')).toBe('false'))
+    return panel.querySelector('.dir-sizes-total') as HTMLElement
+  }
+
+  it('shows the total as exact only when every child was fully measured', async () => {
+    const total = await measuredTotal({
+      entries: [sized('logs', 900), sized('cache', 120)],
+      totalBytes: 1020,
+      skipped: 0,
+      cancelled: false,
+      error: null
+    })
+    expect(total.textContent).toMatch(/^Total \d/)
+    expect(total.textContent).not.toContain('≥')
+    expect(total.getAttribute('title')).toBeNull()
+  })
+
+  it.each([
+    { why: 'an unmeasured child', entries: [sized('logs', 900), sized('locked', null)], skipped: 0 },
+    { why: 'a partly read child', entries: [sized('logs', 900, true), sized('cache', 120)], skipped: 0 },
+    { why: 'skipped children', entries: [sized('logs', 900), sized('cache', 120)], skipped: 3 }
+  ])('marks the total as a minimum when it leaves out $why', async ({ entries, skipped }) => {
+    const total = await measuredTotal({ entries, totalBytes: 1020, skipped, cancelled: false, error: null })
+    expect(total.textContent).toMatch(/^Total ≥ \d/)
+    expect(total.getAttribute('title')).toBe('At least this much — part of it could not be read')
+  })
+
+  it('shows an unknown total when nothing could be measured, and 0 for a real empty folder', async () => {
+    const unknown = await measuredTotal({
+      entries: [sized('locked', null), sized('closed', null)],
+      totalBytes: null,
+      skipped: 0,
+      cancelled: false,
+      error: null
+    })
+    expect(unknown.textContent).toBe('Total Unknown')
+    expect(unknown.getAttribute('title')).toBeNull()
+    cleanup()
+
+    const empty = await measuredTotal({ entries: [], totalBytes: 0, skipped: 0, cancelled: false, error: null })
+    expect(empty.textContent).toMatch(/^Total 0/)
+    expect(empty.textContent).not.toContain('≥')
   })
 
   it('serves a second look from the cache and re-measures after a refresh', async () => {
