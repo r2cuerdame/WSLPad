@@ -843,6 +843,47 @@ describe('FixtureExplorerBackend', () => {
     expect((bad as ExplorerError).code).toBe('UNKNOWN')
   })
 
+  it.each(['linux', 'windows'] as const)(
+    'refuses to convert the This PC virtual root to %s',
+    async (to) => {
+      const backend = new FixtureExplorerBackend()
+      await expect(backend.convertPath(U, WINDOWS_ROOT, to)).rejects.toMatchObject({
+        code: 'UNKNOWN',
+        message: 'Refusing to convert the This PC virtual root'
+      })
+    }
+  )
+
+  it.each([
+    ['C:', '/mnt/c'],
+    ['c:', '/mnt/c'],
+    ['D:', '/mnt/d']
+  ])('maps a bare Windows drive %s to %s', async (windowsPath, linuxPath) => {
+    const backend = new FixtureExplorerBackend()
+    await expect(backend.convertPath(U, windowsPath, 'linux')).resolves.toBe(linuxPath)
+  })
+
+  it.each([
+    '\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev',
+    '\\\\wsl$\\ubuntu-24.04\\home\\dev'
+  ])('maps case-insensitive WSL UNC paths to Linux paths', async (windowsPath) => {
+    const backend = new FixtureExplorerBackend()
+    await expect(backend.convertPath(U, windowsPath, 'linux')).resolves.toBe('/home/dev')
+  })
+
+  it.each(['C:\\Users\\dev\\file\0.txt', 'C:\\Users\\dev\\file\n.txt'])(
+    'rejects path containing NUL or newline',
+    async (input) => {
+      const backend = new FixtureExplorerBackend()
+      for (const to of ['linux', 'windows'] as const) {
+        await expect(backend.convertPath(U, input, to)).rejects.toMatchObject({
+          code: 'UNKNOWN',
+          message: `Path is not mappable: ${JSON.stringify(input)}`
+        })
+      }
+    }
+  )
+
   it('parses the hermes fixture config with 4 MCP servers', async () => {
     const backend = new FixtureExplorerBackend()
     const cfg = await backend.readText(U, '/home/dev/.hermes/config.json', 65536)
