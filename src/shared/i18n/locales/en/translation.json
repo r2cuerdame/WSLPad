@@ -199,6 +199,7 @@
       "consumersWhat": "What",
       "consumerIncluded": "part of the row above",
       "consumerNeedsRoot": "root",
+      "consumerPartial": "At least this much — part of it could not be read",
       "consumersHint": "Known caches only, not a full accounting — the Explorer measures any directory on demand. Nothing here is ever removed for you.",
       "consumerLabel_apt-cache": "Downloaded packages (apt)",
       "consumerLabel_dnf-cache": "Downloaded packages (dnf)",

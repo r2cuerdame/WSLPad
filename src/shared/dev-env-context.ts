@@ -552,7 +552,7 @@ function buildStorage(dash: DashboardSnapshot | null, automountRoot: string, b: 
     .sort((a, c) => c.bytes - a.bytes)
   const cachesCut = b.cap(
     'storage.topCaches',
-    measured.map((c) => ({ id: c.id, path: c.path, bytes: c.bytes })),
+    measured.map((c) => ({ id: c.id, path: c.path, bytes: c.bytes, partial: c.partial })),
     LIMITS.caches
   )
   const defender = dash?.defender ?? null

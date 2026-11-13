@@ -199,6 +199,7 @@
       "consumersWhat": "Was",
       "consumerIncluded": "in der Zeile darüber enthalten",
       "consumerNeedsRoot": "root",
+      "consumerPartial": "Mindestens so viel — ein Teil konnte nicht gelesen werden",
       "consumersHint": "Nur bekannte Caches, keine vollständige Abrechnung — der Explorer misst jedes Verzeichnis auf Wunsch. Hier wird nie etwas für dich gelöscht.",
       "consumerLabel_apt-cache": "Heruntergeladene Pakete (apt)",
       "consumerLabel_dnf-cache": "Heruntergeladene Pakete (dnf)",

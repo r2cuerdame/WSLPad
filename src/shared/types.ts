@@ -943,6 +943,12 @@ export interface DiskConsumerInfo {
   path: string
   exists: boolean
   bytes: number | null
+  /**
+   * True when `bytes` is only what could be read: du hit a directory it was
+   * not allowed into, so the real size is at least this much. A root-only
+   * Docker store read as a few KB is exactly the culprit nobody then suspects.
+   */
+  partial: boolean
   /** Prepared for the Console, never run; null when there is nothing safe to offer. */
   cleanup: string | null
   needsRoot: boolean
@@ -1561,7 +1567,8 @@ export interface DevEnvStorage {
   /** Known caches measured inside the image; null when unmeasured. */
   knownCachesBytes: number | null
   knownCachesPartial: boolean | null
-  topCaches: Array<{ id: string; path: string; bytes: number }>
+  /** `partial` marks a size that is only a floor — part of the cache was unreadable. */
+  topCaches: Array<{ id: string; path: string; bytes: number; partial: boolean }>
   zoneIdentifierCount: number | null
   defender: { realtimeEnabled: boolean | null; imageCoverage: DefenderCoverageVerdict } | null
   inotify: { maxUserWatches: number | null; maxUserInstances: number | null; low: boolean } | null

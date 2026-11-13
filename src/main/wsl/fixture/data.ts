@@ -1236,7 +1236,8 @@ export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersIn
       path: '/var/log',
       exists: true,
       bytes: 861_074_268,
-      cleanup: null,
+      partial: false,
+      cleanup:null,
       needsRoot: false,
       containedIn: null
     },
@@ -1245,7 +1246,8 @@ export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersIn
       path: '/var/log/journal',
       exists: true,
       bytes: 838_860_800,
-      cleanup: 'sudo journalctl --vacuum-size=200M',
+      partial: false,
+      cleanup:'sudo journalctl --vacuum-size=200M',
       needsRoot: true,
       containedIn: 'logs'
     },
@@ -1254,7 +1256,8 @@ export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersIn
       path: '/var/cache/apt',
       exists: true,
       bytes: 354_354_783,
-      cleanup: 'sudo apt clean',
+      partial: false,
+      cleanup:'sudo apt clean',
       needsRoot: true,
       containedIn: null
     },
@@ -1263,7 +1266,8 @@ export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersIn
       path: '/home/dev/.cache',
       exists: true,
       bytes: 1_372_061,
-      cleanup: null,
+      partial: false,
+      cleanup:null,
       needsRoot: false,
       containedIn: null
     },
@@ -1272,7 +1276,8 @@ export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersIn
       path: '/var/lib/snapd',
       exists: true,
       bytes: 188_317,
-      cleanup: null,
+      partial: false,
+      cleanup:null,
       needsRoot: false,
       containedIn: null
     },
@@ -1281,7 +1286,8 @@ export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersIn
       path: '/tmp',
       exists: true,
       bytes: 8_741,
-      cleanup: null,
+      partial: false,
+      cleanup:null,
       needsRoot: false,
       containedIn: null
     },
@@ -1290,7 +1296,8 @@ export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersIn
       path: '/home/dev/.local/share/Trash',
       exists: true,
       bytes: 0,
-      cleanup: null,
+      partial: false,
+      cleanup:null,
       needsRoot: false,
       containedIn: null
     },
@@ -1299,7 +1306,8 @@ export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersIn
       path: '/var/lib/docker',
       exists: false,
       bytes: null,
-      cleanup: null,
+      partial: false,
+      cleanup:null,
       needsRoot: false,
       containedIn: null
     }

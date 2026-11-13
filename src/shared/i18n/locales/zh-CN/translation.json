@@ -199,6 +199,7 @@
       "consumersWhat": "项目",
       "consumerIncluded": "已计入上一行",
       "consumerNeedsRoot": "需要 root",
+      "consumerPartial": "至少这么大 — 有一部分读不到",
       "consumersHint": "只看了已知的缓存，不是完整账目 —— 任意目录可以在资源管理器里现场测量。这里不会替你删除任何东西。",
       "consumerLabel_apt-cache": "下载的软件包 (apt)",
       "consumerLabel_dnf-cache": "下载的软件包 (dnf)",

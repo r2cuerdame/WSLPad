@@ -73,10 +73,14 @@ export function buildConsumersScript(specs: readonly ConsumerSpec[] = CONSUMER_S
     lines.push(
       `p="${spec.path}"`,
       'if [ -d "$p" ]; then',
-      // A du that fails or times out prints nothing, and the row stays unknown
-      // rather than becoming a zero.
-      '  s=$($t du -sxb "$p" 2>/dev/null | cut -f1)',
-      `  printf '%s|%s|%s\\n' '${spec.id}' "$p" "$s"`,
+      // A du that times out prints nothing, and the row stays unknown rather
+      // than becoming a zero. A du that hits an unreadable subdirectory still
+      // prints what it could read but exits non-zero, so its status travels
+      // with the size: piping it straight into cut would lose it, and a floor
+      // would read as the answer.
+      '  o=$($t du -sxb "$p" 2>/dev/null); rc=$?',
+      '  s=$(printf \'%s\\n\' "$o" | cut -f1)',
+      `  printf '%s|%s|%s:%s\\n' '${spec.id}' "$p" "$s" "$rc"`,
       'else',
       `  printf '%s|%s|missing\\n' '${spec.id}' "$p"`,
       'fi'
@@ -95,7 +99,20 @@ function section(text: string): string {
   return (to < 0 ? rest : rest.slice(0, to)).join('\n')
 }
 
-/** `id|path|bytes` — `missing` for a path that is not there, empty for unknown. */
+/**
+ * The last field of a row: `bytes:status`, where status is du's exit code.
+ * An empty size is unknown. A size with a non-zero status is what du could
+ * read before something stopped it — a floor, not the answer. A row without a
+ * status (an older script) is taken as it always was.
+ */
+function readSize(field: string): { bytes: number | null; partial: boolean } {
+  const match = /^(\d*)(?::(\d+))?$/.exec(field)
+  if (match === null || match[1] === '') return { bytes: null, partial: false }
+  const status = match[2] === undefined ? 0 : Number.parseInt(match[2], 10)
+  return { bytes: Number.parseInt(match[1], 10), partial: status !== 0 }
+}
+
+/** `id|path|bytes:status` — `missing` for a path that is not there, no bytes for unknown. */
 export function parseConsumers(
   stdout: string,
   specs: readonly ConsumerSpec[] = CONSUMER_SPECS
@@ -116,17 +133,20 @@ export function parseConsumers(
         path,
         exists: false,
         bytes: null,
+        partial: false,
         cleanup: null,
         needsRoot: false,
         containedIn: null
       })
       continue
     }
+    const { bytes, partial } = readSize(size)
     out.push({
       id: spec.id,
       path,
       exists: true,
-      bytes: /^\d+$/.test(size) ? Number.parseInt(size, 10) : null,
+      bytes,
+      partial,
       cleanup: spec.cleanup,
       needsRoot: spec.needsRoot,
       containedIn: null
@@ -164,6 +184,8 @@ export function measuredTotal(consumers: readonly DiskConsumerInfo[]): {
   let partial = false
   for (const c of consumers) {
     if (!c.exists) continue
+    // A floor anywhere — even inside another row — means the sum is one too.
+    if (c.partial) partial = true
     // Counted already as part of whatever contains it.
     if (c.containedIn !== null) continue
     if (c.bytes === null) partial = true

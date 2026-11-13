@@ -199,6 +199,7 @@
       "consumersWhat": "항목",
       "consumerIncluded": "위 항목에 포함됨",
       "consumerNeedsRoot": "root 필요",
+      "consumerPartial": "최소 이 정도 — 일부를 읽지 못했습니다",
       "consumersHint": "알려진 캐시만 본 것이고 전체 회계가 아닙니다 — 임의의 디렉터리는 Explorer에서 직접 측정할 수 있습니다. 여기서 무엇도 자동으로 지우지 않습니다.",
       "consumerLabel_apt-cache": "내려받은 패키지 (apt)",
       "consumerLabel_dnf-cache": "내려받은 패키지 (dnf)",

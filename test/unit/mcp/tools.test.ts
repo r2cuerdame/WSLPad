@@ -448,6 +448,7 @@ describe('the disk and journal tools', () => {
           path: '/var/log/journal',
           exists: true,
           bytes: 838_860_800,
+          partial: false,
           cleanup: 'sudo journalctl --vacuum-size=200M',
           needsRoot: true,
           containedIn: null
@@ -462,6 +463,50 @@ describe('the disk and journal tools', () => {
     expect(result.content[0].text).toContain('could not be measured')
     const info = result.structuredContent?.diskConsumers as { consumers: Array<{ cleanup: string }> }
     expect(info.consumers[0].cleanup).toContain('vacuum-size')
+  })
+
+  it('names a partly read cache as a minimum, not a final size', async () => {
+    const snapshot = makeSnapshot()
+    const dash = snapshot.dashboard
+    if (dash === null) throw new Error('fixture has no dashboard')
+    dash.diskConsumers = {
+      consumers: [
+        {
+          id: 'docker',
+          path: '/var/lib/docker',
+          exists: true,
+          bytes: 4096,
+          partial: true,
+          cleanup: 'docker system prune',
+          needsRoot: false,
+          containedIn: null
+        },
+        {
+          id: 'tmp',
+          path: '/tmp',
+          exists: true,
+          bytes: 10,
+          partial: false,
+          cleanup: null,
+          needsRoot: false,
+          containedIn: null
+        }
+      ],
+      measuredBytes: 4106,
+      partial: true
+    }
+    const client = await connect(makeDeps({ snapshot }))
+    const result = await call(client, 'GetDiskConsumers')
+
+    // The summary line; the JSON below it carries every row.
+    const text = result.content[0].text.split('\n')[0]
+    expect(text).toContain('at least 4106 bytes')
+    expect(text).toContain('sizes are minimums: docker')
+    expect(text).not.toContain('tmp')
+    const info = result.structuredContent?.diskConsumers as {
+      consumers: Array<{ id: string; partial: boolean }>
+    }
+    expect(info.consumers.find((c) => c.id === 'docker')?.partial).toBe(true)
   })
 
   it('says the caches are unmeasured rather than empty', async () => {

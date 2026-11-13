@@ -199,6 +199,7 @@
       "consumersWhat": "内訳",
       "consumerIncluded": "上の行に含まれます",
       "consumerNeedsRoot": "root 必要",
+      "consumerPartial": "少なくともこの大きさ — 一部を読み取れませんでした",
       "consumersHint": "既知のキャッシュだけで、完全な内訳ではありません — 任意のディレクトリは Explorer で測定できます。ここから自動で削除することはありません。",
       "consumerLabel_apt-cache": "ダウンロード済みパッケージ (apt)",
       "consumerLabel_dnf-cache": "ダウンロード済みパッケージ (dnf)",

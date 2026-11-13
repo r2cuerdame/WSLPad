@@ -199,6 +199,7 @@
       "consumersWhat": "Qué",
       "consumerIncluded": "incluido en la fila anterior",
       "consumerNeedsRoot": "root",
+      "consumerPartial": "Al menos esto — una parte no se pudo leer",
       "consumersHint": "Solo cachés conocidas, no una contabilidad completa: el explorador mide cualquier directorio a petición. Aquí nunca se borra nada por ti.",
       "consumerLabel_apt-cache": "Paquetes descargados (apt)",
       "consumerLabel_dnf-cache": "Paquetes descargados (dnf)",

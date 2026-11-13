@@ -199,6 +199,7 @@
       "consumersWhat": "項目",
       "consumerIncluded": "已計入上一列",
       "consumerNeedsRoot": "需要 root",
+      "consumerPartial": "至少有這麼大 — 有一部分讀不到",
       "consumersHint": "只看了已知的快取，不是完整帳目 —— 任意目錄可以在檔案總管裡現場測量。這裡不會替你刪除任何東西。",
       "consumerLabel_apt-cache": "下載的套件 (apt)",
       "consumerLabel_dnf-cache": "下載的套件 (dnf)",
