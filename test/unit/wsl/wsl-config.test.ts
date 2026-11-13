@@ -403,6 +403,9 @@ describe('value comparison', () => {
     expect(valuesMatch('processors', '8', '8')).toBe(true)
     expect(valuesMatch('systemd', 'true', 'TRUE')).toBe(true)
     expect(valuesMatch('networkingMode', 'NAT', 'nat')).toBe(true)
+    expect(valuesMatch('root', '/mnt', '/mnt/')).toBe(true)
+    expect(valuesMatch('root', '/', '/')).toBe(true)
+    expect(valuesMatch('root', '/Mnt/', '/mnt/')).toBe(false)
   })
 })
 
@@ -802,6 +805,45 @@ describe('reconcileSettings distro side', () => {
     const interop = pick(settings, 'interop', 'appendWindowsPath')
     expect(interop.effectiveValue).toBe('true')
     expect(interop.verdict).toBe('unsupported')
+  })
+
+  it('treats root=/mnt and root=/mnt/ as the same root', () => {
+    const { settings } = reconcileSettings(
+      baseInput({
+        wslConfEntries: parseIni('[automount]\nroot=/mnt'),
+        observations: observations({ drvfsRoots: ['/mnt/c', '/mnt/d'] })
+      })
+    )
+    expect(pick(settings, 'automount', 'root')).toMatchObject({
+      effectiveValue: '/mnt/',
+      verdict: 'applied'
+    })
+  })
+
+  it('does not call a root applied when only its case matches', () => {
+    // Linux paths are case-sensitive: /Mnt/ is a different directory.
+    const { settings } = reconcileSettings(
+      baseInput({
+        wslConfEntries: parseIni('[automount]\nroot=/Mnt/'),
+        observations: observations({ drvfsRoots: ['/mnt/c'] })
+      })
+    )
+    const row = pick(settings, 'automount', 'root')
+    expect(row.effectiveValue).toBe('/mnt/')
+    expect(row.verdict).not.toBe('applied')
+  })
+
+  it('reads root=/ off drives mounted at the filesystem root', () => {
+    const { settings } = reconcileSettings(
+      baseInput({
+        wslConfEntries: parseIni('[automount]\nroot=/'),
+        observations: observations({ drvfsRoots: ['/c', '/d'] })
+      })
+    )
+    expect(pick(settings, 'automount', 'root')).toMatchObject({
+      effectiveValue: '/',
+      verdict: 'applied'
+    })
   })
 
   it('keeps the two [enabled] keys apart', () => {

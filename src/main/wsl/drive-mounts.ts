@@ -13,7 +13,14 @@ import { RUNNER_TIMEOUT_MS } from '@shared/constants'
 import type { DriveMountInfo, DriveMountsInfo } from '@shared/types'
 import type { DistroRunner } from './contracts'
 import { SECTION_MARKER, splitSections } from './system'
-import { isDrvFsMount, normalizeBool, parseIni, parseMounts, type MountEntry } from './wsl-config'
+import {
+  isDrvFsMount,
+  normalizeAutomountRoot,
+  normalizeBool,
+  parseIni,
+  parseMounts,
+  type MountEntry
+} from './wsl-config'
 
 /**
  * Markers go BETWEEN probes, never before the first one: splitSections keys off
@@ -55,9 +62,17 @@ function numericOption(parts: readonly string[], name: string): number | null {
   return Number.isSafeInteger(n) ? n : null
 }
 
-/** A drive mount is one single-letter directory under the automount root. */
-function isDriveMount(point: string): boolean {
-  return /^\/[^/]+\/[A-Za-z]$/.test(point)
+/**
+ * A drive mount is one single-letter directory under the automount root. A
+ * declared root moves that directory — root=/ gives /c, root=/mnt/win/ gives
+ * /mnt/win/c — but the running VM may still hold the previous mounts until
+ * wsl --shutdown, so the usual /<root>/<letter> shape keeps counting too.
+ */
+function isDriveMount(point: string, declaredRoot: string | null): boolean {
+  if (/^\/[^/]+\/[A-Za-z]$/.test(point)) return true
+  if (declaredRoot === null) return false
+  const root = normalizeAutomountRoot(declaredRoot)
+  return point.startsWith(root) && /^[A-Za-z]$/.test(point.slice(root.length))
 }
 
 export function describeMount(entry: MountEntry): DriveMountInfo {
@@ -84,11 +99,6 @@ export function parseDriveMounts(stdout: string): DriveMountsInfo | null {
   // No /proc/mounts at all is unknown, which is not the same as no drives.
   if (mountText === undefined || mountText.trim() === '') return null
 
-  const drives = parseMounts(mountText)
-    .filter((m) => isDrvFsMount(m) && isDriveMount(m.point))
-    .map(describeMount)
-    .sort((a, b) => a.point.localeCompare(b.point))
-
   const entries = parseIni(sections[1] ?? '')
   const declared = (key: string): string | null => {
     let found: string | null = null
@@ -97,6 +107,13 @@ export function parseDriveMounts(stdout: string): DriveMountsInfo | null {
     }
     return found === null || found === '' ? null : found
   }
+
+  const root = declared('root')
+  const drives = parseMounts(mountText)
+    .filter((m) => isDrvFsMount(m) && isDriveMount(m.point, root))
+    .map(describeMount)
+    .sort((a, b) => a.point.localeCompare(b.point))
+
   const enabled = declared('enabled')
   const word = enabled === null ? null : normalizeBool(enabled)
 

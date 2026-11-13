@@ -654,9 +654,22 @@ function sizeMatches(declared: number, effective: number): boolean {
   return effective <= declared * 1.02 && effective >= declared * 0.8
 }
 
+/**
+ * WSL appends the separator itself, so root=/mnt and root=/mnt/ mount the
+ * drives in the same place; the observed root always carries exactly one.
+ * Linux paths are case-sensitive, so the case is kept as written.
+ */
+export function normalizeAutomountRoot(value: string): string {
+  const trimmed = value.trim().replace(/\/+$/, '')
+  return `${trimmed}/`
+}
+
 /** Does the observed value satisfy what the file declared? */
 export function valuesMatch(key: string, declared: string, effective: string): boolean {
   const lower = key.toLowerCase()
+  if (lower === 'root') {
+    return normalizeAutomountRoot(declared) === normalizeAutomountRoot(effective)
+  }
   if (lower === 'memory' || lower === 'swap') {
     const a = parseSize(declared)
     const b = parseSize(effective)
