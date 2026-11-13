@@ -210,6 +210,9 @@ export class SnapshotStore {
   private warnings: WarningInfo[] = []
   /** Last-good Windows listener table; null until one read succeeded. */
   private windowsPortTable: WindowsPortInfo[] | null = null
+  /** System IP against which s.portProxy was last evaluated. */
+  private portProxyIp: string | null = null
+  private portProxyInFlight: Promise<void> | null = null
   private runnerFailures: string[] = []
   private probe: ProbeState = freshProbe()
   private probeInFlight: Promise<boolean> | null = null
@@ -304,14 +307,9 @@ export class SnapshotStore {
         const correlated = correlatePorts(s.ports, this.windowsPortTable)
         s.windowsPorts = correlated.windowsPorts
         // The verdict needs the networking mode and the firewall, both filled
-        // by slower tiers: it is recomputed on every fast tick from whatever
-        // is known, so an input that has not arrived reads as unknown rather
-        // than as an open port.
-        s.ports = applyReachability(
-          correlated.ports,
-          s.wslSettings?.networkingModeEffective ?? null,
-          s.firewall
-        )
+        // by slower tiers: it is recomputed whenever fast, medium, or slow
+        // supplies any of its inputs so an arrived verdict updates immediately.
+        this.recomputeReachability(s, correlated.ports)
       }
       this.recomputeWarnings()
       this.emit()
@@ -352,6 +350,9 @@ export class SnapshotStore {
         }
         await firewall
         await portProxy
+        this.reconcileDisabledSystemdServices(s)
+        this.recomputeReachability(s)
+        await this.syncPortProxyIp(s)
       }
       this.recomputeWarnings()
       this.emit()
@@ -424,6 +425,9 @@ export class SnapshotStore {
           this.collectInotify(distro, s),
           this.collectTerminalProfiles(s)
         ])
+        this.reconcileDisabledSystemdServices(s)
+        this.recomputeReachability(s)
+        await this.syncPortProxyIp(s)
       }
       this.recomputeWarnings()
       this.emit()
@@ -657,6 +661,19 @@ export class SnapshotStore {
     )
   }
 
+  /** Recompute port reachability verdicts from the latest mode and firewall. */
+  private recomputeReachability(s: DashboardSections, ports: PortInfo[] = s.ports): void {
+    s.ports = applyReachability(ports, s.wslSettings?.networkingModeEffective ?? null, s.firewall)
+  }
+
+  /** Clear systemd service errors once slow info confirms systemd is disabled. */
+  private reconcileDisabledSystemdServices(s: DashboardSections): void {
+    if (s.system.systemdEnabled !== false) return
+    s.services = []
+    s.servicesCollected = true
+    if (this.sections === s) this.clearRunnerFailure('services')
+  }
+
   /**
    * Windows port-forwarding rules, medium tier next to the firewall: both
    * answer "why does this port not reach me". The rules are judged against the
@@ -665,13 +682,38 @@ export class SnapshotStore {
   private async collectPortProxy(s: DashboardSections): Promise<void> {
     const read = this.provider.getPortProxy
     if (read === undefined) return
-    await this.collect(
-      'port forwarding',
-      () => read.call(this.provider, s.system.ip),
-      (v) => {
-        s.portProxy = v
-      }
-    )
+    while (this.portProxyInFlight !== null && this.sections === s) {
+      await this.portProxyInFlight
+    }
+    if (this.disposed || this.sections !== s) return
+    const ip = s.system.ip
+    const run = (async (): Promise<void> => {
+      await this.collect(
+        'port forwarding',
+        () => read.call(this.provider, ip),
+        (v) => {
+          s.portProxy = v
+          if (this.sections === s) this.portProxyIp = ip
+        }
+      )
+    })()
+    this.portProxyInFlight = run
+    try {
+      await run
+    } finally {
+      if (this.portProxyInFlight === run) this.portProxyInFlight = null
+    }
+  }
+
+  /** Re-evaluate already-collected port forwarding rules when the distro IP changes. */
+  private async syncPortProxyIp(s: DashboardSections): Promise<void> {
+    while (this.portProxyInFlight !== null && this.sections === s) {
+      await this.portProxyInFlight
+    }
+    if (this.disposed || this.sections !== s) return
+    if (s.portProxy !== null && this.portProxyIp !== s.system.ip) {
+      await this.collectPortProxy(s)
+    }
   }
 
   /** Clock skew, fast tier: the value it reports is a live instant. */
@@ -830,12 +872,16 @@ export class SnapshotStore {
     } else {
       this.selected = null
       this.sections = null
+      this.portProxyIp = null
+      this.portProxyInFlight = null
     }
   }
 
   private selectInternal(summary: DistroSummary): void {
     this.selected = summary.name
     this.sections = sectionsFor(summary)
+    this.portProxyIp = null
+    this.portProxyInFlight = null
     this.runnerFailures = []
     // Liveness is a property of one distro: a new selection starts clean.
     this.probe = freshProbe()
