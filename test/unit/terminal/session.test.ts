@@ -1,20 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import type { TerminalStatusEvent } from '@shared/types'
-import { ConsoleSession } from '../../../src/main/terminal/session'
+import { ConsoleSession, TRANSCRIPT_MAX_CHARS } from '../../../src/main/terminal/session'
 import { MockFactory, PROMPT, flush, osc7 } from './helpers'
 
 async function started(factory = new MockFactory()) {
   const statuses: TerminalStatusEvent[] = []
   const chunks: string[] = []
+  const seqs: number[] = []
   const session = new ConsoleSession({
     sessionId: 'term-Ubuntu',
     distro: 'Ubuntu',
     factory,
-    onData: (data) => chunks.push(data),
+    onData: (data, seq) => {
+      chunks.push(data)
+      seqs.push(seq)
+    },
     onStatus: (ev) => statuses.push(ev)
   })
   await session.start(80, 24)
-  return { session, factory, statuses, chunks }
+  return { session, factory, statuses, chunks, seqs }
 }
 
 describe('ConsoleSession state machine', () => {
@@ -207,6 +211,74 @@ describe('ConsoleSession invisible cwd sync', () => {
     await session.setCwd('/tmp')
     expect(session.status).toBe('ready')
     expect(factory.pty.input).toBe('')
+  })
+
+  it('applies a pending setCwd immediately once backspace clears partial input at the prompt', async () => {
+    const { session, factory } = await started()
+    factory.pty.emit(osc7('/home/user') + PROMPT)
+    session.write('ec')
+    await session.setCwd('/opt')
+    expect(session.status).toBe('path-sync-pending')
+    expect(factory.syncWrites).toHaveLength(0)
+
+    // Still one character left on the input line — must remain pending.
+    session.write('\x7f')
+    await flush()
+    expect(factory.syncWrites).toHaveLength(0)
+    expect(session.status).toBe('path-sync-pending')
+
+    // Clearing the final character flushes the pending cwd without waiting for another prompt.
+    session.write('\b')
+    await flush()
+    expect(factory.syncWrites.map((w) => w.path)).toEqual(['/opt'])
+    expect(factory.pty.input).toBe('ec\x7f\b\r')
+    factory.pty.emit(osc7('/opt') + PROMPT)
+    expect(session.status).toBe('ready')
+    expect(session.cwd).toBe('/opt')
+  })
+
+  it('does not inject a sync newline when backspacing typeahead while a command is running', async () => {
+    const { session, factory } = await started()
+    factory.pty.emit(PROMPT)
+    session.write('sleep 5\r')
+    await session.setCwd('/var/log')
+    session.write('x\x7f')
+    await flush()
+    expect(factory.syncWrites).toHaveLength(0)
+    expect(factory.pty.input).toBe('sleep 5\rx\x7f')
+
+    factory.pty.emit('\r\n' + PROMPT)
+    await flush()
+    expect(factory.syncWrites.map((w) => w.path)).toEqual(['/var/log'])
+  })
+})
+
+describe('ConsoleSession transcript and sequence tracking', () => {
+  it('accumulates transcript and monotonic seq in info() and onData', async () => {
+    const { session, factory, seqs } = await started()
+    expect(session.info().transcript).toBe('')
+    expect(session.info().seq).toBe(0)
+
+    factory.pty.emit('welcome\r\n')
+    factory.pty.emit('dev@Ubuntu:~$ ')
+    expect(seqs).toEqual([1, 2])
+    expect(session.info().seq).toBe(2)
+    expect(session.info().transcript).toBe('welcome\r\ndev@Ubuntu:~$ ')
+  })
+
+  it('bounds transcript to TRANSCRIPT_MAX_CHARS without splitting surrogate pairs', async () => {
+    const { session, factory } = await started()
+    // Place '😀' (2 UTF-16 code units) right across the trim boundary when one extra char arrives.
+    factory.pty.emit('😀' + 'a'.repeat(TRANSCRIPT_MAX_CHARS - 1))
+    expect(session.info().transcript).toHaveLength(TRANSCRIPT_MAX_CHARS + 1 - 2)
+    expect(session.info().transcript?.charCodeAt(0)).toBe('a'.charCodeAt(0))
+
+    factory.pty.emit('z')
+    const trimmed = session.info().transcript ?? ''
+    expect(trimmed.length).toBeLessThanOrEqual(TRANSCRIPT_MAX_CHARS)
+    const firstCode = trimmed.charCodeAt(0)
+    expect(firstCode < 0xdc00 || firstCode > 0xdfff).toBe(true)
+    expect(trimmed.endsWith('az')).toBe(true)
   })
 })
 
