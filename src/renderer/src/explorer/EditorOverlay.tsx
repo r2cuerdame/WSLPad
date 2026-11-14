@@ -19,7 +19,7 @@ const LINE_HEIGHT = 20
 /** Simple text editor over the Explorer area — not a separate tab (goal.md §7.6). */
 export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
-  const { pushToast, prepareCommand } = useApp()
+  const { snapshot, pushToast, prepareCommand } = useApp()
   const adapter = useMemo(
     () => (fs === 'windows' ? createWindowsAdapter() : createLinuxAdapter()),
     [fs]
@@ -33,17 +33,45 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
   const [confirmClose, setConfirmClose] = useState(false)
   const [findOpen, setFindOpen] = useState(false)
   const [findQuery, setFindQuery] = useState('')
-  const [matchIndex, setMatchIndex] = useState(0)
+  // -1 until the first jump, so the first Enter lands on the first match.
+  const [matchIndex, setMatchIndex] = useState(-1)
   const [line, setLine] = useState(1)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const findInputRef = useRef<HTMLInputElement>(null)
   const gutterRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef('')
   contentRef.current = content
 
+  // Linux saves go to whichever distro is selected at save time, so pin the
+  // one the file was opened from: switching distros must never turn a save
+  // into an overwrite of the same path in another distro.
+  const currentDistro = snapshot?.selectedDistro ?? null
+  const [openedDistro, setOpenedDistro] = useState<string | null>(() =>
+    fs === 'linux' ? currentDistro : null
+  )
+  useEffect(() => {
+    if (fs === 'linux' && openedDistro === null && currentDistro !== null) {
+      setOpenedDistro(currentDistro)
+    }
+  }, [currentDistro, fs, openedDistro])
+  const distroMismatch = fs === 'linux' && openedDistro !== null && currentDistro !== openedDistro
+
   const name = adapter.base(path)
   const dirty = meta !== null && content !== original
-  // Truncated reads must never be written back over the full file.
-  const writable = meta !== null && meta.writable && !meta.truncated
+  // Truncated reads must never be written back over the full file, and a
+  // latin1 fallback read would be re-encoded as UTF-8 on save — both stay read-only.
+  const writable =
+    meta !== null &&
+    meta.writable &&
+    !meta.truncated &&
+    meta.encoding === 'utf-8' &&
+    !distroMismatch
+
+  // Nothing to lose: a clean editor simply follows the distro switch and closes.
+  // A dirty one keeps its buffer, read-only until the original distro is back.
+  useEffect(() => {
+    if (distroMismatch && !dirty) onClose()
+  }, [dirty, distroMismatch, onClose])
 
   useEffect(() => {
     let disposed = false
@@ -79,6 +107,8 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
     return out
   }, [content, findQuery])
 
+  // Focus stays in the find box: moving it to the textarea would let the next
+  // Enter replace the selected match with a newline.
   const jumpToMatch = useCallback(
     (index: number): void => {
       if (matches.length === 0) return
@@ -89,18 +119,44 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
       if (!ta) return
       const lineNo = contentRef.current.slice(0, offset).split('\n').length - 1
       ta.scrollTop = Math.max(0, lineNo * LINE_HEIGHT - ta.clientHeight / 2)
+      if (gutterRef.current) gutterRef.current.scrollTop = ta.scrollTop
       ta.setSelectionRange(offset, offset + findQuery.length)
-      ta.focus()
+      setLine(lineNo + 1)
     },
     [findQuery.length, matches]
   )
+
+  const stepMatch = (backward: boolean): void => {
+    if (matches.length === 0) return
+    if (matchIndex < 0) jumpToMatch(backward ? matches.length - 1 : 0)
+    else jumpToMatch(matchIndex + (backward ? -1 : 1))
+  }
+
+  const openFind = (): void => {
+    if (findOpen) {
+      findInputRef.current?.focus()
+      findInputRef.current?.select()
+    } else {
+      setFindOpen(true)
+    }
+  }
+
+  /** Closing hands focus back to the textarea, keeping the selected match. */
+  const closeFind = (): void => {
+    setFindOpen(false)
+    textareaRef.current?.focus()
+  }
 
   const save = useCallback(async (): Promise<void> => {
     if (meta === null || saving || !writable) return
     setSaving(true)
     try {
-      await adapter.writeText(path, contentRef.current)
-      setOriginal(contentRef.current)
+      const saved = contentRef.current
+      await adapter.writeText(path, saved)
+      setOriginal(saved)
+      // Both write paths encode UTF-8, so the saved size is the encoded length.
+      const sizeBytes = new TextEncoder().encode(saved).byteLength
+      setMeta((m) => (m === null ? m : { ...m, sizeBytes }))
       setSaveError(null)
       pushToast('success', t('toast.fileSaved', { name }))
     } catch (err) {
@@ -116,6 +172,7 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
   }, [dirty, onClose])
 
   const prepareSudoedit = (): void => {
+    if (distroMismatch) return
     // Prepared into the Console input only — the user reviews and runs it (goal.md §7.6)
     prepareCommand(`sudoedit ${shQuote(path)}`)
     pushToast('info', t('editor.preparedSudoedit'))
@@ -135,10 +192,10 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
       void save()
     } else if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) {
       e.preventDefault()
-      setFindOpen(true)
+      openFind()
     } else if (e.key === 'Escape') {
       e.stopPropagation()
-      if (findOpen) setFindOpen(false)
+      if (findOpen) closeFind()
       else requestClose()
     }
   }
@@ -171,7 +228,7 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
             <pre className="mono">{info.detail.stderr}</pre>
           </details>
         )}
-        {info.code === 'EACCES' && fs === 'linux' && (
+        {info.code === 'EACCES' && fs === 'linux' && !distroMismatch && (
           <button type="button" className="editor-btn" onClick={prepareSudoedit}>
             {t('editor.prepareSudoedit')}
           </button>
@@ -195,9 +252,11 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
           </div>
           <div>{t('errors.consoleHint')}</div>
           <pre className="mono">{`sudoedit ${shQuote(path)}`}</pre>
-          <button type="button" className="editor-btn" onClick={prepareSudoedit}>
-            {t('editor.prepareSudoedit')}
-          </button>
+          {!distroMismatch && (
+            <button type="button" className="editor-btn" onClick={prepareSudoedit}>
+              {t('editor.prepareSudoedit')}
+            </button>
+          )}
         </>
       ) : (
         <div>{info.message}</div>
@@ -232,6 +291,12 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
         )}
         {meta !== null && !writable && <span className="editor-badge">{t('editor.readOnlyBadge')}</span>}
         {meta?.truncated && <span className="editor-badge warn">{t('editor.truncated')}</span>}
+        {meta?.encoding === 'latin1' && <span className="editor-badge warn">Latin-1</span>}
+        {distroMismatch && (
+          <span className="editor-badge warn mono" title={openedDistro ?? undefined}>
+            {openedDistro}
+          </span>
+        )}
         <span className="editor-spacer" />
         {path.endsWith('.json') && meta !== null && (
           <button type="button" className="editor-btn" onClick={formatJson}>
@@ -239,7 +304,7 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
           </button>
         )}
         {meta !== null && (
-          <button type="button" className="editor-btn" onClick={() => setFindOpen((f) => !f)}>
+          <button type="button" className="editor-btn" onClick={() => (findOpen ? closeFind() : openFind())}>
             {t('editor.find')}
           </button>
         )}
@@ -261,6 +326,7 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
       {findOpen && meta !== null && (
         <div className="editor-find">
           <input
+            ref={findInputRef}
             type="text"
             autoFocus
             placeholder={t('editor.findPlaceholder')}
@@ -268,15 +334,16 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
             value={findQuery}
             onChange={(e) => {
               setFindQuery(e.target.value)
-              setMatchIndex(0)
+              setMatchIndex(-1)
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
+                e.preventDefault()
                 e.stopPropagation()
-                jumpToMatch(matchIndex + (matches.length > 0 ? 1 : 0))
+                stepMatch(e.shiftKey)
               } else if (e.key === 'Escape') {
                 e.stopPropagation()
-                setFindOpen(false)
+                closeFind()
               }
             }}
           />
@@ -284,7 +351,7 @@ export function EditorOverlay({ path, fs, onClose }: EditorOverlayProps): React.
           <button
             type="button"
             className="editor-btn"
-            onClick={() => setFindOpen(false)}
+            onClick={closeFind}
             aria-label={t('common.close')}
           >
             ✕
