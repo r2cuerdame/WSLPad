@@ -6,6 +6,12 @@ import { PANE_SPLIT_BOUNDS, PANE_SPLIT_DEFAULT, WINDOWS_ROOT } from '@shared/con
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
 import { AppStoreProvider, useApp } from '@renderer/store'
+import Toasts from '@renderer/components/Toasts'
+import ConfigCard from '@renderer/dashboard/ConfigCard'
+import OpenClawCard from '@renderer/dashboard/OpenClawCard'
+import PathsCard from '@renderer/dashboard/PathsCard'
+import ToolsCard from '@renderer/dashboard/ToolsCard'
+import WslSettingsCard from '@renderer/dashboard/WslSettingsCard'
 import ExplorerTab from '@renderer/explorer/ExplorerTab'
 import { entrySide, normalizeWindowsPath, resolveWindowsPath } from '@renderer/explorer/fsAdapter'
 import { INTERNAL_DND_TYPE } from '@renderer/explorer/FileList'
@@ -1345,5 +1351,283 @@ describe('directory sizes', () => {
     await waitFor(() =>
       expect(within(pane('linux')).queryByRole('region', { name: 'Directory sizes' })).toBeNull()
     )
+  })
+})
+
+describe('Dashboard to Explorer integration', () => {
+  it('opens readable Windows and Linux configs in EditorOverlay and closes back to selected parent dir', async () => {
+    api.windows.list.mockImplementation(async (path: string) => {
+      if (path === WIN_HOME) {
+        return [
+          winEntry({ name: '.wslconfig', path: `${WIN_HOME}\\.wslconfig`, isHidden: true }),
+          winEntry({ name: 'notes.txt', path: `${WIN_HOME}\\notes.txt` })
+        ]
+      }
+      return windowsListings[path] ?? []
+    })
+    api.explorer.list.mockImplementation(async (path: string) => {
+      if (path === LINUX_HOME) {
+        return [
+          entry({ name: '.bashrc', path: `${LINUX_HOME}/.bashrc`, isHidden: true }),
+          ...linuxListing
+        ]
+      }
+      return linuxListings[path] ?? []
+    })
+    api.windows.readText.mockResolvedValue({
+      content: '[wsl2]\nmemory=8GB\n',
+      encoding: 'utf-8',
+      truncated: false,
+      sizeBytes: 18,
+      writable: true
+    })
+    api.explorer.readText.mockResolvedValue({
+      content: 'export EDITOR=nano\n',
+      encoding: 'utf-8',
+      truncated: false,
+      sizeBytes: 19,
+      writable: true
+    })
+
+    render(
+      <AppStoreProvider>
+        <ConfigCard
+          files={[
+            {
+              id: 'wslconfig',
+              label: '.wslconfig',
+              scope: 'windows',
+              linuxPath: null,
+              windowsPath: `${WIN_HOME}\\.wslconfig`,
+              exists: true,
+              readable: true,
+              writable: true
+            },
+            {
+              id: 'bashrc',
+              label: '~/.bashrc',
+              scope: 'linux',
+              linuxPath: `${LINUX_HOME}/.bashrc`,
+              windowsPath: null,
+              exists: true,
+              readable: true,
+              writable: true
+            }
+          ]}
+          terminalProfiles={null}
+          distro="Ubuntu-24.04"
+        />
+        <ExplorerTab />
+        <Toasts />
+      </AppStoreProvider>
+    )
+    await flush()
+
+    const configCard = screen.getByRole('region', { name: 'Configuration files' })
+    const wslRow = within(configCard).getByText('.wslconfig').closest('.path-row') as HTMLElement
+    fireEvent.click(within(wslRow).getByRole('button', { name: 'Open in editor' }))
+
+    const winDialog = await screen.findByRole('dialog')
+    expect(api.windows.readText).toHaveBeenCalledWith(`${WIN_HOME}\\.wslconfig`)
+    await waitFor(() =>
+      expect((within(winDialog).getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+        '[wsl2]\nmemory=8GB\n'
+      )
+    )
+
+    fireEvent.click(within(winDialog).getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => {
+      const selected = pane('windows').querySelector('[aria-selected="true"]')
+      expect(selected?.textContent).toContain('.wslconfig')
+    })
+
+    const bashRow = within(configCard).getByText('~/.bashrc').closest('.path-row') as HTMLElement
+    fireEvent.click(within(bashRow).getByRole('button', { name: 'Open in editor' }))
+
+    const linuxDialog = await screen.findByRole('dialog')
+    expect(api.explorer.readText).toHaveBeenCalledWith(`${LINUX_HOME}/.bashrc`)
+    await waitFor(() =>
+      expect((within(linuxDialog).getByRole('textbox') as HTMLTextAreaElement).value).toBe(
+        'export EDITOR=nano\n'
+      )
+    )
+    fireEvent.click(within(linuxDialog).getByRole('button', { name: 'Close' }))
+    await waitFor(() => {
+      const selected = pane('linux').querySelector('[aria-selected="true"]')
+      expect(selected?.textContent).toContain('.bashrc')
+    })
+  })
+
+  it('opens config-dir directly, .wslconfig parent safely even when hidden/absent, and tools/openclaw/paths in the right pane', async () => {
+    api.windows.list.mockImplementation(async (path: string) => {
+      if (path === 'C:\\Program Files\\nodejs') {
+        return [winEntry({ name: 'npm', path: 'C:\\Program Files\\nodejs\\npm' })]
+      }
+      if (path === 'C:\\Users\\dev\\AppData\\Roaming\\npm') {
+        return [winEntry({ name: 'openclaw', path: 'C:\\Users\\dev\\AppData\\Roaming\\npm\\openclaw' })]
+      }
+      if (path === WIN_HOME) {
+        // Deliberately omit .wslconfig to verify absent/hidden entries cause no errors.
+        return [winEntry({ name: 'notes.txt', path: `${WIN_HOME}\\notes.txt` })]
+      }
+      return windowsListings[path] ?? []
+    })
+    api.explorer.list.mockImplementation(async (path: string) => {
+      if (path === `${LINUX_HOME}/.config`) {
+        return [entry({ name: 'gtk-3.0', path: `${LINUX_HOME}/.config/gtk-3.0`, type: 'directory' })]
+      }
+      if (path === `${LINUX_HOME}/.openclaw`) {
+        return [entry({ name: 'openclaw.json', path: `${LINUX_HOME}/.openclaw/openclaw.json` })]
+      }
+      if (path === LINUX_HOME) {
+        return [
+          entry({ name: '.profile', path: `${LINUX_HOME}/.profile`, isHidden: true }),
+          ...linuxListing
+        ]
+      }
+      return linuxListings[path] ?? []
+    })
+
+    render(
+      <AppStoreProvider>
+        <ConfigCard
+          files={[
+            {
+              id: 'config-dir',
+              label: '~/.config',
+              scope: 'linux',
+              linuxPath: `${LINUX_HOME}/.config`,
+              windowsPath: null,
+              exists: true,
+              readable: true,
+              writable: true
+            }
+          ]}
+          terminalProfiles={null}
+          distro="Ubuntu-24.04"
+        />
+        <WslSettingsCard
+          settings={{
+            wslconfigPath: `${WIN_HOME}\\.wslconfig`,
+            wslconfigExists: true,
+            wslConfPath: '/etc/wsl.conf',
+            wslConfExists: true,
+            restartPending: false,
+            vmStartedAt: null,
+            networkingModeDeclared: null,
+            networkingModeEffective: 'nat',
+            platform: null,
+            interop: null,
+            defaultUser: null,
+            settings: [
+              {
+                section: 'wsl2',
+                key: 'memory',
+                scope: 'windows',
+                declaredValue: '8GB',
+                effectiveValue: '8GB',
+                origin: 'wslconfig',
+                provenance: 'user',
+                verdict: 'applied',
+                note: null
+              }
+            ]
+          }}
+        />
+        <ToolsCard
+          tools={[
+            {
+              id: 'npm',
+              displayName: 'npm',
+              installed: true,
+              executablePath: '/mnt/c/Program Files/nodejs/npm',
+              version: '10.0.0',
+              installMethod: null,
+              configPaths: [],
+              runningProcesses: 0,
+              services: [],
+              side: 'windows-mount',
+              shadowedByWindows: true
+            }
+          ]}
+        />
+        <OpenClawCard
+          openclaw={{
+            id: 'openclaw',
+            displayName: 'OpenClaw',
+            installed: true,
+            executablePath: '/mnt/c/Users/dev/AppData/Roaming/npm/openclaw',
+            version: '1.0.0',
+            installMethod: 'npm',
+            configPaths: [`${LINUX_HOME}/.openclaw`],
+            runningProcesses: 0,
+            services: [],
+            side: 'windows-mount',
+            shadowedByWindows: true
+          }}
+        />
+        <PathsCard
+          paths={[
+            {
+              id: 'profile',
+              label: 'Profile',
+              linuxPath: `${LINUX_HOME}/.profile`,
+              windowsPath: `\\\\wsl.localhost\\Ubuntu-24.04\\home\\dev\\.profile`,
+              exists: true,
+              isDirectory: false,
+              side: 'ext4'
+            }
+          ]}
+        />
+        <ExplorerTab />
+        <Toasts />
+      </AppStoreProvider>
+    )
+    await flush()
+
+    // config-dir opens itself in Linux pane and has no Open in editor button.
+    const configRow = screen.getByText('~/.config').closest('.path-row') as HTMLElement
+    expect(within(configRow).queryByRole('button', { name: 'Open in editor' })).toBeNull()
+    fireEvent.click(within(configRow).getByRole('button', { name: 'Show in Explorer' }))
+    await within(pane('linux')).findByText('gtk-3.0')
+
+    // WslSettingsCard opens .wslconfig parent in Windows pane cleanly even when .wslconfig isn't listed.
+    const wslSettingsShow = screen
+      .getByText('C:\\Users\\dev\\.wslconfig')
+      .closest('.path-row') as HTMLElement
+    fireEvent.click(within(wslSettingsShow).getByRole('button', { name: 'Show in Explorer' }))
+    await waitFor(() => expect(api.windows.list).toHaveBeenCalledWith(WIN_HOME, { showHidden: false }))
+    expect(api.windows.list).not.toHaveBeenCalledWith(`${WIN_HOME}\\.wslconfig`, expect.anything())
+    expect(pane('windows').querySelector('[aria-selected="true"]')).toBeNull()
+
+    // ToolsCard windows-mount executable converts to C:\Program Files\nodejs in Windows pane.
+    const toolRow = screen
+      .getAllByRole('row')
+      .find((r) => r.textContent?.includes('/mnt/c/Program Files/nodejs/npm')) as HTMLElement
+    fireEvent.click(within(toolRow).getByRole('button', { name: 'Show in Explorer' }))
+    await within(pane('windows')).findByText('npm')
+    await waitFor(() => {
+      const selected = pane('windows').querySelector('[aria-selected="true"]')
+      expect(selected?.textContent).toContain('npm')
+    })
+
+    // OpenClawCard data dir opens /home/dev/.openclaw in Linux pane.
+    const openclawDataRow = screen
+      .getByText(`${LINUX_HOME}/.openclaw`)
+      .closest('.kv-row') as HTMLElement
+    fireEvent.click(within(openclawDataRow).getByRole('button', { name: 'Show in Explorer' }))
+    await within(pane('linux')).findByText('openclaw.json')
+
+    // PathsCard file entry (isDirectory: false) opens parent directory and selects .profile.
+    const pathsRow = screen.getByText(`${LINUX_HOME}/.profile`).closest('.path-row') as HTMLElement
+    fireEvent.click(within(pathsRow).getByRole('button', { name: 'Open in Explorer' }))
+    await waitFor(() => {
+      const selected = pane('linux').querySelector('[aria-selected="true"]')
+      expect(selected?.textContent).toContain('.profile')
+    })
+
+    // No error toast should have appeared across any navigation.
+    expect(document.querySelectorAll('.toast-error')).toHaveLength(0)
   })
 })

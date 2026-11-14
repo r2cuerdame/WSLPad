@@ -5,7 +5,7 @@ import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import { FolderIcon, WarningIcon } from '../components/Icons'
-import { dirOf } from './ToolsCard'
+import { resolveDashboardExplorerTarget } from './explorerTarget'
 
 /** The id OpenClaw is detected under in the tool catalog. */
 export const OPENCLAW_TOOL_ID = 'openclaw'
@@ -36,7 +36,7 @@ export interface OpenClawCardProps {
  */
 export default function OpenClawCard({ openclaw }: OpenClawCardProps): React.JSX.Element {
   const { t } = useTranslation()
-  const { navigateExplorer, pushToast } = useApp()
+  const { navigateExplorer, pushToast, snapshot } = useApp()
 
   if (openclaw === null || !openclaw.installed) {
     return (
@@ -59,10 +59,11 @@ export default function OpenClawCard({ openclaw }: OpenClawCardProps): React.JSX
         aria-label={t('dashboard.config.showInExplorer')}
         title={t('dashboard.config.showInExplorer')}
         onClick={() => {
-          navigateExplorer(
-            isDir ? path : dirOf(path),
-            openclaw.side === 'windows-mount' ? 'windows' : 'linux'
-          )
+          const target = resolveDashboardExplorerTarget(path, {
+            isDir,
+            settings: snapshot?.dashboard?.wslSettings ?? null
+          })
+          navigateExplorer(target.path, target.fs, target.selectPath)
           pushToast('info', t('toast.openedInExplorer'))
         }}
       >

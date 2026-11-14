@@ -401,3 +401,65 @@ test.describe('nothing scrolls outside the section it belongs to (issue #70)', (
     expect(worst).toBeLessThanOrEqual(2)
   })
 })
+
+test.describe('dashboard configuration and settings explorer navigation (issue #320)', () => {
+  let launched: LaunchedApp
+
+  test.beforeEach(async () => {
+    launched = await launchWslPad()
+    await launched.page.getByTestId('dashboard-nav').waitFor({ timeout: 15000 })
+  })
+
+  test.afterEach(async () => {
+    await closeApp(launched).catch(() => {})
+  })
+
+  test('opens config-dir directly, .wslconfig parent safely, and bashrc in EditorOverlay', async () => {
+    const { page } = launched
+    await page.getByTestId('dashboard-nav-configuration').click()
+
+    const configRow = page.locator('.path-row', { hasText: '~/.config' })
+    await expect(configRow.getByRole('button', { name: 'Open in editor' })).toHaveCount(0)
+    await configRow.getByRole('button', { name: 'Show in Explorer' }).click()
+
+    const linuxPane = page.getByTestId('pane-linux')
+    await expect(linuxPane).toBeVisible()
+    await expect(linuxPane.locator('.breadcrumb')).toContainText('.config')
+    await expect(page.locator('.toast-error')).toHaveCount(0)
+
+    await page.getByRole('tab', { name: 'Dashboard' }).click()
+    await page.getByTestId('dashboard-nav-configuration').click()
+
+    const wslconfigRow = page.locator('.path-row', { hasText: '.wslconfig' })
+    await wslconfigRow.getByRole('button', { name: 'Show in Explorer' }).click()
+
+    const winPane = page.getByTestId('pane-windows')
+    await expect(winPane).toBeVisible()
+    await expect(winPane.getByRole('row', { name: /^Documents/ })).toBeVisible()
+    await expect(page.locator('.toast-error')).toHaveCount(0)
+
+    await page.getByRole('tab', { name: 'Dashboard' }).click()
+    await page.getByTestId('dashboard-nav-configuration').click()
+
+    const bashrcRow = page.locator('.path-row', { hasText: '~/.bashrc' })
+    await bashrcRow.getByRole('button', { name: 'Open in editor' }).click()
+
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('textbox')).toHaveValue(/# fixture bashrc/)
+    await dialog.getByRole('button', { name: 'Close' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(linuxPane.getByRole('row', { name: /^projects/ })).toBeVisible()
+  })
+
+  test('WslSettingsCard opens .wslconfig parent folder in Windows pane without error toast', async () => {
+    const { page } = launched
+    await page.getByTestId('dashboard-nav-wslconfig').click()
+    await page.getByRole('button', { name: 'Show in Explorer' }).first().click()
+
+    const winPane = page.getByTestId('pane-windows')
+    await expect(winPane).toBeVisible()
+    await expect(winPane.getByRole('row', { name: /^Documents/ })).toBeVisible()
+    await expect(page.locator('.toast-error')).toHaveCount(0)
+  })
+})

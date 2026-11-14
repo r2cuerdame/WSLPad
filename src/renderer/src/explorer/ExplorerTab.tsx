@@ -11,7 +11,12 @@ import { PropertiesDialog } from './PropertiesDialog'
 import { TrashDialog } from './TrashDialog'
 import { Splitter, loadSplit } from './Splitter'
 import { TransferProgress } from './TransferProgress'
-import { createLinuxAdapter, createWindowsAdapter } from './fsAdapter'
+import {
+  createLinuxAdapter,
+  createWindowsAdapter,
+  parentPath,
+  windowsParent
+} from './fsAdapter'
 import { parseExplorerError } from './usePane'
 import './explorer.css'
 
@@ -41,7 +46,9 @@ export function ExplorerTab(): React.JSX.Element {
     pushToast,
     setConsolePath,
     explorerNavigateRequest,
-    consumeExplorerNavigate
+    consumeExplorerNavigate,
+    explorerOpenFileRequest,
+    consumeExplorerOpenFile
   } = useApp()
 
   const distro = snapshot?.selectedDistro ?? null
@@ -61,7 +68,12 @@ export function ExplorerTab(): React.JSX.Element {
   const [properties, setProperties] = useState<TargetPath | null>(null)
   const [trashOpen, setTrashOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<{ count: number; run: () => void } | null>(null)
-  const [navRequest, setNavRequest] = useState<{ id: number; path: string; fs: FsKind } | null>(null)
+  const [navRequest, setNavRequest] = useState<{
+    id: number
+    path: string
+    fs: FsKind
+    selectPath?: string
+  } | null>(null)
 
   // The Windows pane ignores the Explorer start-location setting: it always
   // opens at the Windows user profile.
@@ -114,10 +126,23 @@ export function ExplorerTab(): React.JSX.Element {
   // Navigation requested from the Dashboard, routed to the matching pane.
   useEffect(() => {
     if (!explorerNavigateRequest) return
+    setEditor(null)
     setNavRequest(explorerNavigateRequest)
     setActivePane(explorerNavigateRequest.fs)
     consumeExplorerNavigate()
   }, [explorerNavigateRequest, consumeExplorerNavigate])
+
+  // File editor open requested from the Dashboard; also navigate its parent pane so
+  // closing the overlay leaves Explorer focused on the containing folder.
+  useEffect(() => {
+    if (!explorerOpenFileRequest) return
+    const { id, path, fs } = explorerOpenFileRequest
+    const parent = fs === 'windows' ? windowsParent(path) : parentPath(path)
+    setEditor({ path, fs })
+    setActivePane(fs)
+    setNavRequest({ id, path: parent, fs, selectPath: path })
+    consumeExplorerOpenFile()
+  }, [explorerOpenFileRequest, consumeExplorerOpenFile])
 
   const runTransfer = useCallback(
     (from: FsKind, paths: string[], destDir: string): void => {
@@ -146,8 +171,12 @@ export function ExplorerTab(): React.JSX.Element {
   const activateWindows = useCallback(() => setActivePane('windows'), [])
   const activateLinux = useCallback(() => setActivePane('linux'), [])
 
-  const paneNav = (fs: FsKind): { id: number; path: string } | null =>
-    navRequest && navRequest.fs === fs ? { id: navRequest.id, path: navRequest.path } : null
+  const paneNav = (fs: FsKind): { id: number; path: string; selectPath?: string } | null =>
+    navRequest && navRequest.fs === fs
+      ? navRequest.selectPath === undefined
+        ? { id: navRequest.id, path: navRequest.path }
+        : { id: navRequest.id, path: navRequest.path, selectPath: navRequest.selectPath }
+      : null
 
   return (
     <div className="explorer-tab">

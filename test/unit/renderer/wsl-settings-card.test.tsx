@@ -129,7 +129,7 @@ function Probe(): React.JSX.Element {
   return (
     <>
       <div data-testid="prepared">{preparedCommand?.text ?? ''}</div>
-      <div data-testid="nav">
+      <div data-testid="nav" data-select={explorerNavigateRequest?.selectPath ?? ''}>
         {explorerNavigateRequest === null
           ? ''
           : `${explorerNavigateRequest.fs}:${explorerNavigateRequest.path}`}
@@ -499,15 +499,18 @@ describe('WslSettingsCard file actions', () => {
     expect(api.copyToClipboard).toHaveBeenCalledWith('C:\\Users\\dev\\.wslconfig')
   })
 
-  it('opens .wslconfig in the Windows pane and wsl.conf in its Linux directory', async () => {
+  it('opens .wslconfig parent folder in the Windows pane and wsl.conf in its Linux directory', async () => {
     await renderCard()
     fireEvent.click(screen.getByRole('button', { name: 'Show in Explorer' }))
-    expect(screen.getByTestId('nav').textContent).toBe('windows:C:\\Users\\dev\\.wslconfig')
+    const nav = screen.getByTestId('nav')
+    expect(nav.textContent).toBe('windows:C:\\Users\\dev')
+    expect(nav.getAttribute('data-select')).toBe('C:\\Users\\dev\\.wslconfig')
     expect(screen.getByTestId('tab').textContent).toBe('explorer')
 
     switchTo('linux')
     fireEvent.click(screen.getByRole('button', { name: 'Show in Explorer' }))
-    expect(screen.getByTestId('nav').textContent).toBe('linux:/etc')
+    expect(nav.textContent).toBe('linux:/etc')
+    expect(nav.getAttribute('data-select')).toBe('/etc/wsl.conf')
   })
 
   it('disables the Explorer action for a file that is not there', async () => {

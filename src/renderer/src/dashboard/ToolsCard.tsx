@@ -6,6 +6,7 @@ import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import { useApp } from '../store'
 import { CheckIcon, FolderIcon, WarningIcon } from '../components/Icons'
+import { resolveDashboardExplorerTarget } from './explorerTarget'
 
 export interface ToolsCardProps {
   tools: ToolInfo[]
@@ -72,7 +73,7 @@ export default function ToolsCard({
   appendWindowsPath = null
 }: ToolsCardProps): React.JSX.Element {
   const { t } = useTranslation()
-  const { navigateExplorer, pushToast } = useApp()
+  const { navigateExplorer, pushToast, snapshot } = useApp()
   // The catalog is long enough that showing every absent tool first is noise.
   const [installedOnly, setInstalledOnly] = useState(true)
   const [shadowedOnly, setShadowedOnly] = useState(false)
@@ -265,10 +266,14 @@ export default function ToolsCard({
                               aria-label={t('dashboard.config.showInExplorer')}
                               title={t('dashboard.config.showInExplorer')}
                               onClick={() => {
-                                navigateExplorer(
-                                  dirOf(tool.executablePath as string),
-                                  tool.side === 'windows-mount' ? 'windows' : 'linux'
+                                const target = resolveDashboardExplorerTarget(
+                                  tool.executablePath as string,
+                                  {
+                                    isDir: false,
+                                    settings: snapshot?.dashboard?.wslSettings ?? null
+                                  }
                                 )
+                                navigateExplorer(target.path, target.fs, target.selectPath)
                                 pushToast('info', t('toast.openedInExplorer'))
                               }}
                             >
