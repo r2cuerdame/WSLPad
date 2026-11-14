@@ -53,7 +53,7 @@ export function linuxBasename(linuxPath: string): string {
   return trimmed.slice(trimmed.lastIndexOf('/') + 1) || '/'
 }
 
-function normalizeLinuxPath(linuxPath: string): string {
+export function normalizeLinuxPath(linuxPath: string): string {
   const normalized = posix.normalize(linuxPath)
   return normalized.length > 1 ? normalized.replace(/\/+$/, '') : normalized
 }

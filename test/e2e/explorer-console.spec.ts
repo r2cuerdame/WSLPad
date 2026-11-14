@@ -139,4 +139,15 @@ test.describe('dual-pane explorer + console (goal.md §18.3: 5, 6, 7, 8, 9, 10)'
     await winPane(page).getByRole('button', { name: /Copy to the other pane/i }).click()
     await expect(row(wslPane(page), /^notes\.txt/)).toBeVisible({ timeout: 15000 })
   })
+
+  test('duplicates a file in the same folder on Ctrl+C then Ctrl+V', async () => {
+    const { page } = launched
+    const notes = row(wslPane(page), /^notes\.md/)
+    await expect(notes).toBeVisible({ timeout: 15000 })
+    await notes.click()
+    await page.keyboard.press('Control+c')
+    await page.keyboard.press('Control+v')
+    await expect(row(wslPane(page), /^notes \(2\)\.md/)).toBeVisible({ timeout: 15000 })
+    await expect(notes).toBeVisible()
+  })
 })
