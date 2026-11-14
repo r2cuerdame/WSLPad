@@ -130,6 +130,20 @@ test.describe('dual-pane explorer + console (goal.md §18.3: 5, 6, 7, 8, 9, 10)'
     await expect(row(wslPane(page), /^notes.md/)).toBeVisible({ timeout: 15000 })
   })
 
+  test('drops a trashed file from the search results (issue #332)', async () => {
+    const { page } = launched
+    await expect(row(wslPane(page), /^notes.md/)).toBeVisible({ timeout: 15000 })
+    const search = wslPane(page).getByRole('textbox', { name: 'Search in current folder' })
+    await search.fill('notes')
+    await search.press('Enter')
+    const hit = row(wslPane(page), /^notes.md/)
+    await expect(hit).toBeVisible({ timeout: 15000 })
+    await hit.click()
+    await page.keyboard.press('Delete')
+    await expect(hit).toBeHidden({ timeout: 15000 })
+    await expect(search).toHaveValue('notes')
+  })
+
   test('copies a file from Windows into the distro', async () => {
     const { page } = launched
     await row(winPane(page), /^Documents/).dblclick()

@@ -311,11 +311,17 @@ async function flush(): Promise<void> {
   })
 }
 
+function ToastProbe(): React.JSX.Element {
+  const { toasts } = useApp()
+  return <div data-testid="toasts">{toasts.map((toast) => toast.text).join('\n')}</div>
+}
+
 /** Render both panes and wait until each has listed its start directory. */
-async function renderExplorer(): Promise<void> {
+async function renderExplorer(withToasts = false): Promise<void> {
   render(
     <AppStoreProvider>
       <ConsolePathProbe />
+      {withToasts && <ToastProbe />}
       <ExplorerTab />
     </AppStoreProvider>
   )
@@ -1345,5 +1351,243 @@ describe('directory sizes', () => {
     await waitFor(() =>
       expect(within(pane('linux')).queryByRole('region', { name: 'Directory sizes' })).toBeNull()
     )
+  })
+})
+
+describe('search results after file changes', () => {
+  const searchBox = (kind: 'windows' | 'linux'): HTMLInputElement =>
+    within(pane(kind)).getByRole('textbox', { name: 'Search in current folder' }) as HTMLInputElement
+
+  function search(kind: 'windows' | 'linux', query: string): void {
+    const input = searchBox(kind)
+    fireEvent.change(input, { target: { value: query } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+  }
+
+  function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+    let resolve!: (value: T) => void
+    const promise = new Promise<T>((r) => {
+      resolve = r
+    })
+    return { promise, resolve }
+  }
+
+  const linuxHits = {
+    app: entry({ name: 'app.log', path: `${LINUX_HOME}/logs/app.log` }),
+    old: entry({ name: 'old.log', path: `${LINUX_HOME}/logs/old.log` })
+  }
+  const windowsHits = {
+    app: winEntry({ name: 'app.log', path: `${WIN_HOME}\\app.log` }),
+    old: winEntry({ name: 'old.log', path: `${WIN_HOME}\\Documents\\old.log` })
+  }
+
+  it.each([
+    ['linux', 'trash'],
+    ['linux', 'delete'],
+    ['windows', 'trash'],
+    ['windows', 'delete']
+  ] as const)('drops a removed hit from %s search results after %s', async (kind, action) => {
+    const fs = kind === 'linux' ? api.explorer : api.windows
+    const hits = kind === 'linux' ? linuxHits : windowsHits
+    const dir = kind === 'linux' ? LINUX_HOME : WIN_HOME
+    fs.search.mockResolvedValueOnce([hits.app, hits.old]).mockResolvedValueOnce([hits.app])
+    await renderExplorer()
+
+    search(kind, 'log')
+    await waitFor(() => expect(rowNames(kind)).toEqual(['app.log', 'old.log']))
+
+    fireEvent.contextMenu(within(pane(kind)).getByText('old.log'))
+    const menu = await screen.findByRole('menu')
+    if (action === 'trash') {
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'Move to Trash' }))
+    } else {
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'Delete permanently' }))
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
+    }
+
+    const op = action === 'trash' ? fs.trash : fs.remove
+    await waitFor(() => expect(op).toHaveBeenCalledWith([hits.old.path]))
+    await waitFor(() => expect(rowNames(kind)).toEqual(['app.log']))
+    expect(fs.search).toHaveBeenCalledTimes(2)
+    expect(fs.search).toHaveBeenLastCalledWith(dir, 'log')
+    expect(searchBox(kind).value).toBe('log')
+  })
+
+  it('shows the new name after a rename and drops a hit that no longer matches', async () => {
+    api.explorer.search
+      .mockResolvedValueOnce([entry({ name: 'config.json', path: `${LINUX_HOME}/config.json` })])
+      .mockResolvedValueOnce([
+        entry({ name: 'config-old.json', path: `${LINUX_HOME}/config-old.json` })
+      ])
+    api.windows.search
+      .mockResolvedValueOnce([winEntry({ name: 'notes.txt', path: `${WIN_HOME}\\notes.txt` })])
+      .mockResolvedValueOnce([])
+    await renderExplorer()
+
+    search('linux', 'config')
+    await waitFor(() => expect(rowNames('linux')).toEqual(['config.json']))
+    const linuxCell = within(pane('linux')).getByText('config.json')
+    fireEvent.click(linuxCell)
+    fireEvent.keyDown(linuxCell, { key: 'F2' })
+    const linuxEditor = await screen.findByDisplayValue('config.json')
+    fireEvent.change(linuxEditor, { target: { value: 'config-old.json' } })
+    fireEvent.keyDown(linuxEditor, { key: 'Enter' })
+    await waitFor(() => expect(rowNames('linux')).toEqual(['config-old.json']))
+
+    search('windows', 'notes')
+    await waitFor(() => expect(rowNames('windows')).toEqual(['notes.txt']))
+    const winCell = within(pane('windows')).getByText('notes.txt')
+    fireEvent.click(winCell)
+    fireEvent.keyDown(winCell, { key: 'F2' })
+    const winEditor = await screen.findByDisplayValue('notes.txt')
+    fireEvent.change(winEditor, { target: { value: 'memo.txt' } })
+    fireEvent.keyDown(winEditor, { key: 'Enter' })
+    await waitFor(() =>
+      expect(api.windows.rename).toHaveBeenCalledWith(`${WIN_HOME}\\notes.txt`, 'memo.txt')
+    )
+    await waitFor(() => expect(rowNames('windows')).toEqual([]))
+    expect(searchBox('windows').value).toBe('notes')
+  })
+
+  it('shows created and pasted entries that match while searching', async () => {
+    const progressListeners: Array<(progress: import('@shared/types').FileOpProgress) => void> = []
+    api.onOpProgress.mockImplementation(((callback: (progress: import('@shared/types').FileOpProgress) => void) => {
+      progressListeners.push(callback)
+      return () => undefined
+    }) as unknown as () => () => undefined)
+    const a = entry({ name: 'a.txt', path: `${LINUX_HOME}/a.txt` })
+    const created = entry({ name: 'new-file.txt', path: `${LINUX_HOME}/new-file.txt` })
+    const pasted = entry({ name: 'pasted.txt', path: `${LINUX_HOME}/pasted.txt` })
+    api.explorer.search
+      .mockResolvedValueOnce([a])
+      .mockResolvedValueOnce([a, created])
+      .mockResolvedValueOnce([a, created, pasted])
+    await renderExplorer()
+
+    search('linux', 'txt')
+    await waitFor(() => expect(rowNames('linux')).toEqual(['a.txt']))
+
+    fireEvent.contextMenu(within(pane('linux')).getByText('a.txt'))
+    const menu = await screen.findByRole('menu')
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'New file' }))
+    const editor = await screen.findByDisplayValue('new-file.txt')
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    await waitFor(() =>
+      expect(api.explorer.createFile).toHaveBeenCalledWith(`${LINUX_HOME}/new-file.txt`)
+    )
+    await waitFor(() => expect(rowNames('linux')).toEqual(['a.txt', 'new-file.txt']))
+
+    act(() =>
+      progressListeners.forEach((listener) =>
+        listener({
+          opId: 'op-paste',
+          kind: 'copy',
+          status: 'done',
+          totalItems: 1,
+          doneItems: 1,
+          totalBytes: null,
+          doneBytes: null,
+          currentItem: null,
+          error: null
+        })
+      )
+    )
+    await waitFor(() =>
+      expect(rowNames('linux')).toEqual(['a.txt', 'new-file.txt', 'pasted.txt'])
+    )
+    // The Windows pane was not searching, so it only re-lists.
+    expect(api.windows.search).not.toHaveBeenCalled()
+  })
+
+  it('keeps the query on refresh and returns to the listing when cleared or navigated', async () => {
+    await renderExplorer()
+
+    // Without a search, refresh only re-lists the directory as before.
+    const listCalls = api.explorer.list.mock.calls.length
+    fireEvent.click(within(pane('linux')).getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(api.explorer.list.mock.calls.length).toBe(listCalls + 1))
+    expect(api.explorer.search).not.toHaveBeenCalled()
+
+    api.explorer.search
+      .mockResolvedValueOnce([linuxHits.app])
+      .mockResolvedValueOnce([linuxHits.app, linuxHits.old])
+    search('linux', 'log')
+    await waitFor(() => expect(rowNames('linux')).toEqual(['app.log']))
+
+    fireEvent.click(within(pane('linux')).getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(rowNames('linux')).toEqual(['app.log', 'old.log']))
+    expect(api.explorer.search).toHaveBeenLastCalledWith(LINUX_HOME, 'log')
+    expect(searchBox('linux').value).toBe('log')
+
+    fireEvent.keyDown(searchBox('linux'), { key: 'Escape' })
+    await waitFor(() => expect(rowNames('linux')).toContain('config.json'))
+    expect(searchBox('linux').value).toBe('')
+
+    api.explorer.search.mockResolvedValueOnce([
+      entry({ name: 'logs', path: `${LINUX_HOME}/logs`, type: 'directory', sizeBytes: null })
+    ])
+    search('linux', 'logs')
+    await waitFor(() => expect(rowNames('linux')).toEqual(['logs']))
+    fireEvent.doubleClick(within(pane('linux')).getByText('logs'))
+    await waitFor(() =>
+      expect(api.explorer.list).toHaveBeenCalledWith(`${LINUX_HOME}/logs`, { showHidden: false })
+    )
+    await waitFor(() => expect(searchBox('linux').value).toBe(''))
+  })
+
+  it('ignores a late re-search answer after the search is cleared or the pane moves', async () => {
+    await renderExplorer()
+    const ghost = entry({ name: 'ghost.log', path: `${LINUX_HOME}/ghost.log` })
+
+    api.explorer.search.mockResolvedValueOnce([linuxHits.app])
+    search('linux', 'log')
+    await waitFor(() => expect(rowNames('linux')).toEqual(['app.log']))
+
+    const afterClear = deferred<FileEntry[]>()
+    api.explorer.search.mockReturnValueOnce(afterClear.promise)
+    fireEvent.click(within(pane('linux')).getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(api.explorer.search).toHaveBeenCalledTimes(2))
+    fireEvent.keyDown(searchBox('linux'), { key: 'Escape' })
+    await waitFor(() => expect(rowNames('linux')).toContain('config.json'))
+    await act(async () => {
+      afterClear.resolve([ghost])
+      await afterClear.promise
+    })
+    expect(rowNames('linux')).not.toContain('ghost.log')
+    expect(rowNames('linux')).toContain('config.json')
+
+    api.explorer.search.mockResolvedValueOnce([linuxHits.app])
+    search('linux', 'log')
+    await waitFor(() => expect(rowNames('linux')).toEqual(['app.log']))
+
+    const afterMove = deferred<FileEntry[]>()
+    api.explorer.search.mockReturnValueOnce(afterMove.promise)
+    fireEvent.click(within(pane('linux')).getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(api.explorer.search).toHaveBeenCalledTimes(4))
+    fireEvent.click(within(pane('linux')).getByRole('button', { name: 'Root' }))
+    await waitFor(() => expect(rowNames('linux')).toEqual(['etc', 'mnt']))
+    await act(async () => {
+      afterMove.resolve([ghost])
+      await afterMove.promise
+    })
+    expect(rowNames('linux')).toEqual(['etc', 'mnt'])
+  })
+
+  it('reports a failed re-search and does not keep the old results on screen', async () => {
+    await renderExplorer(true)
+    api.explorer.search
+      .mockResolvedValueOnce([linuxHits.app, linuxHits.old])
+      .mockRejectedValueOnce(new Error('EACCES: /home/dev/logs'))
+    search('linux', 'log')
+    await waitFor(() => expect(rowNames('linux')).toEqual(['app.log', 'old.log']))
+
+    fireEvent.click(within(pane('linux')).getByRole('button', { name: 'Refresh' }))
+    await waitFor(() =>
+      expect(screen.getByTestId('toasts').textContent).toContain('EACCES: /home/dev/logs')
+    )
+    await waitFor(() => expect(rowNames('linux')).toContain('config.json'))
+    expect(rowNames('linux')).not.toContain('old.log')
+    expect(searchBox('linux').value).toBe('')
   })
 })

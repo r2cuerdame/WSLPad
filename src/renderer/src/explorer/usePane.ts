@@ -224,6 +224,11 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   const dirSizeCache = useRef(new Map<string, DirSizeResult>())
   const activeDirSizeToken = useRef<string | null>(null)
 
+  // The query whose results are on screen (null when not searching), and a
+  // counter that lets only the newest search request write its answer.
+  const activeSearchRef = useRef<string | null>(null)
+  const searchSeq = useRef(0)
+
   const pathRef = useRef<string | null>(null)
   const showHiddenRef = useRef(opts.showHiddenDefault)
   const adapterRef = useRef(adapter)
@@ -259,6 +264,8 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
         setPath(normalized)
         setEntries(list)
         setError(null)
+        activeSearchRef.current = null
+        searchSeq.current++
         setSearchQuery('')
         setSearchResults(null)
         setSelection(new Set())
@@ -334,15 +341,34 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     setRefreshToken((n) => n + 1)
     setLoading(true)
     try {
-      const list = await adapterRef.current.list(current, { showHidden: showHiddenRef.current })
-      setEntries(list)
-      setError(null)
-    } catch (err) {
-      setError(parseExplorerError(err).message)
+      try {
+        const list = await adapterRef.current.list(current, { showHidden: showHiddenRef.current })
+        setEntries(list)
+        setError(null)
+      } catch (err) {
+        setError(parseExplorerError(err).message)
+      }
+      // While searching the pane shows the results, not the listing, so they
+      // must be read again too or deleted/renamed entries stay on screen.
+      const query = activeSearchRef.current
+      if (query === null) return
+      const seq = ++searchSeq.current
+      try {
+        const results = await adapterRef.current.search(current, query)
+        if (seq === searchSeq.current) setSearchResults(results)
+      } catch (err) {
+        if (seq !== searchSeq.current) return
+        // Old results would now claim files that may be gone; fall back to
+        // the real listing instead.
+        activeSearchRef.current = null
+        setSearchQuery('')
+        setSearchResults(null)
+        toastError(err)
+      }
     } finally {
       setLoading(false)
     }
-  }, [closeDirSizes])
+  }, [closeDirSizes, toastError])
 
   const goBack = useCallback(async (): Promise<void> => {
     if (backStack.length === 0) return
@@ -444,19 +470,23 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     async (query: string): Promise<void> => {
       const trimmed = query.trim()
       const current = pathRef.current
+      const seq = ++searchSeq.current
       if (!trimmed || !current) {
+        activeSearchRef.current = null
         setSearchQuery('')
         setSearchResults(null)
         return
       }
+      activeSearchRef.current = trimmed
       setSearchQuery(trimmed)
       setLoading(true)
       try {
         const results = await adapterRef.current.search(current, trimmed)
+        if (seq !== searchSeq.current) return
         setSearchResults(results)
         setSelection(new Set())
       } catch (err) {
-        toastError(err)
+        if (seq === searchSeq.current) toastError(err)
       } finally {
         setLoading(false)
       }
@@ -465,6 +495,8 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   )
 
   const clearSearch = useCallback((): void => {
+    activeSearchRef.current = null
+    searchSeq.current++
     setSearchQuery('')
     setSearchResults(null)
   }, [])
