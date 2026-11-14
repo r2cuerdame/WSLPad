@@ -25,6 +25,7 @@ import {
   statfs,
   writeFile
 } from 'fs/promises'
+import { nextCopyName } from './copy-name'
 import { homedir } from 'os'
 import { win32 as win } from 'path'
 import { WINDOWS_ROOT } from '@shared/constants'
@@ -505,6 +506,59 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
     }
   }
 
+  const isSameWinDir = (a: string, b: string): boolean =>
+    a.replace(/[\\/]+$/, '').toLowerCase() === b.replace(/[\\/]+$/, '').toLowerCase()
+
+  const copySameFolder = async (
+    source: string,
+    destDir: string,
+    onSize: (size: number) => void
+  ): Promise<number | null> => {
+    const st = await lstat(source)
+    const isDirectory = st.isDirectory()
+    const size = isDirectory ? null : st.size
+    if (size !== null) onSize(size)
+
+    const existingLower = new Set((await readdir(destDir)).map((entry) => entry.toLowerCase()))
+    const baseName = win.basename(source)
+    const hasName = (name: string) => existingLower.has(name.toLowerCase())
+    let candidate = nextCopyName(baseName, isDirectory, hasName)
+    const advanceCandidate = () => {
+      existingLower.add(candidate.name.toLowerCase())
+      candidate = nextCopyName(baseName, isDirectory, hasName, candidate.index + 1)
+    }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const dest = win.join(destDir, candidate.name)
+      if (await exists(dest)) {
+        if (attempt === 0) {
+          advanceCandidate()
+          continue
+        }
+        throw new ExplorerError('EEXIST', dest, `EEXIST: ${dest}`)
+      }
+      try {
+        await cp(source, dest, {
+          recursive: true,
+          force: false,
+          errorOnExist: true,
+          preserveTimestamps: true
+        })
+        return size
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException | null)?.code
+        if ((code === 'EEXIST' || code === 'ERR_FS_CP_EEXIST') && attempt === 0) {
+          advanceCandidate()
+          continue
+        }
+        if (code === 'ERR_FS_CP_EEXIST') {
+          throw new ExplorerError('EEXIST', dest, `EEXIST: ${dest}`)
+        }
+        throw err
+      }
+    }
+    return size
+  }
+
   const runCopyMove = async (
     opId: string,
     sources: string[],
@@ -537,28 +591,38 @@ export function createWindowsFs(deps: WindowsFsDeps = {}): WindowsFs {
       }
       emit('running', source)
       try {
-        const dest = win.join(destDir, win.basename(source))
-        // Never overwrite silently: the renderer confirms and retries (§7.5).
-        if (await exists(dest)) {
-          throw new ExplorerError('EEXIST', dest, `EEXIST: ${dest}`)
-        }
-        const size = await cheapSize(source)
-        if (size !== null) {
-          totalBytes += size
-          emit('running', source)
-        }
-        if (move && sameVolume(source, destDir)) {
-          await rename(source, dest)
+        if (isSameWinDir(win.dirname(source), destDir)) {
+          if (!move) {
+            const size = await copySameFolder(source, destDir, (bytes) => {
+              totalBytes += bytes
+              emit('running', source)
+            })
+            if (size !== null) doneBytes += size
+          }
         } else {
-          await cp(source, dest, {
-            recursive: true,
-            force: false,
-            errorOnExist: true,
-            preserveTimestamps: true
-          })
-          if (move) await rm(source, { recursive: true, force: true })
+          const dest = win.join(destDir, win.basename(source))
+          // Never overwrite silently: the renderer confirms and retries (§7.5).
+          if (await exists(dest)) {
+            throw new ExplorerError('EEXIST', dest, `EEXIST: ${dest}`)
+          }
+          const size = await cheapSize(source)
+          if (size !== null) {
+            totalBytes += size
+            emit('running', source)
+          }
+          if (move && sameVolume(source, destDir)) {
+            await rename(source, dest)
+          } else {
+            await cp(source, dest, {
+              recursive: true,
+              force: false,
+              errorOnExist: true,
+              preserveTimestamps: true
+            })
+            if (move) await rm(source, { recursive: true, force: true })
+          }
+          if (size !== null) doneBytes += size
         }
-        if (size !== null) doneBytes += size
       } catch (err) {
         errors.push(toExplorerError(source, err).message)
       }

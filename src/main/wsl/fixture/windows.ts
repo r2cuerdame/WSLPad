@@ -17,6 +17,7 @@ import type {
   WindowsPlace
 } from '@shared/types'
 import { ExplorerError, type ExplorerListOpts } from '../contracts'
+import { nextCopyName } from '../../explorer/copy-name'
 import type { WindowsFs } from '../../explorer/windows'
 import { FIXTURE_NEW_MTIME, FIXTURE_SEED_MTIME, FIXTURE_WINDOWS_USERPROFILE } from './data'
 
@@ -498,8 +499,9 @@ class FixtureWindowsFs implements WindowsFs {
     // Sized up front, directories recursively, so the first event already
     // carries the whole batch and doneBytes only grows as items complete.
     const sizes = srcs.map((source) => {
-      const { node } = this.withParent(source)
-      return node ? this.sizeOf(node) : 0
+      const { parent, node } = this.withParent(source)
+      if (!node || (move && parent === dest)) return 0
+      return this.sizeOf(node)
     })
     const totalBytes = sizes.reduce((sum, size) => sum + size, 0)
     let doneBytes = 0
@@ -520,19 +522,31 @@ class FixtureWindowsFs implements WindowsFs {
       const { parent, node, name, normalized } = this.withParent(source)
       try {
         if (!parent || !node) throw new ExplorerError('ENOENT', normalized, `ENOENT: ${normalized}`)
-        if (dest.children?.has(name.toLowerCase())) {
-          const conflict = this.join(destPath, name)
-          throw new ExplorerError('EEXIST', conflict, `EEXIST: ${conflict}`)
-        }
-        if (move) {
-          if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
-          parent.children?.delete(name.toLowerCase())
-          node.mtime = FIXTURE_NEW_MTIME
-          this.attach(dest, node)
+        if (parent === dest) {
+          if (!move) {
+            const copyName = nextCopyName(
+              name,
+              node.type === 'directory',
+              (candidate) => Boolean(dest.children?.has(candidate.toLowerCase()))
+            ).name
+            this.attach(dest, this.clone(node, copyName))
+            doneBytes += sizes[index]
+          }
         } else {
-          this.attach(dest, this.clone(node))
+          if (dest.children?.has(name.toLowerCase())) {
+            const conflict = this.join(destPath, name)
+            throw new ExplorerError('EEXIST', conflict, `EEXIST: ${conflict}`)
+          }
+          if (move) {
+            if (!parent.writable) throw new ExplorerError('EACCES', normalized, `EACCES: ${normalized}`)
+            parent.children?.delete(name.toLowerCase())
+            node.mtime = FIXTURE_NEW_MTIME
+            this.attach(dest, node)
+          } else {
+            this.attach(dest, this.clone(node))
+          }
+          doneBytes += sizes[index]
         }
-        doneBytes += sizes[index]
       } catch (err) {
         errors.push(err instanceof Error ? err.message : String(err))
       }

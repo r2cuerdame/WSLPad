@@ -1,12 +1,14 @@
 import type { FileOpProgress, FileOpStatus } from '@shared/types'
 import { ExplorerError, type DistroRunner } from '../wsl/contracts'
 import { assertValidLinuxPath, shellQuote } from '../wsl/escape'
+import { nextCopyName } from './copy-name'
 import { EXIT_EEXIST, explorerErrorFromResult } from './listing'
 import {
   isInsideLinux,
   isLinuxRoot,
   joinLinuxPath,
   linuxBasename,
+  normalizeLinuxPath,
   parentLinuxPath
 } from './path-convert'
 
@@ -79,6 +81,59 @@ export async function renameEntry(
   }
 }
 
+function parseSameFolderProbe(stdout: string): { isDirectory: boolean; existing: Set<string> } {
+  const parts = stdout.split('\0')
+  const isDirectory = parts[0] === 'd'
+  const existing = new Set(parts.slice(1).filter((name) => name.length > 0))
+  return { isDirectory, existing }
+}
+
+async function copySameFolderItem(
+  runner: DistroRunner,
+  distro: string,
+  source: string,
+  destDir: string,
+  batchCreated: Set<string>
+): Promise<string | null> {
+  const qs = shellQuote(source)
+  const qDir = shellQuote(destDir)
+  // `-H` follows a symlinked destDir; `-L` ensures symlinks to directories keep their name stem.
+  const probeScript =
+    `if [ -d ${qs} ] && [ ! -L ${qs} ]; then printf 'd\\0'; else printf 'f\\0'; fi; ` +
+    `LC_ALL=C find -H ${qDir} -mindepth 1 -maxdepth 1 -printf '%f\\0'`
+  const probeResult = await runner.runInDistro(distro, probeScript, {
+    timeoutMs: FILE_OP_TIMEOUT_MS,
+    nulDelimited: true
+  })
+  if (probeResult.code !== 0 || probeResult.timedOut) {
+    return explorerErrorFromResult(destDir, probeResult).message
+  }
+  const { isDirectory, existing } = parseSameFolderProbe(probeResult.stdout)
+  for (const created of batchCreated) existing.add(created)
+
+  const baseName = linuxBasename(source)
+  let candidate = nextCopyName(baseName, isDirectory, existing)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const dest = joinLinuxPath(destDir, candidate.name)
+    const qd = shellQuote(dest)
+    const script = `${existsGuard(qd)}; cp -a ${qs} ${qd}`
+    const result = await runner.runInDistro(distro, script, {
+      timeoutMs: FILE_OP_TIMEOUT_MS
+    })
+    if (result.code === 0 && !result.timedOut) {
+      batchCreated.add(candidate.name)
+      return null
+    }
+    if (result.code === EXIT_EEXIST && !result.timedOut && attempt === 0) {
+      existing.add(candidate.name)
+      candidate = nextCopyName(baseName, isDirectory, existing, candidate.index + 1)
+      continue
+    }
+    return explorerErrorFromResult(result.code === EXIT_EEXIST ? dest : source, result).message
+  }
+  return null
+}
+
 /**
  * Sequential per-item copy/move (never sudo). Conflicts are recorded per item
  * as EEXIST and the remaining items still run; cancel is honored between items.
@@ -96,6 +151,8 @@ export async function runCopyMove(
   const totalItems = uniqueSources.length
   let doneItems = 0
   const errors: string[] = []
+  const normalizedDestDir = normalizeLinuxPath(destDir)
+  const batchCreated = new Set<string>()
   const emit = (status: FileOpStatus, currentItem: string | null, error: string | null = null) =>
     ctx.emit({
       opId,
@@ -123,14 +180,30 @@ export async function runCopyMove(
       if (isInsideLinux(destDir, source)) {
         throw new ExplorerError('UNKNOWN', source, `Cannot ${kind} ${source} into itself`)
       }
-      const dest = joinLinuxPath(destDir, linuxBasename(source))
-      const qd = shellQuote(dest)
-      const script = `${existsGuard(qd)}; ${move ? 'mv' : 'cp -a'} ${shellQuote(source)} ${qd}`
-      const result = await ctx.runner.runInDistro(distro, script, {
-        timeoutMs: FILE_OP_TIMEOUT_MS
-      })
-      if (result.code !== 0 || result.timedOut) {
-        errors.push(explorerErrorFromResult(result.code === EXIT_EEXIST ? dest : source, result).message)
+      const normalizedSource = normalizeLinuxPath(source)
+      if (parentLinuxPath(normalizedSource) === normalizedDestDir) {
+        if (!move) {
+          const error = await copySameFolderItem(
+            ctx.runner,
+            distro,
+            normalizedSource,
+            normalizedDestDir,
+            batchCreated
+          )
+          if (error) errors.push(error)
+        }
+      } else {
+        const dest = joinLinuxPath(destDir, linuxBasename(source))
+        const qd = shellQuote(dest)
+        const script = `${existsGuard(qd)}; ${move ? 'mv' : 'cp -a'} ${shellQuote(source)} ${qd}`
+        const result = await ctx.runner.runInDistro(distro, script, {
+          timeoutMs: FILE_OP_TIMEOUT_MS
+        })
+        if (result.code !== 0 || result.timedOut) {
+          errors.push(
+            explorerErrorFromResult(result.code === EXIT_EEXIST ? dest : source, result).message
+          )
+        }
       }
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err))
