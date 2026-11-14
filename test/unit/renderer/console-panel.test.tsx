@@ -60,8 +60,10 @@ const xtermMocks = vi.hoisted(() => {
       this.buffer = ''
     }
 
+    // Like xterm: everything goes except the line the cursor is on.
     clear(): void {
       this.clears += 1
+      this.buffer = this.buffer.slice(this.buffer.lastIndexOf('\n') + 1)
     }
 
     focus(): void {}
@@ -177,6 +179,7 @@ function makeApi() {
       resize: vi.fn(async () => undefined),
       setCwd: vi.fn(async () => undefined),
       getState: vi.fn(async () => ({ status: 'ready' as const, cwd: '/home/dev' })),
+      clear: vi.fn(async (_sessionId: string, _throughSeq: number) => undefined),
       onData: vi.fn((cb: (ev: TerminalDataEvent) => void) => {
         emitTermData = cb
         return () => {
@@ -502,5 +505,117 @@ describe('ConsolePanel transcript restoration and path sync', () => {
     })
     expect(currentTerm().buffer).toBe('')
     expect(screen.queryByText('/home/dev/projects')).toBeNull()
+  })
+})
+
+describe('ConsolePanel Clear button', () => {
+  /** Stand-in for main's retained transcripts, honouring terminal.clear like ConsoleSession does. */
+  function fakeMain(): void {
+    const sessions: Record<string, { transcript: string; seq: number }> = {
+      'Ubuntu-24.04': { transcript: 'secret-token\r\ndev@Ubuntu-24.04:~$ ', seq: 2 },
+      Debian: { transcript: 'dev@Debian:~$ ', seq: 1 }
+    }
+    api.terminal.ensure.mockImplementation(async (distro: string) => ({
+      sessionId: `term-${distro}`,
+      distro,
+      status: 'ready',
+      cwd: '/home/dev',
+      error: null,
+      transcript: sessions[distro].transcript,
+      seq: sessions[distro].seq
+    }))
+    api.terminal.clear.mockImplementation(async (sessionId: string, throughSeq: number) => {
+      const s = sessions[sessionId.slice('term-'.length)]
+      if (throughSeq >= s.seq) s.transcript = s.transcript.slice(s.transcript.lastIndexOf('\n') + 1)
+    })
+  }
+
+  it('clears the screen and main transcript so a distro round trip does not replay it', async () => {
+    fakeMain()
+    await renderConsole()
+    await waitFor(() => expect(currentTerm().buffer).toBe('secret-token\r\ndev@Ubuntu-24.04:~$ '))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(currentTerm().clears).toBe(1)
+    expect(currentTerm().buffer).toBe('dev@Ubuntu-24.04:~$ ')
+    expect(api.terminal.clear).toHaveBeenCalledWith('term-Ubuntu-24.04', 2)
+    // Clearing is not shell input: nothing typed and no cd.
+    expect(api.terminal.input).not.toHaveBeenCalled()
+    expect(api.terminal.setCwd).not.toHaveBeenCalled()
+
+    await act(async () => {
+      emitSnapshot?.(makeSnapshot('Debian'))
+    })
+    await waitFor(() => expect(currentTerm().buffer).toBe('dev@Debian:~$ '))
+    await act(async () => {
+      emitSnapshot?.(makeSnapshot('Ubuntu-24.04'))
+    })
+    await waitFor(() => expect(currentTerm().buffer).toBe('dev@Ubuntu-24.04:~$ '))
+    expect(currentTerm().buffer).not.toContain('secret-token')
+    expect(screen.getByText('Ready')).toBeTruthy()
+  })
+
+  it('shows output arriving right after Clear exactly once', async () => {
+    fakeMain()
+    await renderConsole()
+    await waitFor(() => expect(currentTerm().buffer).toContain('secret-token'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    await act(async () => {
+      emitTermData?.({ sessionId: 'term-Ubuntu-24.04', data: 'ls\r\nfile\r\n', seq: 3 })
+      emitTermData?.({ sessionId: 'term-Ubuntu-24.04', data: 'ls\r\nfile\r\n', seq: 3 })
+    })
+    expect(currentTerm().buffer).toBe('dev@Ubuntu-24.04:~$ ls\r\nfile\r\n')
+    // Main is told only about what was on screen, so seq 3 stays retained there.
+    expect(api.terminal.clear).toHaveBeenCalledTimes(1)
+    expect(api.terminal.clear).toHaveBeenCalledWith('term-Ubuntu-24.04', 2)
+  })
+
+  it('only clears the screen when the console never started', async () => {
+    api.terminal.ensure.mockResolvedValueOnce({
+      sessionId: 'term-Ubuntu-24.04',
+      distro: 'Ubuntu-24.04',
+      status: 'start-failed',
+      cwd: null,
+      error: 'fixture: the distro is busy starting up',
+      transcript: '',
+      seq: 0
+    })
+    await renderConsole()
+    await waitFor(() =>
+      expect(screen.getAllByText('fixture: the distro is busy starting up').length).toBeGreaterThan(0)
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(currentTerm().clears).toBe(1)
+    expect(api.terminal.clear).not.toHaveBeenCalled()
+  })
+
+  it('only clears the screen when no distro is selected or ensure is still pending', async () => {
+    const pendingEnsure = deferred<TerminalSessionInfo>()
+    api.terminal.ensure.mockImplementationOnce(() => pendingEnsure.promise)
+    await renderConsole()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+
+    await act(async () => {
+      emitSnapshot?.({ ...makeSnapshot(null), distros: [] })
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(currentTerm().clears).toBe(2)
+    expect(api.terminal.clear).not.toHaveBeenCalled()
+  })
+
+  it('keeps working when main rejects the clear request', async () => {
+    fakeMain()
+    api.terminal.clear.mockRejectedValueOnce(new Error('session gone'))
+    await renderConsole()
+    await waitFor(() => expect(currentTerm().buffer).toContain('secret-token'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(currentTerm().buffer).toBe('dev@Ubuntu-24.04:~$ ')
+    expect(screen.getByText('Ready')).toBeTruthy()
   })
 })

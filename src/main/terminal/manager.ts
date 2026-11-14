@@ -61,6 +61,10 @@ export class TerminalManager {
     await this.sessions.get(sessionId)?.setCwd(path)
   }
 
+  clear(sessionId: string, throughSeq: number): void {
+    this.sessions.get(sessionId)?.clearTranscript(throughSeq)
+  }
+
   getState(sessionId: string): { status: ConsoleStatus; cwd: string | null } | null {
     return this.sessions.get(sessionId)?.getState() ?? null
   }

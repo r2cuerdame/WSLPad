@@ -149,6 +149,22 @@ describe('registerIpcHandlers', () => {
     })
   })
 
+  it('validates terminal clear arguments before forwarding them', async () => {
+    const clear = vi.fn()
+    registerIpcHandlers({ terminals: { clear } } as never)
+    const handler = handles.get(IpcChannels.terminalClear)
+    expect(handler).toBeDefined()
+
+    await handler!({}, 'term-Ubuntu-24.04', 7)
+    expect(clear).toHaveBeenCalledWith('term-Ubuntu-24.04', 7)
+
+    await expect(handler!({}, 'Ubuntu; rm -rf /', 7)).rejects.toThrow()
+    await expect(handler!({}, 'term-Ubuntu', -1)).rejects.toThrow()
+    await expect(handler!({}, 'term-Ubuntu', 1.5)).rejects.toThrow()
+    await expect(handler!({}, 'term-Ubuntu', '7')).rejects.toThrow()
+    expect(clear).toHaveBeenCalledTimes(1)
+  })
+
   it('pins the queried distro in explorerList when selectedDistro changes mid-flight', async () => {
     let selectedDistro = 'Ubuntu-24.04'
     let resolveList!: (entries: unknown[]) => void

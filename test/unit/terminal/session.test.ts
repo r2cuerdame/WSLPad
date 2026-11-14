@@ -282,6 +282,62 @@ describe('ConsoleSession transcript and sequence tracking', () => {
   })
 })
 
+describe('ConsoleSession clearTranscript (console "Clear")', () => {
+  it('keeps only the cursor line, leaves seq alone and keeps accumulating afterwards', async () => {
+    const { session, factory } = await started()
+    factory.pty.emit('secret-token\r\n')
+    factory.pty.emit('dev@Ubuntu:~$ ')
+    session.clearTranscript(2)
+    expect(session.info().transcript).toBe('dev@Ubuntu:~$ ')
+    expect(session.info().seq).toBe(2)
+
+    factory.pty.emit('ls\r\nfile\r\n')
+    expect(session.info().transcript).toBe('dev@Ubuntu:~$ ls\r\nfile\r\n')
+    expect(session.info().seq).toBe(3)
+  })
+
+  it('spares output newer than what the renderer had drawn when it cleared', async () => {
+    const { session, factory } = await started()
+    factory.pty.emit('old output\r\nprompt$ ')
+    factory.pty.emit('late\r\n')
+    factory.pty.emit('later')
+    session.clearTranscript(1)
+    expect(session.info().transcript).toBe('prompt$ late\r\nlater')
+  })
+
+  it('keeps everything when the newer output is no longer measurable', async () => {
+    const { session, factory } = await started()
+    for (let i = 0; i < 1100; i += 1) factory.pty.emit('x\r\n')
+    const before = session.info().transcript
+    session.clearTranscript(10)
+    expect(session.info().transcript).toBe(before)
+    session.clearTranscript(0)
+    expect(session.info().transcript).toBe(before)
+  })
+
+  it('writes nothing to the shell and changes no state', async () => {
+    const { session, factory, statuses } = await started()
+    factory.pty.emit(osc7('/home/user') + PROMPT)
+    session.write('ls')
+    const statusCount = statuses.length
+    session.clearTranscript()
+    expect(factory.pty.input).toBe('ls')
+    expect(session.status).toBe('ready')
+    expect(session.cwd).toBe('/home/user')
+    expect(statuses).toHaveLength(statusCount)
+    expect(factory.syncWrites).toHaveLength(0)
+  })
+
+  it('is harmless on a session that never started', async () => {
+    const factory = new MockFactory()
+    factory.failSpawn = true
+    const { session } = await started(factory)
+    expect(session.status).toBe('start-failed')
+    expect(() => session.clearTranscript(0)).not.toThrow()
+    expect(session.info().transcript).toBe('')
+  })
+})
+
 describe('ConsoleSession without the rc (degraded shell)', () => {
   it('is ready immediately, since no prompt marker will ever arrive', async () => {
     const factory = new MockFactory()

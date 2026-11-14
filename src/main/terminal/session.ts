@@ -11,6 +11,11 @@ export interface ConsoleSessionOptions {
 
 /** Maximum characters of PTY scrollback retained per session for view restoration. */
 export const TRANSCRIPT_MAX_CHARS = 131_072
+/**
+ * Recent output chunk lengths kept so a clear can spare output the renderer had
+ * not drawn yet when its user pressed "Clear" (it is still on screen after it).
+ */
+const CLEAR_CHUNK_HISTORY = 1024
 
 /** Complete OSC sequence: ESC ] payload (BEL | ESC \). Payload never contains ESC/BEL. */
 // eslint-disable-next-line no-control-regex
@@ -40,6 +45,7 @@ export class ConsoleSession {
   private errorValue: string | null = null
   private transcriptValue = ''
   private seqValue = 0
+  private recentChunks: Array<{ seq: number; length: number }> = []
   private pendingCwd: string | null = null
   private typedInput = ''
   private parseBuf = ''
@@ -73,6 +79,7 @@ export class ConsoleSession {
   async start(cols: number, rows: number): Promise<void> {
     this.transcriptValue = ''
     this.seqValue = 0
+    this.recentChunks = []
     this.atPrompt = false
     this.syncInFlight = false
     this.typedInput = ''
@@ -151,6 +158,31 @@ export class ConsoleSession {
     }
   }
 
+  /**
+   * The console's "Clear": drop retained output up to `throughSeq` (what the
+   * renderer had drawn when it cleared xterm) so switching distros and back
+   * does not replay it. Like xterm's clear(), the line the cursor was on (the
+   * prompt) survives, and so does every chunk newer than `throughSeq`. Only the
+   * restoration copy changes — nothing is written to the shell.
+   */
+  clearTranscript(throughSeq: number = this.seqValue): void {
+    let tailLength = 0
+    if (throughSeq < this.seqValue) {
+      const oldest = this.recentChunks[0]
+      // Without the lengths of the newer chunks they cannot be told apart from
+      // the cleared ones; keeping everything beats losing visible output.
+      if (!oldest || oldest.seq > throughSeq + 1) return
+      for (const chunk of this.recentChunks) {
+        if (chunk.seq > throughSeq) tailLength += chunk.length
+      }
+    }
+    const transcript = this.transcriptValue
+    if (tailLength >= transcript.length) return
+    const head = transcript.slice(0, transcript.length - tailLength)
+    const cursorLine = head.slice(head.lastIndexOf('\n') + 1)
+    this.transcriptValue = cursorLine + transcript.slice(head.length)
+  }
+
   dispose(): void {
     this.disposed = true
     this.atPrompt = false
@@ -166,6 +198,8 @@ export class ConsoleSession {
     this.seqValue += 1
     const seq = this.seqValue
     this.appendTranscript(data)
+    this.recentChunks.push({ seq, length: data.length })
+    if (this.recentChunks.length > CLEAR_CHUNK_HISTORY) this.recentChunks.shift()
     // pass through untouched — xterm.js ignores the OSC 7/133 markers
     this.opts.onData(data, seq)
     this.parseBuf += data

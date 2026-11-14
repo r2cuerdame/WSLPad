@@ -503,6 +503,12 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   handle(IpcChannels.terminalGetState, (sessionId) =>
     deps.terminals.getState(sessionIdSchema.parse(sessionId))
   )
+  handle(IpcChannels.terminalClear, (sessionId, throughSeq) =>
+    deps.terminals.clear(
+      sessionIdSchema.parse(sessionId),
+      z.number().int().min(0).parse(throughSeq)
+    )
+  )
 
   // --- settings -----------------------------------------------------------
   handle(IpcChannels.settingsGet, () => deps.settings.get())

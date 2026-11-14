@@ -76,6 +76,30 @@ test.describe('dual-pane explorer + console (goal.md §18.3: 5, 6, 7, 8, 9, 10)'
     expect(transcript).not.toContain('find /')
   })
 
+  test('Clear stays cleared after switching distros and back (issue #323)', async () => {
+    const { page } = launched
+    const term = page.locator('.xterm')
+    await expect(term).toBeVisible({ timeout: 15000 })
+    await term.click()
+    await page.keyboard.type('echo wslpad-cleared-proof')
+    await page.keyboard.press('Enter')
+    await expect
+      .poll(async () => consoleText(page), { timeout: 10000 })
+      .toContain('wslpad-cleared-proof')
+
+    await page.getByRole('button', { name: 'Clear', exact: true }).click()
+    await expect.poll(async () => consoleText(page)).not.toContain('wslpad-cleared-proof')
+
+    const distroSelect = page.getByRole('combobox', { name: 'Distribution' })
+    await distroSelect.selectOption('Debian')
+    await expect(distroSelect).toHaveValue('Debian')
+    await distroSelect.selectOption('Ubuntu-24.04')
+    await expect(distroSelect).toHaveValue('Ubuntu-24.04')
+    // The prompt that survived the clear is restored; the cleared output is not.
+    await expect.poll(async () => consoleText(page), { timeout: 10000 }).toMatch(/\$/)
+    expect(await consoleText(page)).not.toContain('wslpad-cleared-proof')
+  })
+
   test('edits and saves a WSL text file in the editor overlay', async () => {
     const { page } = launched
     const notes = row(wslPane(page), /^notes\.md/)

@@ -350,7 +350,17 @@ export function ConsolePanel(): React.JSX.Element {
     consumeConsolePath()
   }, [pendingConsolePath, consumeConsolePath, distro])
 
-  const onResizeHandleMouseDown = (e: React.MouseEvent): void => {
+  // xterm's clear() only empties the screen; main keeps a transcript to restore
+  // it on the next distro switch, so it is told to forget the same output. The
+  // seq marks what was on screen — anything newer stays in both places.
+  const onClear = (): void => {
+    termRef.current?.clear()
+    const sid = sessionRef.current
+    if (!sid || DEAD_STATUSES.includes(statusRef.current)) return
+    window.wslpad.terminal.clear(sid, lastSeqRef.current).catch(() => undefined)
+  }
+
+  const onResizeHandleMouseDown =(e: React.MouseEvent): void => {
     e.preventDefault()
     const startY = e.clientY
     const startHeight = heightRef.current
@@ -416,7 +426,7 @@ export function ConsolePanel(): React.JSX.Element {
             {t('console.reconnect')}
           </button>
         )}
-        <button type="button" className="console-btn" onClick={() => termRef.current?.clear()}>
+        <button type="button" className="console-btn" onClick={onClear}>
           {t('console.clear')}
         </button>
         <button
