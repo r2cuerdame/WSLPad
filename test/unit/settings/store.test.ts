@@ -1,11 +1,35 @@
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { POLL_BOUNDS, POLL_DEFAULTS } from '@shared/constants'
 import { parseSettings } from '@shared/schemas'
 import type { SettingsPatch } from '@shared/types'
 import { SettingsStore } from '../../../src/main/settings/store'
+
+/**
+ * Errno codes to inject for settings.json reads and backup copies. A real
+ * share lock cannot be taken portably from Node, so the fs calls the store
+ * makes are wrapped instead; writes and renames stay real.
+ */
+const fsFaults = vi.hoisted(() => ({ read: null as string | null, copy: null as string | null }))
+
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>()
+  const fault = (code: string, op: string, path: unknown): NodeJS.ErrnoException =>
+    Object.assign(new Error(`${code}: ${op} '${String(path)}'`), { code })
+  const readFileSync = ((path: unknown, ...rest: unknown[]) => {
+    if (fsFaults.read && String(path).endsWith('settings.json')) {
+      throw fault(fsFaults.read, 'open', path)
+    }
+    return (actual.readFileSync as (...args: unknown[]) => unknown)(path, ...rest)
+  }) as typeof actual.readFileSync
+  const copyFileSync = ((src: unknown, ...rest: unknown[]) => {
+    if (fsFaults.copy) throw fault(fsFaults.copy, 'copyfile', src)
+    return (actual.copyFileSync as (...args: unknown[]) => unknown)(src, ...rest)
+  }) as typeof actual.copyFileSync
+  return { ...actual, readFileSync, copyFileSync }
+})
 
 let dir: string
 let file: string
@@ -16,8 +40,13 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  fsFaults.read = null
+  fsFaults.copy = null
   rmSync(dir, { recursive: true, force: true })
 })
+
+const backupsIn = (d: string): string[] =>
+  readdirSync(d).filter((n) => n.startsWith('settings.json.bak-'))
 
 describe('SettingsStore first run', () => {
   it('creates defaults with a generated mcp token and persists them', () => {
@@ -26,9 +55,10 @@ describe('SettingsStore first run', () => {
     expect(s.schemaVersion).toBe(1)
     expect(s.language).toBe('auto')
     expect(s.mcp.token).not.toBe('')
-    expect(store.loadError).toEqual({ corrupted: false, message: null })
+    expect(store.loadError).toEqual({ corrupted: false, unreadable: false, message: null })
     const onDisk = JSON.parse(readFileSync(file, 'utf8'))
     expect(onDisk.mcp.token).toBe(s.mcp.token)
+    expect(backupsIn(dir)).toHaveLength(0)
   })
 })
 
@@ -37,9 +67,10 @@ describe('SettingsStore corruption recovery (goal.md §5.4)', () => {
     writeFileSync(file, '{ not json at all', 'utf8')
     const store = new SettingsStore(file)
     expect(store.loadError.corrupted).toBe(true)
+    expect(store.loadError.unreadable).toBe(false)
     expect(store.loadError.message).toBeTruthy()
     expect(store.get().theme).toBe('system')
-    const backups = readdirSync(dir).filter((n) => n.startsWith('settings.json.bak-'))
+    const backups = backupsIn(dir)
     expect(backups).toHaveLength(1)
     expect(readFileSync(join(dir, backups[0]), 'utf8')).toBe('{ not json at all')
     // the replacement file is valid again
@@ -65,6 +96,112 @@ describe('SettingsStore corruption recovery (goal.md §5.4)', () => {
     expect(store.loadError.corrupted).toBe(false)
     expect(store.get().theme).toBe('system')
     expect(store.get().monitoring.fastMs).toBe(POLL_DEFAULTS.fastMs)
+  })
+})
+
+describe('SettingsStore unreadable file (locked or access denied)', () => {
+  const saved = JSON.stringify(
+    {
+      schemaVersion: 1,
+      language: 'ko',
+      theme: 'dark',
+      mcp: { enabled: true, port: 4923, token: 'registered-client-token' }
+    },
+    null,
+    2
+  )
+
+  beforeEach(() => {
+    writeFileSync(file, saved, 'utf8')
+  })
+
+  it.each(['EBUSY', 'EPERM', 'EACCES'])(
+    'leaves the original untouched and runs on defaults when the read fails with %s',
+    (code) => {
+      fsFaults.read = code
+      const store = new SettingsStore(file)
+      expect(store.loadError.unreadable).toBe(true)
+      expect(store.loadError.corrupted).toBe(false)
+      expect(store.loadError.message).toContain(code)
+      expect(store.get().language).toBe('auto')
+      expect(store.get().theme).toBe('system')
+      // a usable in-memory token, but never written over the registered one
+      expect(store.get().mcp.token).not.toBe('')
+      expect(store.get().mcp.token).not.toBe('registered-client-token')
+
+      fsFaults.read = null
+      expect(readFileSync(file, 'utf8')).toBe(saved)
+      expect(backupsIn(dir)).toHaveLength(0)
+      expect(readdirSync(dir)).not.toContain('settings.json.tmp')
+    }
+  )
+
+  it('restores the original settings and token on the next start once the file is readable', () => {
+    fsFaults.read = 'EBUSY'
+    new SettingsStore(file)
+    fsFaults.read = null
+
+    const restarted = new SettingsStore(file)
+    expect(restarted.loadError).toEqual({ corrupted: false, unreadable: false, message: null })
+    expect(restarted.get().language).toBe('ko')
+    expect(restarted.get().theme).toBe('dark')
+    expect(restarted.get().mcp.token).toBe('registered-client-token')
+  })
+
+  it.each([
+    ['patch', (s: SettingsStore) => s.patch({ theme: 'light' })],
+    ['reset', (s: SettingsStore) => s.reset()],
+    ['regenerateMcpToken', (s: SettingsStore) => s.regenerateMcpToken()]
+  ] as const)('%s backs the original up before the first overwrite', (_name, change) => {
+    fsFaults.read = 'EBUSY'
+    const store = new SettingsStore(file)
+    fsFaults.read = null
+
+    const written = change(store)
+    const backups = backupsIn(dir)
+    expect(backups).toHaveLength(1)
+    expect(readFileSync(join(dir, backups[0]), 'utf8')).toBe(saved)
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(written)
+
+    // later writes are ordinary saves: the original is already kept once
+    store.patch({ console: { fontSize: 16 } })
+    expect(backupsIn(dir)).toHaveLength(1)
+  })
+
+  it('keeps the original when the backup copy fails, and retries on the next change', () => {
+    fsFaults.read = 'EBUSY'
+    const store = new SettingsStore(file)
+
+    fsFaults.copy = 'EBUSY'
+    const next = store.patch({ theme: 'light' })
+    expect(next.theme).toBe('light') // the change still applies in memory
+    expect(store.loadError.unreadable).toBe(true)
+    expect(store.loadError.message).toMatch(/left unchanged.*EBUSY/)
+    store.regenerateMcpToken()
+    fsFaults.read = null
+    expect(readFileSync(file, 'utf8')).toBe(saved)
+    expect(backupsIn(dir)).toHaveLength(0)
+
+    fsFaults.copy = null
+    store.patch({ language: 'ja' })
+    const backups = backupsIn(dir)
+    expect(backups).toHaveLength(1)
+    expect(readFileSync(join(dir, backups[0]), 'utf8')).toBe(saved)
+    const onDisk = JSON.parse(readFileSync(file, 'utf8'))
+    expect(onDisk.theme).toBe('light')
+    expect(onDisk.language).toBe('ja')
+    expect(onDisk.mcp.token).toBe(store.get().mcp.token)
+  })
+
+  it('saves without a backup when the original disappeared in the meantime', () => {
+    fsFaults.read = 'EPERM'
+    const store = new SettingsStore(file)
+    fsFaults.read = null
+    rmSync(file)
+
+    store.patch({ theme: 'light' })
+    expect(backupsIn(dir)).toHaveLength(0)
+    expect(JSON.parse(readFileSync(file, 'utf8')).theme).toBe('light')
   })
 })
 

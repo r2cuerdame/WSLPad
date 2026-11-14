@@ -990,6 +990,7 @@
     "resetAllConfirmTitle": "모든 설정을 복원할까요?",
     "resetAllConfirmBody": "모든 설정이 기본값으로 되돌아갑니다.",
     "corruptedNotice": "설정 파일이 올바르지 않아 안전한 기본값으로 복원했습니다.",
+    "unreadableNotice": "설정 파일을 읽지 못해(다른 프로그램이 사용 중일 수 있음) 지금은 기본값을 쓰고 있습니다. 파일은 그대로 두었으니 WSLPad를 다시 시작하면 저장된 설정을 불러옵니다. 지금 설정을 바꾸면 파일을 먼저 백업합니다.",
     "restartRequired": "적용하려면 다시 시작해야 합니다"
   },
   "update": {

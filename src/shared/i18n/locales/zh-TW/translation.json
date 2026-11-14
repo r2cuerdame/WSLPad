@@ -990,6 +990,7 @@
     "resetAllConfirmTitle": "要還原所有設定嗎？",
     "resetAllConfirmBody": "所有設定將恢復為預設值。",
     "corruptedNotice": "設定檔無效，已還原為安全的預設值。",
+    "unreadableNotice": "無法讀取設定檔（可能正被其他程式使用），暫時使用預設值。檔案保持原樣，重新啟動 WSLPad 即可載入已儲存的設定。如果現在變更設定，會先備份該檔案。",
     "restartRequired": "需要重新啟動才會生效"
   },
   "update": {

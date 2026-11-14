@@ -165,7 +165,10 @@ export interface ExplorerListOptions {
 export type LlmPreset = 'default' | 'bug-report' | 'agent-context'
 
 export interface SettingsLoadError {
+  /** The file was read but held no valid settings object; it was backed up. */
   corrupted: boolean
+  /** The file exists but could not be read (locked, access denied); it was left untouched. */
+  unreadable: boolean
   message: string | null
 }
 

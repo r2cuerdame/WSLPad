@@ -990,6 +990,7 @@
     "resetAllConfirmTitle": "Restore all settings?",
     "resetAllConfirmBody": "All settings will return to their default values.",
     "corruptedNotice": "Settings file was invalid and has been restored to safe defaults.",
+    "unreadableNotice": "Settings file could not be read (another program may be using it), so defaults are in use for now. The file was left untouched — restart WSLPad to load your saved settings. Changing settings now backs the file up first.",
     "restartRequired": "Restart required to apply"
   },
   "update": {

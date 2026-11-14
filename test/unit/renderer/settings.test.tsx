@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WslPadApi } from '@shared/ipc'
+import type { SettingsLoadError, WslPadApi } from '@shared/ipc'
 import type { UpdateStatus, WslPadSnapshot } from '@shared/types'
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
@@ -74,7 +74,13 @@ function makeApi() {
       get: vi.fn(async () => defaultSettings()),
       set: vi.fn(async () => defaultSettings()),
       reset: vi.fn(async () => defaultSettings()),
-      getLoadError: vi.fn(async () => ({ corrupted: false, message: null })),
+      getLoadError: vi.fn(
+        async (): Promise<SettingsLoadError> => ({
+          corrupted: false,
+          unreadable: false,
+          message: null
+        })
+      ),
       onChange: vi.fn(() => () => undefined)
     },
     mcp: {
@@ -211,6 +217,38 @@ describe('SettingsDrawer', () => {
       expect(screen.queryByRole('dialog', { name: 'Restore all settings?' })).toBeNull()
     )
     expect(api.settings.reset).not.toHaveBeenCalled()
+  })
+})
+
+describe('SettingsDrawer load notice', () => {
+  const corrupted = 'Settings file was invalid and has been restored to safe defaults.'
+  const unreadable = /^Settings file could not be read .*restart WSLPad to load your saved settings/
+
+  it('shows no notice when the settings file loaded cleanly', async () => {
+    await renderDrawer()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('tells a corrupted file apart from an unreadable one', async () => {
+    api.settings.getLoadError.mockResolvedValue({
+      corrupted: true,
+      unreadable: false,
+      message: 'Unexpected token'
+    })
+    await renderDrawer()
+    expect((await screen.findByRole('alert')).textContent).toBe(corrupted)
+  })
+
+  it('says an unreadable file was left untouched instead of calling it invalid', async () => {
+    api.settings.getLoadError.mockResolvedValue({
+      corrupted: false,
+      unreadable: true,
+      message: 'EBUSY: resource busy or locked'
+    })
+    await renderDrawer()
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(unreadable)
+    expect(alert.textContent).not.toBe(corrupted)
   })
 })
 

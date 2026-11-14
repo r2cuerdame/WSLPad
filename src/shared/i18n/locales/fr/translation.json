@@ -990,6 +990,7 @@
     "resetAllConfirmTitle": "Restaurer tous les paramètres ?",
     "resetAllConfirmBody": "Tous les paramètres reviendront à leurs valeurs par défaut.",
     "corruptedNotice": "Le fichier de paramètres était invalide et a été restauré à des valeurs par défaut sûres.",
+    "unreadableNotice": "Le fichier de paramètres n’a pas pu être lu (un autre programme l’utilise peut-être), les valeurs par défaut sont donc utilisées pour l’instant. Le fichier n’a pas été modifié : redémarrez WSLPad pour charger vos paramètres enregistrés. Si vous modifiez les paramètres maintenant, le fichier sera d’abord sauvegardé.",
     "restartRequired": "Redémarrage requis pour appliquer"
   },
   "update": {
