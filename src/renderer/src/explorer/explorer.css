@@ -1033,6 +1033,12 @@
   font-weight: 400;
 }
 
+/* Focus holders for buttons that unmount on click; not tab stops themselves. */
+.props-content:focus,
+.props-size:focus {
+  outline: none;
+}
+
 /* ---- Transfer progress ---- */
 
 .transfer-panel {

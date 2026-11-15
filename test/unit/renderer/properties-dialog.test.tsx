@@ -96,11 +96,15 @@ function StoreProbe(): React.JSX.Element {
   )
 }
 
-function renderDialog(path: string, fs: FsKind): ReturnType<typeof render> {
+function renderDialog(
+  path: string,
+  fs: FsKind,
+  onClose: () => void = () => undefined
+): ReturnType<typeof render> {
   return render(
     <AppStoreProvider>
       <StoreProbe />
-      <PropertiesDialog path={path} fs={fs} onClose={() => undefined} />
+      <PropertiesDialog path={path} fs={fs} onClose={onClose} />
     </AppStoreProvider>
   )
 }
@@ -321,6 +325,21 @@ describe('PropertiesDialog sizes (issue #349)', () => {
     expect(screen.queryByRole('button', { name: 'Measure directory sizes' })).not.toBeNull()
   })
 
+  it('keeps focus in the dialog after measuring so Escape still closes it', async () => {
+    const onClose = vi.fn()
+    api.explorer.stat.mockImplementationOnce(async (p: string) => stat({ path: p, type: 'directory' }))
+    renderDialog(LINUX_DIR, 'linux', onClose)
+    const measure = await screen.findByRole('button', { name: 'Measure directory sizes' })
+    measure.focus()
+    fireEvent.click(measure)
+    await waitFor(() => expect(rowValue('Size').textContent).toBe('4 KB'))
+    const dialog = screen.getByRole('dialog')
+    expect(document.activeElement).not.toBe(document.body)
+    expect(dialog.contains(document.activeElement)).toBe(true)
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('does not offer to measure the This PC root', async () => {
     api.windows.stat.mockImplementationOnce(async (p: string) =>
       stat({ path: p, type: 'directory', sizeBytes: null, owner: null, group: null, permissionsOctal: null })
@@ -357,8 +376,12 @@ describe('PropertiesDialog link target and retry (issue #349)', () => {
     await screen.findByText('EIO: temporarily unavailable')
     expect(screen.queryByText('Prepare symlink command')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    const retry = screen.getByRole('button', { name: 'Retry' })
+    retry.focus()
+    fireEvent.click(retry)
     await waitFor(() => expect(rowValue('Size').textContent).toBe('2 KB'))
+    // The Retry button is gone; focus stays inside the dialog, not on the page body.
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true)
     expect(screen.queryByText('EIO: temporarily unavailable')).toBeNull()
     expect(source.stat).toHaveBeenCalledTimes(2)
     expect(source.stat).toHaveBeenLastCalledWith(path)

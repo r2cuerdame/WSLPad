@@ -36,6 +36,8 @@ export function PropertiesDialog({ path, fs, onClose }: PropertiesDialogProps): 
   const [folderSize, setFolderSize] = useState<FolderSize>(IDLE_SIZE)
   // The run whose answer may still land here; null once closed or superseded.
   const sizeToken = useRef<string | null>(null)
+  const sizeRef = useRef<HTMLSpanElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const adapter = useMemo(
     () => (fs === 'windows' ? createWindowsAdapter() : createLinuxAdapter()),
     [fs]
@@ -64,8 +66,17 @@ export function PropertiesDialog({ path, fs, onClose }: PropertiesDialogProps): 
     }
   }, [adapter, path, reloadKey])
 
+  /**
+   * The clicked button is about to unmount. Without this, focus falls back to
+   * the page body and Escape/Tab no longer reach the dialog.
+   */
+  const holdFocus = (container: HTMLElement | null): void => {
+    if (container?.contains(document.activeElement)) container.focus()
+  }
+
   const measureFolder = async (target: string): Promise<void> => {
     if (!adapter.dirSizes) return
+    holdFocus(sizeRef.current)
     const token = `props-dirsize-${++folderSizeToken}`
     sizeToken.current = token
     setFolderSize({ status: 'running' })
@@ -161,87 +172,99 @@ export function PropertiesDialog({ path, fs, onClose }: PropertiesDialogProps): 
         </button>
       }
     >
-      {error ? (
-        <div className="props-error-box">
-          <div className="props-error">{error}</div>
-          <button
-            type="button"
-            className="btn btn-small"
-            onClick={() => setReloadKey((n) => n + 1)}
-          >
-            {t('common.retry')}
-          </button>
-        </div>
-      ) : stat === null ? (
-        <div>{t('common.loading')}</div>
-      ) : (
-        <div className="props-body">
-          {fs === 'linux'
-            ? row(t('explorer.properties.linuxPath'), stat.path, stat.path)
-            : row(t('explorer.properties.windowsPath'), stat.path, stat.path)}
-          {fs === 'linux' &&
-            row(
-              t('explorer.properties.windowsPath'),
-              stat.windowsPath ?? t('common.unknown'),
-              stat.windowsPath ?? undefined
+      <div ref={contentRef} tabIndex={-1} className="props-content">
+        {error ? (
+          <div className="props-error-box">
+            <div className="props-error">{error}</div>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => {
+                holdFocus(contentRef.current)
+                setReloadKey((n) => n + 1)
+              }}
+            >
+              {t('common.retry')}
+            </button>
+          </div>
+        ) : stat === null ? (
+          <div>{t('common.loading')}</div>
+        ) : (
+          <div className="props-body">
+            {fs === 'linux'
+              ? row(t('explorer.properties.linuxPath'), stat.path, stat.path)
+              : row(t('explorer.properties.windowsPath'), stat.path, stat.path)}
+            {fs === 'linux' &&
+              row(
+                t('explorer.properties.windowsPath'),
+                stat.windowsPath ?? t('common.unknown'),
+                stat.windowsPath ?? undefined
+              )}
+            {row(t('explorer.properties.type'), t(`explorer.type.${stat.type}`))}
+            {row(
+              t('explorer.properties.size'),
+              stat.type === 'directory' ? (
+                <span ref={sizeRef} tabIndex={-1} className="props-size">
+                  {folderSizeValue(stat.path)}
+                </span>
+              ) : (
+                formatBytes(stat.sizeBytes, i18n.language)
+              )
             )}
-          {row(t('explorer.properties.type'), t(`explorer.type.${stat.type}`))}
-          {row(
-            t('explorer.properties.size'),
-            stat.type === 'directory'
-              ? folderSizeValue(stat.path)
-              : formatBytes(stat.sizeBytes, i18n.language)
-          )}
-          {fs === 'linux' && row(t('explorer.properties.owner'), stat.owner ?? t('common.unknown'))}
-          {fs === 'linux' && row(t('explorer.properties.group'), stat.group ?? t('common.unknown'))}
-          {fs === 'linux' &&
-            row(
-              t('explorer.properties.permissions'),
-              `${stat.permissions ?? '—'}${stat.permissionsOctal ? ` (${stat.permissionsOctal})` : ''}`
-            )}
-          {fs === 'linux' && row(t('explorer.properties.inode'), stat.inode ?? t('common.unknown'))}
-          {row(t('explorer.properties.modified'), formatDateTime(stat.mtime, i18n.language))}
-          {row(t('explorer.properties.accessed'), formatDateTime(stat.atime, i18n.language))}
-          {stat.symlinkTarget &&
-            row(t('explorer.properties.linkTarget'), stat.symlinkTarget, stat.symlinkTarget)}
+            {fs === 'linux' &&
+              row(t('explorer.properties.owner'), stat.owner ?? t('common.unknown'))}
+            {fs === 'linux' &&
+              row(t('explorer.properties.group'), stat.group ?? t('common.unknown'))}
+            {fs === 'linux' &&
+              row(
+                t('explorer.properties.permissions'),
+                `${stat.permissions ?? '—'}${stat.permissionsOctal ? ` (${stat.permissionsOctal})` : ''}`
+              )}
+            {fs === 'linux' &&
+              row(t('explorer.properties.inode'), stat.inode ?? t('common.unknown'))}
+            {row(t('explorer.properties.modified'), formatDateTime(stat.mtime, i18n.language))}
+            {row(t('explorer.properties.accessed'), formatDateTime(stat.atime, i18n.language))}
+            {stat.symlinkTarget &&
+              row(t('explorer.properties.linkTarget'), stat.symlinkTarget, stat.symlinkTarget)}
 
-          {fs === 'linux' && (
-            <div className="props-actions">
-              {/* An unknown mode or owner is never filled in with a guess: the
+            {fs === 'linux' && (
+              <div className="props-actions">
+                {/* An unknown mode or owner is never filled in with a guess: the
                   prepared command would then change the file to values nobody read. */}
-              <button
-                type="button"
-                disabled={stat.permissionsOctal === null}
-                onClick={() =>
-                  stat.permissionsOctal !== null &&
-                  prepare(`chmod ${stat.permissionsOctal} ${shQuote(stat.path)}`)
-                }
-              >
-                {t('explorer.menu.prepareChmod')}
-              </button>
-              <button
-                type="button"
-                disabled={stat.owner === null || stat.group === null}
-                onClick={() =>
-                  stat.owner !== null &&
-                  stat.group !== null &&
-                  prepare(`chown ${stat.owner}:${stat.group} ${shQuote(stat.path)}`)
-                }
-              >
-                {t('explorer.menu.prepareChown')}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  prepare(`ln -s ${shQuote(stat.path)} ${shQuote(`${stat.path}-link`)}`)
-                }
-              >
-                {t('explorer.menu.prepareSymlink')}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+                <button
+                  type="button"
+                  disabled={stat.permissionsOctal === null}
+                  onClick={() =>
+                    stat.permissionsOctal !== null &&
+                    prepare(`chmod ${stat.permissionsOctal} ${shQuote(stat.path)}`)
+                  }
+                >
+                  {t('explorer.menu.prepareChmod')}
+                </button>
+                <button
+                  type="button"
+                  disabled={stat.owner === null || stat.group === null}
+                  onClick={() =>
+                    stat.owner !== null &&
+                    stat.group !== null &&
+                    prepare(`chown ${stat.owner}:${stat.group} ${shQuote(stat.path)}`)
+                  }
+                >
+                  {t('explorer.menu.prepareChown')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    prepare(`ln -s ${shQuote(stat.path)} ${shQuote(`${stat.path}-link`)}`)
+                  }
+                >
+                  {t('explorer.menu.prepareSymlink')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </Dialog>
   )
 }
