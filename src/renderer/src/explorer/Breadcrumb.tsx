@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FsAdapter } from './fsAdapter'
 
@@ -33,9 +34,17 @@ export function Breadcrumb({
   const { t } = useTranslation()
   const parts = crumbs(adapter, path)
   const rootLabel = adapter.displayPath(adapter.rootPath)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // A deep path overflows on the left, so the folder you are in and the edit
+  // area stay in view at the right end.
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (el) el.scrollLeft = el.scrollWidth
+  }, [path])
 
   return (
-    <div className="breadcrumb">
+    <div className="breadcrumb" ref={ref}>
       <button
         type="button"
         className="breadcrumb-seg"
