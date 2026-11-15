@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { FileEntry, FsKind, PathSide } from '@shared/types'
 import { fileNameSchema } from '@shared/schemas'
@@ -195,6 +195,18 @@ export function FileListView(props: FileListProps): React.JSX.Element {
 
   const { adapter, columns, entries, selection } = props
   const gridTemplate = `26px ${columns.map((c) => c.width).join(' ')}`
+  const selectedPath = selection.size === 1 ? [...selection][0] : null
+  const selectedIndex =
+    selectedPath === null ? -1 : entries.findIndex((en) => en.path === selectedPath)
+  const scrollToIndex = selectedIndex >= 0 ? selectedIndex : undefined
+
+  useEffect(() => {
+    if (selectedIndex >= 0) {
+      setAnchorIndex(selectedIndex)
+    } else if (selection.size === 0) {
+      setAnchorIndex(0)
+    }
+  }, [selectedIndex, selection.size])
 
   const selectSingle = (entry: FileEntry, index: number): void => {
     setAnchorIndex(index)
@@ -476,6 +488,7 @@ export function FileListView(props: FileListProps): React.JSX.Element {
           rowHeight={FILE_ROW_HEIGHT}
           overscan={8}
           className="fl-body"
+          scrollToIndex={scrollToIndex}
           render={renderRow}
         />
       )}

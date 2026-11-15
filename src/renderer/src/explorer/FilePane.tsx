@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { WINDOWS_ROOT } from '@shared/constants'
 import { automountRootFromSettings, classifyPathSide } from '@shared/path-boundary'
-import type { FileEntry, FsKind, WindowsPlace } from '@shared/types'
+import type { DirSizeEntry, FileEntry, FsKind, WindowsPlace } from '@shared/types'
 import { useApp } from '../store'
 import { DistroIcon } from '../components/DistroIcon'
 import { CopyIcon, RetroCopyIcon, WindowsIcon } from '../components/Icons'
@@ -124,6 +124,10 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
   const [creating, setCreating] = useState<'file' | 'folder' | null>(null)
   const [renamingPath, setRenamingPath] = useState<string | null>(null)
   const handledNavId = useRef(0)
+  const dirSizeNavSeqRef = useRef(0)
+  const [dirSizeNavSettledSeq, setDirSizeNavSettledSeq] = useState(0)
+  const pendingMeasureRef = useRef<{ target: string; seq: number } | null>(null)
+  const ensuringHiddenRef = useRef<Promise<void> | null>(null)
 
   // Windows drives do not have to live under /mnt, so the boundary is judged
   // against the automount root actually in force rather than a hardcoded one.
@@ -133,13 +137,30 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
   )
   const paneSide = classifyPathSide(pane.path, automountRoot)
 
-  const { navigate } = pane
+  const { navigate, measureDirSizes } = pane
   const { navRequest } = props
   useEffect(() => {
     if (!navRequest || navRequest.id === handledNavId.current) return
     handledNavId.current = navRequest.id
     void navigate(navRequest.path)
   }, [navRequest, navigate])
+
+  useEffect(() => {
+    pendingMeasureRef.current = null
+  }, [props.resetKey])
+
+  useEffect(() => {
+    const pending = pendingMeasureRef.current
+    if (!pending) return
+    if (pane.path === pending.target) {
+      pendingMeasureRef.current = null
+      void measureDirSizes()
+    } else if (dirSizeNavSettledSeq >= pending.seq) {
+      // Navigation stayed on the original folder (e.g. permission denied), so
+      // drop the queued follow-up measurement instead of re-measuring it.
+      pendingMeasureRef.current = null
+    }
+  }, [pane.path, dirSizeNavSettledSeq, measureDirSizes])
 
   const toggleTree = useCallback((): void => {
     setTreeOpen((open) => {
@@ -465,6 +486,51 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
   // Only a bare path stays monospaced; the selection sentences are prose.
   const statusClass = pane.selection.size === 0 ? 'pane-status mono' : 'pane-status'
 
+  const handleMeasureToggle = (): void => {
+    pendingMeasureRef.current = null
+    if (pane.dirSizes.status === 'running') {
+      pane.cancelDirSizes()
+    } else if (pane.dirSizes.status !== 'closed') {
+      pane.closeDirSizes()
+    } else {
+      void pane.measureDirSizes()
+    }
+  }
+
+  const handleDirSizeCancel = (): void => {
+    pendingMeasureRef.current = null
+    pane.cancelDirSizes()
+  }
+
+  const handleDirSizeClose = (): void => {
+    pendingMeasureRef.current = null
+    pane.closeDirSizes()
+  }
+
+  const activateDirSizeEntry = async (entry: DirSizeEntry): Promise<void> => {
+    if (entry.isDirectory) {
+      const target = adapter.normalize(entry.path)
+      if (target === null || target === pane.path) return
+      const seq = ++dirSizeNavSeqRef.current
+      pendingMeasureRef.current = { target, seq }
+      await pane.navigate(entry.path)
+      setDirSizeNavSettledSeq(seq)
+      return
+    }
+    if (pane.searchResults !== null && !pane.visibleEntries.some((e) => e.path === entry.path)) {
+      pane.clearSearch()
+    }
+    if (!pane.showHidden && !pane.entries.some((e) => e.path === entry.path)) {
+      if (ensuringHiddenRef.current === null) {
+        ensuringHiddenRef.current = pane.toggleHidden().finally(() => {
+          ensuringHiddenRef.current = null
+        })
+      }
+      await ensuringHiddenRef.current
+    }
+    pane.setSelection(new Set([entry.path]))
+  }
+
   const unavailable = props.unavailableMessage ?? null
 
   return (
@@ -535,15 +601,17 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
             onToggleTree={toggleTree}
             onSearch={(q) => void pane.runSearch(q)}
             onClearSearch={pane.clearSearch}
-            onMeasure={pane.canMeasure ? () => void pane.measureDirSizes() : undefined}
+            onMeasure={pane.canMeasure ? handleMeasureToggle : undefined}
             measureActive={pane.dirSizes.status !== 'closed'}
             onOpenTrash={props.onOpenTrash}
           />
 
           <DirSizesPanel
             state={pane.dirSizes}
-            onCancel={pane.cancelDirSizes}
-            onClose={pane.closeDirSizes}
+            onCancel={handleDirSizeCancel}
+            onClose={handleDirSizeClose}
+            selectedPaths={pane.selection}
+            onActivateEntry={(entry) => void activateDirSizeEntry(entry)}
           />
 
           <div className="pane-body">

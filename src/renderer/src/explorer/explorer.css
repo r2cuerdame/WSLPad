@@ -1196,7 +1196,7 @@
    layout, and a panel that collapsed to nothing would hide its own answer. */
 .dir-sizes {
   flex: none;
-  max-height: 320px;
+  max-height: min(320px, 35vh);
   overflow: auto;
   border-bottom: 1px solid var(--border);
   background: var(--bg-raised);
@@ -1297,6 +1297,46 @@
   padding: 0 12px;
   height: 22px;
   font-size: 12px;
+}
+
+.dir-sizes-row.is-interactive {
+  display: block;
+  padding: 0;
+}
+
+.dir-sizes-row-btn {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(60px, 2fr) 90px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.dir-sizes-row-btn:hover {
+  background: var(--bg-hover);
+}
+
+.dir-sizes-row-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dir-sizes-row.is-selected {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.dir-sizes-row.is-selected .dir-sizes-row-btn:hover {
+  background: transparent;
 }
 
 .dir-sizes-name {
