@@ -132,6 +132,42 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     await expect(detail).toContainText('Recovery check completed: reload-window (0 failed probes)')
   })
 
+  test('switching distro hides diagnostics and Doctor results from the previous distro', async () => {
+    const { page } = launched
+    const detail = page.getByTestId('dashboard-detail')
+    const distroSelect = page.getByRole('combobox', { name: 'Distribution' })
+
+    await page.getByTestId('dashboard-nav-diagnostics').click()
+    await expect(detail).toContainText('Session monitoring started', { timeout: 15000 })
+    await page.getByRole('button', { name: 'Check recovery path' }).click()
+    await expect(detail).toContainText('Distribution response')
+
+    await distroSelect.selectOption('Debian')
+    await expect(distroSelect).toHaveValue('Debian')
+    await expect(detail).toContainText('No network check has run in this session.')
+    await expect(detail).not.toContainText('Distribution response')
+    await expect(detail.getByRole('button', { name: 'Prepare command' })).toHaveCount(0)
+    await expect(detail).toContainText('Recovery check completed: reload-window (0 failed probes)')
+
+    await distroSelect.selectOption('Ubuntu-24.04')
+    await expect(distroSelect).toHaveValue('Ubuntu-24.04')
+    await expect(detail).toContainText('Distribution response')
+    await expect(detail).not.toContainText('No network check has run in this session.')
+
+    await page.getByTestId('dashboard-nav-doctor').click()
+    await page.getByTestId('doctor-run-btn').click()
+    await expect(page.getByTestId('doctor-summary')).toBeVisible({ timeout: 10000 })
+
+    await distroSelect.selectOption('Debian')
+    await expect(distroSelect).toHaveValue('Debian')
+    await expect(page.getByTestId('doctor-empty')).toBeVisible()
+    await expect(page.getByTestId('doctor-summary')).toHaveCount(0)
+    await expect(detail.getByRole('button', { name: 'Copy for LLM' })).toHaveCount(0)
+
+    await distroSelect.selectOption('Ubuntu-24.04')
+    await expect(distroSelect).toHaveValue('Ubuntu-24.04')
+  })
+
   test('records slowdown locally only after opt-in and stops on request', async () => {
     const { page } = launched
     await page.getByTestId('dashboard-nav-diagnostics').click()

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type {
   DiagnosticsState,
@@ -112,6 +112,10 @@ export default function DiagnosticsCard(): React.JSX.Element {
   const portInvalid =
     parsedPort !== null && (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535)
   const selected = snapshot?.selectedDistro ?? null
+  const selectedRef = useRef(selected)
+  useLayoutEffect(() => {
+    selectedRef.current = selected
+  }, [selected])
   const formatter = useMemo(
     () =>
       new Intl.DateTimeFormat(i18n.language, {
@@ -124,6 +128,7 @@ export default function DiagnosticsCard(): React.JSX.Element {
 
   const runCheck = async (): Promise<void> => {
     if (portInvalid || selected === null) return
+    const started = selected
     setRunning(true)
     try {
       const result = await window.wslpad.diagnostics.runRecoveryCheck(parsedPort ?? undefined)
@@ -132,6 +137,7 @@ export default function DiagnosticsCard(): React.JSX.Element {
         lastNetworkCheck: result.network,
         lastRecoveryCheck: result
       }))
+      if (result.distro !== selectedRef.current) return
       const failed = result.network.probes.filter((probe) => probe.status === 'fail').length
       pushToast(
         failed > 0 ? 'error' : 'success',
@@ -141,7 +147,7 @@ export default function DiagnosticsCard(): React.JSX.Element {
         })
       )
     } catch {
-      pushToast('error', t('common.error'))
+      if (started === selectedRef.current) pushToast('error', t('common.error'))
     } finally {
       setRunning(false)
     }
@@ -152,8 +158,9 @@ export default function DiagnosticsCard(): React.JSX.Element {
     pushToast('info', t('toast.commandPrepared'))
   }
 
-  const recovery = state.lastRecoveryCheck
-  const network = recovery?.network ?? state.lastNetworkCheck
+  const recovery = state.lastRecoveryCheck?.distro === selected ? state.lastRecoveryCheck : null
+  const lastNetwork = state.lastNetworkCheck?.distro === selected ? state.lastNetworkCheck : null
+  const network = recovery?.network ?? lastNetwork
   const locale = i18n.language as LocaleCode
 
   const exportBundle = async (): Promise<void> => {

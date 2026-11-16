@@ -1,7 +1,12 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WslPadApi } from '@shared/ipc'
-import type { WslPadSnapshot } from '@shared/types'
+import type {
+  DiagnosticsState,
+  DoctorReport,
+  RecoveryCheckResult,
+  WslPadSnapshot
+} from '@shared/types'
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
 import { AppStoreProvider, useApp } from '@renderer/store'
@@ -291,6 +296,79 @@ function makeSnapshot(): WslPadSnapshot {
   }
 }
 
+function makeDoctorReport(): DoctorReport {
+  return {
+    generatedAt: '2026-07-30T12:00:00.000Z',
+    checks: [
+      {
+        id: 'project-path',
+        title: 'Project path filesystem',
+        verdict: 'healthy',
+        evidence: 'Home directory /home/dev is on native ext4.',
+        command: null
+      }
+    ],
+    maskedMarkdown: '# Doctor Report'
+  }
+}
+
+function makeRecoveryResult(distro: string): RecoveryCheckResult {
+  return {
+    distro,
+    startedAt: '2026-08-21T01:00:00.000Z',
+    completedAt: '2026-08-21T01:00:01.000Z',
+    network: {
+      distro,
+      targetPort: null,
+      startedAt: '2026-08-21T01:00:00.000Z',
+      completedAt: '2026-08-21T01:00:01.000Z',
+      probes: [
+        { id: 'distro', status: 'pass', durationMs: 4, detail: 'wslpad-ok' },
+        { id: 'wsl-dns', status: 'pass', durationMs: 8, detail: '93.184.216.34' },
+        { id: 'windows-dns', status: 'pass', durationMs: 7, detail: '93.184.216.34' },
+        { id: 'default-route', status: 'pass', durationMs: 3, detail: 'default via 172.20.0.1' }
+      ]
+    },
+    vscodeServerInstalled: true,
+    vscodeProcesses: [
+      { pid: 201, role: 'extension-host', cpuPercent: 2.5, memPercent: 1.5, elapsedSeconds: 90 }
+    ],
+    recommendedStep: 'restart-vscode-server',
+    steps: [
+      {
+        id: 'reload-window',
+        status: 'available',
+        command: null,
+        reason: 'Reload first.',
+        impact: 'Current window only.'
+      },
+      {
+        id: 'restart-vscode-server',
+        status: 'recommended',
+        command: 'kill 201',
+        reason: 'Measured process only.',
+        impact: 'Editor reconnects.'
+      },
+      {
+        id: 'terminate-distro',
+        status: 'available',
+        command: `wsl.exe --terminate '${distro}'`,
+        reason: 'Distro fallback.',
+        impact: 'Selected distro stops.'
+      },
+      {
+        id: 'shutdown-wsl',
+        status: 'last-resort',
+        command: 'wsl.exe --shutdown',
+        reason: 'Global fallback.',
+        impact: 'All distros stop.'
+      }
+    ],
+    resumedAt: null,
+    resumeChanges: []
+  }
+}
+
 function makeApi(snapshot: WslPadSnapshot) {
   return {
     listDistros: vi.fn(async () => snapshot.distros),
@@ -302,7 +380,7 @@ function makeApi(snapshot: WslPadSnapshot) {
     copyLlmMarkdown: vi.fn(async () => '# snapshot'),
     exportLlmJson: vi.fn(async () => 'C:\\out\\snapshot.json'),
     diagnostics: {
-      get: vi.fn(async () => ({
+      get: vi.fn(async (): Promise<DiagnosticsState> => ({
         incidents: [],
         lastNetworkCheck: null,
         lastRecoveryCheck: null
@@ -386,19 +464,7 @@ function makeApi(snapshot: WslPadSnapshot) {
       }))
     },
     doctor: {
-      run: vi.fn(async () => ({
-        generatedAt: '2026-07-30T12:00:00.000Z',
-        checks: [
-          {
-            id: 'project-path',
-            title: 'Project path filesystem',
-            verdict: 'healthy' as const,
-            evidence: 'Home directory /home/dev is on native ext4.',
-            command: null
-          }
-        ],
-        maskedMarkdown: '# Doctor Report'
-      }))
+      run: vi.fn(async (): Promise<DoctorReport> => makeDoctorReport())
     },
     convertPath: vi.fn(async () => ''),
     openInWindowsExplorer: vi.fn(async () => undefined),
@@ -498,6 +564,25 @@ const navItem = (id: string): HTMLElement => screen.getByTestId(`dashboard-nav-$
 
 const badgeText = (id: string): string | undefined =>
   navItem(id).querySelector('.dash-nav-badge')?.textContent ?? undefined
+
+async function switchDistro(name: string): Promise<void> {
+  const emit = api.onSnapshot.mock.calls.at(-1)![0]
+  await act(async () => {
+    emit({ ...snapshot, selectedDistro: name })
+  })
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => {
+    resolve = done
+  })
+  return { promise, resolve }
+}
+
+const RECOVERY_EMPTY =
+  'Run a recovery check to separate an editor-server failure from a distribution or network failure.'
+const NO_NETWORK_CHECK = 'No network check has run in this session.'
 
 beforeAll(async () => {
   initRendererI18n('en')
@@ -631,60 +716,7 @@ describe('DashboardTab master–detail', () => {
   })
 
   it('shows the least-destructive recovery step and only prepares its command', async () => {
-    api.diagnostics.runRecoveryCheck.mockResolvedValue({
-      distro: 'Ubuntu-24.04',
-      startedAt: '2026-08-21T01:00:00.000Z',
-      completedAt: '2026-08-21T01:00:01.000Z',
-      network: {
-        distro: 'Ubuntu-24.04',
-        targetPort: null,
-        startedAt: '2026-08-21T01:00:00.000Z',
-        completedAt: '2026-08-21T01:00:01.000Z',
-        probes: [
-          { id: 'distro', status: 'pass', durationMs: 4, detail: 'wslpad-ok' },
-          { id: 'wsl-dns', status: 'pass', durationMs: 8, detail: '93.184.216.34' },
-          { id: 'windows-dns', status: 'pass', durationMs: 7, detail: '93.184.216.34' },
-          { id: 'default-route', status: 'pass', durationMs: 3, detail: 'default via 172.20.0.1' }
-        ]
-      },
-      vscodeServerInstalled: true,
-      vscodeProcesses: [
-        { pid: 201, role: 'extension-host', cpuPercent: 2.5, memPercent: 1.5, elapsedSeconds: 90 }
-      ],
-      recommendedStep: 'restart-vscode-server',
-      steps: [
-        {
-          id: 'reload-window',
-          status: 'available',
-          command: null,
-          reason: 'Reload first.',
-          impact: 'Current window only.'
-        },
-        {
-          id: 'restart-vscode-server',
-          status: 'recommended',
-          command: 'kill 201',
-          reason: 'Measured process only.',
-          impact: 'Editor reconnects.'
-        },
-        {
-          id: 'terminate-distro',
-          status: 'available',
-          command: "wsl.exe --terminate 'Ubuntu-24.04'",
-          reason: 'Distro fallback.',
-          impact: 'Selected distro stops.'
-        },
-        {
-          id: 'shutdown-wsl',
-          status: 'last-resort',
-          command: 'wsl.exe --shutdown',
-          reason: 'Global fallback.',
-          impact: 'All distros stop.'
-        }
-      ],
-      resumedAt: null,
-      resumeChanges: []
-    })
+    api.diagnostics.runRecoveryCheck.mockResolvedValue(makeRecoveryResult('Ubuntu-24.04'))
 
     await renderDashboard(<PreparedProbe />)
     fireEvent.click(navItem('diagnostics'))
@@ -696,6 +728,137 @@ describe('DashboardTab master–detail', () => {
     fireEvent.click(within(detail).getAllByRole('button', { name: 'Prepare command' })[0])
     expect(screen.getByTestId('prepared').textContent).toBe('kill 201')
     expect(api.diagnostics.runNetworkCheck).not.toHaveBeenCalled()
+  })
+
+  it('hides another distro’s recovery check and its prepare buttons until it is selected again', async () => {
+    api.diagnostics.runRecoveryCheck.mockResolvedValue(makeRecoveryResult('Ubuntu-24.04'))
+    await renderDashboard(
+      <>
+        <PreparedProbe />
+        <Toasts />
+      </>
+    )
+    fireEvent.click(navItem('diagnostics'))
+    const detail = screen.getByTestId('dashboard-detail')
+    fireEvent.click(within(detail).getByRole('button', { name: 'Check recovery path' }))
+    expect(await within(detail).findByText('kill 201')).toBeTruthy()
+    expect(screen.getByText('Recovery check complete — 0 failed probes')).toBeTruthy()
+
+    await switchDistro('Debian')
+    expect(within(detail).queryByText('kill 201')).toBeNull()
+    expect(within(detail).queryAllByRole('button', { name: 'Prepare command' })).toHaveLength(0)
+    expect(within(detail).getByText(RECOVERY_EMPTY)).toBeTruthy()
+    expect(within(detail).getByText(NO_NETWORK_CHECK)).toBeTruthy()
+    expect(screen.getByTestId('prepared').textContent).toBe('')
+
+    await switchDistro('Ubuntu-24.04')
+    expect(within(detail).getByText('kill 201')).toBeTruthy()
+    expect(within(detail).queryByText(NO_NETWORK_CHECK)).toBeNull()
+    expect(within(detail).getAllByRole('button', { name: 'Prepare command' }).length).toBeGreaterThan(0)
+  })
+
+  it('drops a recovery check that finishes after the distro changed and re-enables the button', async () => {
+    const pending = deferred<RecoveryCheckResult>()
+    api.diagnostics.runRecoveryCheck.mockReturnValue(pending.promise)
+    await renderDashboard(<Toasts />)
+    fireEvent.click(navItem('diagnostics'))
+    const detail = screen.getByTestId('dashboard-detail')
+    fireEvent.click(within(detail).getByRole('button', { name: 'Check recovery path' }))
+    await flush()
+
+    await switchDistro('Debian')
+    await act(async () => {
+      pending.resolve(makeRecoveryResult('Ubuntu-24.04'))
+    })
+
+    expect(within(detail).queryByText('kill 201')).toBeNull()
+    expect(within(detail).getByText(NO_NETWORK_CHECK)).toBeTruthy()
+    expect(screen.queryByText(/Recovery check complete/)).toBeNull()
+    const button = within(detail).getByRole('button', { name: 'Check recovery path' })
+    expect((button as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('ignores a stored check from another distro but keeps the incident timeline', async () => {
+    const other = makeRecoveryResult('Debian')
+    api.diagnostics.get.mockResolvedValue({
+      incidents: [
+        {
+          id: 'incident-1',
+          at: '2026-08-21T01:00:00.000Z',
+          kind: 'monitoring-started',
+          severity: 'info',
+          distro: 'Debian',
+          messageKey: 'fixture.missing',
+          message: 'Fixture monitoring started',
+          detail: null
+        }
+      ],
+      lastNetworkCheck: other.network,
+      lastRecoveryCheck: other
+    })
+    await renderDashboard()
+    fireEvent.click(navItem('diagnostics'))
+    await flush()
+    const detail = screen.getByTestId('dashboard-detail')
+
+    expect(within(detail).queryByText('kill 201')).toBeNull()
+    expect(within(detail).getByText(RECOVERY_EMPTY)).toBeTruthy()
+    expect(within(detail).getByText(NO_NETWORK_CHECK)).toBeTruthy()
+    expect(within(detail).getByText('Fixture monitoring started')).toBeTruthy()
+
+    await switchDistro('Debian')
+    expect(within(detail).getByText('kill 201')).toBeTruthy()
+    expect(within(detail).getByText('Fixture monitoring started')).toBeTruthy()
+  })
+
+  it('keeps the recovery check while the same distro stays selected', async () => {
+    api.diagnostics.runRecoveryCheck.mockResolvedValue(makeRecoveryResult('Ubuntu-24.04'))
+    await renderDashboard()
+    fireEvent.click(navItem('diagnostics'))
+    const detail = screen.getByTestId('dashboard-detail')
+    fireEvent.click(within(detail).getByRole('button', { name: 'Check recovery path' }))
+    expect(await within(detail).findByText('kill 201')).toBeTruthy()
+
+    await switchDistro('Ubuntu-24.04')
+    expect(within(detail).getByText('kill 201')).toBeTruthy()
+  })
+
+  it('clears the Doctor report when the distro changes', async () => {
+    await renderDashboard(<PreparedProbe />)
+    fireEvent.click(navItem('doctor'))
+    const detail = screen.getByTestId('dashboard-detail')
+    fireEvent.click(within(detail).getByTestId('doctor-run-btn'))
+    expect(await within(detail).findByTestId('doctor-summary')).toBeTruthy()
+    expect(within(detail).getByRole('button', { name: 'Copy for LLM' })).toBeTruthy()
+
+    await switchDistro('Ubuntu-24.04')
+    expect(within(detail).getByTestId('doctor-summary')).toBeTruthy()
+
+    await switchDistro('Debian')
+    expect(within(detail).getByTestId('doctor-empty')).toBeTruthy()
+    expect(within(detail).queryByTestId('doctor-summary')).toBeNull()
+    expect(within(detail).queryByTestId('doctor-checks')).toBeNull()
+    expect(within(detail).queryByRole('button', { name: 'Copy for LLM' })).toBeNull()
+  })
+
+  it('drops a Doctor report that finishes after the distro changed', async () => {
+    const pending = deferred<DoctorReport>()
+    api.doctor.run.mockReturnValue(pending.promise)
+    await renderDashboard(<Toasts />)
+    fireEvent.click(navItem('doctor'))
+    const detail = screen.getByTestId('dashboard-detail')
+    fireEvent.click(within(detail).getByTestId('doctor-run-btn'))
+    await flush()
+
+    await switchDistro('Debian')
+    await act(async () => {
+      pending.resolve(makeDoctorReport())
+    })
+
+    expect(within(detail).getByTestId('doctor-empty')).toBeTruthy()
+    expect(within(detail).queryByTestId('doctor-summary')).toBeNull()
+    expect(screen.queryByText(/Doctor complete/)).toBeNull()
+    expect((within(detail).getByTestId('doctor-run-btn') as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('has no MCP section — every MCP action lives in Settings', async () => {
