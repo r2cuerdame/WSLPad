@@ -8,6 +8,8 @@ export interface DirSizesPanelProps {
   state: DirSizeState
   onCancel: () => void
   onClose: () => void
+  onActivateEntry?: (entry: DirSizeEntry) => void
+  selectedPaths?: ReadonlySet<string>
 }
 
 /** Widest measured entry, so the bars compare children to each other. */
@@ -111,31 +113,58 @@ export function DirSizesPanel(props: DirSizesPanelProps): React.JSX.Element | nu
             <div className="dir-sizes-message">{t('explorer.empty')}</div>
           ) : (
             <ol className="dir-sizes-list">
-              {result.entries.map((entry) => (
-                <li key={entry.path} className="dir-sizes-row">
-                  <span className="dir-sizes-name truncate" title={entry.path}>
-                    {entry.name}
-                    {entry.isDirectory ? '/' : ''}
-                  </span>
-                  <span className="dir-sizes-track" aria-hidden="true">
+              {result.entries.map((entry) => {
+                const selected = props.selectedPaths?.has(entry.path) ?? false
+                const interactive = props.onActivateEntry !== undefined
+                const rowContent = (
+                  <>
+                    <span className="dir-sizes-name truncate" title={entry.path}>
+                      {entry.name}
+                      {entry.isDirectory ? '/' : ''}
+                    </span>
+                    <span className="dir-sizes-track" aria-hidden="true">
+                      <span
+                        className={'dir-sizes-fill' + (entry.sizeBytes === null ? ' is-unknown' : '')}
+                        style={{
+                          width:
+                            max > 0 && entry.sizeBytes !== null
+                              ? `${Math.max(1, Math.round((entry.sizeBytes / max) * 100))}%`
+                              : '0%'
+                        }}
+                      />
+                    </span>
                     <span
-                      className={'dir-sizes-fill' + (entry.sizeBytes === null ? ' is-unknown' : '')}
-                      style={{
-                        width:
-                          max > 0 && entry.sizeBytes !== null
-                            ? `${Math.max(1, Math.round((entry.sizeBytes / max) * 100))}%`
-                            : '0%'
-                      }}
-                    />
-                  </span>
-                  <span
-                    className={'dir-sizes-size mono' + (entry.sizeBytes === null ? ' dim' : '')}
-                    title={entry.partial ? partialHint : undefined}
+                      className={'dir-sizes-size mono' + (entry.sizeBytes === null ? ' dim' : '')}
+                      title={entry.partial ? partialHint : undefined}
+                    >
+                      {size(entry)}
+                    </span>
+                  </>
+                )
+                return (
+                  <li
+                    key={entry.path}
+                    className={
+                      'dir-sizes-row' +
+                      (interactive ? ' is-interactive' : '') +
+                      (selected ? ' is-selected' : '')
+                    }
                   >
-                    {size(entry)}
-                  </span>
-                </li>
-              ))}
+                    {props.onActivateEntry ? (
+                      <button
+                        type="button"
+                        className="dir-sizes-row-btn"
+                        aria-current={selected ? 'true' : undefined}
+                        onClick={() => props.onActivateEntry?.(entry)}
+                      >
+                        {rowContent}
+                      </button>
+                    ) : (
+                      rowContent
+                    )}
+                  </li>
+                )
+              })}
             </ol>
           )}
           <footer className="dir-sizes-foot dim">
