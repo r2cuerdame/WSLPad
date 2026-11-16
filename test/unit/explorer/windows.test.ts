@@ -392,6 +392,59 @@ describe('createWindowsFs — create, rename, remove, trash', () => {
   )
 })
 
+describe('createWindowsFs — same-folder copy and move', () => {
+  it('duplicates files, directories, dotfiles, case conflicts, and batches in the same folder', async () => {
+    const base = dir('same-folder-copy')
+    const notes = join(base, 'notes.txt')
+    const dotfile = join(base, '.bashrc')
+    const vDir = dir('same-folder-copy', 'v1.0')
+    const caseFile = join(base, 'case.txt')
+    writeFileSync(notes, 'hello')
+    writeFileSync(dotfile, 'export X=1')
+    writeFileSync(join(vDir, 'inside.txt'), 'nested')
+    writeFileSync(caseFile, 'original')
+    writeFileSync(join(base, 'CASE (2).txt'), 'taken')
+
+    await runOp(() => fs.copyMove([notes], base, false))
+    await runOp(() => fs.copyMove([notes], `${base}\\`, false))
+    await runOp(() => fs.copyMove([vDir, dotfile], base, false))
+    await runOp(() => fs.copyMove([caseFile], base, false))
+
+    const names = await readdir(base)
+    expect(names).toContain('notes.txt')
+    expect(names).toContain('notes (2).txt')
+    expect(names).toContain('notes (3).txt')
+    expect(names).toContain('v1.0 (2)')
+    expect(names).toContain('.bashrc (2)')
+    expect(names).toContain('case (3).txt')
+    expect(await readFile(join(base, 'notes (2).txt'), 'utf8')).toBe('hello')
+    expect(await readFile(join(base, 'v1.0 (2)', 'inside.txt'), 'utf8')).toBe('nested')
+  })
+
+  it('treats same-folder moves as a no-op while preserving cross-folder EEXIST', async () => {
+    const base = dir('same-folder-move')
+    const file = join(base, 'keep.txt')
+    writeFileSync(file, 'untouched')
+
+    const events = await runOp(() => fs.copyMove([file], base, true))
+    expect(events[events.length - 1]).toMatchObject({
+      status: 'done',
+      error: null,
+      totalBytes: 0,
+      doneBytes: 0
+    })
+    expect(await readdir(base)).toEqual(['keep.txt'])
+    expect(await readFile(file, 'utf8')).toBe('untouched')
+
+    const other = dir('same-folder-move-other')
+    writeFileSync(join(other, 'keep.txt'), 'existing')
+    const conflictEvents = await runOp(() => fs.copyMove([file], other, false))
+    expect(conflictEvents[conflictEvents.length - 1].status).toBe('error')
+    expect(conflictEvents[conflictEvents.length - 1].error).toContain('EEXIST')
+    expect(await readFile(join(other, 'keep.txt'), 'utf8')).toBe('existing')
+  })
+})
+
 describe('createWindowsFs — copy and move', () => {
   it.each([
     { move: false, message: 'Refusing to copy drive root C:\\' },
@@ -1015,11 +1068,74 @@ describe('createFixtureWindowsFs', () => {
     const fixture = createFixtureWindowsFs()
     const events: FileOpProgress[] = []
     fixture.onProgress((p) => events.push(p))
-    await fixture.copyMove(['C:\\Users\\dev\\Documents'], 'C:\\Users\\dev', false)
+    await fixture.mkdir('C:\\Users\\dev\\Desktop\\Documents')
+    await fixture.copyMove(['C:\\Users\\dev\\Documents'], 'C:\\Users\\dev\\Desktop', false)
     await waitFor(() => events.some((e) => e.status !== 'running'))
     const last = events[events.length - 1]
     expect(last.status).toBe('error')
     expect(last.error).toContain('EEXIST')
+  })
+
+  it('duplicates files, directories, dotfiles, and case conflicts when copying into the same folder', async () => {
+    const fixture = createFixtureWindowsFs()
+    const waitDone = async (run: () => Promise<string>) => {
+      const events: FileOpProgress[] = []
+      const off = fixture.onProgress((p) => events.push(p))
+      try {
+        const opId = await run()
+        await waitFor(() => events.some((e) => e.opId === opId && e.status !== 'running'))
+        return events.filter((e) => e.opId === opId)
+      } finally {
+        off()
+      }
+    }
+
+    await waitDone(() =>
+      fixture.copyMove(['C:\\Users\\dev\\Documents\\notes.txt'], 'C:\\Users\\dev\\Documents', false)
+    )
+    await waitDone(() =>
+      fixture.copyMove(['C:\\Users\\dev\\Documents\\notes.txt'], 'C:\\Users\\dev\\Documents', false)
+    )
+    await fixture.writeText('C:\\Users\\dev\\Documents\\REPORT.txt', 'upper')
+    await fixture.writeText('C:\\Users\\dev\\Documents\\report (2).txt', 'taken')
+    await waitDone(() =>
+      fixture.copyMove(['C:\\Users\\dev\\Documents\\REPORT.txt'], 'C:\\Users\\dev\\Documents', false)
+    )
+
+    const docNames = (await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)
+    expect(docNames).toContain('notes.txt')
+    expect(docNames).toContain('notes (2).txt')
+    expect(docNames).toContain('notes (3).txt')
+    expect(docNames).toContain('REPORT (3).txt')
+
+    await fixture.mkdir('C:\\Users\\dev\\v1.0')
+    await fixture.writeText('C:\\Users\\dev\\v1.0\\inside.txt', 'nested')
+    await waitDone(() =>
+      fixture.copyMove(['C:\\Users\\dev\\v1.0', 'C:\\Users\\dev\\.hidden-config'], 'C:\\Users\\dev', false)
+    )
+    const homeNames = (await fixture.list('C:\\Users\\dev')).map((e) => e.name)
+    expect(homeNames).toContain('v1.0 (2)')
+    expect(homeNames).toContain('.hidden-config (2)')
+    expect((await fixture.list('C:\\Users\\dev\\v1.0 (2)')).map((e) => e.name)).toEqual([
+      'inside.txt'
+    ])
+  })
+
+  it('treats same-folder moves as a no-op with zero transferred bytes in fixture mode', async () => {
+    const fixture = createFixtureWindowsFs()
+    const events: FileOpProgress[] = []
+    fixture.onProgress((p) => events.push(p))
+    await fixture.copyMove(
+      ['C:\\Users\\dev\\Documents\\notes.txt'],
+      'C:\\Users\\dev\\Documents',
+      true
+    )
+    await waitFor(() => events.some((e) => e.status !== 'running'))
+    const last = events[events.length - 1]
+    expect(last).toMatchObject({ status: 'done', error: null, totalBytes: 0, doneBytes: 0 })
+    expect((await fixture.list('C:\\Users\\dev\\Documents')).map((e) => e.name)).toEqual([
+      'notes.txt'
+    ])
   })
 
   it.each([
@@ -1133,10 +1249,11 @@ describe('createFixtureWindowsFs', () => {
     const events: FileOpProgress[] = []
     fixture.onProgress((p) => events.push(p))
     const notesBytes = 'Windows fixture notes\n'.length
-    // C:\Users\dev already holds Documents (one notes.txt), so that item is EEXIST.
+    // C:\Users\dev\Desktop\Documents already exists, so that item fails with EEXIST while notes.txt succeeds.
+    await fixture.mkdir('C:\\Users\\dev\\Desktop\\Documents')
     await fixture.copyMove(
       ['C:\\Users\\dev\\Documents\\notes.txt', 'C:\\Users\\dev\\Documents'],
-      'C:\\Users\\dev',
+      'C:\\Users\\dev\\Desktop',
       false
     )
     await waitFor(() => events.some((e) => e.status !== 'running'))

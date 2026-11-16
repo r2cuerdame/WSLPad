@@ -1026,6 +1026,45 @@ describe('FixtureExplorerBackend', () => {
     const err = await backend.list('Debian', '/home/dev').catch((e: unknown) => e)
     expect((err as ExplorerError).code).toBe('UNKNOWN')
   })
+
+  it('duplicates files, directories, dotfiles, and batches when copying into the same folder', async () => {
+    const backend = new FixtureExplorerBackend()
+    await backend.mkdir(U, '/home/dev/v1.0')
+    await backend.createFile(U, '/home/dev/v1.0/inside.txt')
+
+    await backend.copyMove(U, ['/home/dev/notes.md'], '/home/dev', false)
+    await backend.copyMove(U, ['/home/dev/notes.md'], '/home/dev', false)
+    await backend.copyMove(U, ['/home/dev/v1.0', '/home/dev/.bashrc'], '/home/dev', false)
+
+    const names = (await backend.list(U, '/home/dev', { showHidden: true })).map((e) => e.name)
+    expect(names).toContain('notes.md')
+    expect(names).toContain('notes (2).md')
+    expect(names).toContain('notes (3).md')
+    expect(names).toContain('v1.0 (2)')
+    expect(names).toContain('.bashrc (2)')
+    expect((await backend.list(U, '/home/dev/v1.0 (2)')).map((e) => e.name)).toEqual(['inside.txt'])
+  })
+
+  it('treats same-folder moves as a no-op while preserving cross-folder EEXIST and self refusals', async () => {
+    const backend = new FixtureExplorerBackend()
+    const events: FileOpProgress[] = []
+    backend.onProgress((p) => events.push(p))
+
+    await backend.copyMove(U, ['/home/dev/notes.md'], '/home/dev', true)
+    expect(events[events.length - 1]).toMatchObject({ status: 'done', error: null })
+    const names = (await backend.list(U, '/home/dev', { showHidden: true })).map((e) => e.name)
+    expect(names).toContain('notes.md')
+    expect(names).not.toContain('notes (2).md')
+
+    await backend.mkdir(U, '/home/dev/sub')
+    await backend.createFile(U, '/home/dev/sub/notes.md')
+    await expect(backend.copyMove(U, ['/home/dev/notes.md'], '/home/dev/sub', false)).rejects.toMatchObject({
+      code: 'EEXIST'
+    })
+    await expect(backend.copyMove(U, ['/home/dev/sub'], '/home/dev/sub', false)).rejects.toMatchObject({
+      code: 'UNKNOWN'
+    })
+  })
 })
 
 describe('FixtureConsoleFactory', () => {

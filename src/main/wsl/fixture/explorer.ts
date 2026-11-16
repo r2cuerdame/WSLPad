@@ -15,6 +15,7 @@ import type {
 } from '@shared/types'
 import { WINDOWS_ROOT } from '@shared/constants'
 import { DIR_SIZE_CHILD_CAP } from '../../explorer/dir-sizes'
+import { nextCopyName } from '../../explorer/copy-name'
 import {
   convertLinuxToWindows,
   convertWindowsToLinux,
@@ -593,7 +594,7 @@ export class FixtureExplorerBackend implements ExplorerBackend {
     // Same order as the Windows backends: a source that contains the
     // destination refuses the whole batch before the items in front of it
     // are copied or moved away.
-    const srcBases = uniqueSources.map((source) => this.fs.normalizePath(source))
+    const srcBases = [...new Set(uniqueSources.map((source) => this.fs.normalizePath(source)))]
     for (const srcBase of srcBases) {
       if (isInsideLinux(destBase, srcBase)) {
         throw new ExplorerError(
@@ -609,20 +610,31 @@ export class FixtureExplorerBackend implements ExplorerBackend {
       if (!parent || !node) {
         throw new ExplorerError('ENOENT', srcBase, `No such file or directory: ${srcBase}`)
       }
-      if (dest.children?.has(name)) {
-        throw new ExplorerError('EEXIST', this.joinPath(destBase, name), `Already exists: ${name}`)
-      }
-      if (move) {
-        if (!parent.writable) throw this.accessDenied(srcBase, parent)
-        parent.children?.delete(name)
-        this.fs.attach(dest, node)
+      if (parent === dest) {
+        if (!move) {
+          const copyName = nextCopyName(
+            name,
+            node.type === 'directory',
+            (candidate) => Boolean(dest.children?.has(candidate))
+          ).name
+          this.fs.attach(dest, this.fs.cloneNode(node, copyName))
+        }
       } else {
-        this.fs.attach(dest, this.fs.cloneNode(node))
+        if (dest.children?.has(name)) {
+          throw new ExplorerError('EEXIST', this.joinPath(destBase, name), `Already exists: ${name}`)
+        }
+        if (move) {
+          if (!parent.writable) throw this.accessDenied(srcBase, parent)
+          parent.children?.delete(name)
+          this.fs.attach(dest, node)
+        } else {
+          this.fs.attach(dest, this.fs.cloneNode(node))
+        }
       }
       last = srcBase
     }
     const opId = `fixture-op-${++this.opCounter}`
-    this.emit(this.doneProgress(opId, move ? 'move' : 'copy', uniqueSources.length, last))
+    this.emit(this.doneProgress(opId, move ? 'move' : 'copy', srcBases.length, last))
     return opId
   }
 

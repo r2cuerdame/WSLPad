@@ -332,3 +332,102 @@ describe('removeEntries', () => {
     ])
   })
 })
+
+describe('copyMove same-folder', () => {
+  it('probes directory entries and copies files and directories to the first unused numbered slot', async () => {
+    const runner = new MockRunner().on((script) => {
+      if (!script.includes('find -H')) return undefined
+      if (script.includes("'/home/u/notes.txt'")) return ok('f\0notes.txt\0notes (2).txt\0')
+      if (script.includes("'/home/u/v1.0'")) return ok('d\0v1.0\0notes.txt\0notes (2).txt\0')
+      return undefined
+    })
+    const backend = createRealExplorerBackend(runner)
+    const progress = captureProgress(backend)
+
+    await backend.copyMove('Ubuntu', ['/home/u/notes.txt', '/home/u/v1.0'], '/home/u', false)
+    const done = await progress.done
+
+    expect(done).toMatchObject({ status: 'done', error: null, doneItems: 2, totalItems: 2 })
+    expect(runner.calls).toHaveLength(4)
+    expect(runner.calls[0].opts?.nulDelimited).toBe(true)
+    expect(runner.calls[1].script).toContain("cp -a '/home/u/notes.txt' '/home/u/notes (3).txt'")
+    expect(runner.calls[2].opts?.nulDelimited).toBe(true)
+    expect(runner.calls[3].script).toContain("cp -a '/home/u/v1.0' '/home/u/v1.0 (2)'")
+  })
+
+  it('tracks batch-created names so multi-item copies never pick colliding targets', async () => {
+    const runner = new MockRunner().on((script) =>
+      script.includes('find -H') ? ok('f\0a.txt\0') : undefined
+    )
+    const backend = createRealExplorerBackend(runner)
+    const progress = captureProgress(backend)
+
+    await backend.copyMove('Ubuntu', ['/home/u/a.txt', '/home/u/a.txt/'], '/home/u', false)
+    const done = await progress.done
+
+    expect(done).toMatchObject({ status: 'done', error: null, doneItems: 2, totalItems: 2 })
+    const cpCalls = runner.calls.filter((call) => call.script.includes('cp -a')).map((c) => c.script)
+    expect(cpCalls[0]).toContain("'/home/u/a (2).txt'")
+    expect(cpCalls[1]).toContain("'/home/u/a (3).txt'")
+  })
+
+  it('retries once with the next slot on EXIT_EEXIST race and fails if the retry also conflicts', async () => {
+    const runner = new MockRunner().on((script) => {
+      if (script.includes('find -H')) return ok('f\0notes.txt\0')
+      if (script.includes("'/home/u/notes (2).txt'")) return fail(41)
+      return undefined
+    })
+    const backend = createRealExplorerBackend(runner)
+    const first = captureProgress(backend)
+
+    await backend.copyMove('Ubuntu', ['/home/u/notes.txt'], '/home/u', false)
+    await expect(first.done).resolves.toMatchObject({ status: 'done', error: null })
+    expect(runner.calls.map((c) => c.script).some((s) => s.includes("'/home/u/notes (3).txt'"))).toBe(
+      true
+    )
+
+    const alwaysConflict = new MockRunner().on((script) =>
+      script.includes('find -H') ? ok('f\0notes.txt\0') : fail(41)
+    )
+    const failingBackend = createRealExplorerBackend(alwaysConflict)
+    const second = captureProgress(failingBackend)
+    await failingBackend.copyMove('Ubuntu', ['/home/u/notes.txt'], '/home/u', false)
+    const failed = await second.done
+    expect(failed.status).toBe('error')
+    expect(failed.error).toContain('/home/u/notes (3).txt')
+  })
+
+  it('skips same-folder moves without running shell commands', async () => {
+    const runner = new MockRunner()
+    const backend = createRealExplorerBackend(runner)
+    const progress = captureProgress(backend)
+
+    await backend.copyMove('Ubuntu', ['/home/u/notes.txt', '/home/u/sub/'], '/home/u/', true)
+    await expect(progress.done).resolves.toMatchObject({
+      status: 'done',
+      error: null,
+      doneItems: 2,
+      totalItems: 2
+    })
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  it('keeps cross-folder EEXIST and same-target self-copy refusals', async () => {
+    const runner = new MockRunner().on(() => fail(41))
+    const backend = createRealExplorerBackend(runner)
+
+    const cross = captureProgress(backend)
+    await backend.copyMove('Ubuntu', ['/home/u/notes.txt'], '/home/u/dest', false)
+    const crossDone = await cross.done
+    expect(crossDone.status).toBe('error')
+    expect(crossDone.error).toContain('/home/u/dest/notes.txt')
+    expect(runner.calls).toHaveLength(1)
+
+    const selfCopy = captureProgress(backend)
+    await backend.copyMove('Ubuntu', ['/home/u/dest'], '/home/u/dest', false)
+    const selfDone = await selfCopy.done
+    expect(selfDone.status).toBe('error')
+    expect(selfDone.error).toContain('Cannot copy /home/u/dest into itself')
+    expect(runner.calls).toHaveLength(1)
+  })
+})
