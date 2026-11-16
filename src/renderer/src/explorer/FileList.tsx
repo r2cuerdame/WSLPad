@@ -258,7 +258,8 @@ export function FileListView(props: FileListProps): React.JSX.Element {
     } else if (e.key === 'F2') {
       const sel = selectedEntries()
       if (sel.length === 1) props.onRenameStart(sel[0].path)
-    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.altKey) {
+      // Alt+ArrowUp belongs to the toolbar (parent folder), not to the selection.
       e.preventDefault()
       if (entries.length === 0) return
       const delta = e.key === 'ArrowDown' ? 1 : -1
