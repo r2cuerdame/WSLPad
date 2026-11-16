@@ -177,7 +177,7 @@ export interface PaneApi {
   measureDirSizes: () => Promise<void>
   cancelDirSizes: () => void
   closeDirSizes: () => void
-  navigate: (path: string) => Promise<void>
+  navigate: (path: string, navOpts?: { replace?: boolean; selectPath?: string }) => Promise<void>
   goBack: () => Promise<void>
   goForward: () => Promise<void>
   goUp: () => Promise<void>
@@ -229,6 +229,8 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   const adapterRef = useRef(adapter)
   const optsRef = useRef(opts)
   const initializedFor = useRef<string | null>(null)
+  const navSeqRef = useRef(0)
+  const manualBeforeFirstInitRef = useRef(false)
   adapterRef.current = adapter
   optsRef.current = opts
 
@@ -240,16 +242,24 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   )
 
   const navigate = useCallback(
-    async (target: string, navOpts?: { replace?: boolean }): Promise<void> => {
+    async (
+      target: string,
+      navOpts?: { replace?: boolean; selectPath?: string }
+    ): Promise<void> => {
       const fs = adapterRef.current
       const normalized = fs.normalize(target)
       if (normalized === null) {
         pushToast('error', t('errors.notFound', { path: target }))
         return
       }
+      if (!navOpts?.replace && initializedFor.current === null) {
+        manualBeforeFirstInitRef.current = true
+      }
+      const seq = ++navSeqRef.current
       setLoading(true)
       try {
         const list = await fs.list(normalized, { showHidden: showHiddenRef.current })
+        if (seq !== navSeqRef.current) return
         const prev = pathRef.current
         if (!navOpts?.replace && prev !== null && prev !== normalized) {
           setBackStack((s) => [...s, prev])
@@ -261,16 +271,29 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
         setError(null)
         setSearchQuery('')
         setSearchResults(null)
-        setSelection(new Set())
+        let nextSelection = new Set<string>()
+        if (navOpts?.selectPath) {
+          const selectNorm = fs.normalize(navOpts.selectPath) ?? navOpts.selectPath
+          const match =
+            fs.kind === 'windows'
+              ? list.find((entry) => entry.path.toLowerCase() === selectNorm.toLowerCase())
+              : list.find((entry) => entry.path === selectNorm)
+          if (match) nextSelection = new Set([match.path])
+        }
+        setSelection(nextSelection)
         // The panel is about one directory; a new one starts closed rather
         // than showing the previous folder's numbers under a new heading.
         activeDirSizeToken.current = null
         setDirSizes(CLOSED_DIR_SIZES)
         optsRef.current.onPathChange?.(normalized)
       } catch {
-        pushToast('error', t('errors.notFound', { path: normalized }))
+        if (seq === navSeqRef.current) {
+          pushToast('error', t('errors.notFound', { path: normalized }))
+        }
       } finally {
-        setLoading(false)
+        if (seq === navSeqRef.current) {
+          setLoading(false)
+        }
       }
     },
     [pushToast, t]
@@ -545,7 +568,12 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   useEffect(() => {
     if (startPath === null) return
     if (initializedFor.current === resetKey) return
+    const firstInit = initializedFor.current === null
     initializedFor.current = resetKey
+    if (firstInit && manualBeforeFirstInitRef.current) {
+      manualBeforeFirstInitRef.current = false
+      return
+    }
     showHiddenRef.current = showHiddenDefault
     setShowHidden(showHiddenDefault)
     setBackStack([])
@@ -558,10 +586,14 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     setDirSizes(CLOSED_DIR_SIZES)
     pathRef.current = null
     setPath(null)
-    void navigate(startPath, { replace: true }).then(() => {
-      if (pathRef.current !== null) return
+    const navPromise = navigate(startPath, { replace: true })
+    const initSeq = navSeqRef.current
+    void navPromise.then(() => {
+      if (initSeq !== navSeqRef.current || pathRef.current !== null) return
       void adapterRef.current.home().then((h) => {
-        if (pathRef.current === null && h !== startPath) void navigate(h, { replace: true })
+        if (initSeq === navSeqRef.current && pathRef.current === null && h !== startPath) {
+          void navigate(h, { replace: true })
+        }
       })
     })
   }, [resetKey, startPath, showHiddenDefault, navigate])

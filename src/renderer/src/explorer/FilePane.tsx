@@ -40,7 +40,7 @@ export interface FilePaneProps {
   showHiddenDefault: boolean
   /** Only given for the WSL pane: opens the freedesktop trash (issue #23). */
   onOpenTrash?: () => void
-  navRequest: { id: number; path: string } | null
+  navRequest: { id: number; path: string; selectPath?: string } | null
   /** Rendered instead of the browser when the filesystem is unavailable. */
   unavailableMessage?: string | null
 }
@@ -138,7 +138,10 @@ export function FilePane(props: FilePaneProps): React.JSX.Element {
   useEffect(() => {
     if (!navRequest || navRequest.id === handledNavId.current) return
     handledNavId.current = navRequest.id
-    void navigate(navRequest.path)
+    void navigate(
+      navRequest.path,
+      navRequest.selectPath === undefined ? undefined : { selectPath: navRequest.selectPath }
+    )
   }, [navRequest, navigate])
 
   const toggleTree = useCallback((): void => {

@@ -51,10 +51,19 @@ export interface AppStore {
   focusPid: number | null
   setFocusPid: (pid: number | null) => void
   /** Explorer path requested from outside (Dashboard path cards). */
-  explorerNavigateRequest: { id: number; path: string; fs: FsKind } | null
+  explorerNavigateRequest: {
+    id: number
+    path: string
+    fs: FsKind
+    selectPath?: string
+  } | null
   /** Targets the WSL pane by default; Windows-scoped rows pass 'windows'. */
-  navigateExplorer: (path: string, fs?: FsKind) => void
+  navigateExplorer: (path: string, fs?: FsKind, selectPath?: string) => void
   consumeExplorerNavigate: () => void
+  /** Explorer file requested to open directly in EditorOverlay (Dashboard config files). */
+  explorerOpenFileRequest: { id: number; path: string; fs: FsKind } | null
+  openExplorerEditor: (path: string, fs?: FsKind) => void
+  consumeExplorerOpenFile: () => void
 }
 
 const Ctx = createContext<AppStore | null>(null)
@@ -74,7 +83,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }): React.J
     id: number
     path: string
     fs: FsKind
+    selectPath?: string
   } | null>(null)
+  const [explorerOpenFileRequest, setExplorerOpenFileRequest] = useState<{
+    id: number
+    path: string
+    fs: FsKind
+  } | null>(null)
+  const consumeExplorerNavigate = useCallback(() => setExplorerNavigateRequest(null), [])
+  const consumeExplorerOpenFile = useCallback(() => setExplorerOpenFileRequest(null), [])
   const toastTimers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
 
   useEffect(() => {
@@ -140,11 +157,19 @@ export function AppStoreProvider({ children }: { children: ReactNode }): React.J
       focusPid,
       setFocusPid,
       explorerNavigateRequest,
-      navigateExplorer: (path: string, fs: FsKind = 'linux') => {
-        setExplorerNavigateRequest({ id: nextId++, path, fs })
+      navigateExplorer: (path: string, fs: FsKind = 'linux', selectPath?: string) => {
+        setExplorerNavigateRequest(
+          selectPath === undefined ? { id: nextId++, path, fs } : { id: nextId++, path, fs, selectPath }
+        )
         setTab('explorer')
       },
-      consumeExplorerNavigate: () => setExplorerNavigateRequest(null)
+      consumeExplorerNavigate,
+      explorerOpenFileRequest,
+      openExplorerEditor: (path: string, fs: FsKind = 'linux') => {
+        setExplorerOpenFileRequest({ id: nextId++, path, fs })
+        setTab('explorer')
+      },
+      consumeExplorerOpenFile
     }),
     [
       snapshot,
@@ -157,7 +182,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }): React.J
       pushToast,
       dismissToast,
       focusPid,
-      explorerNavigateRequest
+      explorerNavigateRequest,
+      consumeExplorerNavigate,
+      explorerOpenFileRequest,
+      consumeExplorerOpenFile
     ]
   )
 
