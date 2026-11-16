@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DoctorCheckResult, DoctorReport, DoctorVerdict } from '@shared/types'
 import { useApp } from '../store'
@@ -22,14 +22,26 @@ function verdictBadge(verdict: DoctorVerdict, t: (k: string) => string): React.J
 
 export default function DoctorCard(): React.JSX.Element {
   const { t } = useTranslation()
-  const { pushToast, prepareCommand } = useApp()
+  const { snapshot, pushToast, prepareCommand } = useApp()
   const [report, setReport] = useState<DoctorReport | null>(null)
   const [running, setRunning] = useState(false)
+  const requestId = useRef(0)
+  const distro = snapshot?.selectedDistro ?? null
+
+  useLayoutEffect(() => {
+    const pending = requestId
+    return () => {
+      pending.current++
+      setReport(null)
+    }
+  }, [distro])
 
   const runDoctor = async (): Promise<void> => {
+    const id = ++requestId.current
     setRunning(true)
     try {
       const result = await window.wslpad.doctor.run()
+      if (id !== requestId.current) return
       setReport(result)
       const errors = result.checks.filter((c) => c.verdict === 'error').length
       const warnings = result.checks.filter((c) => c.verdict === 'warning').length
@@ -42,7 +54,7 @@ export default function DoctorCard(): React.JSX.Element {
         })
       )
     } catch {
-      pushToast('error', t('common.error'))
+      if (id === requestId.current) pushToast('error', t('common.error'))
     } finally {
       setRunning(false)
     }
