@@ -323,7 +323,7 @@ export default function DashboardTab(): React.JSX.Element {
       case 'hermes':
         return <HermesCard hermes={dash.hermes} />
       case 'environment':
-        return <EnvironmentCard env={dash.environment} />
+        return <EnvironmentCard env={dash.environment} distro={dash.distro.name} />
       case 'processes':
         return (
           <ProcessesCard
