@@ -297,10 +297,16 @@ export function SettingsDrawer(): React.JSX.Element | null {
         </header>
 
         <div className="settings-scroll">
-          {loadError?.corrupted && (
+          {loadError?.unreadable ? (
             <div className="settings-corrupted" role="alert">
-              {t('settings.corruptedNotice')}
+              {t('settings.unreadableNotice')}
             </div>
+          ) : (
+            loadError?.corrupted && (
+              <div className="settings-corrupted" role="alert">
+                {t('settings.corruptedNotice')}
+              </div>
+            )
           )}
 
           <section>

@@ -990,6 +990,7 @@
     "resetAllConfirmTitle": "¿Restaurar toda la configuración?",
     "resetAllConfirmBody": "Toda la configuración volverá a sus valores predeterminados.",
     "corruptedNotice": "El archivo de configuración no era válido y se restauró a valores predeterminados seguros.",
+    "unreadableNotice": "No se pudo leer el archivo de configuración (puede que otro programa lo esté usando), así que por ahora se usan los valores predeterminados. El archivo no se modificó: reinicia WSLPad para cargar tu configuración guardada. Si cambias la configuración ahora, primero se hará una copia de seguridad del archivo.",
     "restartRequired": "Se requiere reiniciar para aplicar"
   },
   "update": {

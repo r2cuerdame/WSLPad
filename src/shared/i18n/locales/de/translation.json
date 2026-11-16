@@ -990,6 +990,7 @@
     "resetAllConfirmTitle": "Alle Einstellungen zurücksetzen?",
     "resetAllConfirmBody": "Alle Einstellungen werden auf ihre Standardwerte zurückgesetzt.",
     "corruptedNotice": "Die Einstellungsdatei war ungültig und wurde auf sichere Standardwerte zurückgesetzt.",
+    "unreadableNotice": "Die Einstellungsdatei konnte nicht gelesen werden (möglicherweise verwendet ein anderes Programm sie), daher gelten vorerst die Standardwerte. Die Datei blieb unverändert – starten Sie WSLPad neu, um Ihre gespeicherten Einstellungen zu laden. Wenn Sie jetzt Einstellungen ändern, wird die Datei vorher gesichert.",
     "restartRequired": "Zum Übernehmen ist ein Neustart erforderlich"
   },
   "update": {
