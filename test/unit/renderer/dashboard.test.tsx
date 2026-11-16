@@ -1059,7 +1059,7 @@ describe('EnvironmentCard', () => {
     vi.useFakeTimers()
     render(
       <AppStoreProvider>
-        <EnvironmentCard env={makeSnapshot().dashboard!.environment} />
+        <EnvironmentCard env={makeSnapshot().dashboard!.environment} distro="Ubuntu-24.04" />
       </AppStoreProvider>
     )
     await flush()
