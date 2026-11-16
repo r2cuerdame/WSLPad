@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ToolInfo } from '@shared/types'
 import { resolveAllProfiles, type ResolvedProfile, type ResolvedProfileTool } from '@shared/profiles'
@@ -8,14 +8,24 @@ import { useApp } from '../store'
 
 interface ProfilesCardProps {
   tools: ToolInfo[]
+  distro: string
   onDiscover: (query: string) => void
 }
 
-export default function ProfilesCard({ tools, onDiscover }: ProfilesCardProps): React.JSX.Element {
+export default function ProfilesCard({
+  tools,
+  distro,
+  onDiscover
+}: ProfilesCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { prepareCommand, pushToast } = useApp()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const profiles = useMemo(() => resolveAllProfiles(tools), [tools])
+  const distroRef = useRef(distro)
+
+  useLayoutEffect(() => {
+    distroRef.current = distro
+  }, [distro])
 
   const toggle = useCallback(
     (id: string) => setExpandedId((prev) => (prev === id ? null : id)),
@@ -33,8 +43,10 @@ export default function ProfilesCard({ tools, onDiscover }: ProfilesCardProps): 
 
   const prepareInstall = useCallback(
     async (tool: ResolvedProfileTool): Promise<void> => {
+      const started = distroRef.current
       try {
         const command = await resolveInstall(tool)
+        if (distroRef.current !== started) return
         if (!command) {
           onDiscover(tool.discoverQuery)
           pushToast('info', t('profiles.prepareNeedsChoice', { name: tool.displayName }))
@@ -43,6 +55,7 @@ export default function ProfilesCard({ tools, onDiscover }: ProfilesCardProps): 
         prepareCommand(command)
         pushToast('info', t('toast.commandPrepared'))
       } catch {
+        if (distroRef.current !== started) return
         onDiscover(tool.discoverQuery)
         pushToast('info', t('profiles.prepareNeedsChoice', { name: tool.displayName }))
       }
@@ -54,10 +67,12 @@ export default function ProfilesCard({ tools, onDiscover }: ProfilesCardProps): 
     async (profile: ResolvedProfile): Promise<void> => {
       const missing = profile.tools.filter((tool) => !tool.installed)
       if (missing.length === 0) return
+      const started = distroRef.current
       try {
         const commands: string[] = []
         for (const tool of missing) {
           const command = await resolveInstall(tool)
+          if (distroRef.current !== started) return
           if (!command) {
             onDiscover(tool.discoverQuery)
             pushToast('info', t('profiles.prepareNeedsChoice', { name: tool.displayName }))
@@ -68,6 +83,7 @@ export default function ProfilesCard({ tools, onDiscover }: ProfilesCardProps): 
         prepareCommand(commands.join(' && '))
         pushToast('info', t('toast.commandPrepared'))
       } catch {
+        if (distroRef.current !== started) return
         onDiscover(missing[0].discoverQuery)
         pushToast('info', t('profiles.prepareNeedsChoice', { name: missing[0].displayName }))
       }

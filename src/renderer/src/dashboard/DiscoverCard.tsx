@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PackageDiscoverResult } from '@shared/types'
 import Card from '../components/Card'
@@ -28,6 +28,14 @@ export default function DiscoverCard({
   useEffect(() => {
     if (initialQuery) setQuery(initialQuery)
   }, [initialQuery])
+
+  useLayoutEffect(() => {
+    const pending = requestId
+    return () => {
+      pending.current++
+      setView({ kind: 'idle' })
+    }
+  }, [distro])
 
   const search = async (event: FormEvent): Promise<void> => {
     event.preventDefault()

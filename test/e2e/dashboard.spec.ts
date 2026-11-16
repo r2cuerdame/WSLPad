@@ -79,6 +79,44 @@ test.describe('dashboard master-detail (goal.md §18.3: 4, 11)', () => {
     await expect.poll(() => consoleText(page)).not.toContain('Unknown command')
   })
 
+  test('switching distro clears Discover and Update Center results', async () => {
+    const { page } = launched
+    const detail = page.getByTestId('dashboard-detail')
+    const distroSelect = page.getByRole('combobox', { name: 'Distribution' })
+
+    await page.getByTestId('dashboard-nav-discover').click()
+    await page.getByLabel('Search available packages').fill('ripgrep')
+    await page.getByRole('button', { name: 'Search' }).click()
+    const prepareInstall = page.getByRole('button', { name: 'Prepare install command for ripgrep' })
+    await expect(prepareInstall).toBeVisible()
+
+    await distroSelect.selectOption('Debian')
+    await expect(distroSelect).toHaveValue('Debian')
+    await expect(detail).toContainText('Search package managers detected in Debian')
+    await expect(detail).toContainText('Providers are queried only when you search.')
+    await expect(prepareInstall).toHaveCount(0)
+    await expect(page.getByLabel('Search available packages')).toHaveValue('ripgrep')
+
+    await distroSelect.selectOption('Ubuntu-24.04')
+    await expect(distroSelect).toHaveValue('Ubuntu-24.04')
+
+    await page.getByTestId('dashboard-nav-update-center').click()
+    await page.getByRole('button', { name: 'Check for updates' }).click()
+    const prepareUpdate = page.getByRole('button', {
+      name: 'Prepare update command for Microsoft.PowerShell'
+    })
+    await expect(prepareUpdate).toBeVisible()
+
+    await distroSelect.selectOption('Debian')
+    await expect(distroSelect).toHaveValue('Debian')
+    await expect(detail).toContainText('Update providers are queried only when you start a check.')
+    await expect(prepareUpdate).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Check for updates' })).toBeEnabled()
+
+    await distroSelect.selectOption('Ubuntu-24.04')
+    await expect(distroSelect).toHaveValue('Ubuntu-24.04')
+  })
+
   test('runs session-only diagnostics only after an explicit click', async () => {
     const { page } = launched
     await page.getByTestId('dashboard-nav-diagnostics').click()
