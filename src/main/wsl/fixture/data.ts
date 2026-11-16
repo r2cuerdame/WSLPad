@@ -1211,21 +1211,34 @@ export function fixturePortProxy(): PortProxyInfo {
 /** Shaped like a real machine: the journal and the package cache dominate. */
 /** ISO timestamps, like journalctl --output=short-iso: no localized month names. */
 export function fixtureServiceLog(unit: string, scope: ServiceScope): ServiceLog {
-  if (unit !== 'hermes-gateway') {
-    return { unit, scope, lines: [], truncated: false, error: null }
+  if (unit === 'hermes-gateway' || unit === 'hermes-gateway.service') {
+    return {
+      unit,
+      scope,
+      lines: [
+        '2024-06-15T11:58:02+0000 wslpad-fixture hermes[4321]: starting gateway',
+        '2024-06-15T11:58:02+0000 wslpad-fixture hermes[4321]: listening on 127.0.0.1:8600',
+        '2024-06-15T11:58:03+0000 wslpad-fixture hermes[4321]: 4 MCP servers registered',
+        '2024-06-15T12:00:00+0000 wslpad-fixture hermes[4321]: profile default connected'
+      ],
+      truncated: false,
+      error: null
+    }
   }
-  return {
-    unit,
-    scope,
-    lines: [
-      '2024-06-15T11:58:02+0000 wslpad-fixture hermes[4321]: starting gateway',
-      '2024-06-15T11:58:02+0000 wslpad-fixture hermes[4321]: listening on 127.0.0.1:8600',
-      '2024-06-15T11:58:03+0000 wslpad-fixture hermes[4321]: 4 MCP servers registered',
-      '2024-06-15T12:00:00+0000 wslpad-fixture hermes[4321]: profile default connected'
-    ],
-    truncated: false,
-    error: null
+  if (unit === 'broken' || unit === 'broken.service') {
+    return {
+      unit,
+      scope,
+      lines: [
+        '2024-06-15T11:59:01+0000 wslpad-fixture broken[4510]: starting fixture service',
+        '2024-06-15T11:59:02+0000 wslpad-fixture broken[4510]: ERROR failed to bind config socket',
+        '2024-06-15T11:59:02+0000 wslpad-fixture systemd[1]: broken.service: Main process exited, code=exited, status=1/FAILURE'
+      ],
+      truncated: false,
+      error: 'You are currently not seeing messages from other users and the system.'
+    }
   }
+  return { unit, scope, lines: [], truncated: false, error: null }
 }
 
 export function fixtureDiskConsumers(distro: FixtureDistroName): DiskConsumersInfo | null {
