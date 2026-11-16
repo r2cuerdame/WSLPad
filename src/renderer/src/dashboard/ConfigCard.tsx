@@ -1,16 +1,28 @@
 import { useTranslation } from 'react-i18next'
-import type { ConfigurationFileInfo, TerminalProfilesInfo } from '@shared/types'
+import type { ConfigurationFileInfo, FsKind, TerminalProfilesInfo } from '@shared/types'
 import { useApp } from '../store'
 import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import { FileIcon, FolderIcon, TerminalIcon } from '../components/Icons'
+import { resolveDashboardExplorerTarget } from './explorerTarget'
 import TerminalProfilesBlock from './TerminalProfilesBlock'
 
 const shQuote = (v: string): string => `'${v.replace(/'/g, "'\\''")}'`
-const dirname = (p: string): string => p.replace(/\/[^/]*$/, '') || '/'
 
 const dotClass = (exists: boolean | null): string =>
   exists === true ? 'dot dot-ok' : exists === false ? 'dot dot-err' : 'dot dot-unknown'
+
+const isDirectoryEntry = (file: ConfigurationFileInfo): boolean => file.id === 'config-dir'
+
+const configTarget = (file: ConfigurationFileInfo): { path: string; fs: FsKind } | null => {
+  if (file.scope === 'windows' && file.windowsPath !== null) {
+    return { path: file.windowsPath, fs: 'windows' }
+  }
+  if (file.linuxPath !== null) {
+    return { path: file.linuxPath, fs: 'linux' }
+  }
+  return null
+}
 
 export interface ConfigCardProps {
   files: ConfigurationFileInfo[]
@@ -25,19 +37,26 @@ export default function ConfigCard({
   distro
 }: ConfigCardProps): React.JSX.Element {
   const { t } = useTranslation()
-  const { navigateExplorer, prepareCommand, pushToast } = useApp()
+  const { navigateExplorer, openExplorerEditor, prepareCommand, pushToast } = useApp()
 
-  // Windows-scoped files (.wslconfig) open the Windows pane at the file itself;
-  // Linux-scoped files open the WSL pane at the parent directory (goal.md §7.1).
+  // Opens the directory itself for folder entries (`config-dir`), or opens the
+  // parent folder in the matching Explorer pane and highlights the config file.
   const showInExplorer = (file: ConfigurationFileInfo): void => {
-    if (file.scope === 'windows' && file.windowsPath !== null) {
-      navigateExplorer(file.windowsPath, 'windows')
-    } else if (file.linuxPath !== null) {
-      navigateExplorer(dirname(file.linuxPath))
-    } else {
-      return
-    }
+    const raw = configTarget(file)
+    if (!raw) return
+    const target = resolveDashboardExplorerTarget(raw.path, {
+      isDir: isDirectoryEntry(file),
+      forceLinux: raw.fs === 'linux'
+    })
+    navigateExplorer(target.path, target.fs, target.selectPath)
     pushToast('info', t('toast.openedInExplorer', { defaultValue: 'Opened in Explorer' }))
+  }
+
+  const openInEditor = (file: ConfigurationFileInfo): void => {
+    if (isDirectoryEntry(file)) return
+    const raw = configTarget(file)
+    if (!raw) return
+    openExplorerEditor(raw.path, raw.fs)
   }
 
   // Never auto-edits config files — read-only files get a prepared sudoedit
@@ -52,7 +71,8 @@ export default function ConfigCard({
       {files.map((f) => {
         const path = f.linuxPath ?? f.windowsPath
         const lp = f.linuxPath
-        const explorerTarget = f.scope === 'windows' ? f.windowsPath : f.linuxPath
+        const explorerTarget = configTarget(f)
+        const isDir = isDirectoryEntry(f)
         return (
           <div key={f.id} className="path-row">
             <span className={dotClass(f.exists)} />
@@ -87,14 +107,14 @@ export default function ConfigCard({
                   <FolderIcon size={14} />
                 </button>
               ) : null}
-              {lp ? (
+              {explorerTarget && !isDir ? (
                 <button
                   type="button"
                   className="icon-btn"
                   aria-label={t('dashboard.config.openInEditor')}
                   title={t('dashboard.config.openInEditor')}
                   disabled={f.exists === false || f.readable === false}
-                  onClick={() => showInExplorer(f)}
+                  onClick={() => openInEditor(f)}
                 >
                   <FileIcon size={14} />
                 </button>

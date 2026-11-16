@@ -7,6 +7,7 @@ import { i18n, initRendererI18n } from '@renderer/i18n'
 import { AppStoreProvider, useApp } from '@renderer/store'
 import DashboardTab from '@renderer/dashboard/DashboardTab'
 import EnvironmentCard from '@renderer/dashboard/EnvironmentCard'
+import OpenClawCard from '@renderer/dashboard/OpenClawCard'
 import ProcessesCard from '@renderer/dashboard/ProcessesCard'
 import PortsCard from '@renderer/dashboard/PortsCard'
 import WarningsCard from '@renderer/dashboard/WarningsCard'
@@ -454,9 +455,17 @@ function PreparedProbe(): React.JSX.Element {
 }
 
 function ExplorerProbe(): React.JSX.Element {
-  const { explorerNavigateRequest } = useApp()
+  const { explorerNavigateRequest, explorerOpenFileRequest } = useApp()
   const req = explorerNavigateRequest
-  return <div data-testid="explorer-request">{req ? `${req.fs}:${req.path}` : ''}</div>
+  const openReq = explorerOpenFileRequest
+  return (
+    <>
+      <div data-testid="explorer-request" data-select={req?.selectPath ?? ''}>
+        {req ? `${req.fs}:${req.path}` : ''}
+      </div>
+      <div data-testid="open-file-request">{openReq ? `${openReq.fs}:${openReq.path}` : ''}</div>
+    </>
+  )
 }
 
 function ToastProbe(): React.JSX.Element {
@@ -868,22 +877,180 @@ describe('DashboardTab master–detail', () => {
 })
 
 describe('ConfigCard', () => {
-  it('opens the Windows pane for .wslconfig and the WSL pane for Linux files', async () => {
+  it('opens parent Windows folder for .wslconfig and parent WSL folder for Linux files with selectPath', async () => {
     await renderDashboard(<ExplorerProbe />)
     fireEvent.click(navItem('configuration'))
 
     const buttons = screen.getAllByRole('button', { name: 'Show in Explorer' })
     expect(buttons).toHaveLength(2)
 
-    // Windows-scoped row: the file itself, on the Windows filesystem.
+    // Windows-scoped row: opens parent directory in the Windows pane and selects the file.
     fireEvent.click(buttons[0])
-    expect(screen.getByTestId('explorer-request').textContent).toBe(
-      'windows:C:\\Users\\dev\\.wslconfig'
-    )
+    const probe = screen.getByTestId('explorer-request')
+    expect(probe.textContent).toBe('windows:C:\\Users\\dev')
+    expect(probe.getAttribute('data-select')).toBe('C:\\Users\\dev\\.wslconfig')
 
-    // Linux-scoped row: the parent directory, on the WSL filesystem.
+    // Linux-scoped row: opens parent directory in the WSL pane and selects the file.
     fireEvent.click(screen.getAllByRole('button', { name: 'Show in Explorer' })[1])
-    expect(screen.getByTestId('explorer-request').textContent).toBe('linux:/home/dev')
+    expect(probe.textContent).toBe('linux:/home/dev')
+    expect(probe.getAttribute('data-select')).toBe('/home/dev/.bashrc')
+  })
+
+  it('treats config-dir as a directory: hides Open in editor and opens ~/.config itself', async () => {
+    snapshot.dashboard!.configuration = [
+      ...snapshot.dashboard!.configuration,
+      {
+        id: 'config-dir',
+        label: '~/.config',
+        scope: 'linux',
+        linuxPath: '/home/dev/.config',
+        windowsPath: null,
+        exists: true,
+        readable: true,
+        writable: true
+      }
+    ]
+    await renderDashboard(<ExplorerProbe />)
+    fireEvent.click(navItem('configuration'))
+
+    const configRow = screen.getByText('~/.config').closest('.path-row') as HTMLElement
+    expect(within(configRow).queryByRole('button', { name: 'Open in editor' })).toBeNull()
+
+    fireEvent.click(within(configRow).getByRole('button', { name: 'Show in Explorer' }))
+    const probe = screen.getByTestId('explorer-request')
+    expect(probe.textContent).toBe('linux:/home/dev/.config')
+    expect(probe.getAttribute('data-select')).toBe('')
+  })
+
+  it('opens readable Windows and Linux config files in EditorOverlay while preserving disabled and sudoedit states', async () => {
+    snapshot.dashboard!.configuration = [
+      ...snapshot.dashboard!.configuration,
+      {
+        id: 'missing',
+        label: 'missing.conf',
+        scope: 'linux',
+        linuxPath: '/etc/missing.conf',
+        windowsPath: null,
+        exists: false,
+        readable: false,
+        writable: false
+      },
+      {
+        id: 'secret',
+        label: 'secret.conf',
+        scope: 'linux',
+        linuxPath: '/etc/secret.conf',
+        windowsPath: null,
+        exists: true,
+        readable: false,
+        writable: false
+      }
+    ]
+    await renderDashboard(
+      <>
+        <ExplorerProbe />
+        <PreparedProbe />
+      </>
+    )
+    fireEvent.click(navItem('configuration'))
+
+    const wslRow = screen.getByText('.wslconfig').closest('.path-row') as HTMLElement
+    fireEvent.click(within(wslRow).getByRole('button', { name: 'Open in editor' }))
+    expect(screen.getByTestId('open-file-request').textContent).toBe('windows:C:\\Users\\dev\\.wslconfig')
+
+    const bashRow = screen.getByText('~/.bashrc').closest('.path-row') as HTMLElement
+    fireEvent.click(within(bashRow).getByRole('button', { name: 'Open in editor' }))
+    expect(screen.getByTestId('open-file-request').textContent).toBe('linux:/home/dev/.bashrc')
+
+    // Read-only Linux file still prepares sudoedit in the Console.
+    fireEvent.click(within(bashRow).getByRole('button', { name: 'Prepare sudoedit command' }))
+    expect(screen.getByTestId('prepared').textContent).toBe("sudoedit '/home/dev/.bashrc'")
+
+    const missingRow = screen.getByText('missing.conf').closest('.path-row') as HTMLElement
+    expect(
+      (within(missingRow).getByRole('button', { name: 'Show in Explorer' }) as HTMLButtonElement).disabled
+    ).toBe(true)
+    expect(
+      (within(missingRow).getByRole('button', { name: 'Open in editor' }) as HTMLButtonElement).disabled
+    ).toBe(true)
+
+    const secretRow = screen.getByText('secret.conf').closest('.path-row') as HTMLElement
+    expect(
+      (within(secretRow).getByRole('button', { name: 'Show in Explorer' }) as HTMLButtonElement).disabled
+    ).toBe(false)
+    expect(
+      (within(secretRow).getByRole('button', { name: 'Open in editor' }) as HTMLButtonElement).disabled
+    ).toBe(true)
+  })
+})
+
+describe('OpenClawCard', () => {
+  it('routes executable and data rows by each row own path side and respects automount.root', async () => {
+    snapshot.dashboard!.wslSettings = {
+      wslconfigPath: 'C:\\Users\\dev\\.wslconfig',
+      wslconfigExists: true,
+      wslConfPath: '/etc/wsl.conf',
+      wslConfExists: true,
+      restartPending: false,
+      vmStartedAt: null,
+      networkingModeDeclared: null,
+      networkingModeEffective: 'nat',
+      platform: null,
+      interop: null,
+      defaultUser: null,
+      settings: [
+        {
+          section: 'automount',
+          key: 'root',
+          scope: 'linux',
+          declaredValue: '/drives/',
+          effectiveValue: '/drives/',
+          origin: 'wsl-conf',
+          provenance: 'user',
+          verdict: 'applied',
+          note: null
+        }
+      ]
+    }
+    const openclaw = {
+      id: 'openclaw',
+      displayName: 'OpenClaw',
+      installed: true,
+      executablePath: '/drives/c/Users/dev/AppData/Roaming/npm/openclaw',
+      version: '2026.4.1',
+      installMethod: 'npm',
+      configPaths: ['/home/dev/.openclaw', '/drives/d/openclaw-state'],
+      runningProcesses: 0,
+      services: [],
+      side: 'windows-mount' as const,
+      shadowedByWindows: true
+    }
+    render(
+      <AppStoreProvider>
+        <OpenClawCard openclaw={openclaw} />
+        <ExplorerProbe />
+      </AppStoreProvider>
+    )
+    await flush()
+
+    const buttons = screen.getAllByRole('button', { name: 'Show in Explorer' })
+    expect(buttons).toHaveLength(3)
+
+    // Executable under custom [automount] root -> converted to Windows path.
+    fireEvent.click(buttons[0])
+    const probe = screen.getByTestId('explorer-request')
+    expect(probe.textContent).toBe('windows:C:\\Users\\dev\\AppData\\Roaming\\npm')
+    expect(probe.getAttribute('data-select')).toBe('C:\\Users\\dev\\AppData\\Roaming\\npm\\openclaw')
+
+    // ext4 data dir -> opens Linux pane even though openclaw.side is windows-mount.
+    fireEvent.click(buttons[1])
+    expect(probe.textContent).toBe('linux:/home/dev/.openclaw')
+    expect(probe.getAttribute('data-select')).toBe('')
+
+    // Windows-mount data dir -> opens converted Windows directory.
+    fireEvent.click(buttons[2])
+    expect(probe.textContent).toBe('windows:D:\\openclaw-state')
+    expect(probe.getAttribute('data-select')).toBe('')
   })
 })
 

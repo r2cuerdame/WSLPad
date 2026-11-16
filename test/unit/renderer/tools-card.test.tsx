@@ -1,6 +1,6 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ToolInfo, WslConfigInfo, WslSettingInfo } from '@shared/types'
+import type { ToolInfo, WslConfigInfo, WslPadSnapshot, WslSettingInfo } from '@shared/types'
 import type { WslPadApi } from '@shared/ipc'
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
@@ -9,7 +9,7 @@ import ToolsCard, { dirOf, effectiveAppendWindowsPath } from '@renderer/dashboar
 
 function makeApi() {
   return {
-    getSnapshot: vi.fn(async () => null),
+    getSnapshot: vi.fn(async (): Promise<WslPadSnapshot | null> => null),
     copyToClipboard: vi.fn(async () => undefined),
     settings: {
       get: vi.fn(async () => defaultSettings()),
@@ -26,7 +26,7 @@ let api: ReturnType<typeof makeApi>
 function NavProbe(): React.JSX.Element {
   const { explorerNavigateRequest } = useApp()
   return (
-    <div data-testid="nav">
+    <div data-testid="nav" data-select={explorerNavigateRequest?.selectPath ?? ''}>
       {explorerNavigateRequest === null
         ? ''
         : `${explorerNavigateRequest.fs}:${explorerNavigateRequest.path}`}
@@ -357,6 +357,82 @@ describe('ToolsCard row actions', () => {
 
     fireEvent.click(within(row).getByRole('button', { name: 'Show in Explorer' }))
     expect(screen.getByTestId('nav').textContent).toBe('linux:/usr/bin')
+    expect(screen.getByTestId('nav').getAttribute('data-select')).toBe('/usr/bin/rg')
+  })
+
+  it('converts windows-mount executable directories to Windows drive folders', () => {
+    renderCard(<ToolsCard tools={SHADOWED} />)
+    const row = screen
+      .getAllByRole('row')
+      .find((r) => r.textContent?.includes('/mnt/c/Program Files/nodejs/npm'))
+    if (row === undefined) throw new Error('no shadowed npm row')
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Show in Explorer' }))
+    expect(screen.getByTestId('nav').textContent).toBe('windows:C:\\Program Files\\nodejs')
+    expect(screen.getByTestId('nav').getAttribute('data-select')).toBe(
+      'C:\\Program Files\\nodejs\\npm'
+    )
+  })
+
+  it('respects custom [automount] root and falls back to linux when path cannot convert', async () => {
+    api.getSnapshot.mockResolvedValue({
+      dashboard: {
+        wslSettings: {
+          wslconfigPath: null,
+          wslconfigExists: null,
+          wslConfPath: '/etc/wsl.conf',
+          wslConfExists: true,
+          restartPending: false,
+          vmStartedAt: null,
+          networkingModeDeclared: null,
+          networkingModeEffective: null,
+          platform: null,
+          interop: null,
+          defaultUser: null,
+          settings: [
+            {
+              section: 'automount',
+              key: 'root',
+              scope: 'linux',
+              declaredValue: '/drives/',
+              effectiveValue: '/drives/',
+              origin: 'wsl-conf',
+              provenance: 'user',
+              verdict: 'applied',
+              note: null
+            }
+          ]
+        }
+      }
+    } as unknown as WslPadSnapshot)
+
+    const tools: ToolInfo[] = [
+      tool('vscode', 'VS Code', {
+        executablePath: '/drives/d/apps/code.exe',
+        side: 'windows-mount'
+      }),
+      tool('weird', 'Unconverted', {
+        executablePath: '/opt/unmounted/foo',
+        side: 'windows-mount'
+      })
+    ]
+
+    renderCard(<ToolsCard tools={tools} />)
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    const vscodeRow = screen.getAllByRole('row').find((r) => r.textContent?.includes('VS Code'))
+    if (vscodeRow === undefined) throw new Error('no vscode row')
+    fireEvent.click(within(vscodeRow).getByRole('button', { name: 'Show in Explorer' }))
+    expect(screen.getByTestId('nav').textContent).toBe('windows:D:\\apps')
+    expect(screen.getByTestId('nav').getAttribute('data-select')).toBe('D:\\apps\\code.exe')
+
+    const weirdRow = screen.getAllByRole('row').find((r) => r.textContent?.includes('Unconverted'))
+    if (weirdRow === undefined) throw new Error('no unconverted row')
+    fireEvent.click(within(weirdRow).getByRole('button', { name: 'Show in Explorer' }))
+    expect(screen.getByTestId('nav').textContent).toBe('linux:/opt/unmounted')
+    expect(screen.getByTestId('nav').getAttribute('data-select')).toBe('/opt/unmounted/foo')
   })
 
   it('offers nothing to copy for a tool that was never found', () => {

@@ -14,6 +14,7 @@ import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import InfoHint from '../components/InfoHint'
 import { FolderIcon, LinuxIcon, WarningIcon, WindowsIcon } from '../components/Icons'
+import { resolveDashboardExplorerTarget } from './explorerTarget'
 
 const STORAGE_KEY = 'wslpad.dashboard.wslconfig.hideDefaults'
 const SCOPE_STORAGE_KEY = 'wslpad.dashboard.wslconfig.scope'
@@ -23,8 +24,6 @@ const SCOPES: readonly Scope[] = ['windows', 'linux']
 
 /** Prepared in the Console, never executed (goal.md §2.2). */
 const SHUTDOWN_COMMAND = 'wsl.exe --shutdown'
-
-const dirname = (p: string): string => p.replace(/\/[^/]*$/, '') || '/'
 
 /** applied and not-set are the healthy verdicts; the rest need the user's eyes. */
 const VERDICT_TONE: Record<SettingVerdict, 'ok' | 'dim' | 'warn' | 'err'> = {
@@ -211,10 +210,11 @@ export default function WslSettingsCard({ settings }: WslSettingsCardProps): Rea
                 title={t('dashboard.config.showInExplorer')}
                 disabled={!exists}
                 onClick={() => {
-                  navigateExplorer(
-                    isWindows ? path : dirname(path),
-                    isWindows ? 'windows' : 'linux'
-                  )
+                  const target = resolveDashboardExplorerTarget(path, {
+                    isDir: false,
+                    forceLinux: !isWindows
+                  })
+                  navigateExplorer(target.path, target.fs, target.selectPath)
                   pushToast('info', t('toast.openedInExplorer'))
                 }}
               >

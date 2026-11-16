@@ -5,6 +5,7 @@ import Card from '../components/Card'
 import CopyButton from '../components/CopyButton'
 import { FolderIcon, TerminalIcon } from '../components/Icons'
 import { SideBadge } from '../components/SideBadge'
+import { resolveDashboardExplorerTarget } from './explorerTarget'
 
 const dotClass = (exists: boolean | null): string =>
   exists === true ? 'dot dot-ok' : exists === false ? 'dot dot-err' : 'dot dot-unknown'
@@ -58,7 +59,13 @@ export default function PathsCard({ paths, mounts = null }: PathsCardProps): Rea
                 aria-label={t('dashboard.paths.openInExplorer')}
                 title={t('dashboard.paths.openInExplorer')}
                 disabled={p.exists === false}
-                onClick={() => navigateExplorer(p.linuxPath)}
+                onClick={() => {
+                  const target = resolveDashboardExplorerTarget(p.linuxPath, {
+                    isDir: p.isDirectory !== false,
+                    forceLinux: true
+                  })
+                  navigateExplorer(target.path, target.fs, target.selectPath)
+                }}
               >
                 <FolderIcon size={14} />
               </button>
