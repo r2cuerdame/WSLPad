@@ -73,6 +73,20 @@ describe('TerminalManager', () => {
     expect(manager.getState('term-Nope')).toBeNull()
     manager.input('term-Nope', 'ls\r')
     await manager.setCwd('term-Nope', '/tmp')
+    manager.clear('term-Nope', 0)
+  })
+
+  it('does not replay cleared output when a live session is ensured again', async () => {
+    const { manager, factory } = makeManager()
+    await manager.ensure('Ubuntu')
+    factory.pty.emit('secret\r\n')
+    factory.pty.emit('dev@Ubuntu:~$ ')
+    manager.clear('term-Ubuntu', 2)
+    await manager.ensure('Debian')
+    const back = await manager.ensure('Ubuntu')
+    expect(back.transcript).toBe('dev@Ubuntu:~$ ')
+    expect(back.seq).toBe(2)
+    expect(back.status).toBe('running')
   })
 
   it('reports start-failed when spawn fails and retries on the next ensure', async () => {

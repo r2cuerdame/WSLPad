@@ -115,6 +115,7 @@ export const IpcChannels = {
   terminalResize: 'wslpad:terminal:resize',
   terminalSetCwd: 'wslpad:terminal:set-cwd',
   terminalGetState: 'wslpad:terminal:get-state',
+  terminalClear: 'wslpad:terminal:clear',
 
   // settings
   settingsGet: 'wslpad:settings:get',
@@ -298,6 +299,8 @@ export interface WslPadApi {
     resize(sessionId: string, cols: number, rows: number): Promise<void>
     setCwd(sessionId: string, path: string): Promise<void>
     getState(sessionId: string): Promise<{ status: ConsoleStatus; cwd: string | null }>
+    /** Forget retained output up to `throughSeq` so a later ensure() does not replay it. */
+    clear(sessionId: string, throughSeq: number): Promise<void>
     onData(cb: (ev: TerminalDataEvent) => void): () => void
     onStatus(cb: (ev: TerminalStatusEvent) => void): () => void
   }

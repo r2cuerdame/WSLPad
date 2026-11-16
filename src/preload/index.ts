@@ -127,6 +127,8 @@ const api: WslPadApi = {
       ipcRenderer.invoke(IpcChannels.terminalResize, sessionId, cols, rows),
     setCwd: (sessionId, path) => ipcRenderer.invoke(IpcChannels.terminalSetCwd, sessionId, path),
     getState: (sessionId) => ipcRenderer.invoke(IpcChannels.terminalGetState, sessionId),
+    clear: (sessionId, throughSeq) =>
+      ipcRenderer.invoke(IpcChannels.terminalClear, sessionId, throughSeq),
     onData: (cb) => subscribe<TerminalDataEvent>(IpcChannels.evTerminalData, cb),
     onStatus: (cb) => subscribe<TerminalStatusEvent>(IpcChannels.evTerminalStatus, cb)
   },
