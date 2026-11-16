@@ -1014,6 +1014,37 @@
   color: var(--err);
 }
 
+.props-error-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.props-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.props-actions button:disabled:hover {
+  background: var(--bg-card);
+}
+
+.props-size-failed {
+  color: var(--err);
+}
+
+.props-note {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+/* Focus holders for buttons that unmount on click; not tab stops themselves. */
+.props-content:focus,
+.props-size:focus {
+  outline: none;
+}
+
 /* ---- Transfer progress ---- */
 
 .transfer-panel {
