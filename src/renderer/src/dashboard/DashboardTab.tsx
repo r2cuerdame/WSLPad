@@ -296,6 +296,7 @@ export default function DashboardTab(): React.JSX.Element {
         return (
           <ProfilesCard
             tools={dash.tools}
+            distro={dash.distro.name}
             onDiscover={(query) => {
               setDiscoverQuery(query)
               selectSection('discover')
@@ -305,7 +306,7 @@ export default function DashboardTab(): React.JSX.Element {
       case 'discover':
         return <DiscoverCard distro={dash.distro.name} initialQuery={discoverQuery} />
       case 'update-center':
-        return <UpdateCenterCard />
+        return <UpdateCenterCard distro={dash.distro.name} />
       case 'usb':
         return (
           <UsbCard

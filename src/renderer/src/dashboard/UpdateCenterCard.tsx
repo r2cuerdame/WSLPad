@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PackageUpdateCenterResult } from '@shared/types'
 import Card from '../components/Card'
@@ -12,11 +12,20 @@ type ViewState =
   | { kind: 'done'; value: PackageUpdateCenterResult }
   | { kind: 'error'; message: string }
 
-export default function UpdateCenterCard(): React.JSX.Element {
+export default function UpdateCenterCard({ distro }: { distro: string }): React.JSX.Element {
   const { t } = useTranslation()
   const { prepareCommand, pushToast } = useApp()
   const [view, setView] = useState<ViewState>({ kind: 'idle' })
   const requestId = useRef(0)
+
+  useLayoutEffect(() => {
+    const pending = requestId
+    return () => {
+      pending.current++
+      setView({ kind: 'idle' })
+    }
+  }, [distro])
+
   const check = async (): Promise<void> => {
     const id = ++requestId.current
     setView({ kind: 'loading' })
