@@ -36,3 +36,9 @@
 --- | --- | --- | ---
 2026-11-01 | https://github.com/r2cuerdame/WSLPad/issues/107 | 의종 결정: 깨끗한 Windows 검사는 집 PC Hyper-V로. | 의종 합의됨
 ```
+
+## 의종 결정 (2026-11-16 14:53~14:57 KST, PLC/KPI)
+
+날짜 | 출처 | 내용 | 상태
+--- | --- | --- | ---
+2026-11-16T09:18:30Z | https://github.com/r2cuerdame/WSLPad/issues/277#issuecomment-6912350751; https://github.com/r2cuerdame/WSLPad/issues/131#issuecomment-6912370903 | <!-- loop-guideline:idle-answer-6912350751 --> <!-- loop-guideline:plc-decision-1116-wslpad --> 의종 결정: 의종 결정(11/16 14:53~14:57): A안 승인(DAU 1→3→5, 7일 평균).<br>프로젝트 상태: 활성 | 의종 합의됨
