@@ -31,13 +31,8 @@ interface TargetPath {
   fs: FsKind
 }
 
-/** Debounce for persisting the last visited WSL path (goal.md §5.4). */
 const LAST_PATH_DEBOUNCE_MS = 800
 
-/**
- * Dual-pane Explorer (goal.md §7): Windows on the left, the selected WSL
- * distro on the right, with cross-filesystem copy between them.
- */
 export function ExplorerTab(): React.JSX.Element {
   const { t } = useTranslation()
   const {
@@ -75,8 +70,6 @@ export function ExplorerTab(): React.JSX.Element {
     selectPath?: string
   } | null>(null)
 
-  // The Windows pane ignores the Explorer start-location setting: it always
-  // opens at the Windows user profile.
   useEffect(() => {
     let disposed = false
     void window.wslpad.windows
@@ -92,38 +85,81 @@ export function ExplorerTab(): React.JSX.Element {
     }
   }, [])
 
-  // WSL pane start location (goal.md §7.2): last path, or the distro HOME once
-  // the first snapshot knows it — never a guessed '/'.
+  const [legacyDistro, setLegacyDistro] = useState<string | null>(null)
+  useEffect(() => {
+    if (settings && distro !== null && legacyDistro === null) setLegacyDistro(distro)
+  }, [settings, distro, legacyDistro])
+
   const linuxStart = useMemo(() => {
     if (!settings || distro === null) return null
-    if (settings.explorer.startLocation === 'last' && settings.explorer.lastPath) {
-      return settings.explorer.lastPath
+    const { startLocation, lastPaths, lastPath } = settings.explorer
+    if (startLocation === 'last') {
+      const remembered = lastPaths[distro]
+      if (remembered) return remembered
+      const legacyApplies =
+        lastPath !== null &&
+        Object.keys(lastPaths).length === 0 &&
+        (legacyDistro === null || legacyDistro === distro)
+      if (legacyApplies) return lastPath
     }
     return home
-  }, [settings, distro, home])
+  }, [settings, distro, home, legacyDistro])
 
   const showHiddenDefault = settings?.explorer.showHiddenByDefault ?? false
   const settingsLoaded = settings !== null
+
+  // Updated after FilePane's reset effect so a listing that lands before the
+  // reset is still credited to the distro it was read from.
+  const distroRef = useRef(distro)
+  useEffect(() => {
+    distroRef.current = distro
+  }, [distro])
+
+  const savedExplorerRef = useRef(settings?.explorer ?? null)
+  savedExplorerRef.current = settings?.explorer ?? null
+
+  const pendingLastPath = useRef<{ distro: string; path: string; timer: number } | null>(null)
+  const flushLastPath = useCallback(() => {
+    const pending = pendingLastPath.current
+    if (!pending) return
+    pendingLastPath.current = null
+    window.clearTimeout(pending.timer)
+    void window.wslpad.settings.set({
+      explorer: { lastPaths: { [pending.distro]: pending.path }, lastPath: null }
+    })
+  }, [])
+
+  const rememberLastPath = useCallback(
+    (path: string) => {
+      const owner = distroRef.current
+      if (owner === null) return
+      const pending = pendingLastPath.current
+      if (pending && pending.distro !== owner) flushLastPath()
+      else if (pending) window.clearTimeout(pending.timer)
+      else {
+        const saved = savedExplorerRef.current
+        if (saved && saved.lastPath === null && saved.lastPaths[owner] === path) return
+      }
+      pendingLastPath.current = {
+        distro: owner,
+        path,
+        timer: window.setTimeout(flushLastPath, LAST_PATH_DEBOUNCE_MS)
+      }
+    },
+    [flushLastPath]
+  )
+
+  useEffect(() => flushLastPath, [flushLastPath])
 
   const onLinuxPathChange = useCallback(
     (p: string) => {
       setLinuxPath(p)
       setConsolePath(p)
+      if (settingsLoaded) rememberLastPath(p)
     },
-    [setConsolePath]
+    [setConsolePath, settingsLoaded, rememberLastPath]
   )
 
-  // Persist the last visited WSL path, debounced. The Windows pane never
-  // writes it — only the WSL side is restored on restart.
-  useEffect(() => {
-    if (!linuxPath || !settingsLoaded) return
-    const timer = setTimeout(() => {
-      void window.wslpad.settings.set({ explorer: { lastPath: linuxPath } })
-    }, LAST_PATH_DEBOUNCE_MS)
-    return () => clearTimeout(timer)
-  }, [linuxPath, settingsLoaded])
-
-  // Navigation requested from the Dashboard, routed to the matching pane.
   useEffect(() => {
     if (!explorerNavigateRequest) return
     setEditor(null)
@@ -132,8 +168,6 @@ export function ExplorerTab(): React.JSX.Element {
     consumeExplorerNavigate()
   }, [explorerNavigateRequest, consumeExplorerNavigate])
 
-  // File editor open requested from the Dashboard; also navigate its parent pane so
-  // closing the overlay leaves Explorer focused on the containing folder.
   useEffect(() => {
     if (!explorerOpenFileRequest) return
     const { id, path, fs } = explorerOpenFileRequest
@@ -244,8 +278,6 @@ export function ExplorerTab(): React.JSX.Element {
         <TrashDialog
           onClose={() => setTrashOpen(false)}
           onRestored={(paths) => {
-            // The folder a file came back to is where someone wants to be
-            // looking; navigating there also reloads the listing it rejoined.
             const first = paths[0]
             if (first === undefined) return
             const parent = first.replace(/\/[^/]*$/, '') || '/'

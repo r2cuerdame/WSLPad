@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'f
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { POLL_BOUNDS, POLL_DEFAULTS } from '@shared/constants'
+import { EXPLORER_LAST_PATHS_MAX, POLL_BOUNDS, POLL_DEFAULTS } from '@shared/constants'
 import { parseSettings } from '@shared/schemas'
 import type { SettingsPatch } from '@shared/types'
 import { SettingsStore } from '../../../src/main/settings/store'
@@ -272,6 +272,80 @@ describe('SettingsStore persistence across restarts', () => {
     expect(second.get().language).toBe('ko')
     expect(second.get().explorer.showHiddenByDefault).toBe(true)
     expect(second.get().mcp.token).toBe(token)
+  })
+})
+
+describe('Explorer last folder per distro', () => {
+  it('reads an old single-folder file without errors and keeps the other values', () => {
+    writeFileSync(
+      file,
+      JSON.stringify({
+        schemaVersion: 1,
+        language: 'ko',
+        theme: 'dark',
+        explorer: { showHiddenByDefault: true, startLocation: 'last', lastPath: '/home/dev/projects' },
+        mcp: { enabled: true, port: 4930, token: 'keep-me' }
+      })
+    )
+    const store = new SettingsStore(file)
+    const s = store.get()
+    expect(store.loadError).toEqual({ corrupted: false, unreadable: false, message: null })
+    expect(s.language).toBe('ko')
+    expect(s.theme).toBe('dark')
+    expect(s.mcp).toMatchObject({ port: 4930, token: 'keep-me' })
+    expect(s.explorer).toEqual({
+      showHiddenByDefault: true,
+      startLocation: 'last',
+      lastPath: '/home/dev/projects',
+      lastPaths: {}
+    })
+  })
+
+  it('merges one distro at a time and clears the old single folder', () => {
+    const store = new SettingsStore(file)
+    store.patch({ explorer: { lastPath: '/legacy' } })
+    store.patch({ explorer: { lastPaths: { 'Ubuntu-24.04': '/home/dev/logs' }, lastPath: null } })
+    store.patch({ explorer: { lastPaths: { Debian: '/srv' } } })
+    store.patch({ explorer: { lastPaths: { 'Ubuntu-24.04': '/home/dev' } } })
+    expect(store.get().explorer.lastPath).toBeNull()
+    expect(store.get().explorer.lastPaths).toEqual({ Debian: '/srv', 'Ubuntu-24.04': '/home/dev' })
+    expect(Object.keys(store.get().explorer.lastPaths)).toEqual(['Debian', 'Ubuntu-24.04'])
+    const reloaded = new SettingsStore(file)
+    expect(reloaded.get().explorer.lastPaths).toEqual({
+      Debian: '/srv',
+      'Ubuntu-24.04': '/home/dev'
+    })
+  })
+
+  it('drops invalid entries and keeps only the most recent distros', () => {
+    const store = new SettingsStore(file)
+    store.patch({
+      explorer: {
+        lastPaths: {
+          'bad name': '/x',
+          ['__proto__']: '/y',
+          Ok: 'relative',
+          Fine: '/home/fine'
+        } as Record<string, string>
+      }
+    })
+    expect(store.get().explorer.lastPaths).toEqual({ Fine: '/home/fine' })
+
+    for (let i = 0; i < EXPLORER_LAST_PATHS_MAX + 5; i++) {
+      store.patch({ explorer: { lastPaths: { [`D${i}`]: `/p/${i}` } } })
+    }
+    const kept = Object.keys(store.get().explorer.lastPaths)
+    expect(kept).toHaveLength(EXPLORER_LAST_PATHS_MAX)
+    expect(kept[kept.length - 1]).toBe(`D${EXPLORER_LAST_PATHS_MAX + 4}`)
+    expect(kept).not.toContain('Fine')
+  })
+
+  it('recovers a broken map as empty', () => {
+    expect(parseSettings({ explorer: { lastPaths: 'nope' } }).explorer.lastPaths).toEqual({})
+    expect(parseSettings({ explorer: { lastPaths: ['/a'] } }).explorer.lastPaths).toEqual({})
+    expect(
+      parseSettings({ explorer: { lastPaths: { Ubuntu: '/a', Debian: 7 } } }).explorer.lastPaths
+    ).toEqual({ Ubuntu: '/a' })
   })
 })
 

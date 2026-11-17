@@ -1,7 +1,14 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WslPadApi } from '@shared/ipc'
-import type { DirSizeEntry, DirSizeResult, FileEntry, WslPadSnapshot } from '@shared/types'
+import type {
+  DirSizeEntry,
+  DirSizeResult,
+  FileEntry,
+  Settings,
+  SettingsPatch,
+  WslPadSnapshot
+} from '@shared/types'
 import { PANE_SPLIT_BOUNDS, PANE_SPLIT_DEFAULT, WINDOWS_ROOT } from '@shared/constants'
 import { defaultSettings } from '@shared/schemas'
 import { i18n, initRendererI18n } from '@renderer/i18n'
@@ -1873,5 +1880,194 @@ describe('search results after file changes', () => {
     await waitFor(() => expect(rowNames('linux')).toContain('config.json'))
     expect(rowNames('linux')).not.toContain('old.log')
     expect(searchBox('linux').value).toBe('')
+  })
+})
+
+describe('last visited folder per distro', () => {
+  const UBUNTU = 'Ubuntu-24.04'
+  const DEBIAN = 'Debian'
+  const DEB_HOME = '/home/deb'
+  const LOGS = `${LINUX_HOME}/logs`
+  const DEB_WORK = `${DEB_HOME}/work`
+
+  const listings: Record<string, Record<string, FileEntry[]>> = {
+    [UBUNTU]: {
+      ...linuxListings,
+      [`${LINUX_HOME}/logs`]: [entry({ name: 'app.log', path: `${LINUX_HOME}/logs/app.log` })]
+    },
+    [DEBIAN]: {
+      [DEB_HOME]: [
+        entry({ name: 'work', path: DEB_WORK, type: 'directory', sizeBytes: null }),
+        entry({ name: 'deb.txt', path: `${DEB_HOME}/deb.txt` })
+      ],
+      [DEB_WORK]: [entry({ name: 'todo.md', path: `${DEB_WORK}/todo.md` })]
+    }
+  }
+
+  let current: Settings
+  let activeDistro: string
+  let pushSnapshot: (s: WslPadSnapshot) => void
+  let settingsListener: ((s: Settings) => void) | null
+  const setSettings = vi.fn(async (patch: SettingsPatch): Promise<Settings> => {
+    const e = patch.explorer ?? {}
+    current = {
+      ...current,
+      explorer: {
+        ...current.explorer,
+        ...e,
+        lastPaths: { ...current.explorer.lastPaths, ...(e.lastPaths ?? {}) }
+      }
+    }
+    const next = current
+    act(() => settingsListener?.(next))
+    return next
+  })
+
+  function snapshotFor(distro: string): WslPadSnapshot {
+    const s = makeSnapshot()
+    s.selectedDistro = distro
+    s.distros = [
+      { name: UBUNTU, state: 'Running', wslVersion: 2, isDefault: true },
+      { name: DEBIAN, state: 'Running', wslVersion: 2, isDefault: false }
+    ]
+    if (s.dashboard) {
+      s.dashboard.distro.name = distro
+      s.dashboard.system.home = distro === DEBIAN ? DEB_HOME : LINUX_HOME
+    }
+    return s
+  }
+
+  function useSettings(explorer: Partial<Settings['explorer']>): void {
+    const base = defaultSettings()
+    current = { ...base, explorer: { ...base.explorer, startLocation: 'last', ...explorer } }
+    settingsListener = null
+    setSettings.mockClear()
+    activeDistro = UBUNTU
+    snapshot = snapshotFor(UBUNTU)
+    Object.assign(api, {
+      getSnapshot: vi.fn(async () => snapshot),
+      onSnapshot: vi.fn((cb: (s: WslPadSnapshot) => void) => {
+        pushSnapshot = cb
+        return () => undefined
+      })
+    })
+    Object.assign(api.settings, {
+      get: vi.fn(async () => current),
+      set: setSettings,
+      onChange: vi.fn((cb: (s: Settings) => void) => {
+        settingsListener = cb
+        return () => {
+          settingsListener = null
+        }
+      })
+    })
+    api.explorer.list.mockImplementation(async (path: string) => {
+      const listing = listings[activeDistro]?.[path]
+      if (!listing) throw new Error(`ENOENT: ${path}`)
+      return listing
+    })
+  }
+
+  async function renderTab(): Promise<void> {
+    render(
+      <AppStoreProvider>
+        <ConsolePathProbe />
+        <ExplorerTab />
+      </AppStoreProvider>
+    )
+    await flush()
+  }
+
+  async function switchTo(distro: string): Promise<void> {
+    activeDistro = distro
+    await act(async () => {
+      pushSnapshot(snapshotFor(distro))
+    })
+  }
+
+  const consolePath = (): string => screen.getByTestId('console-path').textContent ?? ''
+
+  const savedFor = (distro: string): (string | undefined)[] =>
+    setSettings.mock.calls.map(([patch]) => patch.explorer?.lastPaths?.[distro])
+      .filter((p) => p !== undefined)
+
+  it('keeps a separate last folder for each distro across switches', async () => {
+    useSettings({})
+    await renderTab()
+    await waitFor(() => expect(consolePath()).toBe(LINUX_HOME))
+
+    fireEvent.doubleClick(await within(pane('linux')).findByText('logs'))
+    await waitFor(() => expect(consolePath()).toBe(LOGS))
+    await waitFor(() => expect(current.explorer.lastPaths[UBUNTU]).toBe(LOGS), { timeout: 3000 })
+
+    const callsBeforeSwitch = api.explorer.list.mock.calls.length
+    await switchTo(DEBIAN)
+    await waitFor(() => expect(consolePath()).toBe(DEB_HOME))
+    const debianCalls = api.explorer.list.mock.calls.slice(callsBeforeSwitch).map(([p]) => p)
+    expect(debianCalls).not.toContain(LOGS)
+
+    fireEvent.doubleClick(await within(pane('linux')).findByText('work'))
+    await waitFor(() => expect(consolePath()).toBe(DEB_WORK))
+    await waitFor(() => expect(current.explorer.lastPaths[DEBIAN]).toBe(DEB_WORK), {
+      timeout: 3000
+    })
+    expect(current.explorer.lastPaths[UBUNTU]).toBe(LOGS)
+
+    await switchTo(UBUNTU)
+    await waitFor(() => expect(consolePath()).toBe(LOGS))
+    await switchTo(DEBIAN)
+    await waitFor(() => expect(consolePath()).toBe(DEB_WORK))
+    expect(savedFor(DEBIAN)).not.toContain(LOGS)
+    expect(savedFor(UBUNTU)).not.toContain(DEB_WORK)
+  })
+
+  it('credits a move made just before switching to the distro it happened in', async () => {
+    useSettings({})
+    await renderTab()
+    await waitFor(() => expect(consolePath()).toBe(LINUX_HOME))
+
+    fireEvent.doubleClick(await within(pane('linux')).findByText('logs'))
+    await waitFor(() => expect(consolePath()).toBe(LOGS))
+    await switchTo(DEBIAN)
+    await waitFor(() => expect(consolePath()).toBe(DEB_HOME))
+
+    await waitFor(() => expect(current.explorer.lastPaths[UBUNTU]).toBe(LOGS), { timeout: 3000 })
+    await waitFor(() => expect(current.explorer.lastPaths[DEBIAN]).toBe(DEB_HOME), {
+      timeout: 3000
+    })
+    expect(savedFor(DEBIAN)).toEqual([DEB_HOME])
+  })
+
+  it('opens the remembered folder of the selected distro on start', async () => {
+    useSettings({ lastPaths: { [UBUNTU]: LOGS, [DEBIAN]: DEB_WORK } })
+    await renderTab()
+    await waitFor(() => expect(consolePath()).toBe(LOGS))
+    expect(api.explorer.list).not.toHaveBeenCalledWith(LINUX_HOME, expect.anything())
+  })
+
+  it('falls back to the distro home when the remembered folder is gone', async () => {
+    useSettings({ lastPaths: { [UBUNTU]: `${LINUX_HOME}/gone` } })
+    await renderTab()
+    await waitFor(() => expect(consolePath()).toBe(LINUX_HOME))
+  })
+
+  it('ignores remembered folders when the start location is home', async () => {
+    useSettings({ startLocation: 'home', lastPaths: { [UBUNTU]: LOGS } })
+    await renderTab()
+    await waitFor(() => expect(consolePath()).toBe(LINUX_HOME))
+    expect(api.explorer.list).not.toHaveBeenCalledWith(LOGS, expect.anything())
+  })
+
+  it('uses an old single last folder once for the first distro and migrates it', async () => {
+    useSettings({ lastPath: LOGS, lastPaths: {} })
+    await renderTab()
+    await waitFor(() => expect(consolePath()).toBe(LOGS))
+
+    await switchTo(DEBIAN)
+    await waitFor(() => expect(consolePath()).toBe(DEB_HOME))
+
+    await waitFor(() => expect(current.explorer.lastPaths[UBUNTU]).toBe(LOGS), { timeout: 3000 })
+    expect(current.explorer.lastPath).toBeNull()
+    expect(savedFor(DEBIAN)).not.toContain(LOGS)
   })
 })
