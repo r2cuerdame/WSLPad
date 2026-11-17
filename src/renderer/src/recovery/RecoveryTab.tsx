@@ -133,7 +133,8 @@ export default function RecoveryTab(): React.JSX.Element {
     setHistory((rows) => rows.map((row) => row.id === id ? { ...row, verification: 'verified' } : row))
   }
 
-  const latest = (operation: RecoveryOperation): RecoveryHistoryEntry | undefined => history.find((row) => row.operation === operation)
+  const latest = (operation: RecoveryOperation): RecoveryHistoryEntry | undefined =>
+    history.find((row) => row.operation === operation && (operation === 'restore' || row.sourceDistro === selected))
 
   return (
     <div className="recovery-tab" data-testid="recovery-tab">

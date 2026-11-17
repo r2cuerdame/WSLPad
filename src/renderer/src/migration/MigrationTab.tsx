@@ -22,8 +22,16 @@ export default function MigrationTab(): React.JSX.Element {
   const [verifiedStep2, setVerifiedStep2] = useState<boolean>(false)
   const [verifiedStep3, setVerifiedStep3] = useState<boolean>(false)
   const [verifiedStep4, setVerifiedStep4] = useState<boolean>(false)
+  const [wizardDistro, setWizardDistro] = useState<string>(selected)
 
-  // Fetch real Windows drive info via IPC
+  if (wizardDistro !== selected) {
+    setWizardDistro(selected)
+    setStep(1)
+    setVerifiedStep2(false)
+    setVerifiedStep3(false)
+    setVerifiedStep4(false)
+  }
+
   useEffect(() => {
     let active = true
     void window.wslpad.windows.places().then((places) => {
@@ -31,7 +39,6 @@ export default function MigrationTab(): React.JSX.Element {
       const driveList = places.filter((p) => p.kind === 'drive')
       setDrives(driveList)
 
-      // Pick a secondary drive (D:, E:, etc.) by default if present, else C:
       const secondary = driveList.find((d) => !d.label.toUpperCase().startsWith('C:'))
       const defaultDrive = secondary ? secondary.label.replace(/:+$/, '') : 'C'
       const distroName = selected || 'distro'
@@ -45,19 +52,16 @@ export default function MigrationTab(): React.JSX.Element {
   const bytes = (v: number | null): string => formatBytes(locale, v)
   const onDiskBytes = disk?.allocatedBytes ?? disk?.vhdxBytes ?? null
 
-  // Extract drive letter from current targetFolder (e.g. "D:\WSL\Ubuntu" -> "D")
   const currentDriveLetter = useMemo(() => {
     const m = targetFolder.trim().match(/^([A-Za-z]):/i)
     return m ? m[1].toUpperCase() : null
   }, [targetFolder])
 
-  // Look up matched drive in real system drives
   const matchedDrive = useMemo(() => {
     if (!currentDriveLetter) return null
     return drives.find((d) => d.label.toUpperCase().startsWith(`${currentDriveLetter}:`)) ?? null
   }, [drives, currentDriveLetter])
 
-  // Headroom & Space check against real disk image
   const spaceVerdict = useMemo(() => {
     if (!currentDriveLetter) {
       return { status: 'invalid', message: t('migration.targetPlaceholder') }
@@ -109,7 +113,6 @@ export default function MigrationTab(): React.JSX.Element {
   const step3Ready = step2Ready && verifiedStep3
   const step4Ready = step3Ready && verifiedStep4
 
-  // Max allowed step user can jump to
   const maxAllowedStep = useMemo(() => {
     if (step4Ready) return 5
     if (step3Ready) return 4
@@ -118,7 +121,6 @@ export default function MigrationTab(): React.JSX.Element {
     return 1
   }, [step1Ready, step2Ready, step3Ready, step4Ready])
 
-  // Can user click "Next Step" from the current step?
   const canGoNextFromCurrent = useMemo(() => {
     if (step === 1) return step1Ready
     if (step === 2) return verifiedStep2
@@ -174,7 +176,6 @@ export default function MigrationTab(): React.JSX.Element {
           {t('migration.subtitle')}
         </div>
 
-        {/* Distro & Disk Overview */}
         <div className="migration-overview-box">
           <div className="kv-row">
             <span className="kv-key">{t('migration.selectDistro')}</span>
@@ -182,15 +183,7 @@ export default function MigrationTab(): React.JSX.Element {
               <DistroIcon distro={selected} size={16} />
               <select
                 value={selected}
-                onChange={(e) => {
-                  void selectDistro(e.target.value)
-                  const driveLetter = currentDriveLetter ?? 'C'
-                  setTargetFolder(`${driveLetter}:\\WSL\\${e.target.value}`)
-                  setVerifiedStep2(false)
-                  setVerifiedStep3(false)
-                  setVerifiedStep4(false)
-                  setStep(1)
-                }}
+                onChange={(e) => void selectDistro(e.target.value)}
                 disabled={distros.length === 0}
               >
                 {distros.map((d) => (
@@ -215,7 +208,6 @@ export default function MigrationTab(): React.JSX.Element {
           </div>
         </div>
 
-        {/* Wizard Stepper Progress with Strict Verification Gates */}
         <div className="wizard-steps-nav">
           {[1, 2, 3, 4, 5].map((s) => {
             const isAllowed = s <= maxAllowedStep
@@ -247,13 +239,11 @@ export default function MigrationTab(): React.JSX.Element {
           })}
         </div>
 
-        {/* Step 1: Target Location with Truthful Capacity & Drive Selection */}
         {step === 1 && (
           <div className="wizard-step-panel">
             <h3>{t('migration.step1Title')}</h3>
             <p className="dim">{t('migration.step1Desc')}</p>
 
-            {/* Target Drive Selector */}
             <div className="kv-row" style={{ marginTop: 12 }}>
               <span className="kv-key">{t('migration.targetDrive')}</span>
               <span className="kv-val">
@@ -282,7 +272,6 @@ export default function MigrationTab(): React.JSX.Element {
               </div>
             )}
 
-            {/* Target Folder Input + Open in Explorer Button */}
             <div className="kv-row" style={{ marginTop: 12 }}>
               <span className="kv-key">{t('migration.targetFolder')}</span>
               <span className="kv-val" style={{ flex: 1, display: 'flex', gap: 8 }}>
@@ -305,7 +294,6 @@ export default function MigrationTab(): React.JSX.Element {
               </span>
             </div>
 
-            {/* Truthful Real Space Status Banner */}
             <div
               className={
                 spaceVerdict.status === 'ok'
@@ -321,7 +309,6 @@ export default function MigrationTab(): React.JSX.Element {
           </div>
         )}
 
-        {/* Step 2: Terminate & Export */}
         {step === 2 && (
           <div className="wizard-step-panel">
             <h3>{t('migration.step2Title')}</h3>
@@ -351,7 +338,6 @@ export default function MigrationTab(): React.JSX.Element {
           </div>
         )}
 
-        {/* Step 3: Import into new location */}
         {step === 3 && (
           <div className="wizard-step-panel">
             <h3>{t('migration.step3Title')}</h3>
@@ -381,7 +367,6 @@ export default function MigrationTab(): React.JSX.Element {
           </div>
         )}
 
-        {/* Step 4: Verify default user & boot */}
         {step === 4 && (
           <div className="wizard-step-panel">
             <h3>{t('migration.step4Title')}</h3>
@@ -412,7 +397,6 @@ export default function MigrationTab(): React.JSX.Element {
           </div>
         )}
 
-        {/* Step 5: Cleanup & Finish */}
         {step === 5 && (
           <div className="wizard-step-panel">
             <h3>{t('migration.step5Title')}</h3>
@@ -426,7 +410,6 @@ export default function MigrationTab(): React.JSX.Element {
           </div>
         )}
 
-        {/* Wizard Bottom Controls with Strict Gate Messages */}
         <div className="wizard-footer" style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
           {step > 1 && (
             <button type="button" className="btn" onClick={() => setStep(step - 1)}>

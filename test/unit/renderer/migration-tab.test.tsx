@@ -4,9 +4,21 @@ import { defaultSettings } from '@shared/schemas'
 import { initRendererI18n } from '@renderer/i18n'
 import { AppStoreProvider } from '@renderer/store'
 import MigrationTab from '@renderer/migration/MigrationTab'
-import type { WindowsPlace } from '@shared/types'
+import type { WindowsPlace, WslPadSnapshot } from '@shared/types'
 
 const GIB = 1024 ** 3
+
+function makeSnapshot(selectedDistro: string, generatedAt = '2026-11-18T00:00:00.000Z'): WslPadSnapshot {
+  return {
+    generatedAt,
+    selectedDistro,
+    distros: [
+      { name: 'Ubuntu', state: 'Running', wslVersion: 2, isDefault: true },
+      { name: 'Debian', state: 'Stopped', wslVersion: 2, isDefault: false }
+    ],
+    dashboard: null
+  } as unknown as WslPadSnapshot
+}
 
 function makeDrives(): WindowsPlace[] {
   return [
@@ -51,7 +63,7 @@ function makeApi() {
       ensure: vi.fn(async () => ({ sessionId: 's1', status: 'running', cwd: null })),
       input: vi.fn(async () => undefined)
     },
-    onSnapshot: vi.fn(() => () => undefined),
+    onSnapshot: vi.fn((_cb: (snap: WslPadSnapshot) => void) => () => undefined),
     onNavigateSettings: vi.fn(() => () => undefined),
     selectDistro: vi.fn(async () => undefined),
     setMonitoringPaused: vi.fn(async () => undefined),
@@ -147,5 +159,93 @@ describe('MigrationTab', () => {
     // Now Next Step button should be enabled!
     expect(nextBtn.hasAttribute('disabled')).toBe(false)
     expect(step3Btn.hasAttribute('disabled')).toBe(false)
+  })
+
+  describe('distro switch', () => {
+    async function emit(snap: WslPadSnapshot): Promise<void> {
+      const cb = api.onSnapshot.mock.calls.at(-1)![0]
+      await act(async () => {
+        cb(snap)
+      })
+    }
+
+    async function renderWithDistro(name: string): Promise<void> {
+      await act(async () => {
+        render(
+          <AppStoreProvider>
+            <MigrationTab />
+          </AppStoreProvider>
+        )
+      })
+      await emit(makeSnapshot(name))
+    }
+
+    async function click(el: HTMLElement): Promise<void> {
+      await act(async () => {
+        fireEvent.click(el)
+      })
+    }
+
+    const stepButton = (title: string): HTMLButtonElement =>
+      screen.getAllByText(title).map((el) => el.closest('button')).find((b) => b !== null) as HTMLButtonElement
+    const heading = (): string => screen.getByRole('heading', { level: 3 }).textContent ?? ''
+
+    async function verifyThroughStep3(): Promise<void> {
+      await click(screen.getByRole('button', { name: 'Next Step' }))
+      await click(screen.getByText('Verify Backup File'))
+      await click(screen.getByRole('button', { name: 'Next Step' }))
+      await click(screen.getByText('Verify New Registration'))
+      expect(heading()).toBe('3. Import into New Location')
+      expect(stepButton('4. Verify Default User & Boot').disabled).toBe(false)
+    }
+
+    it('returns to step 1 and clears every verification when the top bar switches distro', async () => {
+      await renderWithDistro('Ubuntu')
+      await verifyThroughStep3()
+
+      await emit(makeSnapshot('Debian'))
+
+      expect(heading()).toBe('1. Choose Target Location')
+      expect(stepButton('3. Import into New Location').disabled).toBe(true)
+      expect(stepButton('4. Verify Default User & Boot').disabled).toBe(true)
+      expect(stepButton('5. Final Verification').disabled).toBe(true)
+      expect(screen.getByDisplayValue('D:\\WSL\\Debian')).toBeTruthy()
+
+      await click(screen.getByRole('button', { name: 'Next Step' }))
+      expect(screen.getByText('Verify Backup File')).toBeTruthy()
+      expect(document.querySelector('pre')?.textContent).toContain('wsl --export Debian')
+      expect(screen.getByRole('button', { name: 'Next Step' }).hasAttribute('disabled')).toBe(true)
+    })
+
+    it('returns to step 1 when the distro is switched from the wizard select', async () => {
+      await renderWithDistro('Ubuntu')
+      await verifyThroughStep3()
+
+      const distroSelect = screen.getAllByRole('combobox')[0] as HTMLSelectElement
+      await act(async () => {
+        fireEvent.change(distroSelect, { target: { value: 'Debian' } })
+      })
+      expect(api.selectDistro).toHaveBeenCalledWith('Debian')
+      await emit(makeSnapshot('Debian'))
+
+      expect(heading()).toBe('1. Choose Target Location')
+      expect(stepButton('3. Import into New Location').disabled).toBe(true)
+    })
+
+    it('keeps the step, verifications, and chosen drive when the same distro re-renders', async () => {
+      await renderWithDistro('Ubuntu')
+      const driveSelect = screen.getAllByRole('combobox')[1] as HTMLSelectElement
+      await act(async () => {
+        fireEvent.change(driveSelect, { target: { value: 'C' } })
+      })
+      await verifyThroughStep3()
+
+      await emit(makeSnapshot('Ubuntu', '2026-11-18T00:00:05.000Z'))
+
+      expect(heading()).toBe('3. Import into New Location')
+      expect(stepButton('4. Verify Default User & Boot').disabled).toBe(false)
+      expect(screen.getByText(/✔ New distribution verified/)).toBeTruthy()
+      expect(document.querySelector('pre')?.textContent).toContain('"C:\\WSL\\Ubuntu"')
+    })
   })
 })
