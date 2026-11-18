@@ -6,12 +6,24 @@ import { closeApp, launchWslPad, type LaunchedApp } from './_helpers'
 const UBUNTU = 'Ubuntu-24.04'
 const PROJECTS = '/home/dev/projects'
 
+const WIN_PROJECTS = 'C:\\Users\\dev\\projects'
+
 const wslList = (page: Page): Locator => page.getByLabel(`${UBUNTU} files`)
+const winPane = (page: Page): Locator => page.getByTestId('pane-windows')
+const winRow = (page: Page, name: RegExp): Locator => winPane(page).getByRole('row', { name })
+
+interface SavedExplorer {
+  showHiddenByDefault: boolean
+  startLocation: 'home' | 'last'
+  lastPath: string | null
+  lastPaths: Record<string, string>
+  windowsLastPath: string | null
+}
 
 function savedSettings(app: LaunchedApp): {
   theme?: string
   language?: string
-  explorer: { lastPath: string | null; lastPaths: Record<string, string> }
+  explorer: SavedExplorer
 } {
   return JSON.parse(readFileSync(join(app.userDataDir, 'settings.json'), 'utf8'))
 }
@@ -100,5 +112,76 @@ test.describe('Explorer remembers the last folder per distro (#386)', () => {
     expect(saved.explorer.lastPath).toBeNull()
     expect(saved.theme).toBe('dark')
     expect(saved.language).toBe('en')
+  })
+})
+
+test.describe('Explorer remembers the last Windows folder (#388)', () => {
+  let launched: LaunchedApp | null = null
+
+  async function start(settings: Record<string, unknown>): Promise<LaunchedApp> {
+    const app = await launchWslPad({}, [], settings)
+    launched = app
+    await expect(app.page.locator('.topbar-distro select')).toBeVisible({ timeout: 15000 })
+    await app.page.getByRole('tab', { name: 'Explorer' }).click()
+    return app
+  }
+
+  async function restart(explorer: SavedExplorer): Promise<LaunchedApp> {
+    if (launched) await closeApp(launched)
+    launched = null
+    return start({ explorer })
+  }
+
+  test.afterEach(async () => {
+    if (launched) await closeApp(launched).catch(() => {})
+    launched = null
+  })
+
+  test('reopens the Windows folder after a restart and falls back home when it is gone', async () => {
+    const first = await start({ explorer: { startLocation: 'last' } })
+    await expect(winRow(first.page, /^projects/)).toBeVisible({ timeout: 15000 })
+    await winRow(first.page, /^projects/).dblclick()
+    await expect(winRow(first.page, /^demo/)).toBeVisible()
+    await expect.poll(() => savedSettings(first).explorer.windowsLastPath).toBe(WIN_PROJECTS)
+    const remembered = savedSettings(first).explorer
+
+    const second = await restart(remembered)
+    await expect(winRow(second.page, /^demo/)).toBeVisible({ timeout: 15000 })
+    await expect(wslList(second.page).getByText('projects', { exact: true })).toBeVisible()
+
+    const third = await restart({ ...remembered, windowsLastPath: 'C:\\Users\\dev\\gone' })
+    await expect(winRow(third.page, /^Documents/)).toBeVisible({ timeout: 15000 })
+    await expect(third.page.locator('.toast-error')).toHaveCount(0)
+  })
+
+  test('reopens the drive list when the app was closed there', async () => {
+    const { page } = await start({
+      explorer: { startLocation: 'last', windowsLastPath: 'ThisPC' }
+    })
+    await expect(winRow(page, /^D:/)).toBeVisible({ timeout: 15000 })
+    await expect(winRow(page, /^Documents/)).toHaveCount(0)
+  })
+
+  test('home start location ignores the remembered Windows folder', async () => {
+    const { page } = await start({
+      explorer: { startLocation: 'home', windowsLastPath: WIN_PROJECTS }
+    })
+    await expect(winRow(page, /^Documents/)).toBeVisible({ timeout: 15000 })
+    await expect(winRow(page, /^demo/)).toHaveCount(0)
+  })
+
+  test('switching distros keeps the Windows folder', async () => {
+    const app = await start({
+      explorer: { startLocation: 'last', windowsLastPath: WIN_PROJECTS }
+    })
+    const { page } = app
+    await expect(winRow(page, /^demo/)).toBeVisible({ timeout: 15000 })
+
+    const distroSelect = page.getByRole('combobox', { name: 'Distribution' })
+    await distroSelect.selectOption('Debian')
+    await expect(page.getByRole('region', { name: 'Debian' })).toBeVisible()
+    await expect(winRow(page, /^demo/)).toBeVisible()
+    await page.waitForTimeout(1200)
+    expect(savedSettings(app).explorer.windowsLastPath).toBe(WIN_PROJECTS)
   })
 })

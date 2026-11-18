@@ -144,7 +144,8 @@ export class SettingsStore {
         ...mergeSection<ExplorerSettings>(cur.explorer, p.explorer, [
           'showHiddenByDefault',
           'startLocation',
-          'lastPath'
+          'lastPath',
+          'windowsLastPath'
         ]),
         lastPaths: mergeLastPaths(cur.explorer.lastPaths, p.explorer?.lastPaths)
       },

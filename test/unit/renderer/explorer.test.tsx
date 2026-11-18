@@ -1966,16 +1966,23 @@ describe('last visited folder per distro', () => {
       if (!listing) throw new Error(`ENOENT: ${path}`)
       return listing
     })
+    api.windows.list.mockImplementation(async (path: string) => {
+      const listing = windowsListings[path]
+      if (!listing) throw new Error(`ENOENT: ${path}`)
+      return listing
+    })
   }
 
-  async function renderTab(): Promise<void> {
-    render(
+  async function renderTab(): Promise<() => void> {
+    const { unmount } = render(
       <AppStoreProvider>
         <ConsolePathProbe />
+        <ToastProbe />
         <ExplorerTab />
       </AppStoreProvider>
     )
     await flush()
+    return unmount
   }
 
   async function switchTo(distro: string): Promise<void> {
@@ -2069,5 +2076,93 @@ describe('last visited folder per distro', () => {
     await waitFor(() => expect(current.explorer.lastPaths[UBUNTU]).toBe(LOGS), { timeout: 3000 })
     expect(current.explorer.lastPath).toBeNull()
     expect(savedFor(DEBIAN)).not.toContain(LOGS)
+  })
+
+  describe('Windows pane', () => {
+    const DOCS = `${WIN_HOME}\\Documents`
+
+    const windowsSaves = (): (string | null | undefined)[] =>
+      setSettings.mock.calls
+        .map(([patch]) => patch.explorer?.windowsLastPath)
+        .filter((p) => p !== undefined)
+
+    const windowsListed = (): string[] => api.windows.list.mock.calls.map(([p]) => p)
+
+    const toasts = (): string => screen.getByTestId('toasts').textContent ?? ''
+
+    it('opens the remembered Windows folder on start', async () => {
+      useSettings({ windowsLastPath: DOCS })
+      await renderTab()
+      await waitFor(() => expect(windowsListed()).toContain(DOCS))
+      expect(windowsListed()).not.toContain(WIN_HOME)
+    })
+
+    it('opens the drive list when that is where the user left off', async () => {
+      useSettings({ windowsLastPath: WINDOWS_ROOT })
+      await renderTab()
+      expect(await within(pane('windows')).findByText('D:')).toBeTruthy()
+      expect(windowsListed()).not.toContain(WIN_HOME)
+    })
+
+    it('falls back to the Windows home without an error when the folder is gone', async () => {
+      useSettings({ windowsLastPath: 'E:\\unplugged\\work' })
+      await renderTab()
+      expect(await within(pane('windows')).findByText('notes.txt')).toBeTruthy()
+      expect(windowsListed()).toContain('E:\\unplugged\\work')
+      expect(toasts()).toBe('')
+    })
+
+    it('always opens the Windows home when the start location is home', async () => {
+      useSettings({ startLocation: 'home', windowsLastPath: DOCS })
+      await renderTab()
+      expect(await within(pane('windows')).findByText('notes.txt')).toBeTruthy()
+      expect(windowsListed()).not.toContain(DOCS)
+    })
+
+    it('saves only once after several quick moves', async () => {
+      useSettings({ windowsLastPath: WIN_HOME })
+      await renderTab()
+      const win = pane('windows')
+      fireEvent.doubleClick(await within(win).findByText('Documents'))
+      await waitFor(() => expect(windowsListed()).toContain(DOCS))
+      fireEvent.click(within(win).getByRole('button', { name: 'Up' }))
+      await within(win).findByText('notes.txt')
+      fireEvent.click(within(win).getByRole('button', { name: 'Up' }))
+      await waitFor(() => expect(windowsListed()).toContain('C:\\Users'))
+
+      await waitFor(() => expect(current.explorer.windowsLastPath).toBe('C:\\Users'), {
+        timeout: 3000
+      })
+      expect(windowsSaves()).toEqual(['C:\\Users'])
+    })
+
+    it('saves a move made right before the explorer closes', async () => {
+      useSettings({ windowsLastPath: WIN_HOME })
+      const unmount = await renderTab()
+      fireEvent.doubleClick(await within(pane('windows')).findByText('Documents'))
+      await waitFor(() => expect(windowsListed()).toContain(DOCS))
+      expect(windowsSaves()).toEqual([])
+      unmount()
+      expect(windowsSaves()).toEqual([DOCS])
+    })
+
+    it('keeps the Windows folder and its memory when the distro changes', async () => {
+      useSettings({ windowsLastPath: DOCS, lastPaths: { [UBUNTU]: LOGS } })
+      await renderTab()
+      await waitFor(() => expect(consolePath()).toBe(LOGS))
+      await waitFor(() => expect(windowsListed()).toContain(DOCS))
+      const before = windowsListed().length
+
+      await switchTo(DEBIAN)
+      await waitFor(() => expect(consolePath()).toBe(DEB_HOME))
+      await switchTo(UBUNTU)
+      await waitFor(() => expect(consolePath()).toBe(LOGS))
+
+      expect(windowsListed().slice(before)).not.toContain(WIN_HOME)
+      expect(within(pane('windows')).queryByText('notes.txt')).toBeNull()
+      await new Promise((r) => setTimeout(r, 1000))
+      expect(windowsSaves()).toEqual([])
+      expect(current.explorer.windowsLastPath).toBe(DOCS)
+    })
   })
 })

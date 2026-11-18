@@ -1723,6 +1723,7 @@ export interface ExplorerSettings {
   startLocation: 'home' | 'last'
   lastPath: string | null
   lastPaths: Record<string, string>
+  windowsLastPath: string | null
 }
 
 export interface ConsoleSettings {

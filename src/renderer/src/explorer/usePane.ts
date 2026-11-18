@@ -150,7 +150,6 @@ export interface UsePaneOptions {
   /** First directory to open; null keeps the pane idle until it is known. */
   startPath: string | null
   showHiddenDefault: boolean
-  /** Only the Linux pane wires Console cwd sync + lastPath persistence here. */
   onPathChange?: (path: string) => void
 }
 
@@ -249,12 +248,12 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   const navigate = useCallback(
     async (
       target: string,
-      navOpts?: { replace?: boolean; selectPath?: string }
+      navOpts?: { replace?: boolean; selectPath?: string; quiet?: boolean }
     ): Promise<void> => {
       const fs = adapterRef.current
       const normalized = fs.normalize(target)
       if (normalized === null) {
-        pushToast('error', t('errors.notFound', { path: target }))
+        if (!navOpts?.quiet) pushToast('error', t('errors.notFound', { path: target }))
         return
       }
       if (!navOpts?.replace && initializedFor.current === null) {
@@ -294,7 +293,7 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
         setDirSizes(CLOSED_DIR_SIZES)
         optsRef.current.onPathChange?.(normalized)
       } catch {
-        if (seq === navSeqRef.current) {
+        if (seq === navSeqRef.current && !navOpts?.quiet) {
           pushToast('error', t('errors.notFound', { path: normalized }))
         }
       } finally {
@@ -618,17 +617,21 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     setDirSizes(CLOSED_DIR_SIZES)
     pathRef.current = null
     setPath(null)
-    const navPromise = navigate(startPath, { replace: true })
+    const navPromise = navigate(startPath, { replace: true, quiet: true })
     const initSeq = navSeqRef.current
+    const stillWaiting = (): boolean => initSeq === navSeqRef.current && pathRef.current === null
+    const reportStartMissing = (): void => {
+      if (stillWaiting()) pushToast('error', t('errors.notFound', { path: startPath }))
+    }
     void navPromise.then(() => {
-      if (initSeq !== navSeqRef.current || pathRef.current !== null) return
+      if (!stillWaiting()) return
       void adapterRef.current.home().then((h) => {
-        if (initSeq === navSeqRef.current && pathRef.current === null && h !== startPath) {
-          void navigate(h, { replace: true })
-        }
-      })
+        if (!stillWaiting()) return
+        if (h !== startPath) void navigate(h, { replace: true })
+        else reportStartMissing()
+      }, reportStartMissing)
     })
-  }, [resetKey, startPath, showHiddenDefault, navigate])
+  }, [resetKey, startPath, showHiddenDefault, navigate, pushToast, t])
 
   // Refresh the listing when a file operation completes (paste/import/export).
   useEffect(() => {

@@ -8,15 +8,10 @@ import {
   MCP_PORT_BOUNDS,
   POLL_BOUNDS,
   POLL_DEFAULTS,
-  SETTINGS_SCHEMA_VERSION
+  SETTINGS_SCHEMA_VERSION,
+  WINDOWS_ROOT
 } from './constants'
 import { SUPPORTED_LOCALES, type Settings } from './types'
-
-// ---------------------------------------------------------------------------
-// Settings schema (goal.md §5.4): validate, clamp, recover.
-// Safety invariants (no auto-run, MCP read-only, localhost bind, no auto-sudo)
-// are structural — they have no settings key, so they cannot be weakened here.
-// ---------------------------------------------------------------------------
 
 const clamped = (min: number, max: number, dflt: number) =>
   z
@@ -43,9 +38,16 @@ export const settingsSchema = z.object({
       showHiddenByDefault: z.boolean().catch(false),
       startLocation: z.enum(['home', 'last']).catch('home'),
       lastPath: z.string().nullable().catch(null),
-      lastPaths: z.unknown().transform(sanitizeLastPaths)
+      lastPaths: z.unknown().transform(sanitizeLastPaths),
+      windowsLastPath: z.unknown().transform(sanitizeWindowsLastPath)
     })
-    .catch({ showHiddenByDefault: false, startLocation: 'home', lastPath: null, lastPaths: {} }),
+    .catch({
+      showHiddenByDefault: false,
+      startLocation: 'home',
+      lastPath: null,
+      lastPaths: {},
+      windowsLastPath: null
+    }),
   console: z
     .object({
       fontSize: clamped(CONSOLE_FONT_SIZE_BOUNDS.min, CONSOLE_FONT_SIZE_BOUNDS.max, CONSOLE_DEFAULTS.fontSize),
@@ -99,6 +101,11 @@ export function sanitizeLastPaths(raw: unknown): Record<string, string> {
       distroNameSchema.safeParse(distro).success && linuxPathSchema.safeParse(path).success
   ) as [string, string][]
   return Object.fromEntries(valid.slice(-EXPLORER_LAST_PATHS_MAX))
+}
+
+export function sanitizeWindowsLastPath(raw: unknown): string | null {
+  if (raw === WINDOWS_ROOT) return WINDOWS_ROOT
+  return windowsPathSchema.safeParse(raw).success ? (raw as string) : null
 }
 
 /** Windows absolute path (drive or UNC). */

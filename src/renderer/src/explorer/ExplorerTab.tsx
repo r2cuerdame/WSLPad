@@ -70,7 +70,17 @@ export function ExplorerTab(): React.JSX.Element {
     selectPath?: string
   } | null>(null)
 
+  const settingsLoaded = settings !== null
+  const savedExplorerRef = useRef(settings?.explorer ?? null)
+  savedExplorerRef.current = settings?.explorer ?? null
+
   useEffect(() => {
+    if (!settingsLoaded) return
+    const saved = savedExplorerRef.current
+    if (saved?.startLocation === 'last' && saved.windowsLastPath !== null) {
+      setWindowsStart(saved.windowsLastPath)
+      return
+    }
     let disposed = false
     void window.wslpad.windows
       .home()
@@ -83,7 +93,7 @@ export function ExplorerTab(): React.JSX.Element {
     return () => {
       disposed = true
     }
-  }, [])
+  }, [settingsLoaded])
 
   const [legacyDistro, setLegacyDistro] = useState<string | null>(null)
   useEffect(() => {
@@ -106,7 +116,6 @@ export function ExplorerTab(): React.JSX.Element {
   }, [settings, distro, home, legacyDistro])
 
   const showHiddenDefault = settings?.explorer.showHiddenByDefault ?? false
-  const settingsLoaded = settings !== null
 
   // Updated after FilePane's reset effect so a listing that lands before the
   // reset is still credited to the distro it was read from.
@@ -114,9 +123,6 @@ export function ExplorerTab(): React.JSX.Element {
   useEffect(() => {
     distroRef.current = distro
   }, [distro])
-
-  const savedExplorerRef = useRef(settings?.explorer ?? null)
-  savedExplorerRef.current = settings?.explorer ?? null
 
   const pendingLastPath = useRef<{ distro: string; path: string; timer: number } | null>(null)
   const flushLastPath = useCallback(() => {
@@ -150,6 +156,38 @@ export function ExplorerTab(): React.JSX.Element {
   )
 
   useEffect(() => flushLastPath, [flushLastPath])
+
+  const pendingWindowsPath = useRef<{ path: string; timer: number } | null>(null)
+  const flushWindowsPath = useCallback(() => {
+    const pending = pendingWindowsPath.current
+    if (!pending) return
+    pendingWindowsPath.current = null
+    window.clearTimeout(pending.timer)
+    void window.wslpad.settings.set({ explorer: { windowsLastPath: pending.path } })
+  }, [])
+
+  const rememberWindowsPath = useCallback(
+    (path: string) => {
+      const pending = pendingWindowsPath.current
+      if (pending) window.clearTimeout(pending.timer)
+      else if (savedExplorerRef.current?.windowsLastPath === path) return
+      pendingWindowsPath.current = {
+        path,
+        timer: window.setTimeout(flushWindowsPath, LAST_PATH_DEBOUNCE_MS)
+      }
+    },
+    [flushWindowsPath]
+  )
+
+  useEffect(() => flushWindowsPath, [flushWindowsPath])
+
+  const onWindowsPathChange = useCallback(
+    (p: string) => {
+      setWindowsPath(p)
+      if (settingsLoaded) rememberWindowsPath(p)
+    },
+    [settingsLoaded, rememberWindowsPath]
+  )
 
   const onLinuxPathChange = useCallback(
     (p: string) => {
@@ -230,7 +268,7 @@ export function ExplorerTab(): React.JSX.Element {
             onOpenProperties={openProperties}
             onRequestPermanentDelete={requestPermanentDelete}
             onContextMenu={openMenu}
-            onPathChange={setWindowsPath}
+            onPathChange={onWindowsPathChange}
             startPath={windowsStart}
             resetKey="windows"
             showHiddenDefault={showHiddenDefault}
