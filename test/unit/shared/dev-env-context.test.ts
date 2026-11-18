@@ -6,7 +6,7 @@ import {
   MASKED_VALUE
 } from '@shared/constants'
 import { buildDevEnvContext, windowsPathFor } from '@shared/dev-env-context'
-import { devEnvContextToMarkdown } from '@shared/dev-env-context-markdown'
+import { devEnvContextToMarkdown, fmtBytesPlain } from '@shared/dev-env-context-markdown'
 import type { PortInfo, WslPadSnapshot } from '@shared/types'
 import { SnapshotStore } from '../../../src/main/state/store'
 import { FixtureWslProvider } from '../../../src/main/wsl/fixture/provider'
@@ -635,6 +635,26 @@ describe('windowsPathFor', () => {
     expect(windowsPathFor('/c/Users/dev', unc, '/')).toBe('C:\\Users\\dev')
     expect(windowsPathFor('/home/dev', null, '/mnt/')).toBeNull()
     expect(windowsPathFor('relative', unc, '/mnt/')).toBeNull()
+  })
+})
+
+describe('fmtBytesPlain', () => {
+  it('carries a value that rounds up to 1024 into the next unit', () => {
+    expect(fmtBytesPlain(1_048_575)).toBe('1.0 MiB')
+    expect(fmtBytesPlain(1_073_741_823)).toBe('1.0 GiB')
+    expect(fmtBytesPlain(1_099_511_627_775)).toBe('1.0 TiB')
+  })
+
+  it('keeps every other size as it was', () => {
+    expect(fmtBytesPlain(1_048_524)).toBe('1023.9 KiB')
+    expect(fmtBytesPlain(1023)).toBe('1023 B')
+    expect(fmtBytesPlain(64_424_509_440)).toBe('60.0 GiB')
+    expect(fmtBytesPlain(null)).toBe('unknown')
+  })
+
+  it('never carries past the largest unit', () => {
+    expect(fmtBytesPlain(1024 ** 5 - 1)).toBe('1024.0 TiB')
+    expect(fmtBytesPlain(2 * 1024 ** 5)).toBe('2048.0 TiB')
   })
 })
 

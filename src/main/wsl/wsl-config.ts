@@ -640,7 +640,7 @@ export function parseSize(value: string): number | null {
 function formatSize(bytes: number | null): string | null {
   if (bytes === null) return null
   if (bytes === 0) return '0'
-  if (bytes >= GIB) {
+  if (bytes >= GIB || Math.round(bytes / MIB) >= 1024) {
     return bytes % GIB === 0 ? `${bytes / GIB}GB` : `${(bytes / GIB).toFixed(1)}GB`
   }
   return bytes % MIB === 0 ? `${bytes / MIB}MB` : `${Math.round(bytes / MIB)}MB`
