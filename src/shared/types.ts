@@ -68,6 +68,7 @@ export interface DiskUsage {
   usedBytes: number | null
   availableBytes: number | null
   usePercent: number | null
+  mountedOn?: string | null
 }
 
 export interface ResourceInfo {

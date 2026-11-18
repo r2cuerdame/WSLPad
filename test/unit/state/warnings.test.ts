@@ -81,6 +81,55 @@ describe('computeWarnings', () => {
     expect(low[0].id).toBe('disk-low-root')
   })
 
+  it('warns once when /home sits on the same disk as the root (issue #398)', () => {
+    const dashboard = makeDashboard({
+      resources: resources(10, {
+        disks: [
+          { ...disk('/', 92), mountedOn: '/' },
+          { ...disk('/home', 92), mountedOn: '/' },
+          { ...disk('/mnt/c', 40), mountedOn: '/mnt/c' }
+        ]
+      })
+    })
+    const low = computeWarnings(input({ dashboard })).filter((w) => w.messageKey === 'warnings.diskLow')
+    expect(low.map((w) => w.id)).toEqual(['disk-low-root'])
+  })
+
+  it('warns for each separately mounted disk that is full', () => {
+    const dashboard = makeDashboard({
+      resources: resources(10, {
+        disks: [
+          { ...disk('/', 92), mountedOn: '/' },
+          { ...disk('/home', 95), mountedOn: '/home' },
+          { ...disk('/mnt/c', 40), mountedOn: '/mnt/c' }
+        ]
+      })
+    })
+    const low = computeWarnings(input({ dashboard })).filter((w) => w.messageKey === 'warnings.diskLow')
+    expect(low.map((w) => w.id)).toEqual(['disk-low-root', 'disk-low-home'])
+  })
+
+  it('keeps warning per mount when the mount source is unknown', () => {
+    const dashboard = makeDashboard({
+      resources: resources(10, { disks: [disk('/', 92), disk('/home', 92)] })
+    })
+    const low = computeWarnings(input({ dashboard })).filter((w) => w.messageKey === 'warnings.diskLow')
+    expect(low.map((w) => w.id)).toEqual(['disk-low-root', 'disk-low-home'])
+  })
+
+  it('still warns for /home when the root it shares was not read', () => {
+    const dashboard = makeDashboard({
+      resources: resources(10, {
+        disks: [
+          { ...disk('/', null), exists: null },
+          { ...disk('/home', 93), mountedOn: '/' }
+        ]
+      })
+    })
+    const low = computeWarnings(input({ dashboard })).filter((w) => w.messageKey === 'warnings.diskLow')
+    expect(low.map((w) => w.id)).toEqual(['disk-low-home'])
+  })
+
   it('never warns about a full disk from a mount that was not read (issue #318)', () => {
     const dashboard = makeDashboard({
       resources: resources(10, {
