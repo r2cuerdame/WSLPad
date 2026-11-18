@@ -2,7 +2,12 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'f
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { EXPLORER_LAST_PATHS_MAX, POLL_BOUNDS, POLL_DEFAULTS } from '@shared/constants'
+import {
+  EXPLORER_LAST_PATHS_MAX,
+  POLL_BOUNDS,
+  POLL_DEFAULTS,
+  WINDOWS_ROOT
+} from '@shared/constants'
 import { parseSettings } from '@shared/schemas'
 import type { SettingsPatch } from '@shared/types'
 import { SettingsStore } from '../../../src/main/settings/store'
@@ -297,7 +302,8 @@ describe('Explorer last folder per distro', () => {
       showHiddenByDefault: true,
       startLocation: 'last',
       lastPath: '/home/dev/projects',
-      lastPaths: {}
+      lastPaths: {},
+      windowsLastPath: null
     })
   })
 
@@ -346,6 +352,63 @@ describe('Explorer last folder per distro', () => {
     expect(
       parseSettings({ explorer: { lastPaths: { Ubuntu: '/a', Debian: 7 } } }).explorer.lastPaths
     ).toEqual({ Ubuntu: '/a' })
+  })
+})
+
+describe('Explorer last Windows folder', () => {
+  it('reads a file without the Windows folder and keeps the other values', () => {
+    writeFileSync(
+      file,
+      JSON.stringify({
+        schemaVersion: 1,
+        theme: 'dark',
+        explorer: {
+          showHiddenByDefault: true,
+          startLocation: 'last',
+          lastPath: null,
+          lastPaths: { 'Ubuntu-24.04': '/home/dev/logs' }
+        },
+        mcp: { enabled: true, port: 4930, token: 'keep-me' }
+      })
+    )
+    const store = new SettingsStore(file)
+    const s = store.get()
+    expect(store.loadError).toEqual({ corrupted: false, unreadable: false, message: null })
+    expect(s.theme).toBe('dark')
+    expect(s.mcp).toMatchObject({ port: 4930, token: 'keep-me' })
+    expect(s.explorer).toEqual({
+      showHiddenByDefault: true,
+      startLocation: 'last',
+      lastPath: null,
+      lastPaths: { 'Ubuntu-24.04': '/home/dev/logs' },
+      windowsLastPath: null
+    })
+  })
+
+  it('patches the Windows folder without touching the distro folders', () => {
+    const store = new SettingsStore(file)
+    store.patch({ explorer: { startLocation: 'last', lastPaths: { Debian: '/srv' } } })
+    store.patch({ explorer: { windowsLastPath: 'D:\\work\\repo' } })
+    expect(store.get().explorer).toMatchObject({
+      startLocation: 'last',
+      lastPaths: { Debian: '/srv' },
+      windowsLastPath: 'D:\\work\\repo'
+    })
+    store.patch({ explorer: { windowsLastPath: WINDOWS_ROOT } })
+    store.patch({ explorer: { lastPaths: { Debian: '/home/deb' } } })
+    const reloaded = new SettingsStore(file)
+    expect(reloaded.get().explorer.windowsLastPath).toBe(WINDOWS_ROOT)
+    expect(reloaded.get().explorer.lastPaths).toEqual({ Debian: '/home/deb' })
+  })
+
+  it('turns an invalid Windows folder into null', () => {
+    for (const bad of [7, '/home/dev', 'relative\\dir', '', 'C:\\bad\npath', 'x'.repeat(5000), {}]) {
+      expect(parseSettings({ explorer: { windowsLastPath: bad } }).explorer.windowsLastPath).toBeNull()
+    }
+    expect(
+      parseSettings({ explorer: { windowsLastPath: '\\\\server\\share\\dir' } }).explorer
+        .windowsLastPath
+    ).toBe('\\\\server\\share\\dir')
   })
 })
 
