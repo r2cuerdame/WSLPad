@@ -39,11 +39,7 @@ function readStoredView(): DockerView {
   }
 }
 
-/**
- * Docker reports sizes with base-1000 units, and this section quotes docker.
- * Reformatting the total in binary units would make it disagree with every
- * number beside it and with `docker system df` itself.
- */
+// Base-1000 units on purpose so the total matches `docker system df`.
 export function formatDockerBytes(bytes: number): string {
   const units = ['B', 'kB', 'MB', 'GB', 'TB', 'PB']
   let value = Math.abs(bytes)
@@ -52,7 +48,13 @@ export function formatDockerBytes(bytes: number): string {
     value /= 1000
     unit += 1
   }
-  const rounded = unit === 0 ? Math.round(value) : Math.round(value * 100) / 100
+  const round = (v: number, u: number): number => (u === 0 ? Math.round(v) : Math.round(v * 100) / 100)
+  let rounded = round(value, unit)
+  if (rounded >= 1000 && unit < units.length - 1) {
+    value /= 1000
+    unit += 1
+    rounded = round(value, unit)
+  }
   return `${bytes < 0 ? '-' : ''}${rounded}${units[unit]}`
 }
 
