@@ -12,6 +12,7 @@ import {
   emptyObservations,
   isDrvFsMount,
   normalizeBool,
+  observeEffective,
   observedAutomountRoot,
   parseIni,
   parseMounts,
@@ -409,6 +410,19 @@ describe('value comparison', () => {
     expect(valuesMatch('root', '/mnt', '/mnt/')).toBe(true)
     expect(valuesMatch('root', '/', '/')).toBe(true)
     expect(valuesMatch('root', '/Mnt/', '/mnt/')).toBe(false)
+  })
+
+  it('shows a memory or swap total that rounds to 1024 MB as GB', () => {
+    const shown = (bytes: number) => ({
+      memory: observeEffective('wsl2', 'memory', observations({ memTotalBytes: bytes })).value,
+      swap: observeEffective('wsl2', 'swap', observations({ swapTotalBytes: bytes })).value
+    })
+    expect(shown(1_073_217_536)).toEqual({ memory: '1.0GB', swap: '1.0GB' })
+    expect(shown(1_073_741_823)).toEqual({ memory: '1.0GB', swap: '1.0GB' })
+    expect(shown(8 * 1024 ** 3)).toEqual({ memory: '8GB', swap: '8GB' })
+    expect(shown(512 * 1024 ** 2)).toEqual({ memory: '512MB', swap: '512MB' })
+    expect(shown(0)).toEqual({ memory: '0', swap: '0' })
+    expect(valuesMatch('memory', '1GB', shown(1_073_217_536).memory ?? '')).toBe(true)
   })
 })
 

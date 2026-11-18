@@ -19,13 +19,17 @@ import type {
   PortReachability
 } from './types'
 
-/** Locale-free byte formatting for machine-facing exports. */
 export function fmtBytesPlain(bytes: number | null): string {
   if (bytes === null) return 'unknown'
   const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
   let value = bytes
   let unit = 0
   while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  const rounded = unit === 0 ? Math.round(value) : Number(value.toFixed(1))
+  if (unit < units.length - 1 && rounded >= 1024) {
     value /= 1024
     unit++
   }
