@@ -1,6 +1,10 @@
 import type { LocaleCode } from './types'
 
-/** Format a byte count using the active locale's number rules. */
+export function roundTo(value: number, digits: number): number {
+  const scale = 10 ** digits
+  return Math.round(value * scale) / scale
+}
+
 export function formatBytes(locale: LocaleCode, bytes: number | null | undefined): string {
   if (bytes === null || bytes === undefined || Number.isNaN(bytes)) return '—'
   const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
@@ -10,7 +14,13 @@ export function formatBytes(locale: LocaleCode, bytes: number | null | undefined
     value /= 1024
     unit += 1
   }
-  const digits = value >= 100 || unit === 0 ? 0 : 1
+  const digitsFor = (v: number, u: number): number => (v >= 100 || u === 0 ? 0 : 1)
+  let digits = digitsFor(value, unit)
+  if (unit < units.length - 1 && roundTo(value, digits) >= 1024) {
+    value /= 1024
+    unit += 1
+    digits = digitsFor(value, unit)
+  }
   const num = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 0,
     maximumFractionDigits: digits
@@ -38,7 +48,6 @@ export function formatDateTime(locale: LocaleCode, iso: string | null | undefine
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(d)
 }
 
-/** Compact duration such as "3d 4h", "2h 05m", "45s" (unit letters stay Latin). */
 export function formatDuration(locale: LocaleCode, seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || Number.isNaN(seconds) || seconds < 0) return '—'
   const s = Math.floor(seconds)

@@ -11,7 +11,6 @@ describe('formatBytes', () => {
   it('formats with locale decimal separators', () => {
     expect(formatBytes('en', 1536)).toBe('1.5 KB')
     expect(formatBytes('ko', 1536)).toBe('1.5 KB')
-    // German uses a comma as the decimal separator
     expect(formatBytes('de', 1536)).toBe('1,5 KB')
     expect(formatBytes('pt-BR', 1536)).toBe('1,5 KB')
     expect(formatBytes('fr', 1536)).toBe('1,5 KB')
@@ -23,8 +22,22 @@ describe('formatBytes', () => {
     expect(formatBytes('en', 1024)).toBe('1 KB')
     expect(formatBytes('en', 1048576)).toBe('1 MB')
     expect(formatBytes('en', 1073741824)).toBe('1 GB')
-    // values >= 100 in a unit drop the fraction
     expect(formatBytes('en', 153600)).toBe('150 KB')
+  })
+
+  it('moves to the next unit when rounding reaches 1024', () => {
+    expect(formatBytes('en', 1048063)).toBe('1,023 KB')
+    expect(formatBytes('en', 1048064)).toBe('1 MB')
+    expect(formatBytes('en', 1048575)).toBe('1 MB')
+    expect(formatBytes('ko', 1048575)).toBe('1 MB')
+    expect(formatBytes('de', 1048575)).toBe('1 MB')
+    expect(formatBytes('en', 1073741823)).toBe('1 GB')
+    expect(formatBytes('en', 1024 ** 5 - 1)).toBe('1 PB')
+  })
+
+  it('stays in PB at the top unit', () => {
+    expect(formatBytes('en', 1024 ** 6 - 2 ** 20)).toBe('1,024 PB')
+    expect(formatBytes('en', 1024 ** 6)).toBe('1,024 PB')
   })
 
   it('handles missing values', () => {
@@ -66,7 +79,6 @@ describe('formatDateTime', () => {
     expect(koOut).not.toBe('—')
     expect(enOut).toContain('2026')
     expect(koOut).toContain('2026')
-    // Korean medium date style (e.g. "2026. 7. 30.") differs from English ("Jul 30, 2026")
     expect(enOut).not.toBe(koOut)
   })
 
