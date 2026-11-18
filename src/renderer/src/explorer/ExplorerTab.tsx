@@ -93,7 +93,7 @@ export function ExplorerTab(): React.JSX.Element {
     return () => {
       disposed = true
     }
-  }, [settingsLoaded])
+  }, [settings])
 
   const [legacyDistro, setLegacyDistro] = useState<string | null>(null)
   useEffect(() => {
