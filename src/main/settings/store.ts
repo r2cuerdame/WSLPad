@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { copyFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs'
 import { dirname } from 'path'
 import type { SettingsLoadError } from '@shared/ipc'
-import { defaultSettings, parseSettings } from '@shared/schemas'
+import { defaultSettings, parseSettings, sanitizeLastPaths } from '@shared/schemas'
 import type {
   ConsoleSettings,
   ExplorerSettings,
@@ -15,7 +15,6 @@ import type {
 
 type ChangeListener = (s: Settings) => void
 
-/** Copy only the allowed, defined keys of a patch section onto a base section. */
 function mergeSection<T extends object>(
   base: T,
   patch: Partial<T> | undefined,
@@ -28,6 +27,18 @@ function mergeSection<T extends object>(
     if (value !== undefined) out[key] = value as T[typeof key]
   }
   return out
+}
+
+function mergeLastPaths(
+  base: Record<string, string>,
+  patch: Record<string, string> | undefined
+): Record<string, string> {
+  const merged = new Map(Object.entries(base))
+  for (const [distro, path] of Object.entries(sanitizeLastPaths(patch))) {
+    merged.delete(distro)
+    merged.set(distro, path)
+  }
+  return Object.fromEntries(merged)
 }
 
 function atomicWriteJson(filePath: string, data: unknown): void {
@@ -129,11 +140,14 @@ export class SettingsStore {
         'mediumMs',
         'slowMs'
       ]),
-      explorer: mergeSection<ExplorerSettings>(cur.explorer, p.explorer, [
-        'showHiddenByDefault',
-        'startLocation',
-        'lastPath'
-      ]),
+      explorer: {
+        ...mergeSection<ExplorerSettings>(cur.explorer, p.explorer, [
+          'showHiddenByDefault',
+          'startLocation',
+          'lastPath'
+        ]),
+        lastPaths: mergeLastPaths(cur.explorer.lastPaths, p.explorer?.lastPaths)
+      },
       console: mergeSection<ConsoleSettings>(cur.console, p.console, [
         'fontSize',
         'fontFamily',

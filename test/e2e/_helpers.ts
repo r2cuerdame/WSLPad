@@ -15,7 +15,8 @@ export interface LaunchedApp {
  */
 export async function launchWslPad(
   extraEnv: Record<string, string> = {},
-  args: string[] = []
+  args: string[] = [],
+  extraSettings: Record<string, unknown> = {}
 ): Promise<LaunchedApp> {
   const userDataDir = mkdtempSync(join(tmpdir(), 'wslpad-e2e-'))
   // Deterministic locale regardless of the host Windows UI language; tests
@@ -27,7 +28,8 @@ export async function launchWslPad(
     JSON.stringify({
       schemaVersion: 1,
       language: 'en',
-      mcp: { enabled: true, port: 20000 + Math.floor(Math.random() * 20000), token: '' }
+      mcp: { enabled: true, port: 20000 + Math.floor(Math.random() * 20000), token: '' },
+      ...extraSettings
     })
   )
   const app = await electron.launch({

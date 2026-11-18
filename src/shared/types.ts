@@ -1722,6 +1722,7 @@ export interface ExplorerSettings {
   showHiddenByDefault: boolean
   startLocation: 'home' | 'last'
   lastPath: string | null
+  lastPaths: Record<string, string>
 }
 
 export interface ConsoleSettings {

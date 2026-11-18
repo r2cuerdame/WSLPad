@@ -3,6 +3,7 @@ import {
   CONSOLE_DEFAULTS,
   CONSOLE_FONT_SIZE_BOUNDS,
   CONSOLE_SCROLLBACK_BOUNDS,
+  EXPLORER_LAST_PATHS_MAX,
   MCP_DEFAULT_PORT,
   MCP_PORT_BOUNDS,
   POLL_BOUNDS,
@@ -41,9 +42,10 @@ export const settingsSchema = z.object({
     .object({
       showHiddenByDefault: z.boolean().catch(false),
       startLocation: z.enum(['home', 'last']).catch('home'),
-      lastPath: z.string().nullable().catch(null)
+      lastPath: z.string().nullable().catch(null),
+      lastPaths: z.unknown().transform(sanitizeLastPaths)
     })
-    .catch({ showHiddenByDefault: false, startLocation: 'home', lastPath: null }),
+    .catch({ showHiddenByDefault: false, startLocation: 'home', lastPath: null, lastPaths: {} }),
   console: z
     .object({
       fontSize: clamped(CONSOLE_FONT_SIZE_BOUNDS.min, CONSOLE_FONT_SIZE_BOUNDS.max, CONSOLE_DEFAULTS.fontSize),
@@ -89,6 +91,15 @@ export const linuxPathSchema = z
   .max(4096)
   .regex(/^\//)
   .refine((p) => !p.includes('\0') && !p.includes('\n'), 'invalid path characters')
+
+export function sanitizeLastPaths(raw: unknown): Record<string, string> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
+  const valid = Object.entries(raw).filter(
+    ([distro, path]) =>
+      distroNameSchema.safeParse(distro).success && linuxPathSchema.safeParse(path).success
+  ) as [string, string][]
+  return Object.fromEntries(valid.slice(-EXPLORER_LAST_PATHS_MAX))
+}
 
 /** Windows absolute path (drive or UNC). */
 export const windowsPathSchema = z

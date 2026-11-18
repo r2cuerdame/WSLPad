@@ -3,6 +3,7 @@
 export const APP_NAME = 'WSLPad'
 export const SNAPSHOT_SCHEMA_VERSION = 1 as const
 export const SETTINGS_SCHEMA_VERSION = 1 as const
+export const EXPLORER_LAST_PATHS_MAX = 64
 
 /** Env var names containing these substrings are masked by default (goal.md §6.7). */
 export const SECRET_NAME_PATTERNS = [
