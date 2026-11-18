@@ -183,7 +183,8 @@ export function fixtureResources(distro: FixtureDistroName): ResourceInfo {
         totalBytes: FS_SIZE_BYTES,
         usedBytes: FS_USED_BYTES,
         availableBytes: FS_AVAILABLE_BYTES,
-        usePercent: FS_USE_PERCENT
+        usePercent: FS_USE_PERCENT,
+        mountedOn: '/'
       },
       {
         mountPoint: '/home',
@@ -191,7 +192,8 @@ export function fixtureResources(distro: FixtureDistroName): ResourceInfo {
         totalBytes: FS_SIZE_BYTES,
         usedBytes: FS_USED_BYTES,
         availableBytes: FS_AVAILABLE_BYTES,
-        usePercent: FS_USE_PERCENT
+        usePercent: FS_USE_PERCENT,
+        mountedOn: '/'
       },
       {
         mountPoint: '/mnt/c',
@@ -199,7 +201,8 @@ export function fixtureResources(distro: FixtureDistroName): ResourceInfo {
         totalBytes: 536870912000,
         usedBytes: 381178347520,
         availableBytes: 155692564480,
-        usePercent: 71
+        usePercent: 71,
+        mountedOn: '/mnt/c'
       }
     ],
     loadAvg: [0.12, 0.08, 0.05],

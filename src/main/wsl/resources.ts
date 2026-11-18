@@ -32,7 +32,6 @@ export interface ProcStatSample {
   cpuCount: number
 }
 
-/** Parse /proc/stat: aggregate cpu line ticks plus per-core line count. */
 export function parseProcStat(text: string): ProcStatSample | null {
   let agg: { totalTicks: number; idleTicks: number } | null = null
   let cpuCount = 0
@@ -64,11 +63,6 @@ export interface MeminfoResult {
   swapFreeBytes: number | null
 }
 
-/**
- * Every /proc/meminfo field, kernel key → kB. Kept separate from parseMeminfo
- * so the memory reconciliation collector reads the same lines through the same
- * parser instead of growing a second one.
- */
 export function parseMeminfoKb(text: string): Map<string, number> {
   const kb = new Map<string, number>()
   for (const line of text.split('\n')) {
@@ -78,7 +72,6 @@ export function parseMeminfoKb(text: string): Map<string, number> {
   return kb
 }
 
-/** Parse /proc/meminfo (values reported in kB). */
 export function parseMeminfo(text: string): MeminfoResult {
   const kb = parseMeminfoKb(text)
   const bytes = (key: string): number | null => {
@@ -93,7 +86,6 @@ export function parseMeminfo(text: string): MeminfoResult {
   }
 }
 
-/** Parse /proc/loadavg into its three load figures. */
 export function parseLoadavg(text: string): [number, number, number] | null {
   const tokens = text.trim().split(/\s+/)
   if (tokens.length < 3) return null
@@ -111,7 +103,6 @@ export interface DfRow {
   mountedOn: string
 }
 
-/** Parse `df -P -B1` output rows (header and malformed lines are skipped). */
 export function parseDfP(text: string): DfRow[] {
   const rows: DfRow[] = []
   for (const line of text.split('\n')) {
@@ -129,12 +120,6 @@ export function parseDfP(text: string): DfRow[] {
   return rows
 }
 
-/**
- * Parse the per-mount DF_SCRIPT output into DiskUsage entries. Only a block
- * closed by its done marker is evidence: it yields the row, or exists:false
- * when df found nothing. Anything else — no output at all, or a run cut off
- * part-way — leaves that mount exists:null.
- */
 export function parseDfBlocks(text: string): DiskUsage[] {
   const blocks = new Map<string, string[]>()
   const done = new Set<string>()
@@ -171,7 +156,8 @@ export function parseDfBlocks(text: string): DiskUsage[] {
       totalBytes: row.totalBytes,
       usedBytes: row.usedBytes,
       availableBytes: row.availableBytes,
-      usePercent: row.usePercent
+      usePercent: row.usePercent,
+      mountedOn: row.mountedOn
     }
   })
 }

@@ -152,6 +152,8 @@ describe('parseDfBlocks', () => {
     expect(disks.map((d) => d.mountPoint)).toEqual(['/', '/home', '/mnt/c'])
     expect(disks[0]).toMatchObject({ exists: true, totalBytes: 1081101176832, usePercent: 5 })
     expect(disks[1].exists).toBe(true)
+    expect(disks[0].mountedOn).toBe('/')
+    expect(disks[1].mountedOn).toBe('/')
     expect(disks[2]).toEqual({
       mountPoint: '/mnt/c',
       exists: false,
@@ -160,6 +162,25 @@ describe('parseDfBlocks', () => {
       availableBytes: null,
       usePercent: null
     })
+  })
+
+  it('records a separately mounted /home as its own disk', () => {
+    const separate = [
+      `${MARKER} /`,
+      'Filesystem      1-blocks        Used   Available Capacity Mounted on',
+      '/dev/sdd   1081101176832 47110483968 978996318208       5% /',
+      `${DONE} /`,
+      `${MARKER} /home`,
+      'Filesystem      1-blocks        Used   Available Capacity Mounted on',
+      '/dev/sde   536870912000 268435456000 268435456000      50% /home',
+      `${DONE} /home`,
+      `${MARKER} /mnt/c`,
+      `${DONE} /mnt/c`,
+      ''
+    ].join('\n')
+    const disks = parseDfBlocks(separate)
+    expect(disks[0]).toMatchObject({ mountPoint: '/', mountedOn: '/' })
+    expect(disks[1]).toMatchObject({ mountPoint: '/home', exists: true, usePercent: 50, mountedOn: '/home' })
   })
 
   it('returns three unknown disks for empty input, never "not mounted"', () => {

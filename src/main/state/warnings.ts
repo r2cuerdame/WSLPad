@@ -8,16 +8,12 @@ export interface WarningComputeInput {
   dashboard: DashboardSnapshot | null
   runnerFailures: string[]
   mcpError: string | null
-  /** PATH entries known to be missing — provided by a caller that scanned them. */
   missingPathEntries?: string[]
-  /** Where the Console is sitting right now, when it is sitting anywhere. */
   consoleCwd?: string | null
 }
 
-/** At most this many hidden-runner failures become warnings (dedupe first). */
 const MAX_RUNNER_WARNINGS = 3
 
-/** Names listed inline before the cross-boundary warning switches to "+N". */
 const MAX_CROSS_BOUNDARY_NAMES = 6
 
 function slug(text: string): string {
@@ -29,11 +25,6 @@ function slug(text: string): string {
   return cleaned || 'unknown'
 }
 
-/**
- * Pure warning rules for the Warnings card (goal.md §6.11). Facts only — no
- * automatic diagnosis. messageKey points into warnings.* of the locale
- * bundles; message carries resolved English for MCP/JSON consumers.
- */
 export function computeWarnings(input: WarningComputeInput): WarningInfo[] {
   const out: WarningInfo[] = []
   const selected = input.selectedDistro
@@ -90,7 +81,13 @@ export function computeWarnings(input: WarningComputeInput): WarningInfo[] {
       })
     }
 
-    for (const disk of dash.resources.disks) {
+    const disks = dash.resources.disks
+    const sharesReadDisk = (mountedOn: string | null | undefined, mountPoint: string): boolean =>
+      typeof mountedOn === 'string' &&
+      mountedOn !== mountPoint &&
+      disks.some((d) => d.mountPoint === mountedOn && d.exists === true)
+    for (const disk of disks) {
+      if (sharesReadDisk(disk.mountedOn, disk.mountPoint)) continue
       if (disk.exists === true && disk.usePercent !== null && disk.usePercent >= 90) {
         out.push({
           id: `disk-low-${disk.mountPoint === '/' ? 'root' : slug(disk.mountPoint)}`,
