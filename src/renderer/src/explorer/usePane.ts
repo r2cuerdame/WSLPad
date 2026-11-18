@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DirSizeResult, FileEntry, FsKind } from '@shared/types'
+import { roundTo } from '@shared/format'
 import { fileNameSchema } from '@shared/schemas'
 import { useApp } from '../store'
 import type { FsAdapter } from './fsAdapter'
@@ -58,6 +59,10 @@ export function formatBytes(bytes: number | null, locale: string): string {
   let value = bytes
   let unit = 0
   while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  if (unit < units.length - 1 && roundTo(value, unit === 0 ? 0 : 1) >= 1024) {
     value /= 1024
     unit++
   }
