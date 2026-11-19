@@ -109,6 +109,35 @@ describe('snapshotToMarkdown', () => {
     expect(staleMd).toContain('latest listening-port refresh failed')
   })
 
+  it('distinguishes pending/failed tool reads from None detected (issue #401)', () => {
+    const withTools = (over: Parameters<typeof makeDashboard>[0]) =>
+      snapshotToMarkdown(makeSnapshot({ dashboard: makeDashboard(over) }))
+
+    const pending = withTools({ tools: [], toolsCollectionStatus: 'pending' })
+    expect(pending).toContain('## Installed tools\n- Unknown (not collected yet)')
+    expect(pending).not.toContain('- None detected')
+
+    const failed = withTools({ tools: [], toolsCollectionStatus: 'failed' })
+    expect(failed).toContain('## Installed tools\n- Unknown (tool query failed)')
+    expect(failed).not.toContain('- None detected')
+
+    expect(withTools({ tools: [], toolsCollectionStatus: 'succeeded' })).toContain(
+      '## Installed tools\n- None detected'
+    )
+    expect(
+      withTools({ tools: [tool({ installed: false, version: null })], toolsCollectionStatus: 'succeeded' })
+    ).toContain('## Installed tools\n- None detected')
+
+    expect(withTools({ tools: [tool({ installed: false, version: null })] })).toContain(
+      '## Installed tools\n- None detected'
+    )
+    expect(withTools({ tools: [] })).toContain('## Installed tools\n- Unknown (not collected yet)')
+
+    expect(withTools({ tools: [tool()], toolsCollectionStatus: 'succeeded' })).toContain(
+      '## Installed tools\n- Node.js 20.11.0 — /usr/bin/node'
+    )
+  })
+
   it('includes warnings and the selected explorer path', () => {
     const snap = makeSnapshot({
       warnings: [
@@ -293,7 +322,6 @@ describe('snapshotToMarkdown bug-report preset', () => {
     expect(md).toContain('[wsl2]\nmemory=8GB\nnetworkingMode=mirrored')
     expect(md).toContain('/etc/wsl.conf — keys WSLPad parsed')
     expect(md).toContain('[boot]\nsystemd=true')
-    // A key nobody declared is a default, not a line in the user's file.
     expect(md).not.toContain('kernel=')
   })
 
@@ -305,6 +333,42 @@ describe('snapshotToMarkdown bug-report preset', () => {
 
     expect(md).toContain('.wslconfig (C:\\Users\\dev\\.wslconfig): does not exist.')
     expect(md).toContain('/etc/wsl.conf: exists, no keys parsed.')
+  })
+
+  it('asks the reporter to list software when the tools were not read (issue #401)', () => {
+    const otherSoftware = (dashboard: ReturnType<typeof makeDashboard> | null) => {
+      const md = snapshotToMarkdown(makeSnapshot({ dashboard }), 'bug-report')
+      return md.slice(md.indexOf('### Other Software'), md.indexOf('### Repro Steps'))
+    }
+    const NOT_READ =
+      '_WSLPad has not read the installed tools yet. List the relevant software and versions here._'
+    const FAILED =
+      '_WSLPad could not read the installed tools. List the relevant software and versions here._'
+    const NONE = '_No tools detected inside the distribution._'
+
+    const pending = otherSoftware(makeDashboard({ tools: [], toolsCollectionStatus: 'pending' }))
+    expect(pending).toContain(NOT_READ)
+    expect(pending).not.toContain(NONE)
+
+    const failed = otherSoftware(makeDashboard({ tools: [], toolsCollectionStatus: 'failed' }))
+    expect(failed).toContain(FAILED)
+    expect(failed).not.toContain(NONE)
+
+    const noDashboard = otherSoftware(null)
+    expect(noDashboard).toContain(NOT_READ)
+    expect(noDashboard).not.toContain(NONE)
+
+    expect(otherSoftware(makeDashboard({ tools: [], toolsCollectionStatus: 'succeeded' }))).toContain(
+      NONE
+    )
+    expect(
+      otherSoftware(makeDashboard({ tools: [tool({ installed: false, version: null })] }))
+    ).toContain(NONE)
+    expect(otherSoftware(makeDashboard({ tools: [] }))).toContain(NOT_READ)
+
+    expect(
+      otherSoftware(makeDashboard({ tools: [tool()], toolsCollectionStatus: 'succeeded' }))
+    ).toBe('### Other Software\n\nDetected inside the distribution:\n\n- Node.js 20.11.0\n\n')
   })
 
   it('still emits every field when no dashboard data was collected', () => {
@@ -389,7 +453,6 @@ describe('snapshotToMarkdown agent-context preset', () => {
     expect(agent).toContain('- / — unknown (disk usage not read)')
     expect(agent).toContain('- /mnt/c — unknown (disk usage not read)')
     expect(agent).toContain('- /mnt/d — not mounted')
-    // an unread / is not evidence for the disk-headroom check
     expect(agent).not.toContain('/ is ')
 
     const summary = snapshotToMarkdown(snapshot)
@@ -441,7 +504,6 @@ describe('snapshotToMarkdown agent-context preset', () => {
     const dashboard = makeDashboard({ tools, ports, clock: clock(), dns: dns() })
     const md = snapshotToMarkdown(makeSnapshot({ dashboard }), 'agent-context')
 
-    // Past this the block gets deleted from a CLAUDE.md; every list is capped.
     expect(md.length).toBeLessThan(AGENT_CONTEXT_MAX_CHARS)
     expect(md).toContain(`- … and ${60 - DEV_ENV_CONTEXT_LIMITS.tools} more`)
     expect(md).toContain(`- … and ${40 - DEV_ENV_CONTEXT_LIMITS.ports} more`)

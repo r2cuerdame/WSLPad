@@ -7,20 +7,13 @@ import type {
   WslPadSnapshot,
   WslSettingInfo
 } from '@shared/types'
-import { buildDevEnvContext } from '@shared/dev-env-context'
+import { buildDevEnvContext, collectionSucceeded } from '@shared/dev-env-context'
 import { devEnvContextToMarkdown, fmtBytesPlain as fmtBytes } from '@shared/dev-env-context-markdown'
 import { isSecretName, sanitizeSnapshot } from '@shared/masking'
 import packageJson from '../../../package.json'
 import { maskTextFileContent } from '../mcp/masking'
 
-/**
- * Copy-for-LLM exports (goal.md §12). The snapshot is masked by construction,
- * and the Markdown additionally exposes environment variable NAMES only —
- * values never appear here, secret or not. That holds for every preset, with
- * one deliberate exception: the agent context prints PATH and WSLENV, which
- * are directory lists and variable names, never credentials, and are the
- * facts an agent most needs. No other environment value is ever printed.
- */
+// Environment values never appear in these exports, except PATH and WSLENV in the agent context.
 
 const LLM_FOOTER = [
   '위 환경 상태를 기준으로 문제를 분석하라.',
@@ -32,7 +25,6 @@ function yesNo(value: boolean | null): string {
   return value === null ? 'unknown' : value ? 'yes' : 'no'
 }
 
-/** Machine-readable exports are English by construction — no i18n involved. */
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
@@ -63,7 +55,6 @@ function pushResources(lines: string[], dash: DashboardSnapshot): void {
   if (res.processCount !== null) lines.push(`- Processes: ${res.processCount}`)
   for (const disk of res.disks) {
     if (disk.exists !== true) {
-      // null means df did not finish for this mount — unknown, not missing
       lines.push(`- Disk ${disk.mountPoint}: ${disk.exists === false ? 'not mounted' : 'unknown'}`)
       continue
     }
@@ -73,11 +64,23 @@ function pushResources(lines: string[], dash: DashboardSnapshot): void {
   lines.push('')
 }
 
+function toolsUnknown(dash: DashboardSnapshot | null): 'pending' | 'failed' | null {
+  if (collectionSucceeded(dash, 'tools')) return null
+  return dash?.toolsCollectionStatus === 'failed' ? 'failed' : 'pending'
+}
+
 function pushTools(lines: string[], dash: DashboardSnapshot): void {
   lines.push('## Installed tools')
   const installed = dash.tools.filter((t) => t.installed)
   if (installed.length === 0) {
-    lines.push('- None detected')
+    const unknown = toolsUnknown(dash)
+    lines.push(
+      unknown === 'failed'
+        ? '- Unknown (tool query failed)'
+        : unknown === 'pending'
+          ? '- Unknown (not collected yet)'
+          : '- None detected'
+    )
   } else {
     for (const tool of installed) {
       const version = tool.version ?? 'unknown version'
@@ -96,8 +99,6 @@ function pushHermes(lines: string[], dash: DashboardSnapshot): void {
     return
   }
   const connected = hermes.platforms.filter((p) => p.configured).map((p) => p.name)
-  // "unknown" and "none" are different answers: the CLI may simply not have
-  // been asked yet, and an LLM must not read that as "nothing is configured".
   const messengers =
     hermes.platforms.length === 0
       ? 'unknown'
@@ -178,7 +179,6 @@ function pushPorts(
 
 function pushWindowsPorts(lines: string[], dash: DashboardSnapshot): void {
   lines.push('## Windows-only listening ports')
-  // Older snapshots (and MCP payloads predating the field) carry no table.
   const own = (dash.windowsPorts ?? []).filter((p) => !p.fromWsl)
   if (own.length === 0) {
     lines.push('- None')
@@ -193,7 +193,6 @@ function pushWindowsPorts(lines: string[], dash: DashboardSnapshot): void {
 }
 
 function pushEnvironment(lines: string[], dash: DashboardSnapshot): void {
-  // Names only — even non-secret values stay out of the LLM export (goal.md §12).
   lines.push('## Environment variable names')
   if (dash.environment.length === 0) {
     lines.push('- None')
@@ -275,10 +274,8 @@ function defaultMarkdown(s: WslPadSnapshot): string {
 // Preset 1 — microsoft/WSL bug report (issue #30)
 // ---------------------------------------------------------------------------
 
-/** "Other Software" is context, not an inventory: a full catalog buries it. */
 const BUG_TOOL_LIMIT = 40
 
-/** A field the form requires that WSLPad does not collect — say so in place. */
 function fillIn(instruction: string): string {
   return `_${instruction}_`
 }
@@ -288,8 +285,6 @@ function heading(lines: string[], label: string): void {
 }
 
 function pushBugVersions(lines: string[], dash: DashboardSnapshot | null): void {
-  // Both are Windows-side facts read by commands WSLPad does not run; an
-  // invented build number would be worse than the two-second copy-paste.
   heading(lines, 'Windows Version')
   lines.push(fillIn('Run `cmd.exe /c ver` and paste the output here.'), '')
   heading(lines, 'WSL Version')
@@ -333,7 +328,14 @@ function pushBugOtherSoftware(lines: string[], dash: DashboardSnapshot | null): 
   heading(lines, 'Other Software')
   const installed = (dash?.tools ?? []).filter((t) => t.installed)
   if (installed.length === 0) {
-    lines.push(fillIn('No tools detected inside the distribution.'), '')
+    const unknown = toolsUnknown(dash)
+    const note =
+      unknown === 'failed'
+        ? 'WSLPad could not read the installed tools. List the relevant software and versions here.'
+        : unknown === 'pending'
+          ? 'WSLPad has not read the installed tools yet. List the relevant software and versions here.'
+          : 'No tools detected inside the distribution.'
+    lines.push(fillIn(note), '')
     return
   }
   lines.push('Detected inside the distribution:', '')
@@ -344,7 +346,6 @@ function pushBugOtherSoftware(lines: string[], dash: DashboardSnapshot | null): 
   lines.push('')
 }
 
-/** The environment facts a maintainer asks for in the first reply. */
 function reproFacts(dash: DashboardSnapshot): string[] {
   const facts: string[] = []
   const d = dash.distro
@@ -371,9 +372,6 @@ function reproFacts(dash: DashboardSnapshot): string[] {
       )
     }
     if (wsl.vmStartedAt !== null) facts.push(`- Utility VM started at: ${wsl.vmStartedAt}`)
-    // Whether a Windows .exe can be invoked from the shell at all, and whose
-    // files anything written here will belong to: both change what a fix that
-    // works when pasted looks like.
     if (wsl.interop?.binfmt != null) {
       facts.push(`- Windows interop: ${wsl.interop.binfmt} (kernel binfmt registration)`)
     }
@@ -416,12 +414,6 @@ function pushBugRepro(lines: string[], dash: DashboardSnapshot | null): void {
   lines.push(...reproFacts(dash), '')
 }
 
-/**
- * The declared keys of one config file, back as ini text. It is a
- * reconstruction from what the parser kept, not the file itself — the heading
- * above each block says so rather than letting a maintainer read a missing
- * comment as an absent line.
- */
 function iniFromSettings(settings: WslSettingInfo[], origin: SettingOrigin): string | null {
   const sections = new Map<string, string[]>()
   for (const setting of settings) {
@@ -497,15 +489,6 @@ function pushBugDiagnostics(
   )
 }
 
-/**
- * microsoft/WSL's issue form (.github/ISSUE_TEMPLATE/Bug_Report.yaml) field by
- * field, in its order and under its exact labels. GitHub renders a submitted
- * form as `### <label>` blocks, so this pastes into the form or straight into
- * an issue body and lands where maintainers read. Four fields are the
- * reporter's own — the repro, the two behaviours, and the Windows-side version
- * strings WSLPad does not run the commands for — so each says what to fill in
- * rather than being quietly dropped or, worse, guessed at.
- */
 function bugReportMarkdown(s: WslPadSnapshot): string {
   const lines: string[] = []
   const dash = s.dashboard
@@ -526,12 +509,6 @@ function bugReportMarkdown(s: WslPadSnapshot): string {
 // Preset 2 — agent context block (issue #30)
 // ---------------------------------------------------------------------------
 
-/**
- * The block for a CLAUDE.md / AGENTS.md is the Developer Environment Context
- * rendered as Markdown — the very object the MCP tool of the same name
- * serves, so an agent reading the file and an agent calling the tool see the
- * same facts, the same caps and the same doctor verdicts.
- */
 function agentContextMarkdown(s: WslPadSnapshot): string {
   if (s.dashboard === null) {
     const name = s.selectedDistro ?? 'none selected'
@@ -543,18 +520,12 @@ function agentContextMarkdown(s: WslPadSnapshot): string {
   return devEnvContextToMarkdown(buildDevEnvContext(s, { appVersion: packageJson.version }))
 }
 
-/**
- * Copy-for-LLM Markdown. 'default' is the full environment summary and is what
- * every existing caller gets; the other two are shaped by their destination —
- * microsoft/WSL's issue form and an agent's CLAUDE.md / AGENTS.md.
- */
 export function snapshotToMarkdown(s: WslPadSnapshot, preset: LlmPreset = 'default'): string {
   if (preset === 'bug-report') return bugReportMarkdown(s)
   if (preset === 'agent-context') return agentContextMarkdown(s)
   return defaultMarkdown(s)
 }
 
-/** JSON export button (goal.md §12) — defense-in-depth sanitization before serialization. */
 export function snapshotToJson(s: WslPadSnapshot): string {
   return JSON.stringify(sanitizeSnapshot(s), null, 2)
 }
