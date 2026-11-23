@@ -1,5 +1,6 @@
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtempSync, writeFileSync } from 'fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { createServer } from 'net'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
@@ -9,26 +10,32 @@ export interface LaunchedApp {
   userDataDir: string
 }
 
-/**
- * Launch the built app (out/main/index.js) in deterministic fixture mode with
- * an isolated userData dir so settings never leak between tests.
- */
+async function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer()
+    server.unref()
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address()
+      const port = typeof addr === 'object' && addr !== null ? addr.port : 0
+      server.close((err) => (err ? reject(err) : resolve(port)))
+    })
+  })
+}
+
 export async function launchWslPad(
   extraEnv: Record<string, string> = {},
   args: string[] = [],
   extraSettings: Record<string, unknown> = {}
 ): Promise<LaunchedApp> {
   const userDataDir = mkdtempSync(join(tmpdir(), 'wslpad-e2e-'))
-  // Deterministic locale regardless of the host Windows UI language; tests
-  // that exercise language switching change it through the Settings UI.
-  // A per-run MCP port keeps a stray WSLPad instance (or a parallel run) from
-  // taking 4923 and turning every MCP assertion into an EADDRINUSE failure.
+  const port = 'mcp' in extraSettings ? 0 : await freePort()
   writeFileSync(
     join(userDataDir, 'settings.json'),
     JSON.stringify({
       schemaVersion: 1,
       language: 'en',
-      mcp: { enabled: true, port: 20000 + Math.floor(Math.random() * 20000), token: '' },
+      mcp: { enabled: true, port, token: '' },
       ...extraSettings
     })
   )
@@ -55,6 +62,11 @@ export async function closeApp(launched: LaunchedApp): Promise<void> {
     app.quit()
   })
   await launched.app.close().catch(() => {})
+  try {
+    rmSync(launched.userDataDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 50 })
+  } catch {
+    // Electron may still release a profile lock asynchronously on Windows.
+  }
 }
 
 export async function mainState<T>(
