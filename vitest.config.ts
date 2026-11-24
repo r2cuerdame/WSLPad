@@ -13,6 +13,8 @@ export default defineConfig({
     environment: 'node',
     environmentMatchGlobs: [['test/unit/renderer/**', 'jsdom']],
     globals: false,
+    maxWorkers: 4,
+    minWorkers: 1,
     testTimeout: 20000,
     hookTimeout: 20000
   }

@@ -57,19 +57,18 @@ test.describe('mcp server (goal.md §18.3: 12)', () => {
   let port: number
   let token: string
 
-  test.beforeEach(async () => {
+  test.beforeAll(async () => {
     launched = await launchWslPad()
     const settings = JSON.parse(
       readFileSync(join(launched.userDataDir, 'settings.json'), 'utf8')
     )
     port = settings.mcp.port
     token = settings.mcp.token
-    // MCP badge should reach Ready
     await expect(launched.page.getByText('MCP Ready')).toBeVisible({ timeout: 20000 })
   })
 
-  test.afterEach(async () => {
-    await closeApp(launched).catch(() => {})
+  test.afterAll(async () => {
+    if (launched) await closeApp(launched).catch(() => {})
   })
 
   test('GetDashboardSnapshot works over authenticated streamable http', async () => {

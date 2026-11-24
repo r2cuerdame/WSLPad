@@ -2,18 +2,25 @@ import { MASKED_VALUE } from '@shared/constants'
 import type { LlmPreset } from '@shared/ipc'
 import type {
   DashboardSnapshot,
+  PortInfo,
   SettingOrigin,
   ToolInfo,
+  WarningInfo,
   WslPadSnapshot,
   WslSettingInfo
 } from '@shared/types'
 import { buildDevEnvContext, collectionSucceeded } from '@shared/dev-env-context'
-import { devEnvContextToMarkdown, fmtBytesPlain as fmtBytes } from '@shared/dev-env-context-markdown'
+import {
+  devEnvContextToMarkdown,
+  fmtBytesPlain as fmtBytes
+} from '@shared/dev-env-context-markdown'
 import { isSecretName, sanitizeSnapshot } from '@shared/masking'
 import packageJson from '../../../package.json'
 import { maskTextFileContent } from '../mcp/masking'
 
-// Environment values never appear in these exports, except PATH and WSLENV in the agent context.
+type Unread = 'failed' | 'pending' | null
+
+type PortRow = Pick<PortInfo, 'protocol' | 'localAddress' | 'port' | 'processName' | 'pid'>
 
 const LLM_FOOTER = [
   '위 환경 상태를 기준으로 문제를 분석하라.',
@@ -64,31 +71,59 @@ function pushResources(lines: string[], dash: DashboardSnapshot): void {
   lines.push('')
 }
 
-function toolsUnknown(dash: DashboardSnapshot | null): 'pending' | 'failed' | null {
+function pushSection(
+  lines: string[],
+  title: string,
+  items: readonly string[],
+  empty: string,
+  after: readonly string[] = []
+): void {
+  lines.push(`## ${title}`, ...(items.length === 0 ? [empty] : items), ...after, '')
+}
+
+function byUnread(
+  unread: Unread,
+  notes: { failed: string; pending: string; none: string }
+): string {
+  return unread === null ? notes.none : notes[unread]
+}
+
+function toolsUnread(dash: DashboardSnapshot | null): Unread {
   if (collectionSucceeded(dash, 'tools')) return null
   return dash?.toolsCollectionStatus === 'failed' ? 'failed' : 'pending'
 }
 
+function portsUnread(dash: DashboardSnapshot): Unread {
+  const status = dash.portsCollectionStatus
+  return status === 'failed' || status === 'pending' ? status : null
+}
+
+function portLine(port: PortRow, suffix = ''): string {
+  const proc = port.processName ?? 'unknown'
+  const pid = port.pid === null ? '' : ` (pid ${port.pid})`
+  return `- ${port.protocol} ${port.localAddress}:${port.port} — ${proc}${pid}${suffix}`
+}
+
+function warningLine(w: WarningInfo): string {
+  return `- [${w.severity}] ${w.message}`
+}
+
 function pushTools(lines: string[], dash: DashboardSnapshot): void {
-  lines.push('## Installed tools')
   const installed = dash.tools.filter((t) => t.installed)
-  if (installed.length === 0) {
-    const unknown = toolsUnknown(dash)
-    lines.push(
-      unknown === 'failed'
-        ? '- Unknown (tool query failed)'
-        : unknown === 'pending'
-          ? '- Unknown (not collected yet)'
-          : '- None detected'
-    )
-  } else {
-    for (const tool of installed) {
+  pushSection(
+    lines,
+    'Installed tools',
+    installed.map((tool) => {
       const version = tool.version ?? 'unknown version'
       const path = tool.executablePath ? ` — ${tool.executablePath}` : ''
-      lines.push(`- ${tool.displayName} ${version}${path}`)
-    }
-  }
-  lines.push('')
+      return `- ${tool.displayName} ${version}${path}`
+    }),
+    byUnread(toolsUnread(dash), {
+      failed: '- Unknown (tool query failed)',
+      pending: '- Unknown (not collected yet)',
+      none: '- None detected'
+    })
+  )
 }
 
 function pushHermes(lines: string[], dash: DashboardSnapshot): void {
@@ -150,82 +185,53 @@ function pushPorts(
   dash: DashboardSnapshot,
   warnings: readonly { id: string }[] = []
 ): void {
-  lines.push('## Listening ports')
-  const listening = dash.ports.filter((p) => p.listening)
-  if (listening.length === 0) {
-    if (dash.portsCollectionStatus === 'failed') {
-      lines.push('- Unknown (listening port query failed)')
-    } else if (dash.portsCollectionStatus === 'pending') {
-      lines.push('- Unknown (not collected yet)')
-    } else {
-      lines.push('- None')
-    }
-  } else {
-    for (const port of listening.slice(0, 30)) {
-      const proc = port.processName ?? 'unknown'
-      const pid = port.pid === null ? '' : ` (pid ${port.pid})`
-      const win = windowsSide(port.windowsBound ?? null, port.windowsProcess ?? null)
-      lines.push(`- ${port.protocol} ${port.localAddress}:${port.port} — ${proc}${pid}${win}`)
-    }
-  }
-  if (
-    warnings.some((w) => w.id === 'runner-failed-ports') ||
-    dash.warnings.some((w) => w.id === 'runner-failed-ports')
-  ) {
-    lines.push('- Note: latest listening-port refresh failed; showing previous results')
-  }
-  lines.push('')
+  const listening = dash.ports.filter((p) => p.listening).slice(0, 30)
+  const refreshFailed = [...warnings, ...dash.warnings].some((w) => w.id === 'runner-failed-ports')
+  pushSection(
+    lines,
+    'Listening ports',
+    listening.map((port) =>
+      portLine(port, windowsSide(port.windowsBound ?? null, port.windowsProcess ?? null))
+    ),
+    byUnread(portsUnread(dash), {
+      failed: '- Unknown (listening port query failed)',
+      pending: '- Unknown (not collected yet)',
+      none: '- None'
+    }),
+    refreshFailed ? ['- Note: latest listening-port refresh failed; showing previous results'] : []
+  )
 }
 
 function pushWindowsPorts(lines: string[], dash: DashboardSnapshot): void {
-  lines.push('## Windows-only listening ports')
-  const own = (dash.windowsPorts ?? []).filter((p) => !p.fromWsl)
-  if (own.length === 0) {
-    lines.push('- None')
-  } else {
-    for (const port of own.slice(0, 30)) {
-      const proc = port.processName ?? 'unknown'
-      const pid = port.pid === null ? '' : ` (pid ${port.pid})`
-      lines.push(`- ${port.protocol} ${port.localAddress}:${port.port} — ${proc}${pid}`)
-    }
-  }
-  lines.push('')
+  const own = (dash.windowsPorts ?? []).filter((p) => !p.fromWsl).slice(0, 30)
+  pushSection(
+    lines,
+    'Windows-only listening ports',
+    own.map((port) => portLine(port)),
+    '- None'
+  )
 }
 
 function pushEnvironment(lines: string[], dash: DashboardSnapshot): void {
-  lines.push('## Environment variable names')
-  if (dash.environment.length === 0) {
-    lines.push('- None')
-  } else {
-    const names = dash.environment.map((e) => e.name).sort()
-    lines.push(names.join(', '))
-  }
-  lines.push('')
+  const names = dash.environment.map((e) => e.name).sort()
+  pushSection(
+    lines,
+    'Environment variable names',
+    names.length === 0 ? [] : [names.join(', ')],
+    '- None'
+  )
 }
 
 function pushPaths(lines: string[], dash: DashboardSnapshot): void {
-  lines.push('## Important paths')
-  if (dash.paths.length === 0) {
-    lines.push('- None detected')
-  } else {
-    for (const p of dash.paths) {
-      const exists = p.exists === null ? 'unknown' : p.exists ? 'exists' : 'missing'
-      lines.push(`- ${p.label}: ${p.linuxPath} (${exists})`)
-    }
-  }
-  lines.push('')
+  const items = dash.paths.map((p) => {
+    const exists = p.exists === null ? 'unknown' : p.exists ? 'exists' : 'missing'
+    return `- ${p.label}: ${p.linuxPath} (${exists})`
+  })
+  pushSection(lines, 'Important paths', items, '- None detected')
 }
 
 function pushWarnings(lines: string[], snapshot: WslPadSnapshot): void {
-  lines.push('## Warnings')
-  if (snapshot.warnings.length === 0) {
-    lines.push('- None')
-  } else {
-    for (const w of snapshot.warnings) {
-      lines.push(`- [${w.severity}] ${w.message}`)
-    }
-  }
-  lines.push('')
+  pushSection(lines, 'Warnings', snapshot.warnings.map(warningLine), '- None')
 }
 
 function defaultMarkdown(s: WslPadSnapshot): string {
@@ -269,10 +275,6 @@ function defaultMarkdown(s: WslPadSnapshot): string {
   lines.push(LLM_FOOTER)
   return lines.join('\n') + '\n'
 }
-
-// ---------------------------------------------------------------------------
-// Preset 1 — microsoft/WSL bug report (issue #30)
-// ---------------------------------------------------------------------------
 
 const BUG_TOOL_LIMIT = 40
 
@@ -328,13 +330,13 @@ function pushBugOtherSoftware(lines: string[], dash: DashboardSnapshot | null): 
   heading(lines, 'Other Software')
   const installed = (dash?.tools ?? []).filter((t) => t.installed)
   if (installed.length === 0) {
-    const unknown = toolsUnknown(dash)
-    const note =
-      unknown === 'failed'
-        ? 'WSLPad could not read the installed tools. List the relevant software and versions here.'
-        : unknown === 'pending'
-          ? 'WSLPad has not read the installed tools yet. List the relevant software and versions here.'
-          : 'No tools detected inside the distribution.'
+    const note = byUnread(toolsUnread(dash), {
+      failed:
+        'WSLPad could not read the installed tools. List the relevant software and versions here.',
+      pending:
+        'WSLPad has not read the installed tools yet. List the relevant software and versions here.',
+      none: 'No tools detected inside the distribution.'
+    })
     lines.push(fillIn(note), '')
     return
   }
@@ -464,9 +466,7 @@ function pushBugDiagnostics(
   if (s.warnings.length === 0) {
     lines.push('WSLPad reported no warnings for this environment.', '')
   } else {
-    lines.push('WSLPad warnings:', '')
-    for (const w of s.warnings) lines.push(`- [${w.severity}] ${w.message}`)
-    lines.push('')
+    lines.push('WSLPad warnings:', '', ...s.warnings.map(warningLine), '')
   }
   const wsl = dash?.wslSettings ?? null
   if (wsl === null) {
@@ -504,10 +504,6 @@ function bugReportMarkdown(s: WslPadSnapshot): string {
   pushBugDiagnostics(lines, s, dash)
   return lines.join('\n').trimEnd() + '\n'
 }
-
-// ---------------------------------------------------------------------------
-// Preset 2 — agent context block (issue #30)
-// ---------------------------------------------------------------------------
 
 function agentContextMarkdown(s: WslPadSnapshot): string {
   if (s.dashboard === null) {
