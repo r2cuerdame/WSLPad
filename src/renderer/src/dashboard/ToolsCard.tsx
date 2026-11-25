@@ -10,23 +10,12 @@ import { resolveDashboardExplorerTarget } from './explorerTarget'
 
 export interface ToolsCardProps {
   tools: ToolInfo[]
-  /**
-   * interop.appendWindowsPath as the running distro exhibits it; null when it
-   * could not be read. It is the cause of every shadowed row below, so the card
-   * states it instead of leaving the user with the symptom.
-   */
   appendWindowsPath?: boolean | null
 }
 
 const CATEGORY_OF = new Map<string, ToolCategory>(TOOL_SPECS.map((s) => [s.id, s.category]))
-/** A tool the catalog no longer knows still has to land in a visible group. */
 const FALLBACK_CATEGORY: ToolCategory = 'util'
 
-/**
- * Directory of an executable, for revealing it in the Explorer pane. Windows
- * separators are normalised because a shadowed tool's path is a `/mnt/c` one
- * on the Linux side but a drive path on the Windows side.
- */
 export function dirOf(path: string): string {
   const normalised = path.replace(/\\/g, '/')
   const lastSlash = normalised.lastIndexOf('/')
@@ -35,14 +24,8 @@ export function dirOf(path: string): string {
   return cut === '' ? '/' : cut
 }
 
-/** The wsl.conf key itself, shown verbatim — it is a setting name, not prose. */
 const APPEND_WINDOWS_PATH_KEY = 'interop.appendWindowsPath'
 
-/**
- * What the running distro does about the Windows PATH, read off the reconciled
- * settings. The observed value wins over the declared one: a line the user
- * wrote but WSL has not applied yet does not explain what resolves today.
- */
 export function effectiveAppendWindowsPath(settings: WslConfigInfo | null): boolean | null {
   const row = settings?.settings.find(
     (s) => s.section === 'interop' && s.key.toLowerCase() === 'appendwindowspath'
@@ -74,7 +57,6 @@ export default function ToolsCard({
 }: ToolsCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { navigateExplorer, pushToast, snapshot } = useApp()
-  // The catalog is long enough that showing every absent tool first is noise.
   const [installedOnly, setInstalledOnly] = useState(true)
   const [shadowedOnly, setShadowedOnly] = useState(false)
   const [query, setQuery] = useState('')
@@ -83,6 +65,8 @@ export default function ToolsCard({
     () => tools.filter((tool) => tool.shadowedByWindows).length,
     [tools]
   )
+
+  if (shadowedOnly && shadowedCount === 0) setShadowedOnly(false)
 
   const groups = useMemo<ToolGroup[]>(() => {
     const q = query.trim().toLowerCase()
@@ -122,8 +106,6 @@ export default function ToolsCard({
       titleKey="dashboard.tools.title"
       actions={
         <>
-          {/* The section header already states "N of M installed" — printing it
-              again next to the filter was pure duplication. */}
           <input
             type="search"
             className="dash-input"
@@ -175,7 +157,6 @@ export default function ToolsCard({
         </span>
       </div>
 
-      {/* Read-only by contract: the fix is a line the user writes themselves. */}
       {shadowedCount > 0 && appendWindowsPath !== false ? (
         <div className="dim">
           {t('dashboard.tools.shadowedRemedy', {
@@ -210,8 +191,7 @@ export default function ToolsCard({
                     scope="colgroup"
                     colSpan={7}
                     data-category={group.category}
-                    // .dash-table th sticks to the top for the header row; a
-                    // group heading has to scroll with its rows.
+                    // .dash-table th is sticky; group headings must scroll with their rows.
                     style={{ position: 'static' }}
                   >
                     <span className="sr-only">{t('dashboard.tools.categoryLabel')}: </span>
@@ -234,8 +214,6 @@ export default function ToolsCard({
                     <td className="mono truncate" title={tool.executablePath ?? undefined}>
                       {tool.executablePath ?? '—'}
                     </td>
-                    {/* A word, never colour alone: the row has to say which
-                        build actually runs. */}
                     <td>
                       {tool.shadowedByWindows ? (
                         <span
@@ -250,7 +228,6 @@ export default function ToolsCard({
                     </td>
                     <td>{tool.installMethod ?? '—'}</td>
                     <td>{tool.runningProcesses > 0 ? tool.runningProcesses : '—'}</td>
-                    {/* A path you can read but not copy is half an answer. */}
                     <td>
                       <span className="row-actions">
                         {tool.executablePath === null ? null : (

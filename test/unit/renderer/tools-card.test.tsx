@@ -22,7 +22,6 @@ function makeApi() {
 
 let api: ReturnType<typeof makeApi>
 
-/** Surfaces the Explorer request the card is supposed to make. */
 function NavProbe(): React.JSX.Element {
   const { explorerNavigateRequest } = useApp()
   return (
@@ -34,7 +33,6 @@ function NavProbe(): React.JSX.Element {
   )
 }
 
-/** The card reads the store for copy + Explorer, so it needs the provider. */
 function renderCard(ui: React.JSX.Element): void {
   render(
     <AppStoreProvider>
@@ -61,7 +59,6 @@ function tool(id: string, displayName: string, over: Partial<ToolInfo> = {}): To
   }
 }
 
-/** Catalog order is ai → runtime → package → … → util, never insertion order. */
 const TOOLS: ToolInfo[] = [
   tool('ripgrep', 'ripgrep', { executablePath: '/usr/bin/rg' }),
   tool('node', 'Node.js', { runningProcesses: 3 }),
@@ -83,7 +80,6 @@ const TOOLS: ToolInfo[] = [
   })
 ]
 
-/** The machine this card was written for: four commands come from Windows. */
 const SHADOWED: ToolInfo[] = [
   tool('node', 'Node.js'),
   tool('npm', 'npm', {
@@ -155,7 +151,6 @@ function groupHeadings(): string[] {
   )
 }
 
-/** Group headings are `th` rows, so a `td` row is always a tool. */
 function toolRows(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>('tbody tr')).filter(
     (tr) => tr.querySelectorAll('td').length > 0
@@ -227,7 +222,6 @@ describe('ToolsCard installed-only toggle', () => {
 
   it('leaves the installed-of-total count to the section header', () => {
     renderCard(<ToolsCard tools={TOOLS} />)
-    // The Dashboard prints it above the card; repeating it here read as a bug.
     expect(screen.queryByText('4 of 6 installed')).toBeNull()
   })
 })
@@ -241,7 +235,6 @@ describe('ToolsCard filter', () => {
     expect(rowNames()).toEqual(['Node.js'])
     expect(groupHeadings()).toEqual(['runtime'])
 
-    // ripgrep's binary is rg — a path match keeps it visible.
     fireEvent.change(filter, { target: { value: '/usr/bin/rg' } })
     expect(rowNames()).toEqual(['ripgrep'])
 
@@ -305,7 +298,6 @@ describe('ToolsCard shadowed binaries', () => {
     const remedy = screen.getByText(/appendWindowsPath = false/)
     expect(remedy.textContent).toContain('/etc/wsl.conf')
     expect(remedy.textContent).toContain('never writes that file')
-    // Read-only by contract: nothing here writes or prepares anything.
     expect(screen.queryByRole('button', { name: /wsl\.conf|write|fix|disable/i })).toBeNull()
   })
 
@@ -328,12 +320,51 @@ describe('ToolsCard shadowed binaries', () => {
     expect(rowNames()).toEqual(['Claude', 'Node.js', 'npm'])
   })
 
+  it('releases the filter when no Windows binary is left, and keeps it released', () => {
+    const view = render(
+      <AppStoreProvider>
+        <ToolsCard tools={SHADOWED} appendWindowsPath={true} />
+      </AppStoreProvider>
+    )
+    fireEvent.click(screen.getByLabelText('Only Windows binaries'))
+    expect(rowNames()).toEqual(['Claude', 'npm'])
+
+    view.rerender(
+      <AppStoreProvider>
+        <ToolsCard tools={TOOLS} appendWindowsPath={false} />
+      </AppStoreProvider>
+    )
+    expect(screen.queryByText('None')).toBeNull()
+    expect(rowNames()).toEqual(['Claude', 'Node.js', 'Git', 'ripgrep'])
+
+    view.rerender(
+      <AppStoreProvider>
+        <ToolsCard tools={SHADOWED} appendWindowsPath={true} />
+      </AppStoreProvider>
+    )
+    expect((screen.getByLabelText('Only Windows binaries') as HTMLInputElement).checked).toBe(false)
+    expect(rowNames()).toEqual(['Claude', 'Node.js', 'npm'])
+  })
+
+  it('keeps search and show-all working with the Windows-binaries filter on', () => {
+    renderCard(<ToolsCard tools={SHADOWED} appendWindowsPath={true} />)
+    fireEvent.click(screen.getByLabelText('Only Windows binaries'))
+    fireEvent.change(screen.getByLabelText('Filter tools'), { target: { value: 'nodejs' } })
+    expect(rowNames()).toEqual(['npm'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show all' }))
+    expect(rowNames()).toEqual(['npm'])
+
+    fireEvent.change(screen.getByLabelText('Filter tools'), { target: { value: 'node.js' } })
+    expect(screen.getByText('None')).toBeTruthy()
+    expect((screen.getByLabelText('Only Windows binaries') as HTMLInputElement).checked).toBe(true)
+  })
+
   it('keeps the notice and the filter away when nothing is shadowed', () => {
     renderCard(<ToolsCard tools={TOOLS} appendWindowsPath={false} />)
     expect(screen.queryByRole('status')).toBeNull()
     expect(screen.queryByLabelText('Only Windows binaries')).toBeNull()
     expect(screen.queryByText(/appendWindowsPath = false/)).toBeNull()
-    // The cause is still stated: this is why no command falls through.
     const row = screen.getByText('interop.appendWindowsPath').closest('.kv-row') as HTMLElement
     expect(row.textContent).toContain('does not append the Windows PATH')
   })
