@@ -735,6 +735,108 @@ describe('windows pane navigation', () => {
   })
 })
 
+describe('back and forward history', () => {
+  const DOCS = `${WIN_HOME}\\Documents`
+  let failing: Set<string>
+
+  function navButton(name: 'Back' | 'Forward'): HTMLButtonElement {
+    return within(pane('windows')).getByRole('button', { name }) as HTMLButtonElement
+  }
+
+  async function openDocuments(): Promise<void> {
+    fireEvent.doubleClick(within(pane('windows')).getByText('Documents'))
+    await within(pane('windows')).findByText('report.txt')
+  }
+
+  beforeEach(() => {
+    failing = new Set()
+    const listings: Record<string, FileEntry[]> = {
+      ...windowsListings,
+      [DOCS]: [winEntry({ name: 'report.txt', path: `${DOCS}\\report.txt` })]
+    }
+    api.windows.list.mockImplementation(async (path: string) => {
+      if (failing.has(path)) throw new Error('gone')
+      return listings[path] ?? []
+    })
+  })
+
+  it('keeps the current folder and history when going back fails', async () => {
+    await renderExplorer()
+    await openDocuments()
+    expect(navButton('Back').disabled).toBe(false)
+    expect(navButton('Forward').disabled).toBe(true)
+
+    failing.add(WIN_HOME)
+    const calls = api.windows.list.mock.calls.length
+    fireEvent.click(navButton('Back'))
+    await waitFor(() => expect(api.windows.list.mock.calls.length).toBe(calls + 1))
+    await flush()
+
+    expect(within(pane('windows')).getByText('report.txt')).toBeDefined()
+    expect(navButton('Back').disabled).toBe(false)
+    expect(navButton('Forward').disabled).toBe(true)
+
+    failing.clear()
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+
+    fireEvent.click(navButton('Forward'))
+    await within(pane('windows')).findByText('report.txt')
+    expect(navButton('Back').disabled).toBe(false)
+    expect(navButton('Forward').disabled).toBe(true)
+  })
+
+  it('keeps the current folder and history when going forward fails', async () => {
+    await renderExplorer()
+    await openDocuments()
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+
+    failing.add(DOCS)
+    const calls = api.windows.list.mock.calls.length
+    fireEvent.click(navButton('Forward'))
+    await waitFor(() => expect(api.windows.list.mock.calls.length).toBe(calls + 1))
+    await flush()
+
+    expect(within(pane('windows')).getByText('notes.txt')).toBeDefined()
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+
+    failing.clear()
+    fireEvent.click(navButton('Forward'))
+    await within(pane('windows')).findByText('report.txt')
+    expect(navButton('Back').disabled).toBe(false)
+    expect(navButton('Forward').disabled).toBe(true)
+
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+  })
+
+  it('clears forward history when opening a new folder after going back', async () => {
+    await renderExplorer()
+    await openDocuments()
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Forward').disabled).toBe(false)
+
+    fireEvent.click(within(pane('windows')).getByRole('button', { name: 'Root' }))
+    await within(pane('windows')).findByText('D:')
+    expect(navButton('Forward').disabled).toBe(true)
+    expect(navButton('Back').disabled).toBe(false)
+
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+  })
+})
+
 describe('folder tree strip', () => {
   it('is collapsed by default and reveals the This PC root when toggled', async () => {
     const winTree: Record<string, FileEntry[]> = {
