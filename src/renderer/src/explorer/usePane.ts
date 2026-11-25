@@ -26,7 +26,6 @@ export interface ExplorerErrorInfo {
   }
 }
 
-/** Sort a listing: directories always group before everything else (goal.md §7.3). */
 export function sortEntries(entries: FileEntry[], key: SortKey, dir: SortDir): FileEntry[] {
   const sign = dir === 'asc' ? 1 : -1
   const byName = (a: FileEntry, b: FileEntry): number =>
@@ -77,11 +76,7 @@ export function formatDateTime(iso: string | null, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
 
-/**
- * Recover the structured ExplorerError payload from an IPC rejection.
- * ipcRenderer.invoke flattens rejections into Error messages, so the main
- * process serializes payloads as JSON inside the message.
- */
+// ipcRenderer.invoke flattens rejections into Error messages, so the payload arrives as JSON text.
 export function parseExplorerError(err: unknown): ExplorerErrorInfo {
   const raw = err as {
     code?: unknown
@@ -123,7 +118,6 @@ export function parseExplorerError(err: unknown): ExplorerErrorInfo {
   return { code: 'UNKNOWN', path: null, message, detail: {} }
 }
 
-/** Best-effort Windows paths from a DataTransfer drop (Electron File.path when exposed). */
 export function extractWindowsPaths(files: FileList): string[] {
   const out: string[] = []
   for (const file of Array.from(files)) {
@@ -133,13 +127,8 @@ export function extractWindowsPaths(files: FileList): string[] {
   return out
 }
 
-/**
- * The directory-size panel's state. 'closed' is not the same as an empty
- * result: a measured directory that really is empty still shows its answer.
- */
 export interface DirSizeState {
   status: 'closed' | 'running' | 'ready' | 'error'
-  /** Directory the panel is about; null while it has never been opened. */
   path: string | null
   result: DirSizeResult | null
   error: string | null
@@ -150,9 +139,7 @@ const CLOSED_DIR_SIZES: DirSizeState = { status: 'closed', path: null, result: n
 let dirSizeToken = 0
 
 export interface UsePaneOptions {
-  /** Re-initializes the pane when it changes (distro switch). */
   resetKey: string
-  /** First directory to open; null keeps the pane idle until it is known. */
   startPath: string | null
   showHiddenDefault: boolean
   onPathChange?: (path: string) => void
@@ -175,7 +162,6 @@ export interface PaneApi {
   searchQuery: string
   searchResults: FileEntry[] | null
   refreshToken: number
-  /** Directory sizes are computed on demand only — never as part of a listing. */
   dirSizes: DirSizeState
   canMeasure: boolean
   measureDirSizes: () => Promise<void>
@@ -202,7 +188,6 @@ export interface PaneApi {
   deletePaths: (paths: string[]) => Promise<void>
 }
 
-/** All state of a single Explorer pane, driven by its filesystem adapter (goal.md §7). */
 export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   const { pushToast } = useApp()
   const { t } = useTranslation()
@@ -223,13 +208,9 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   const [refreshToken, setRefreshToken] = useState(0)
   const [dirSizes, setDirSizes] = useState<DirSizeState>(CLOSED_DIR_SIZES)
 
-  // Measured sizes survive re-opening the panel until the directory is
-  // refreshed: a second look at the same folder must not pay for du twice.
   const dirSizeCache = useRef(new Map<string, DirSizeResult>())
   const activeDirSizeToken = useRef<string | null>(null)
 
-  // The query whose results are on screen (null when not searching), and a
-  // counter that lets only the newest search request write its answer.
   const activeSearchRef = useRef<string | null>(null)
   const searchSeq = useRef(0)
 
@@ -253,7 +234,12 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   const navigate = useCallback(
     async (
       target: string,
-      navOpts?: { replace?: boolean; selectPath?: string; quiet?: boolean }
+      navOpts?: {
+        replace?: boolean
+        selectPath?: string
+        quiet?: boolean
+        history?: 'back' | 'forward'
+      }
     ): Promise<void> => {
       const fs = adapterRef.current
       const normalized = fs.normalize(target)
@@ -270,7 +256,13 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
         const list = await fs.list(normalized, { showHidden: showHiddenRef.current })
         if (seq !== navSeqRef.current) return
         const prev = pathRef.current
-        if (!navOpts?.replace && prev !== null && prev !== normalized) {
+        if (navOpts?.history === 'back') {
+          setBackStack((s) => s.slice(0, -1))
+          if (prev !== null) setForwardStack((s) => [...s, prev])
+        } else if (navOpts?.history === 'forward') {
+          setForwardStack((s) => s.slice(0, -1))
+          if (prev !== null) setBackStack((s) => [...s, prev])
+        } else if (!navOpts?.replace && prev !== null && prev !== normalized) {
           setBackStack((s) => [...s, prev])
           setForwardStack([])
         }
@@ -292,8 +284,6 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
           if (match) nextSelection = new Set([match.path])
         }
         setSelection(nextSelection)
-        // The panel is about one directory; a new one starts closed rather
-        // than showing the previous folder's numbers under a new heading.
         activeDirSizeToken.current = null
         setDirSizes(CLOSED_DIR_SIZES)
         optsRef.current.onPathChange?.(normalized)
@@ -315,7 +305,6 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     setDirSizes(CLOSED_DIR_SIZES)
   }, [])
 
-  /** Cancelling stops waiting immediately; the main process drops the result. */
   const cancelDirSizes = useCallback((): void => {
     const token = activeDirSizeToken.current
     if (token !== null) void adapterRef.current.cancelDirSizes?.(token).catch(() => undefined)
@@ -337,7 +326,6 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     setDirSizes({ status: 'running', path: current, result: null, error: null })
     try {
       const result = await fs.dirSizes(current, token)
-      // A newer request, a cancel or a navigation already replaced this run.
       if (activeDirSizeToken.current !== token) return
       activeDirSizeToken.current = null
       if (result.cancelled) {
@@ -361,8 +349,6 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
   const refreshDir = useCallback(async (): Promise<void> => {
     const current = pathRef.current
     if (!current) return
-    // The listing is about to change, so the measured sizes stop being an
-    // answer about it — drop them rather than leave stale numbers on screen.
     dirSizeCache.current.delete(current)
     closeDirSizes()
     setRefreshToken((n) => n + 1)
@@ -375,8 +361,6 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
       } catch (err) {
         setError(parseExplorerError(err).message)
       }
-      // While searching the pane shows the results, not the listing, so they
-      // must be read again too or deleted/renamed entries stay on screen.
       const query = activeSearchRef.current
       if (query === null) return
       const seq = ++searchSeq.current
@@ -385,8 +369,6 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
         if (seq === searchSeq.current) setSearchResults(results)
       } catch (err) {
         if (seq !== searchSeq.current) return
-        // Old results would now claim files that may be gone; fall back to
-        // the real listing instead.
         activeSearchRef.current = null
         setSearchQuery('')
         setSearchResults(null)
@@ -399,20 +381,12 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
 
   const goBack = useCallback(async (): Promise<void> => {
     if (backStack.length === 0) return
-    const target = backStack[backStack.length - 1]
-    const current = pathRef.current
-    setBackStack((s) => s.slice(0, -1))
-    if (current) setForwardStack((s) => [...s, current])
-    await navigate(target, { replace: true })
+    await navigate(backStack[backStack.length - 1], { replace: true, history: 'back' })
   }, [backStack, navigate])
 
   const goForward = useCallback(async (): Promise<void> => {
     if (forwardStack.length === 0) return
-    const target = forwardStack[forwardStack.length - 1]
-    const current = pathRef.current
-    setForwardStack((s) => s.slice(0, -1))
-    if (current) setBackStack((s) => [...s, current])
-    await navigate(target, { replace: true })
+    await navigate(forwardStack[forwardStack.length - 1], { replace: true, history: 'forward' })
   }, [forwardStack, navigate])
 
   const goUp = useCallback(async (): Promise<void> => {
@@ -598,8 +572,6 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     [pushToast, refreshDir, t, toastError]
   )
 
-  // Initial location (goal.md §7.2). A null startPath means the caller cannot
-  // resolve it yet — the pane waits instead of guessing the filesystem root.
   const { resetKey, startPath, showHiddenDefault } = opts
   useEffect(() => {
     if (startPath === null) return
@@ -616,7 +588,6 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     setForwardStack([])
     setClipboard(null)
     setSelection(new Set())
-    // Sizes measured in another distro say nothing about this one.
     dirSizeCache.current.clear()
     activeDirSizeToken.current = null
     setDirSizes(CLOSED_DIR_SIZES)
@@ -638,7 +609,6 @@ export function usePane(adapter: FsAdapter, opts: UsePaneOptions): PaneApi {
     })
   }, [resetKey, startPath, showHiddenDefault, navigate, pushToast, t])
 
-  // Refresh the listing when a file operation completes (paste/import/export).
   useEffect(() => {
     return window.wslpad.onOpProgress((p) => {
       if (

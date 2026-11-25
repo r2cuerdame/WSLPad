@@ -735,6 +735,188 @@ describe('windows pane navigation', () => {
   })
 })
 
+describe('back and forward history', () => {
+  const DOCS = `${WIN_HOME}\\Documents`
+  const SUB = `${DOCS}\\Sub`
+  let failing: Set<string>
+
+  function navButton(name: 'Back' | 'Forward'): HTMLButtonElement {
+    return within(pane('windows')).getByRole('button', { name }) as HTMLButtonElement
+  }
+
+  async function openDocuments(): Promise<void> {
+    fireEvent.doubleClick(within(pane('windows')).getByText('Documents'))
+    await within(pane('windows')).findByText('report.txt')
+  }
+
+  beforeEach(() => {
+    failing = new Set()
+    const listings: Record<string, FileEntry[]> = {
+      ...windowsListings,
+      [DOCS]: [
+        winEntry({ name: 'Sub', path: SUB, type: 'directory', sizeBytes: null }),
+        winEntry({ name: 'report.txt', path: `${DOCS}\\report.txt` })
+      ],
+      [SUB]: [winEntry({ name: 'leaf.txt', path: `${SUB}\\leaf.txt` })]
+    }
+    api.windows.list.mockImplementation(async (path: string) => {
+      if (failing.has(path)) throw new Error('gone')
+      return listings[path] ?? []
+    })
+  })
+
+  it('keeps the current folder and history when going back fails', async () => {
+    await renderExplorer()
+    await openDocuments()
+    expect(navButton('Back').disabled).toBe(false)
+    expect(navButton('Forward').disabled).toBe(true)
+
+    failing.add(WIN_HOME)
+    const calls = api.windows.list.mock.calls.length
+    fireEvent.click(navButton('Back'))
+    await waitFor(() => expect(api.windows.list.mock.calls.length).toBe(calls + 1))
+    await flush()
+
+    expect(within(pane('windows')).getByText('report.txt')).toBeDefined()
+    expect(navButton('Back').disabled).toBe(false)
+    expect(navButton('Forward').disabled).toBe(true)
+
+    failing.clear()
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+
+    fireEvent.click(navButton('Forward'))
+    await within(pane('windows')).findByText('report.txt')
+    expect(navButton('Back').disabled).toBe(false)
+    expect(navButton('Forward').disabled).toBe(true)
+  })
+
+  it('keeps the current folder and history when going forward fails', async () => {
+    await renderExplorer()
+    await openDocuments()
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+
+    failing.add(DOCS)
+    const calls = api.windows.list.mock.calls.length
+    fireEvent.click(navButton('Forward'))
+    await waitFor(() => expect(api.windows.list.mock.calls.length).toBe(calls + 1))
+    await flush()
+
+    expect(within(pane('windows')).getByText('notes.txt')).toBeDefined()
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+
+    failing.clear()
+    fireEvent.click(navButton('Forward'))
+    await within(pane('windows')).findByText('report.txt')
+    expect(navButton('Back').disabled).toBe(false)
+    expect(navButton('Forward').disabled).toBe(true)
+
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+  })
+
+  it('preserves both stacks intact when back or forward fails mid-history', async () => {
+    await renderExplorer()
+    await openDocuments()
+    fireEvent.doubleClick(within(pane('windows')).getByText('Sub'))
+    await within(pane('windows')).findByText('leaf.txt')
+
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('report.txt')
+    expect(navButton('Back').disabled).toBe(false)
+    expect(navButton('Forward').disabled).toBe(false)
+
+    failing.add(WIN_HOME)
+    let calls = api.windows.list.mock.calls.length
+    fireEvent.click(navButton('Back'))
+    await waitFor(() => expect(api.windows.list.mock.calls.length).toBe(calls + 1))
+    await flush()
+    expect(within(pane('windows')).getByText('report.txt')).toBeDefined()
+
+    failing.delete(WIN_HOME)
+    failing.add(SUB)
+    calls = api.windows.list.mock.calls.length
+    fireEvent.click(navButton('Forward'))
+    await waitFor(() => expect(api.windows.list.mock.calls.length).toBe(calls + 1))
+    await flush()
+    expect(within(pane('windows')).getByText('report.txt')).toBeDefined()
+
+    failing.clear()
+    fireEvent.click(navButton('Forward'))
+    await within(pane('windows')).findByText('leaf.txt')
+    expect(navButton('Forward').disabled).toBe(true)
+
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('report.txt')
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+  })
+
+  it('ignores a superseded back request without changing history stacks', async () => {
+    await renderExplorer()
+    await openDocuments()
+
+    let resolveSlowBack: ((entries: FileEntry[]) => void) | null = null
+    const baseImpl = api.windows.list.getMockImplementation()!
+    api.windows.list.mockImplementation(async (path: string) => {
+      if (path === WIN_HOME && !resolveSlowBack) {
+        return await new Promise<FileEntry[]>((resolve) => {
+          resolveSlowBack = resolve
+        })
+      }
+      return await baseImpl(path)
+    })
+
+    fireEvent.click(navButton('Back'))
+    await waitFor(() => expect(resolveSlowBack).not.toBeNull())
+
+    fireEvent.doubleClick(within(pane('windows')).getByText('Sub'))
+    await within(pane('windows')).findByText('leaf.txt')
+
+    await act(async () => {
+      resolveSlowBack?.(windowsListings[WIN_HOME])
+      await Promise.resolve()
+    })
+
+    expect(within(pane('windows')).getByText('leaf.txt')).toBeDefined()
+    expect(navButton('Forward').disabled).toBe(true)
+    expect(navButton('Back').disabled).toBe(false)
+
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('report.txt')
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+  })
+
+  it('clears forward history when opening a new folder after going back', async () => {
+    await renderExplorer()
+    await openDocuments()
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Forward').disabled).toBe(false)
+
+    fireEvent.click(within(pane('windows')).getByRole('button', { name: 'Root' }))
+    await within(pane('windows')).findByText('D:')
+    expect(navButton('Forward').disabled).toBe(true)
+    expect(navButton('Back').disabled).toBe(false)
+
+    fireEvent.click(navButton('Back'))
+    await within(pane('windows')).findByText('notes.txt')
+    expect(navButton('Back').disabled).toBe(true)
+    expect(navButton('Forward').disabled).toBe(false)
+  })
+})
+
 describe('folder tree strip', () => {
   it('is collapsed by default and reveals the This PC root when toggled', async () => {
     const winTree: Record<string, FileEntry[]> = {
